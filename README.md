@@ -1,6 +1,6 @@
 # XIANYU
 
-XIANYU is the long-lived repository for a future Xianyu operations automation system. This change, `CHG-0001-project-baseline`, only establishes repository governance, specifications, validation scripts, tests, and CI. It does not provide real Xianyu publishing, message receiving, message sending, automated reply, WeCom, AI Provider, FastAPI, database business logic, WebSocket, Playwright, or scheduled publishing capability.
+XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository state contains governance, specifications, validation scripts, tests, and CI only. It does not provide real Xianyu publishing, message receiving, message sending, automated reply, WeCom, AI Provider, FastAPI, database business logic, WebSocket, Playwright, or scheduled publishing capability.
 
 ## Project goal
 
@@ -34,14 +34,15 @@ The first phase does not introduce Redis, Celery, MySQL, PostgreSQL, React, n8n,
 
 Read these paths as the fact source, in order:
 
-1. `changes/active/CHG-0001-project-baseline/`
+1. `AGENTS.md`
 2. `specs/PROJECT_SCOPE.md`
 3. `specs/SYSTEM_ARCHITECTURE.md`
 4. `specs/CAPABILITY_REGISTRY.yaml`
-5. `specs/capabilities/`
+5. `changes/active/`中动态发现的唯一活动变更目录 (the uniquely dynamically discovered active change directory)
 6. `docs/adr/`
 7. `contracts/`
 8. `generated/PROJECT_STATE.json`
+9. `tests/`
 
 Do not manually edit `generated/PROJECT_STATE.json`; generate it with `python scripts/generate_state.py`.
 

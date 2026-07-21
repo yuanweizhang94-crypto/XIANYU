@@ -84,3 +84,27 @@ def test_chg_0001_status_is_verifying() -> None:
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         path = ROOT / "changes" / "active" / "CHG-0001-project-baseline" / name
         assert "Status: VERIFYING" in path.read_text(encoding="utf-8")
+
+
+def test_archived_change_is_legal_in_archive(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    active = root / "changes" / "active" / "CHG-0001-project-baseline"
+    archive = root / "changes" / "archive" / "CHG-0001-project-baseline"
+    archive.parent.mkdir(parents=True)
+    shutil.copytree(active, archive)
+    replace_status(archive, "ARCHIVED")
+    shutil.rmtree(active)
+
+    assert validate_change(root) == []
+
+
+def test_non_archived_change_in_archive_fails(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    active = root / "changes" / "active" / "CHG-0001-project-baseline"
+    archive = root / "changes" / "archive" / "CHG-0001-project-baseline"
+    archive.parent.mkdir(parents=True)
+    shutil.copytree(active, archive)
+    shutil.rmtree(active)
+
+    errors = validate_change(root)
+    assert any("archived change must have ARCHIVED status" in error for error in errors)

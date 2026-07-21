@@ -54,19 +54,32 @@ def check_change(root: Path) -> None:
         raise VerificationError("; ".join(errors))
 
 
+def _owner_root_exists(root: Path, owner_module: object) -> bool:
+    if not isinstance(owner_module, str) or not owner_module.strip():
+        return False
+    owner_root = owner_module.split(".", 1)[0]
+    return (root / owner_root).exists()
+
+
 def check_capability_registry(root: Path) -> None:
     registry = read_yaml(root / "specs" / "CAPABILITY_REGISTRY.yaml")
     schema = json.loads((root / "contracts" / "schemas" / "capability-registry.schema.json").read_text(encoding="utf-8"))
     jsonschema.validate(registry, schema)
     capabilities = load_capabilities(root)
-    if len(capabilities) != 10:
-        raise VerificationError(f"expected 10 capabilities, found {len(capabilities)}")
+    if not capabilities:
+        raise VerificationError("capability registry must contain at least one capability")
+
+    ids = [str(capability.get("id", "")) for capability in capabilities]
+    duplicate_ids = sorted({cap_id for cap_id in ids if ids.count(cap_id) > 1})
+    if duplicate_ids:
+        raise VerificationError(f"duplicate capability id: {', '.join(duplicate_ids)}")
 
     for capability in capabilities:
         cap_id = str(capability.get("id"))
         status = capability.get("status")
         active_change = capability.get("active_change")
         last_verified_commit = capability.get("last_verified_commit")
+        owner_module = capability.get("owner_module")
         if status not in ALLOWED_CAPABILITY_STATUSES:
             raise VerificationError(f"invalid capability status for {cap_id}: {status}")
         if status == "planned" and active_change is not None:
@@ -77,6 +90,8 @@ def check_capability_registry(root: Path) -> None:
             raise VerificationError(f"verified capability must record last_verified_commit: {cap_id}")
         if status == "verified" and active_change is not None:
             raise VerificationError(f"verified capability must clear active_change: {cap_id}")
+        if not _owner_root_exists(root, owner_module):
+            raise VerificationError(f"owner module root does not exist for {cap_id}: {owner_module}")
 
         spec_path = root / str(capability["specification"])
         if not spec_path.exists():
@@ -95,8 +110,10 @@ def check_openapi(root: Path) -> None:
         raise VerificationError("openapi root must be an object")
     if openapi.get("openapi") != "3.1.0":
         raise VerificationError("openapi version must be 3.1.0")
-    if openapi.get("paths") != {}:
-        raise VerificationError("paths must be empty in CHG-0001")
+    if not isinstance(openapi.get("info"), dict):
+        raise VerificationError("openapi info must be an object")
+    if not isinstance(openapi.get("paths"), dict):
+        raise VerificationError("openapi paths must be an object")
 
 
 def check_duplicates(root: Path) -> None:
@@ -147,7 +164,7 @@ def main() -> int:
         ("change validation", check_change),
         ("capability registry", check_capability_registry),
         ("json schemas", check_json_schemas),
-        ("openapi baseline", check_openapi),
+        ("openapi contract", check_openapi),
         ("duplicate capabilities", check_duplicates),
         ("security scan", check_security),
         ("unit and acceptance tests", run_pytest),

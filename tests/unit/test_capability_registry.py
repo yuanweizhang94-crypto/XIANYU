@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from copy import deepcopy
 from pathlib import Path
 
@@ -52,15 +53,11 @@ def test_unapproved_capability_status_name_fails_schema() -> None:
 
 def test_planned_capability_bound_to_active_change_fails(tmp_path: Path) -> None:
     root = tmp_path / "repo"
-    (root / "specs").mkdir(parents=True)
-    (root / "contracts" / "schemas").mkdir(parents=True)
-    (root / "specs" / "capabilities").mkdir(parents=True)
-    registry_text = (ROOT / "specs" / "CAPABILITY_REGISTRY.yaml").read_text(encoding="utf-8")
-    (root / "specs" / "CAPABILITY_REGISTRY.yaml").write_text(registry_text, encoding="utf-8")
-    schema_text = (ROOT / "contracts" / "schemas" / "capability-registry.schema.json").read_text(encoding="utf-8")
-    (root / "contracts" / "schemas" / "capability-registry.schema.json").write_text(schema_text, encoding="utf-8")
-    for spec in (ROOT / "specs" / "capabilities").glob("*.md"):
-        (root / "specs" / "capabilities" / spec.name).write_text(spec.read_text(encoding="utf-8"), encoding="utf-8")
+    shutil.copytree(ROOT / "specs", root / "specs", ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(ROOT / "contracts" / "schemas", root / "contracts" / "schemas")
+    (root / "app").mkdir(parents=True)
+    (root / "worker").mkdir(parents=True)
+    (root / "adapters").mkdir(parents=True)
 
     registry = read_yaml(root / "specs" / "CAPABILITY_REGISTRY.yaml")
     registry["capabilities"][0]["active_change"] = "CHG-0002-test-change"
@@ -72,3 +69,37 @@ def test_planned_capability_bound_to_active_change_fails(tmp_path: Path) -> None
 
     with pytest.raises(VerificationError, match="planned capability must not bind active_change"):
         check_capability_registry(root)
+
+
+def test_generic_capability_registry_allows_more_than_ten_capabilities(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    shutil.copytree(ROOT / "specs", root / "specs", ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(ROOT / "contracts" / "schemas", root / "contracts" / "schemas")
+    (root / "app").mkdir(parents=True)
+    (root / "worker").mkdir(parents=True)
+    (root / "adapters").mkdir(parents=True)
+
+    registry = read_yaml(root / "specs" / "CAPABILITY_REGISTRY.yaml")
+    registry["capabilities"].append(
+        {
+            "id": "CAP-EXTRA-GOVERNANCE",
+            "name": "Extra governance capability",
+            "status": "planned",
+            "owner_module": "app.extra_governance",
+            "specification": "specs/capabilities/CAP-EXTRA-GOVERNANCE.md",
+            "implementation_paths": [],
+            "test_paths": [],
+            "active_change": None,
+            "last_verified_commit": None,
+        }
+    )
+    import yaml
+
+    (root / "specs" / "CAPABILITY_REGISTRY.yaml").write_text(
+        yaml.safe_dump(registry, allow_unicode=True, sort_keys=False), encoding="utf-8"
+    )
+    (root / "specs" / "capabilities" / "CAP-EXTRA-GOVERNANCE.md").write_text(
+        "# CAP-EXTRA-GOVERNANCE\n", encoding="utf-8"
+    )
+
+    check_capability_registry(root)

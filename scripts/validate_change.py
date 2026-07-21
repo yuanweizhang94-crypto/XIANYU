@@ -37,8 +37,27 @@ def _change_id_mentions_are_consistent(change_dir: Path) -> list[str]:
     return errors
 
 
+def _validate_archived_changes(root: Path) -> list[str]:
+    errors: list[str] = []
+    archive_root = root / "changes" / "archive"
+    if not archive_root.exists():
+        return errors
+    for change_dir in sorted(path for path in archive_root.iterdir() if path.is_dir()):
+        missing = [name for name in REQUIRED_CHANGE_FILES if not (change_dir / name).exists()]
+        if missing:
+            errors.append(f"missing archived change files for {change_dir.name}: {', '.join(missing)}")
+            continue
+        statuses = extract_change_statuses(change_dir)
+        unique_statuses = {status for status in statuses.values() if status}
+        if unique_statuses != {"ARCHIVED"}:
+            errors.append(f"archived change must have ARCHIVED status: {change_dir.name}")
+        errors.extend(_change_id_mentions_are_consistent(change_dir))
+    return errors
+
+
 def validate_change(root: Path) -> list[str]:
     errors: list[str] = []
+    errors.extend(_validate_archived_changes(root))
     active_changes = find_active_changes(root)
 
     if len(active_changes) > 1:
