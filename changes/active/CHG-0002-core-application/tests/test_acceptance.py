@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 import subprocess
 import tomllib
 from pathlib import Path
@@ -122,13 +123,14 @@ def test_project_state_matches_current_repository() -> None:
 
 
 def test_branch_name_matches_active_change_id() -> None:
-    branch = subprocess.run(
+    current_branch = subprocess.run(
         ["git", "branch", "--show-current"],
         cwd=ROOT,
         check=True,
         text=True,
         capture_output=True,
     ).stdout.strip()
+    branch = current_branch or os.environ.get("GITHUB_HEAD_REF", "")
     match = re.search(r"CHG-\d{4}-[A-Za-z0-9_.-]+", branch)
     assert match is not None
     assert match.group(0) == CHG_0002
