@@ -1,0 +1,91 @@
+capabilities:
+  - id: CAP-CORE-CONFIG
+    name: Core configuration
+    status: planned
+    owner_module: app.core.config
+    specification: specs/capabilities/CAP-CORE-CONFIG.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null
+  - id: CAP-CORE-DATABASE
+    name: Core database
+    status: planned
+    owner_module: app.core.database
+    specification: specs/capabilities/CAP-CORE-DATABASE.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null
+  - id: CAP-XY-ACCOUNT
+    name: Xianyu account boundary
+    status: planned
+    owner_module: worker.account
+    specification: specs/capabilities/CAP-XY-ACCOUNT.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null
+  - id: CAP-XY-MESSAGE
+    name: Xianyu message receive
+    status: planned
+    owner_module: worker.message
+    specification: specs/capabilities/CAP-XY-MESSAGE.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null
+  - id: CAP-XY-REPLY
+    name: Xianyu reply rules
+    status: planned
+    owner_module: app.reply
+    specification: specs/capabilities/CAP-XY-REPLY.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null
+  - id: CAP-XY-PUBLISH
+    name: Xianyu publish
+    status: planned
+    owner_module: worker.publish
+    specification: specs/capabilities/CAP-XY-PUBLISH.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null
+  - id: CAP-XY-SCHEDULE
+    name: Xianyu schedule
+    status: planned
+    owner_module: app.schedule
+    specification: specs/capabilities/CAP-XY-SCHEDULE.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null
+  - id: CAP-WECOM-CS
+    name: WeCom customer service
+    status: planned
+    owner_module: adapters.wecom
+    specification: specs/capabilities/CAP-WECOM-CS.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null
+  - id: CAP-AI-REPLY
+    name: AI reply fallback
+    status: planned
+    owner_module: adapters.ai
+    specification: specs/capabilities/CAP-AI-REPLY.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null
+  - id: CAP-HEALTH-MONITOR
+    name: Health monitor
+    status: planned
+    owner_module: app.health
+    specification: specs/capabilities/CAP-HEALTH-MONITOR.md
+    implementation_paths: []
+    test_paths: []
+    active_change: CHG-0001-project-baseline
+    last_verified_commit: null

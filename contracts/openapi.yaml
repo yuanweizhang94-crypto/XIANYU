@@ -1,0 +1,7 @@
+openapi: 3.1.0
+info:
+  title: XIANYU API Contracts
+  version: 0.1.0
+  description: >
+    Baseline OpenAPI document. Business APIs will be added by later approved changes.
+paths: {}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/xianyu/capability-registry.schema.json",
+  "title": "XIANYU Capability Registry",
+  "type": "object",
+  "required": ["capabilities"],
+  "properties": {
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "owner_module",
+          "specification",
+          "implementation_paths",
+          "test_paths",
+          "active_change",
+          "last_verified_commit"
+        ],
+        "properties": {
+          "id": { "type": "string", "pattern": "^CAP-[A-Z0-9-]+$" },
+          "name": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["planned", "active", "deprecated"] },
+          "owner_module": { "type": "string", "minLength": 1 },
+          "specification": { "type": "string", "minLength": 1 },
+          "implementation_paths": { "type": "array", "items": { "type": "string" } },
+          "test_paths": { "type": "array", "items": { "type": "string" } },
+          "active_change": { "type": "string" },
+          "last_verified_commit": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

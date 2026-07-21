@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/xianyu/project-state.schema.json",
+  "title": "XIANYU Project State",
+  "type": "object",
+  "required": [
+    "project",
+    "version",
+    "git",
+    "active_change",
+    "tasks",
+    "capabilities",
+    "recent_tests"
+  ],
+  "properties": {
+    "project": { "const": "XIANYU" },
+    "version": { "type": "string", "minLength": 1 },
+    "generated_at_utc": { "type": "string" },
+    "git": {
+      "type": "object",
+      "required": ["branch", "head", "status_short", "worktree_clean"],
+      "properties": {
+        "branch": { "type": "string" },
+        "head": { "type": "string" },
+        "status_short": { "type": "array", "items": { "type": "string" } },
+        "worktree_clean": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "active_change": {
+      "type": "object",
+      "required": ["id", "status", "path"],
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "enum": ["APPROVED", "IN_PROGRESS", "COMPLETE"] },
+        "path": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "tasks": {
+      "type": "object",
+      "required": ["total", "completed", "next_uncompleted", "items"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "completed": { "type": "integer", "minimum": 0 },
+        "next_uncompleted": { "type": ["string", "null"] },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text", "completed"],
+            "properties": {
+              "text": { "type": "string" },
+              "completed": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["total", "by_status", "items"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "by_status": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "items": { "type": "array" }
+      },
+      "additionalProperties": false
+    },
+    "recent_tests": {
+      "type": "object",
+      "required": ["summary", "source"],
+      "properties": {
+        "summary": { "type": "string" },
+        "source": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
