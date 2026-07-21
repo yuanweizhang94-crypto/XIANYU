@@ -1,0 +1,182 @@
+{
+  "project": "XIANYU",
+  "version": "0.1.0",
+  "active_change": {
+    "id": "CHG-0001-project-baseline",
+    "status": "VERIFYING",
+    "path": "changes/active/CHG-0001-project-baseline"
+  },
+  "tasks": {
+    "total": 12,
+    "completed": 12,
+    "next_task": null,
+    "items": [
+      {
+        "text": "T1 Establish root governance files",
+        "completed": true
+      },
+      {
+        "text": "T2 Establish project scope and architecture specifications",
+        "completed": true
+      },
+      {
+        "text": "T3 Establish capability registry and capability specifications",
+        "completed": true
+      },
+      {
+        "text": "T4 Establish ADRs",
+        "completed": true
+      },
+      {
+        "text": "T5 Establish OpenAPI and JSON Schema empty contracts",
+        "completed": true
+      },
+      {
+        "text": "T6 Establish project state generation script",
+        "completed": true
+      },
+      {
+        "text": "T7 Establish change and duplicate capability validation scripts",
+        "completed": true
+      },
+      {
+        "text": "T8 Establish unified repository verification script",
+        "completed": true
+      },
+      {
+        "text": "T9 Establish tests",
+        "completed": true
+      },
+      {
+        "text": "T10 Establish GitHub templates and CI",
+        "completed": true
+      },
+      {
+        "text": "T11 Run complete verification",
+        "completed": true
+      },
+      {
+        "text": "T12 Create commit and push branch",
+        "completed": true
+      }
+    ]
+  },
+  "capabilities": {
+    "total": 10,
+    "by_status": {
+      "planned": 10
+    },
+    "items": [
+      {
+        "id": "CAP-CORE-CONFIG",
+        "name": "Core configuration",
+        "status": "planned",
+        "owner_module": "app.core.config",
+        "specification": "specs/capabilities/CAP-CORE-CONFIG.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      },
+      {
+        "id": "CAP-CORE-DATABASE",
+        "name": "Core database",
+        "status": "planned",
+        "owner_module": "app.core.database",
+        "specification": "specs/capabilities/CAP-CORE-DATABASE.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      },
+      {
+        "id": "CAP-XY-ACCOUNT",
+        "name": "Xianyu account boundary",
+        "status": "planned",
+        "owner_module": "worker.account",
+        "specification": "specs/capabilities/CAP-XY-ACCOUNT.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      },
+      {
+        "id": "CAP-XY-MESSAGE",
+        "name": "Xianyu message receive",
+        "status": "planned",
+        "owner_module": "worker.message",
+        "specification": "specs/capabilities/CAP-XY-MESSAGE.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      },
+      {
+        "id": "CAP-XY-REPLY",
+        "name": "Xianyu reply rules",
+        "status": "planned",
+        "owner_module": "app.reply",
+        "specification": "specs/capabilities/CAP-XY-REPLY.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      },
+      {
+        "id": "CAP-XY-PUBLISH",
+        "name": "Xianyu publish",
+        "status": "planned",
+        "owner_module": "worker.publish",
+        "specification": "specs/capabilities/CAP-XY-PUBLISH.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      },
+      {
+        "id": "CAP-XY-SCHEDULE",
+        "name": "Xianyu schedule",
+        "status": "planned",
+        "owner_module": "app.schedule",
+        "specification": "specs/capabilities/CAP-XY-SCHEDULE.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      },
+      {
+        "id": "CAP-WECOM-CS",
+        "name": "WeCom customer service",
+        "status": "planned",
+        "owner_module": "adapters.wecom",
+        "specification": "specs/capabilities/CAP-WECOM-CS.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      },
+      {
+        "id": "CAP-AI-REPLY",
+        "name": "AI reply fallback",
+        "status": "planned",
+        "owner_module": "adapters.ai",
+        "specification": "specs/capabilities/CAP-AI-REPLY.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      },
+      {
+        "id": "CAP-HEALTH-MONITOR",
+        "name": "Health monitor",
+        "status": "planned",
+        "owner_module": "app.health",
+        "specification": "specs/capabilities/CAP-HEALTH-MONITOR.md",
+        "implementation_paths": [],
+        "test_paths": [],
+        "active_change": null,
+        "last_verified_commit": null
+      }
+    ]
+  }
+}

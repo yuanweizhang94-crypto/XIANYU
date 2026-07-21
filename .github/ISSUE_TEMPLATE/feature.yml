@@ -1,0 +1,19 @@
+name: Feature request
+description: Propose a scoped XIANYU capability change
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: Describe the proposed goal.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: List included and excluded work.
+    validations:
+      required: true

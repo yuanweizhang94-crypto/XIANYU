@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/xianyu/project-state.schema.json",
+  "title": "XIANYU Project State",
+  "type": "object",
+  "required": [
+    "project",
+    "version",
+    "active_change",
+    "tasks",
+    "capabilities"
+  ],
+  "properties": {
+    "project": { "const": "XIANYU" },
+    "version": { "type": "string", "minLength": 1 },
+    "active_change": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["id", "status", "path"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^CHG-\\d{4}-[A-Za-z0-9_.-]+$" },
+            "status": { "enum": ["DRAFT", "APPROVED", "IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED"] },
+            "path": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "tasks": {
+      "type": "object",
+      "required": ["total", "completed", "next_task", "items"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "completed": { "type": "integer", "minimum": 0 },
+        "next_task": { "type": ["string", "null"] },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text", "completed"],
+            "properties": {
+              "text": { "type": "string" },
+              "completed": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["total", "by_status", "items"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "by_status": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "items": { "type": "array" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
