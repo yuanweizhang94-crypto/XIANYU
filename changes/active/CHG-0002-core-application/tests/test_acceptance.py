@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import re
 import os
+import re
 import subprocess
 import tomllib
 from pathlib import Path
@@ -14,6 +14,9 @@ CHG_0001 = "CHG-0001-project-baseline"
 CHG_0002 = "CHG-0002-core-application"
 CORE_CAPABILITIES = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
 RUNTIME_DEPENDENCIES = {"fastapi", "sqlalchemy", "alembic", "apscheduler", "jinja2"}
+CORE_DOCUMENTS = ["proposal.md", "design.md", "acceptance.md"]
+REPEATED_QUESTION_MARKS = "?" * 3
+REPLACEMENT_CHARACTER = chr(0xFFFD)
 PLANNED_CORE_MODULES = [
     "app/xianyu_system/main.py",
     "app/xianyu_system/application.py",
@@ -31,6 +34,10 @@ PLANNED_CORE_MODULES = [
 ]
 
 
+def active_change_dir() -> Path:
+    return ROOT / "changes" / "active" / CHG_0002
+
+
 def status_for(path: Path) -> str:
     for line in path.read_text(encoding="utf-8").splitlines():
         if line.startswith("Status:"):
@@ -41,6 +48,10 @@ def status_for(path: Path) -> str:
 def registry_by_id() -> dict[str, dict[str, object]]:
     registry = read_yaml(ROOT / "specs" / "CAPABILITY_REGISTRY.yaml")
     return {str(item["id"]): item for item in registry["capabilities"]}
+
+
+def chg_0002_tasks():
+    return parse_tasks(active_change_dir() / "tasks.md")
 
 
 def test_chg_0001_exists_only_in_archive_with_history_preserved() -> None:
@@ -55,13 +66,31 @@ def test_chg_0001_exists_only_in_archive_with_history_preserved() -> None:
 def test_only_chg_0002_is_active_and_approved() -> None:
     active_dirs = sorted(path.name for path in (ROOT / "changes" / "active").iterdir() if path.is_dir())
     assert active_dirs == [CHG_0002]
-    active = ROOT / "changes" / "active" / CHG_0002
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
-        assert status_for(active / name) == "APPROVED"
+        assert status_for(active_change_dir() / name) == "APPROVED"
+
+
+def test_chg_0002_core_documents_are_readable_and_complete() -> None:
+    expected_headings = {
+        "proposal.md": ["## Problem", "## Goal"],
+        "design.md": ["## Responsibility rules"],
+        "acceptance.md": ["## Final acceptance criteria"],
+    }
+    for name in CORE_DOCUMENTS:
+        text = (active_change_dir() / name).read_text(encoding="utf-8")
+        assert REPEATED_QUESTION_MARKS not in text
+        assert REPLACEMENT_CHARACTER not in text
+        assert status_for(active_change_dir() / name) == "APPROVED"
+        for heading in expected_headings[name]:
+            assert heading in text
+
+    acceptance = (active_change_dir() / "acceptance.md").read_text(encoding="utf-8")
+    criteria = re.findall(r"^\d+\. ", acceptance, flags=re.MULTILINE)
+    assert len(criteria) == 25
 
 
 def test_chg_0002_preparation_tasks_are_scoped_to_t1_and_t2() -> None:
-    tasks = parse_tasks(ROOT / "changes" / "active" / CHG_0002 / "tasks.md")
+    tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
         "T2 Approve CHG-0002 architecture and dependency boundary",
@@ -80,7 +109,9 @@ def test_chg_0002_preparation_tasks_are_scoped_to_t1_and_t2() -> None:
         "T15 Push branch and open Draft PR",
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
+    incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
     assert completed == {"T1", "T2"}
+    assert "T3" in incomplete
 
 
 def test_core_capabilities_are_implementing_and_bound_to_chg_0002() -> None:
@@ -104,7 +135,10 @@ def test_other_capabilities_remain_planned_and_unbound() -> None:
 
 def test_preparation_does_not_add_core_runtime_dependencies_or_code() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    dependencies = {str(item).split("[", 1)[0].split(">", 1)[0].split("=", 1)[0].lower() for item in pyproject.get("project", {}).get("dependencies", [])}
+    dependencies = {
+        str(item).split("[", 1)[0].split(">", 1)[0].split("=", 1)[0].lower()
+        for item in pyproject.get("project", {}).get("dependencies", [])
+    }
     assert dependencies.isdisjoint(RUNTIME_DEPENDENCIES)
     for relative in PLANNED_CORE_MODULES:
         assert not (ROOT / relative).exists()
