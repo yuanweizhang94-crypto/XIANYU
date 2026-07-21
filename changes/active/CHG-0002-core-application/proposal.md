@@ -1,6 +1,6 @@
 # CHG-0002 Core Application Proposal
 
-Status: APPROVED
+Status: IMPLEMENTING
 Change ID: CHG-0002-core-application
 
 ## Problem

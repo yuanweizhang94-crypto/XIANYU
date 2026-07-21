@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -13,7 +14,32 @@ ROOT = Path(__file__).resolve().parents[4]
 CHG_0001 = "CHG-0001-project-baseline"
 CHG_0002 = "CHG-0002-core-application"
 CORE_CAPABILITIES = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
-RUNTIME_DEPENDENCIES = {"fastapi", "sqlalchemy", "alembic", "apscheduler", "jinja2"}
+APPROVED_CORE_RUNTIME = {
+    "fastapi",
+    "pydantic",
+    "pydantic-settings",
+    "sqlalchemy",
+    "alembic",
+    "apscheduler",
+    "jinja2",
+    "uvicorn",
+}
+GOVERNANCE_RUNTIME = {"pyyaml", "jsonschema"}
+FORBIDDEN_RUNTIME = {
+    "redis",
+    "celery",
+    "psycopg",
+    "psycopg2",
+    "asyncpg",
+    "aiosqlite",
+    "django",
+    "flask",
+    "langchain",
+    "playwright",
+    "selenium",
+    "docker",
+    "gunicorn",
+}
 CORE_DOCUMENTS = ["proposal.md", "design.md", "acceptance.md"]
 REPEATED_QUESTION_MARKS = "?" * 3
 REPLACEMENT_CHARACTER = chr(0xFFFD)
@@ -32,6 +58,7 @@ PLANNED_CORE_MODULES = [
     "app/xianyu_system/web/router.py",
     "app/xianyu_system/domain/__init__.py",
 ]
+FORBIDDEN_ALEMBIC_PATHS = ["alembic.ini", "migrations", "alembic"]
 
 
 def active_change_dir() -> Path:
@@ -54,6 +81,34 @@ def chg_0002_tasks():
     return parse_tasks(active_change_dir() / "tasks.md")
 
 
+def pyproject() -> dict[str, object]:
+    return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+
+def dependency_name(requirement: str) -> str:
+    base = requirement.split(";", 1)[0].strip()
+    base = base.split("[", 1)[0]
+    for marker in [">=", "<=", "==", "!=", "~=", ">", "<", "="]:
+        if marker in base:
+            base = base.split(marker, 1)[0]
+            break
+    return base.strip().lower().replace("_", "-")
+
+
+def runtime_dependencies() -> list[str]:
+    deps = pyproject()["project"]["dependencies"]
+    assert isinstance(deps, list)
+    return [str(item) for item in deps]
+
+
+def dev_dependencies() -> list[str]:
+    optional = pyproject()["project"]["optional-dependencies"]
+    assert isinstance(optional, dict)
+    deps = optional["dev"]
+    assert isinstance(deps, list)
+    return [str(item) for item in deps]
+
+
 def test_chg_0001_exists_only_in_archive_with_history_preserved() -> None:
     assert not (ROOT / "changes" / "active" / CHG_0001).exists()
     archive = ROOT / "changes" / "archive" / CHG_0001
@@ -63,11 +118,11 @@ def test_chg_0001_exists_only_in_archive_with_history_preserved() -> None:
     assert (archive / "tests" / "test_acceptance.py").is_file()
 
 
-def test_only_chg_0002_is_active_and_approved() -> None:
+def test_only_chg_0002_is_active_and_implementing() -> None:
     active_dirs = sorted(path.name for path in (ROOT / "changes" / "active").iterdir() if path.is_dir())
     assert active_dirs == [CHG_0002]
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
-        assert status_for(active_change_dir() / name) == "APPROVED"
+        assert status_for(active_change_dir() / name) == "IMPLEMENTING"
 
 
 def test_chg_0002_core_documents_are_readable_and_complete() -> None:
@@ -80,7 +135,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
         text = (active_change_dir() / name).read_text(encoding="utf-8")
         assert REPEATED_QUESTION_MARKS not in text
         assert REPLACEMENT_CHARACTER not in text
-        assert status_for(active_change_dir() / name) == "APPROVED"
+        assert status_for(active_change_dir() / name) == "IMPLEMENTING"
         for heading in expected_headings[name]:
             assert heading in text
 
@@ -89,7 +144,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_preparation_tasks_are_scoped_to_t1_and_t2() -> None:
+def test_chg_0002_t3_is_complete_and_t4_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -110,17 +165,38 @@ def test_chg_0002_preparation_tasks_are_scoped_to_t1_and_t2() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2"}
-    assert "T3" in incomplete
+    assert completed == {"T1", "T2", "T3"}
+    assert incomplete == {f"T{index}" for index in range(4, 16)}
+
+    state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    assert state["tasks"]["next_task"] == "T4 Implement application factory and lifespan"
 
 
-def test_core_capabilities_are_implementing_and_bound_to_chg_0002() -> None:
+def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
+    runtime = runtime_dependencies()
+    runtime_names = {dependency_name(item) for item in runtime}
+    dev_names = {dependency_name(item) for item in dev_dependencies()}
+    assert runtime_names == GOVERNANCE_RUNTIME | APPROVED_CORE_RUNTIME
+    assert "httpx" in dev_names
+    assert "httpx" not in runtime_names
+    assert runtime_names.isdisjoint(FORBIDDEN_RUNTIME)
+    for requirement in runtime:
+        name = dependency_name(requirement)
+        if name in APPROVED_CORE_RUNTIME:
+            assert ">=" in requirement
+            assert "<" in requirement
+
+
+def test_core_capabilities_are_implementing_and_none_are_verified() -> None:
     registry = registry_by_id()
+    assert {str(item["status"]) for item in registry.values() if item["id"] in CORE_CAPABILITIES} == {
+        "implementing"
+    }
     for cap_id in CORE_CAPABILITIES:
         capability = registry[cap_id]
-        assert capability["status"] == "implementing"
         assert capability["active_change"] == CHG_0002
         assert capability["last_verified_commit"] is None
+    assert all(capability["status"] != "verified" for capability in registry.values())
 
 
 def test_other_capabilities_remain_planned_and_unbound() -> None:
@@ -133,22 +209,28 @@ def test_other_capabilities_remain_planned_and_unbound() -> None:
         assert capability["last_verified_commit"] is None
 
 
-def test_preparation_does_not_add_core_runtime_dependencies_or_code() -> None:
-    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    dependencies = {
-        str(item).split("[", 1)[0].split(">", 1)[0].split("=", 1)[0].lower()
-        for item in pyproject.get("project", {}).get("dependencies", [])
-    }
-    assert dependencies.isdisjoint(RUNTIME_DEPENDENCIES)
+def test_t3_does_not_create_core_runtime_modules_or_artifacts() -> None:
     for relative in PLANNED_CORE_MODULES:
         assert not (ROOT / relative).exists()
+    for relative in FORBIDDEN_ALEMBIC_PATHS:
+        assert not (ROOT / relative).exists()
+    tracked = subprocess.run(
+        ["git", "ls-files"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.splitlines()
+    forbidden_suffixes = (".db", ".sqlite", ".sqlite3")
+    assert [path for path in tracked if path.endswith(forbidden_suffixes)] == []
 
 
-def test_openapi_still_has_no_business_paths() -> None:
+def test_openapi_still_has_no_business_or_health_paths() -> None:
     import yaml
 
     openapi = yaml.safe_load((ROOT / "contracts" / "openapi.yaml").read_text(encoding="utf-8"))
     assert openapi["paths"] == {}
+    assert "/health" not in openapi["paths"]
 
 
 def test_project_state_matches_current_repository() -> None:

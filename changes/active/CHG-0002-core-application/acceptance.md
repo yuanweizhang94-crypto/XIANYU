@@ -1,6 +1,6 @@
 # CHG-0002 Acceptance
 
-Status: APPROVED
+Status: IMPLEMENTING
 Change ID: CHG-0002-core-application
 
 ## Final acceptance criteria
@@ -33,8 +33,10 @@ Change ID: CHG-0002-core-application
 
 ## Current preparation-stage status
 
-The change is APPROVED.
+The change is IMPLEMENTING.
 
-Only T1 and T2 are complete.
+T1, T2, and T3 are complete after this dependency task is verified.
+
+No Core application runtime module has been implemented yet.
 
 The three Core capabilities remain `implementing` until all implementation, testing, and final acceptance work is complete.

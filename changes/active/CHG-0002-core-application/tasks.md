@@ -1,11 +1,11 @@
 # CHG-0002 Tasks
 
-Status: APPROVED
+Status: IMPLEMENTING
 Change ID: CHG-0002-core-application
 
 - [x] T1 Archive CHG-0001 and establish CHG-0002 active change
 - [x] T2 Approve CHG-0002 architecture and dependency boundary
-- [ ] T3 Add approved core application dependencies
+- [x] T3 Add approved core application dependencies
 - [ ] T4 Implement application factory and lifespan
 - [ ] T5 Implement typed configuration
 - [ ] T6 Implement structured redacted logging

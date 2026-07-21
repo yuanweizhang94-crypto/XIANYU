@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0002-core-application",
-    "status": "APPROVED",
+    "status": "IMPLEMENTING",
     "path": "changes/active/CHG-0002-core-application"
   },
   "tasks": {
     "total": 15,
-    "completed": 2,
-    "next_task": "T3 Add approved core application dependencies",
+    "completed": 3,
+    "next_task": "T4 Implement application factory and lifespan",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -21,7 +21,7 @@
       },
       {
         "text": "T3 Add approved core application dependencies",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T4 Implement application factory and lifespan",
