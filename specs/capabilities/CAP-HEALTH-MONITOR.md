@@ -2,36 +2,51 @@
 
 ## Purpose
 
-Define health-monitor boundary without connecting to real runtime services.
+Provide a read-only Core health boundary that reports local application status without connecting to real external services.
+
+## Current implementation change
+
+- Active change: CHG-0002-core-application.
+- Registry status during implementation: implementing.
+- Final status after acceptance: verified.
+
+## Planned implementation paths
+
+- `app/xianyu_system/api/health.py`
+- `app/xianyu_system/api/router.py`
+- `app/xianyu_system/application.py`
+- `contracts/openapi.yaml` for the `/health` contract when T10 begins.
+
+## Planned test paths
+
+- `tests/unit/` for route and response behavior.
+- `tests/contract/` for OpenAPI `/health` contract coverage.
+- `changes/active/CHG-0002-core-application/tests/` for CHG-0002 acceptance coverage.
 
 ## Requirements
 
-- Status remains planned.
-- Define behavior and boundaries only.
-- Do not implement runtime code before a later approved change.
+- Expose `/health` as a structured HTTP API response.
+- Include only local Core health information that is safe to disclose.
+- Avoid external network calls, real Xianyu checks, real WeCom checks, and AI provider calls.
+- Keep route code free of direct database connection creation.
 
-## Scenarios
+## Acceptance criteria
 
-- Serve as requirement and acceptance input.
-- Serve as ownership input for duplicate capability checks.
-
-## Failure behavior
-
-- Stop when permission, credential, specification, or risk state is uncertain.
-- Do not guess missing business behavior.
+- `/health` returns structured health status.
+- OpenAPI contains `/health`.
+- Health checks do not access real external networks or accounts.
+- `CAP-HEALTH-MONITOR` is updated to verified only after CHG-0002 implementation and validation are complete.
 
 ## Security boundaries
 
-- Do not hold real Cookie, Token, Secret, customer data, or browser credentials.
+- Do not expose Cookie, Token, Secret, Password, account identifiers, customer data, or browser profile details.
 - Do not bypass platform verification or risk controls.
+- Do not call external platforms.
 
 ## Out of scope
 
-- Runtime implementation is out of scope for CHG-0001.
-- External platform or account access is out of scope for CHG-0001.
-
-## Verification
-
-- The capability exists in the registry with status planned.
-- The specification path is unique.
-- No conflicting implementation path exists.
+- Xianyu account health.
+- WeCom API health.
+- AI provider health.
+- Browser profile or Playwright health checks.
+- Production observability stack integration.

@@ -1,21 +1,21 @@
 capabilities:
 - id: CAP-CORE-CONFIG
   name: Core configuration
-  status: planned
+  status: implementing
   owner_module: app.core.config
   specification: specs/capabilities/CAP-CORE-CONFIG.md
   implementation_paths: []
   test_paths: []
-  active_change: null
+  active_change: CHG-0002-core-application
   last_verified_commit: null
 - id: CAP-CORE-DATABASE
   name: Core database
-  status: planned
+  status: implementing
   owner_module: app.core.database
   specification: specs/capabilities/CAP-CORE-DATABASE.md
   implementation_paths: []
   test_paths: []
-  active_change: null
+  active_change: CHG-0002-core-application
   last_verified_commit: null
 - id: CAP-XY-ACCOUNT
   name: Xianyu account boundary
@@ -82,10 +82,10 @@ capabilities:
   last_verified_commit: null
 - id: CAP-HEALTH-MONITOR
   name: Health monitor
-  status: planned
+  status: implementing
   owner_module: app.health
   specification: specs/capabilities/CAP-HEALTH-MONITOR.md
   implementation_paths: []
   test_paths: []
-  active_change: null
+  active_change: CHG-0002-core-application
   last_verified_commit: null

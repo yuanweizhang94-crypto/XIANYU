@@ -1,6 +1,6 @@
 # CHG-0001 Project Baseline Proposal
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0001-project-baseline
 
 ## Summary

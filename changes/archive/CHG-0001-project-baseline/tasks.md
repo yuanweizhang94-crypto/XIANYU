@@ -1,6 +1,6 @@
 # CHG-0001 Tasks
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0001-project-baseline
 
 - [x] T1 Establish root governance files

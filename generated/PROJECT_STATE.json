@@ -2,91 +2,104 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0001-project-baseline",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0001-project-baseline"
+    "id": "CHG-0002-core-application",
+    "status": "APPROVED",
+    "path": "changes/active/CHG-0002-core-application"
   },
   "tasks": {
-    "total": 12,
-    "completed": 12,
-    "next_task": null,
+    "total": 15,
+    "completed": 2,
+    "next_task": "T3 Add approved core application dependencies",
     "items": [
       {
-        "text": "T1 Establish root governance files",
+        "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
         "completed": true
       },
       {
-        "text": "T2 Establish project scope and architecture specifications",
+        "text": "T2 Approve CHG-0002 architecture and dependency boundary",
         "completed": true
       },
       {
-        "text": "T3 Establish capability registry and capability specifications",
-        "completed": true
+        "text": "T3 Add approved core application dependencies",
+        "completed": false
       },
       {
-        "text": "T4 Establish ADRs",
-        "completed": true
+        "text": "T4 Implement application factory and lifespan",
+        "completed": false
       },
       {
-        "text": "T5 Establish OpenAPI and JSON Schema empty contracts",
-        "completed": true
+        "text": "T5 Implement typed configuration",
+        "completed": false
       },
       {
-        "text": "T6 Establish project state generation script",
-        "completed": true
+        "text": "T6 Implement structured redacted logging",
+        "completed": false
       },
       {
-        "text": "T7 Establish change and duplicate capability validation scripts",
-        "completed": true
+        "text": "T7 Implement SQLite WAL and SQLAlchemy infrastructure",
+        "completed": false
       },
       {
-        "text": "T8 Establish unified repository verification script",
-        "completed": true
+        "text": "T8 Establish Alembic migration baseline",
+        "completed": false
       },
       {
-        "text": "T9 Establish tests",
-        "completed": true
+        "text": "T9 Implement scheduler lifecycle skeleton",
+        "completed": false
       },
       {
-        "text": "T10 Establish GitHub templates and CI",
-        "completed": true
+        "text": "T10 Implement health API contract and route",
+        "completed": false
       },
       {
-        "text": "T11 Run complete verification",
-        "completed": true
+        "text": "T11 Implement Jinja2 and HTMX web skeleton",
+        "completed": false
       },
       {
-        "text": "T12 Create commit and push branch",
-        "completed": true
+        "text": "T12 Add unit, contract and active-change acceptance tests",
+        "completed": false
+      },
+      {
+        "text": "T13 Update capability registry implementation and verification paths",
+        "completed": false
+      },
+      {
+        "text": "T14 Run complete local verification",
+        "completed": false
+      },
+      {
+        "text": "T15 Push branch and open Draft PR",
+        "completed": false
       }
     ]
   },
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 10
+      "implementing": 3,
+      "planned": 7
     },
     "items": [
       {
         "id": "CAP-CORE-CONFIG",
         "name": "Core configuration",
-        "status": "planned",
+        "status": "implementing",
         "owner_module": "app.core.config",
         "specification": "specs/capabilities/CAP-CORE-CONFIG.md",
         "implementation_paths": [],
         "test_paths": [],
-        "active_change": null,
+        "active_change": "CHG-0002-core-application",
         "last_verified_commit": null
       },
       {
         "id": "CAP-CORE-DATABASE",
         "name": "Core database",
-        "status": "planned",
+        "status": "implementing",
         "owner_module": "app.core.database",
         "specification": "specs/capabilities/CAP-CORE-DATABASE.md",
         "implementation_paths": [],
         "test_paths": [],
-        "active_change": null,
+        "active_change": "CHG-0002-core-application",
         "last_verified_commit": null
       },
       {
@@ -169,12 +182,12 @@
       {
         "id": "CAP-HEALTH-MONITOR",
         "name": "Health monitor",
-        "status": "planned",
+        "status": "implementing",
         "owner_module": "app.health",
         "specification": "specs/capabilities/CAP-HEALTH-MONITOR.md",
         "implementation_paths": [],
         "test_paths": [],
-        "active_change": null,
+        "active_change": "CHG-0002-core-application",
         "last_verified_commit": null
       }
     ]

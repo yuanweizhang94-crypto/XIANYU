@@ -2,36 +2,50 @@
 
 ## Purpose
 
-Define the first-version SQLite WAL database boundary without creating business tables.
+Provide the single SQLite WAL, SQLAlchemy, and Alembic infrastructure boundary for Core without creating business tables or touching real customer data.
+
+## Current implementation change
+
+- Active change: CHG-0002-core-application.
+- Registry status during implementation: implementing.
+- Final status after acceptance: verified.
+
+## Planned implementation paths
+
+- `app/xianyu_system/core/database.py`
+- Alembic configuration and baseline migration files when T8 begins.
+- `app/xianyu_system/application.py` for lifecycle wiring.
+
+## Planned test paths
+
+- `tests/unit/` for database engine/session and WAL behavior.
+- `tests/contract/` for migration and schema-contract behavior when introduced.
+- `changes/active/CHG-0002-core-application/tests/` for CHG-0002 acceptance coverage.
 
 ## Requirements
 
-- Status remains planned.
-- Define behavior and boundaries only.
-- Do not implement runtime code before a later approved change.
+- Use SQLite with WAL mode for first-version local single-machine operation.
+- Manage SQLAlchemy engine and session creation through one infrastructure module.
+- Allow tests to use temporary directories and temporary database files.
+- Avoid module-import side effects: imports must not create database files or open connections.
+- Establish Alembic baseline without business tables in this change.
 
-## Scenarios
+## Acceptance criteria
 
-- Serve as requirement and acceptance input.
-- Serve as ownership input for duplicate capability checks.
-
-## Failure behavior
-
-- Stop when permission, credential, specification, or risk state is uncertain.
-- Do not guess missing business behavior.
+- SQLite WAL is enabled by the unified database module.
+- SQLAlchemy sessions are created through the unified module.
+- Alembic baseline can run in a temporary test database.
+- No database files are committed.
+- `CAP-CORE-DATABASE` is updated to verified only after CHG-0002 implementation and validation are complete.
 
 ## Security boundaries
 
-- Do not hold real Cookie, Token, Secret, customer data, or browser credentials.
-- Do not bypass platform verification or risk controls.
+- Do not store Cookie, Token, Secret, Password, real customer data, or browser credentials.
+- Do not access real platform accounts.
+- Do not create or migrate production databases.
 
 ## Out of scope
 
-- Runtime implementation is out of scope for CHG-0001.
-- External platform or account access is out of scope for CHG-0001.
-
-## Verification
-
-- The capability exists in the registry with status planned.
-- The specification path is unique.
-- No conflicting implementation path exists.
+- Business tables for products, accounts, messages, replies, schedules, or external integrations.
+- MySQL, PostgreSQL, Redis, Celery, or distributed database infrastructure.
+- Real customer data migration.

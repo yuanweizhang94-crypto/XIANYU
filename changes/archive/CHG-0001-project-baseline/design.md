@@ -1,6 +1,6 @@
 # CHG-0001 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0001-project-baseline
 
 ## Design

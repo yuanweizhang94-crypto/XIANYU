@@ -91,7 +91,7 @@ def test_archived_change_is_legal_in_archive(tmp_path: Path) -> None:
     root = copy_change_tree(tmp_path)
     active = active_change_dir(root)
     archive = root / "changes" / "archive" / active.name
-    archive.parent.mkdir(parents=True)
+    archive.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(active, archive)
     replace_status(archive, "ARCHIVED")
     shutil.rmtree(active)
@@ -103,7 +103,7 @@ def test_non_archived_change_in_archive_fails(tmp_path: Path) -> None:
     root = copy_change_tree(tmp_path)
     active = active_change_dir(root)
     archive = root / "changes" / "archive" / active.name
-    archive.parent.mkdir(parents=True)
+    archive.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(active, archive)
     shutil.rmtree(active)
 

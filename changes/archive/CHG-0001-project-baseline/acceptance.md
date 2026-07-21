@@ -1,6 +1,6 @@
 # CHG-0001 Acceptance
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0001-project-baseline
 
 ## Acceptance criteria
