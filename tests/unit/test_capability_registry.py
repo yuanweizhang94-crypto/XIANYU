@@ -12,34 +12,16 @@ from scripts.repo_utils import read_yaml
 from scripts.verify_repository import VerificationError, check_capability_registry
 
 ROOT = Path(__file__).resolve().parents[2]
+ALLOWED_CAPABILITY_STATUSES = {"planned", "implementing", "verified", "deprecated"}
 
 
-def test_capability_registry_schema_and_statuses() -> None:
+def test_capability_registry_schema_and_generic_statuses() -> None:
     registry = read_yaml(ROOT / "specs" / "CAPABILITY_REGISTRY.yaml")
     schema = json.loads((ROOT / "contracts" / "schemas" / "capability-registry.schema.json").read_text(encoding="utf-8"))
     jsonschema.validate(registry, schema)
     capabilities = registry["capabilities"]
-    assert len(capabilities) == 10
-    assert {item["status"] for item in capabilities} == {"planned"}
-    assert {item["active_change"] for item in capabilities} == {None}
-    assert {item["last_verified_commit"] for item in capabilities} == {None}
-
-
-def test_capability_ids_are_expected() -> None:
-    registry = read_yaml(ROOT / "specs" / "CAPABILITY_REGISTRY.yaml")
-    ids = {item["id"] for item in registry["capabilities"]}
-    assert ids == {
-        "CAP-CORE-CONFIG",
-        "CAP-CORE-DATABASE",
-        "CAP-XY-ACCOUNT",
-        "CAP-XY-MESSAGE",
-        "CAP-XY-REPLY",
-        "CAP-XY-PUBLISH",
-        "CAP-XY-SCHEDULE",
-        "CAP-WECOM-CS",
-        "CAP-AI-REPLY",
-        "CAP-HEALTH-MONITOR",
-    }
+    assert capabilities
+    assert {item["status"] for item in capabilities} <= ALLOWED_CAPABILITY_STATUSES
 
 
 def test_unapproved_capability_status_name_fails_schema() -> None:

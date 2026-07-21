@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
 from scripts.generate_state import build_project_state, project_state_json, write_project_state
-from scripts.repo_utils import next_uncompleted_task, parse_tasks
+from scripts.repo_utils import (
+    discover_active_change,
+    extract_change_status,
+    load_capabilities,
+    next_uncompleted_task,
+    parse_tasks,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -17,32 +24,37 @@ def copy_state_tree(tmp_path: Path) -> Path:
     return root
 
 
+def active_change_dir(root: Path) -> Path:
+    active = discover_active_change(root)
+    assert active is not None
+    return active
+
+
 def set_change_identity(change_dir: Path, change_id: str, status: str) -> None:
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         path = change_dir / name
         text = path.read_text(encoding="utf-8")
         text = text.replace(change_dir.name, change_id)
-        text = text.replace("Status: VERIFYING", f"Status: {status}")
-        text = text.replace("Status: APPROVED", f"Status: {status}")
+        text = re.sub(r"^Status: .+$", f"Status: {status}", text, flags=re.MULTILINE)
         path.write_text(text, encoding="utf-8")
 
 
-def test_generate_state_contains_expected_baseline() -> None:
+def test_generate_state_reflects_current_repository_sources() -> None:
     state = build_project_state(ROOT)
+    active = active_change_dir(ROOT)
     assert state["project"] == "XIANYU"
     assert state["version"]
     assert state["active_change"] == {
-        "id": "CHG-0001-project-baseline",
-        "status": "VERIFYING",
-        "path": "changes/active/CHG-0001-project-baseline",
+        "id": active.name,
+        "status": extract_change_status(active),
+        "path": active.relative_to(ROOT).as_posix(),
     }
-    assert state["tasks"]["next_task"] is None
-    assert state["capabilities"]["total"] == 10
+    assert state["capabilities"]["total"] == len(load_capabilities(ROOT))
 
 
 def test_chg_0002_test_change_is_discovered_without_source_changes(tmp_path: Path) -> None:
     root = copy_state_tree(tmp_path)
-    old = root / "changes" / "active" / "CHG-0001-project-baseline"
+    old = active_change_dir(root)
     new = root / "changes" / "active" / "CHG-0002-test-change"
     old.rename(new)
     set_change_identity(new, "CHG-0002-test-change", "APPROVED")
@@ -54,7 +66,7 @@ def test_chg_0002_test_change_is_discovered_without_source_changes(tmp_path: Pat
 
 def test_zero_active_change_generates_null_state(tmp_path: Path) -> None:
     root = copy_state_tree(tmp_path)
-    shutil.rmtree(root / "changes" / "active" / "CHG-0001-project-baseline")
+    shutil.rmtree(active_change_dir(root))
 
     state = build_project_state(root)
     assert state["active_change"] is None
@@ -64,8 +76,8 @@ def test_zero_active_change_generates_null_state(tmp_path: Path) -> None:
 
 def test_draft_change_is_not_executable(tmp_path: Path) -> None:
     root = copy_state_tree(tmp_path)
-    change_dir = root / "changes" / "active" / "CHG-0001-project-baseline"
-    set_change_identity(change_dir, "CHG-0001-project-baseline", "DRAFT")
+    change_dir = active_change_dir(root)
+    set_change_identity(change_dir, change_dir.name, "DRAFT")
     tasks_path = change_dir / "tasks.md"
     tasks_path.write_text(
         tasks_path.read_text(encoding="utf-8") + "\n- [ ] T99 Draft-only task\n", encoding="utf-8"

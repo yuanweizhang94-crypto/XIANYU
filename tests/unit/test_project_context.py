@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from scripts.project_context import render_context
+from scripts.repo_utils import discover_active_change
 from scripts.verify_repository import VerificationError, validate_project_state
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -36,7 +37,9 @@ def test_project_context_source_has_no_chg_0001_hardcoded_dependency() -> None:
 
 def test_project_context_reports_no_executable_change_when_none(tmp_path: Path) -> None:
     root = copy_repo_slice(tmp_path)
-    shutil.rmtree(root / "changes" / "active" / "CHG-0001-project-baseline")
+    active = discover_active_change(root)
+    assert active is not None
+    shutil.rmtree(active)
     # Give project_context enough git metadata for its runtime git output.
     import subprocess
 

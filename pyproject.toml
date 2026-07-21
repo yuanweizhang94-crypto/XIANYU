@@ -27,7 +27,7 @@ where = ["app"]
 include = ["xianyu_system*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "changes/active"]
 pythonpath = ["."]
 
 [tool.ruff]

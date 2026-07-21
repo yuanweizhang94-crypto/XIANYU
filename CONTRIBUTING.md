@@ -26,6 +26,16 @@ mypy scripts
 
 7. Confirm no sensitive data, unapproved dependency, duplicate capability, or out-of-scope business logic exists.
 
+## Tests for permanent governance and active changes
+
+- Keep long-lived, change-agnostic repository tests under `tests/`.
+- Each active change may maintain its own `tests/` directory, for example `changes/active/<change-id>/tests/`.
+- The default pytest configuration collects both `tests/` and `changes/active/`, so active-change acceptance tests run in normal local verification and CI.
+- Do not put temporary acceptance limits for one specific change into permanent tests.
+- When archiving an old change, move its dedicated tests together with the whole change directory into `changes/archive/`.
+- Historical tests under `changes/archive/` are preserved for audit only and are not part of default pytest or CI collection.
+- A new active change must add or update dedicated acceptance tests according to its own `acceptance.md` before implementation is considered verified.
+
 ## Starting the next change
 
 After the current change PR is merged, prepare the next change with one atomic preparation commit:
@@ -43,3 +53,5 @@ Rules for change transitions:
 - The final tree must contain at most one directory under `changes/active/`.
 - `ARCHIVED` changes must exist only under `changes/archive/`.
 - The active change `acceptance.md` defines the allowed and forbidden scope for the current work.
+- The archive move and the creation of the next active change must be committed atomically.
+- Dedicated tests for the previous change move with that change into `changes/archive/`; dedicated tests for the new change live under `changes/active/<change-id>/tests/`.
