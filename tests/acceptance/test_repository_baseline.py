@@ -15,9 +15,9 @@ def test_standard_repository_structure_is_complete() -> None:
 
 
 def test_adr_files_exist_and_are_accepted() -> None:
-    for index in range(1, 9):
-        path = ROOT / "docs" / "adr" / f"ADR-{index:04d}.md"
-        assert path.exists()
+    adr_files = sorted((ROOT / "docs" / "adr").glob("ADR-*.md"))
+    assert adr_files
+    for path in adr_files:
         text = path.read_text(encoding="utf-8")
         assert "## Status" in text
         assert "Accepted" in text

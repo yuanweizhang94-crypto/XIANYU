@@ -24,12 +24,12 @@
         "properties": {
           "id": { "type": "string", "pattern": "^CAP-[A-Z0-9-]+$" },
           "name": { "type": "string", "minLength": 1 },
-          "status": { "enum": ["planned", "active", "deprecated"] },
+          "status": { "enum": ["planned", "implementing", "verified", "deprecated"] },
           "owner_module": { "type": "string", "minLength": 1 },
           "specification": { "type": "string", "minLength": 1 },
           "implementation_paths": { "type": "array", "items": { "type": "string" } },
           "test_paths": { "type": "array", "items": { "type": "string" } },
-          "active_change": { "type": "string" },
+          "active_change": { "type": ["string", "null"] },
           "last_verified_commit": { "type": ["string", "null"] }
         },
         "additionalProperties": false

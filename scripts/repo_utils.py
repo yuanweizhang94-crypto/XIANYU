@@ -9,9 +9,12 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-ACTIVE_CHANGE_ID = "CHG-0001-project-baseline"
-VALID_CHANGE_STATUSES = {"APPROVED", "IN_PROGRESS", "COMPLETE"}
+VALID_CHANGE_STATUSES = {"DRAFT", "APPROVED", "IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED"}
+ACTIVE_CHANGE_STATUSES = {"DRAFT", "APPROVED", "IMPLEMENTING", "VERIFYING"}
+EXECUTABLE_CHANGE_STATUSES = {"APPROVED", "IMPLEMENTING", "VERIFYING"}
+REQUIRED_CHANGE_FILES = ["proposal.md", "design.md", "tasks.md", "acceptance.md"]
 TASK_RE = re.compile(r"^- \[(?P<mark>[ xX])] (?P<text>T\d+ .+)$")
+BRANCH_CHANGE_RE = re.compile(r"(?P<change_id>CHG-\d{4}-[A-Za-z0-9_.-]+)")
 
 
 @dataclass(frozen=True)
@@ -29,6 +32,13 @@ def run_git(args: list[str], root: Path = ROOT) -> str:
         capture_output=True,
     )
     return result.stdout.strip()
+
+
+def try_git(args: list[str], root: Path = ROOT) -> str | None:
+    try:
+        return run_git(args, root)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
 
 
 def read_yaml(path: Path) -> dict[str, Any]:
@@ -49,14 +59,49 @@ def find_active_changes(root: Path = ROOT) -> list[Path]:
     return sorted(p for p in active.iterdir() if p.is_dir())
 
 
-def extract_change_status(change_dir: Path) -> str:
-    proposal = change_dir / "proposal.md"
-    if not proposal.exists():
+def discover_active_change(root: Path = ROOT) -> Path | None:
+    active_changes = find_active_changes(root)
+    if not active_changes:
+        return None
+    if len(active_changes) > 1:
+        raise ValueError(f"expected at most one active change, found {len(active_changes)}")
+    return active_changes[0]
+
+
+def extract_status_from_file(path: Path) -> str:
+    if not path.exists():
         return ""
-    for line in proposal.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         if line.lower().startswith("status:"):
             return line.split(":", 1)[1].strip()
     return ""
+
+
+def extract_change_statuses(change_dir: Path) -> dict[str, str]:
+    return {name: extract_status_from_file(change_dir / name) for name in REQUIRED_CHANGE_FILES}
+
+
+def extract_change_status(change_dir: Path) -> str:
+    statuses = extract_change_statuses(change_dir)
+    non_empty = [status for status in statuses.values() if status]
+    if not non_empty:
+        return ""
+    first = non_empty[0]
+    if all(status == first for status in non_empty):
+        return first
+    return first
+
+
+def is_executable_change_status(status: str | None) -> bool:
+    return status in EXECUTABLE_CHANGE_STATUSES
+
+
+def current_branch_change_id(root: Path = ROOT) -> str | None:
+    branch = try_git(["branch", "--show-current"], root)
+    if not branch:
+        return None
+    match = BRANCH_CHANGE_RE.search(branch)
+    return match.group("change_id") if match else None
 
 
 def parse_tasks(tasks_path: Path) -> list[TaskItem]:

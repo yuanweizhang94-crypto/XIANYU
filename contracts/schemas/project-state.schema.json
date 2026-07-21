@@ -6,44 +6,35 @@
   "required": [
     "project",
     "version",
-    "git",
     "active_change",
     "tasks",
-    "capabilities",
-    "recent_tests"
+    "capabilities"
   ],
   "properties": {
     "project": { "const": "XIANYU" },
     "version": { "type": "string", "minLength": 1 },
-    "generated_at_utc": { "type": "string" },
-    "git": {
-      "type": "object",
-      "required": ["branch", "head", "status_short", "worktree_clean"],
-      "properties": {
-        "branch": { "type": "string" },
-        "head": { "type": "string" },
-        "status_short": { "type": "array", "items": { "type": "string" } },
-        "worktree_clean": { "type": "boolean" }
-      },
-      "additionalProperties": false
-    },
     "active_change": {
-      "type": "object",
-      "required": ["id", "status", "path"],
-      "properties": {
-        "id": { "type": "string" },
-        "status": { "enum": ["APPROVED", "IN_PROGRESS", "COMPLETE"] },
-        "path": { "type": "string" }
-      },
-      "additionalProperties": false
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["id", "status", "path"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^CHG-\\d{4}-[A-Za-z0-9_.-]+$" },
+            "status": { "enum": ["DRAFT", "APPROVED", "IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED"] },
+            "path": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "tasks": {
       "type": "object",
-      "required": ["total", "completed", "next_uncompleted", "items"],
+      "required": ["total", "completed", "next_task", "items"],
       "properties": {
         "total": { "type": "integer", "minimum": 0 },
         "completed": { "type": "integer", "minimum": 0 },
-        "next_uncompleted": { "type": ["string", "null"] },
+        "next_task": { "type": ["string", "null"] },
         "items": {
           "type": "array",
           "items": {
@@ -66,15 +57,6 @@
         "total": { "type": "integer", "minimum": 0 },
         "by_status": { "type": "object", "additionalProperties": { "type": "integer" } },
         "items": { "type": "array" }
-      },
-      "additionalProperties": false
-    },
-    "recent_tests": {
-      "type": "object",
-      "required": ["summary", "source"],
-      "properties": {
-        "summary": { "type": "string" },
-        "source": { "type": "string" }
       },
       "additionalProperties": false
     }
