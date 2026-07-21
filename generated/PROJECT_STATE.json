@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 3,
-    "next_task": "T4 Implement application factory and lifespan",
+    "completed": 4,
+    "next_task": "T5 Implement typed configuration",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -25,7 +25,7 @@
       },
       {
         "text": "T4 Implement application factory and lifespan",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T5 Implement typed configuration",

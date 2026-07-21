@@ -69,7 +69,7 @@ python scripts/project_context.py
 python scripts/verify_repository.py
 pytest
 ruff check .
-mypy scripts
+mypy scripts app
 ```
 
 ## Development flow

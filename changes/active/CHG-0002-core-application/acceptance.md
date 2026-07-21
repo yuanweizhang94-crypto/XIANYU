@@ -35,8 +35,10 @@ Change ID: CHG-0002-core-application
 
 The change is IMPLEMENTING.
 
-T1, T2, and T3 are complete after this dependency task is verified.
+T1 through T4 are complete after the application factory and lifespan tests pass.
 
-No Core application runtime module has been implemented yet.
+T5 Implement typed configuration is the next task.
 
-The three Core capabilities remain `implementing` until all implementation, testing, and final acceptance work is complete.
+Configuration, logging, database, migrations, scheduler, health API, and web implementation remain incomplete.
+
+The three Core capabilities remain implementing.

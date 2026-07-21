@@ -4,11 +4,15 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
+from fastapi import FastAPI
+
 from scripts.generate_state import project_state_json
 from scripts.repo_utils import parse_tasks, read_yaml
+from xianyu_system.application import create_application
 
 ROOT = Path(__file__).resolve().parents[4]
 CHG_0001 = "CHG-0001-project-baseline"
@@ -40,25 +44,37 @@ FORBIDDEN_RUNTIME = {
     "docker",
     "gunicorn",
 }
+CHANGE_DOCUMENTS = ["proposal.md", "design.md", "tasks.md", "acceptance.md"]
 CORE_DOCUMENTS = ["proposal.md", "design.md", "acceptance.md"]
 REPEATED_QUESTION_MARKS = "?" * 3
 REPLACEMENT_CHARACTER = chr(0xFFFD)
-PLANNED_CORE_MODULES = [
-    "app/xianyu_system/main.py",
+APPLICATION_MODULES = [
     "app/xianyu_system/application.py",
-    "app/xianyu_system/core/__init__.py",
+    "app/xianyu_system/main.py",
+]
+DEFERRED_CORE_PATHS = [
+    "app/xianyu_system/core",
+    "app/xianyu_system/api",
+    "app/xianyu_system/web",
+    "app/xianyu_system/domain",
     "app/xianyu_system/core/config.py",
     "app/xianyu_system/core/logging.py",
     "app/xianyu_system/core/database.py",
     "app/xianyu_system/core/scheduler.py",
-    "app/xianyu_system/api/__init__.py",
     "app/xianyu_system/api/router.py",
     "app/xianyu_system/api/health.py",
-    "app/xianyu_system/web/__init__.py",
     "app/xianyu_system/web/router.py",
-    "app/xianyu_system/domain/__init__.py",
 ]
-FORBIDDEN_ALEMBIC_PATHS = ["alembic.ini", "migrations", "alembic"]
+FORBIDDEN_ARTIFACT_PATHS = [
+    "alembic.ini",
+    "migrations",
+    "alembic",
+    "templates",
+    "static",
+    "app/xianyu_system/templates",
+    "app/xianyu_system/static",
+]
+DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 
 
 def active_change_dir() -> Path:
@@ -109,6 +125,10 @@ def dev_dependencies() -> list[str]:
     return [str(item) for item in deps]
 
 
+def route_paths(app: FastAPI) -> set[str]:
+    return {str(route.path) for route in app.routes}
+
+
 def test_chg_0001_exists_only_in_archive_with_history_preserved() -> None:
     assert not (ROOT / "changes" / "active" / CHG_0001).exists()
     archive = ROOT / "changes" / "archive" / CHG_0001
@@ -121,14 +141,14 @@ def test_chg_0001_exists_only_in_archive_with_history_preserved() -> None:
 def test_only_chg_0002_is_active_and_implementing() -> None:
     active_dirs = sorted(path.name for path in (ROOT / "changes" / "active").iterdir() if path.is_dir())
     assert active_dirs == [CHG_0002]
-    for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
+    for name in CHANGE_DOCUMENTS:
         assert status_for(active_change_dir() / name) == "IMPLEMENTING"
 
 
 def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     expected_headings = {
         "proposal.md": ["## Problem", "## Goal"],
-        "design.md": ["## Responsibility rules"],
+        "design.md": ["## Responsibility rules", "## T4 implementation decision"],
         "acceptance.md": ["## Final acceptance criteria"],
     }
     for name in CORE_DOCUMENTS:
@@ -144,7 +164,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t3_is_complete_and_t4_is_next() -> None:
+def test_chg_0002_t4_is_complete_and_t5_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -165,11 +185,11 @@ def test_chg_0002_t3_is_complete_and_t4_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3"}
-    assert incomplete == {f"T{index}" for index in range(4, 16)}
+    assert completed == {"T1", "T2", "T3", "T4"}
+    assert incomplete == {f"T{index}" for index in range(5, 16)}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T4 Implement application factory and lifespan"
+    assert state["tasks"]["next_task"] == "T5 Implement typed configuration"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -185,6 +205,78 @@ def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
         if name in APPROVED_CORE_RUNTIME:
             assert ">=" in requirement
             assert "<" in requirement
+
+
+def test_application_factory_files_exist_and_create_isolated_fastapi_instances() -> None:
+    for relative in APPLICATION_MODULES:
+        assert (ROOT / relative).is_file()
+
+    first = create_application()
+    second = create_application()
+
+    assert isinstance(first, FastAPI)
+    assert isinstance(second, FastAPI)
+    assert first is not second
+    assert first.state is not second.state
+
+
+def test_t4_application_has_no_business_or_health_routes() -> None:
+    app = create_application()
+
+    assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
+    assert app.openapi()["paths"] == {}
+    assert "/health" not in app.openapi()["paths"]
+    assert "/" not in route_paths(app)
+
+
+def test_t4_application_sources_avoid_legacy_events_and_server_startup() -> None:
+    for relative in APPLICATION_MODULES:
+        source = (ROOT / relative).read_text(encoding="utf-8")
+        assert ".on_event(" not in source
+        assert "uvicorn.run(" not in source
+
+
+def test_t4_imports_do_not_create_database_or_runtime_artifacts(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    pythonpath_parts = [str(ROOT / "app")]
+    if env.get("PYTHONPATH"):
+        pythonpath_parts.append(env["PYTHONPATH"])
+    env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import xianyu_system.application; import xianyu_system.main"],
+        cwd=tmp_path,
+        env=env,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.stderr == ""
+    for pattern in ["*.db", "*.sqlite", "*.sqlite3", "alembic.ini", "migrations", "logs"]:
+        assert list(tmp_path.glob(pattern)) == []
+
+
+def test_deferred_core_modules_and_artifacts_are_not_created() -> None:
+    for relative in DEFERRED_CORE_PATHS + FORBIDDEN_ARTIFACT_PATHS:
+        assert not (ROOT / relative).exists()
+    tracked = subprocess.run(
+        ["git", "ls-files"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.splitlines()
+    forbidden_suffixes = (".db", ".sqlite", ".sqlite3")
+    assert [path for path in tracked if path.endswith(forbidden_suffixes)] == []
+
+
+def test_openapi_contract_still_has_no_business_or_health_paths() -> None:
+    import yaml
+
+    openapi = yaml.safe_load((ROOT / "contracts" / "openapi.yaml").read_text(encoding="utf-8"))
+    assert openapi["paths"] == {}
+    assert "/health" not in openapi["paths"]
 
 
 def test_core_capabilities_are_implementing_and_none_are_verified() -> None:
@@ -207,30 +299,6 @@ def test_other_capabilities_remain_planned_and_unbound() -> None:
         assert capability["status"] == "planned"
         assert capability["active_change"] is None
         assert capability["last_verified_commit"] is None
-
-
-def test_t3_does_not_create_core_runtime_modules_or_artifacts() -> None:
-    for relative in PLANNED_CORE_MODULES:
-        assert not (ROOT / relative).exists()
-    for relative in FORBIDDEN_ALEMBIC_PATHS:
-        assert not (ROOT / relative).exists()
-    tracked = subprocess.run(
-        ["git", "ls-files"],
-        cwd=ROOT,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.splitlines()
-    forbidden_suffixes = (".db", ".sqlite", ".sqlite3")
-    assert [path for path in tracked if path.endswith(forbidden_suffixes)] == []
-
-
-def test_openapi_still_has_no_business_or_health_paths() -> None:
-    import yaml
-
-    openapi = yaml.safe_load((ROOT / "contracts" / "openapi.yaml").read_text(encoding="utf-8"))
-    assert openapi["paths"] == {}
-    assert "/health" not in openapi["paths"]
 
 
 def test_project_state_matches_current_repository() -> None:

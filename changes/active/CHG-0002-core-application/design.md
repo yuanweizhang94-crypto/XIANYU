@@ -93,6 +93,15 @@ Importing any Core module must not:
 * Access Xianyu, WeCom, AI, or any other external service.
 * Read or log real credentials.
 
+## T4 implementation decision
+
+- `application.py` owns the reusable FastAPI application factory.
+- `application_lifespan` is the default no-op async lifespan context manager.
+- `create_application()` accepts an optional lifespan handler for isolated tests and later approved infrastructure integration.
+- `main.py` exposes one ASGI entry application created by the factory.
+- Application creation does not start a server, scheduler, database, migration, browser, or external client.
+- No API or web route is registered in T4.
+
 ## Testing rules
 
 * Application factory tests must create more than one application instance.
@@ -105,7 +114,8 @@ Importing any Core module must not:
 ## Non-goals for the preparation stage
 
 * No dependency installation before T3.
-* No runtime Core module implementation before T4.
+* T4 creates only `application.py` and `main.py`.
+* Configuration, logging, database, scheduler, API, and web modules remain deferred to their approved tasks.
 * No database file or migration creation before the relevant approved task.
 * No `/health` implementation before T10.
 * No HTML template implementation before T11.
