@@ -23,7 +23,7 @@ The current phase is repository baseline plus the initial Core application bound
 - Scope, architecture, capability, ADR, and contract placeholders.
 - Context, state generation, validation, duplicate capability detection, and security scan scripts.
 - Unit, contract, acceptance tests, and GitHub CI.
-- FastAPI application factory, typed local configuration, structured logging, SQLite/Alembic infrastructure, scheduler lifecycle boundaries, and a read-only health API.
+- FastAPI application factory, typed local configuration, structured logging, SQLite/Alembic infrastructure, scheduler lifecycle boundaries, a read-only health API, and a minimal server-rendered web skeleton.
 
 ## Technical direction
 
@@ -131,7 +131,22 @@ The database probe is read-only and only executes `SELECT 1` and `PRAGMA journal
 
 The scheduler probe only reads running state and job count from the existing scheduler. It does not register, start, stop, pause, resume, or remove scheduler jobs.
 
-The health API performs no external service checks and does not expose database paths, exception details, credentials, account identifiers, customer data, browser profile details, Cookies, Tokens, Secrets, or Passwords. The OpenAPI contract is `contracts/openapi.yaml`. There are currently no other business API routes, and web pages remain unimplemented.
+The health API performs no external service checks and does not expose database paths, exception details, credentials, account identifiers, customer data, browser profile details, Cookies, Tokens, Secrets, or Passwords. The OpenAPI contract is `contracts/openapi.yaml`. There are currently no other business API routes.
+
+## Current web skeleton
+
+The current web boundary provides a minimal Core home page only:
+
+- `GET /` renders through Jinja2 and is excluded from OpenAPI.
+- Templates live inside the `xianyu_system.web` package.
+- Static resources are mounted at `/static`.
+- CSS is served from a local package file.
+- HTMX is pinned to version 2.0.10 and vendored locally with its license.
+- No CDN, external font, external image, frontend build system, `package.json`, or `node_modules` is used.
+- The only HTMX interaction is a user-triggered `GET /health`.
+- There are no form submissions, business pages, business APIs, database writes, automatic migrations, Scheduler job changes, or external network calls.
+- Runtime OpenAPI still contains only `/health`.
+- Web package-data is configured so templates and static assets are included with the Python package.
 
 ## Current scheduler infrastructure
 

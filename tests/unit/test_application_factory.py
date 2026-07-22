@@ -26,7 +26,7 @@ from xianyu_system.core.database import (
 from xianyu_system.core.logging import ManagedStreamHandler
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/health"}
+DEFAULT_FASTAPI_ROUTE_PATHS = {"/", "/static", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/health"}
 FORBIDDEN_IMPORT_ARTIFACTS = [
     "*.db",
     "*.sqlite",
@@ -155,8 +155,8 @@ def test_application_has_only_health_api_route_and_no_business_routes() -> None:
     app = create_application()
 
     assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
+    assert {"/", "/static", "/health"} <= route_paths(app)
     assert set(app.openapi()["paths"]) == {"/health"}
-    assert "/" not in route_paths(app)
     for forbidden in [
         "/ready",
         "/live",
@@ -195,6 +195,7 @@ def test_create_application_openapi_has_no_file_or_lifespan_side_effects(tmp_pat
     assert not hasattr(app.state, "database")
     assert not hasattr(app.state, "scheduler")
     assert not hasattr(app.state, "logger")
+    assert hasattr(app.state, "web_templates")
 
 
 def test_health_endpoint_available_during_project_and_custom_lifespan(tmp_path: Path) -> None:
@@ -214,6 +215,7 @@ def test_health_endpoint_available_during_project_and_custom_lifespan(tmp_path: 
     )
 
     with TestClient(app) as client:
+        assert client.get("/").status_code == 200
         response = client.get("/health")
         assert response.status_code == 200
         assert response.json()["status"] == "ok"

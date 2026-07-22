@@ -35,14 +35,14 @@ Change ID: CHG-0002-core-application
 
 The change is IMPLEMENTING.
 
-T1 through T10 are complete after the health route, degraded behavior, OpenAPI contract, read-only probe, and security-boundary tests pass.
+T1 through T11 are complete after the Jinja2 home page, local static resource, HTMX asset, package-data, isolation, and security-boundary tests pass.
 
-T11 Implement Jinja2 and HTMX web skeleton is the next task.
+T12 Add unit, contract and active-change acceptance tests is the next task.
 
-GET /health reports only safe local Core state and performs no external service checks.
+GET / renders a minimal server-rendered Core page and is excluded from OpenAPI.
 
-The health route does not write database data, run migrations, or modify scheduler jobs.
+HTMX is served locally through the web static boundary and performs only a user-triggered GET /health request.
 
-Web pages, templates, and static resources remain incomplete.
+No business page, form submission, external service call, database write, migration, or scheduler job is implemented.
 
 The three Core capabilities remain implementing.

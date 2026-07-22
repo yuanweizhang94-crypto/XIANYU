@@ -47,7 +47,13 @@ app/xianyu_system/
 |   |-- __init__.py
 |   |-- router.py
 |   |-- templates/
+|   |   |-- base.html
+|   |   `-- index.html
 |   `-- static/
+|       |-- styles.css
+|       `-- vendor/
+|           |-- htmx.min.js
+|           `-- htmx.LICENSE.txt
 `-- domain/
     `-- __init__.py
 ```
@@ -189,6 +195,21 @@ Importing any Core module must not:
 - Health checks do not access Xianyu, WeCom, AI providers, browsers, or any external network.
 - `contracts/openapi.yaml` defines the `/health` operation and response schemas.
 - T10 does not implement web pages, Jinja2 templates, HTMX resources, business API routes, or external integrations.
+
+## T11 implementation decision
+
+- `web/router.py` owns the server-rendered home route, per-application Jinja2 template environment, and local static-resource registration.
+- The home page is `GET /` and is excluded from OpenAPI.
+- Templates and static files are resolved relative to the installed `xianyu_system.web` package rather than the current working directory.
+- Each application receives an independent `Jinja2Templates` instance.
+- Static resources are served from `/static` with directory indexes disabled and symbolic-link following disabled.
+- `base.html` provides the HTML shell, local stylesheet reference, and locally vendored HTMX script reference.
+- `index.html` displays only safe application title, version, and environment values.
+- The only HTMX interaction is a user-triggered read-only `GET /health`.
+- HTMX 2.0.10 is vendored locally with its license and verified SHA-384 digest.
+- No CDN, Node package manager, frontend build system, form submission, authentication, database query, scheduler mutation, migration, or external request is introduced.
+- Runtime OpenAPI remains limited to `/health`.
+- T11 does not implement business pages, business APIs, domain modules, Xianyu, WeCom, AI, or browser automation.
 
 ## Testing rules
 

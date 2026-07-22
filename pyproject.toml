@@ -35,6 +35,14 @@ dev = [
 where = ["app"]
 include = ["xianyu_system*"]
 
+[tool.setuptools.package-data]
+"xianyu_system.web" = [
+  "templates/*.html",
+  "static/*.css",
+  "static/vendor/*.js",
+  "static/vendor/*.txt",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests", "changes/active"]
 pythonpath = ["."]

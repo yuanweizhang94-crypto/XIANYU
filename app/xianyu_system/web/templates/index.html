@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{{ service }} Core{% endblock %}
+
+{% block content %}
+<section class="status-card" aria-labelledby="core-title">
+  <p class="eyebrow">Local Core</p>
+  <h1 id="core-title">{{ service }}</h1>
+  <p class="summary">The XIANYU Core application skeleton is running.</p>
+
+  <dl class="metadata">
+    <div>
+      <dt>Version</dt>
+      <dd>{{ version }}</dd>
+    </div>
+    <div>
+      <dt>Environment</dt>
+      <dd>{{ environment }}</dd>
+    </div>
+  </dl>
+
+  <button
+    type="button"
+    class="health-button"
+    hx-get="{{ health_path }}"
+    hx-trigger="click"
+    hx-target="#health-result"
+    hx-swap="innerHTML"
+    aria-controls="health-result"
+  >
+    Check local health
+  </button>
+
+  <pre id="health-result" class="health-result" aria-live="polite">Health not requested.</pre>
+</section>
+{% endblock %}

@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 10,
-    "next_task": "T11 Implement Jinja2 and HTMX web skeleton",
+    "completed": 11,
+    "next_task": "T12 Add unit, contract and active-change acceptance tests",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -53,7 +53,7 @@
       },
       {
         "text": "T11 Implement Jinja2 and HTMX web skeleton",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T12 Add unit, contract and active-change acceptance tests",

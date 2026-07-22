@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import io
 import json
 import logging
@@ -15,9 +17,13 @@ from alembic.script import ScriptDirectory
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from fastapi.testclient import TestClient
 from pydantic_settings import BaseSettings
 from sqlalchemy import inspect, text
+from starlette.routing import Mount
 
 from scripts.generate_state import project_state_json
 from scripts.repo_utils import parse_tasks, read_yaml
@@ -59,6 +65,16 @@ from xianyu_system.core.scheduler import (
     create_scheduler,
     shutdown_scheduler,
     start_scheduler,
+)
+from xianyu_system.web.router import (
+    HOME_PATH,
+    HOME_ROUTE_NAME,
+    STATIC_PATH,
+    STATIC_ROUTE_NAME,
+    STATIC_URL_PATH,
+    TEMPLATES_PATH,
+    WEB_PACKAGE_PATH,
+    create_templates,
 )
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -117,10 +133,17 @@ API_MODULES = [
     "app/xianyu_system/api/router.py",
     "app/xianyu_system/api/health.py",
 ]
-DEFERRED_CORE_PATHS = [
-    "app/xianyu_system/web",
-    "app/xianyu_system/domain",
+WEB_MODULES = [
+    "app/xianyu_system/web/__init__.py",
     "app/xianyu_system/web/router.py",
+    "app/xianyu_system/web/templates/base.html",
+    "app/xianyu_system/web/templates/index.html",
+    "app/xianyu_system/web/static/styles.css",
+    "app/xianyu_system/web/static/vendor/htmx.min.js",
+    "app/xianyu_system/web/static/vendor/htmx.LICENSE.txt",
+]
+DEFERRED_CORE_PATHS = [
+    "app/xianyu_system/domain",
 ]
 MIGRATION_PATHS = [
     "alembic.ini",
@@ -165,7 +188,8 @@ FORBIDDEN_SETTING_FIELD_PARTS = {
     "api_key",
     "captcha",
 }
-DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/health"}
+DEFAULT_FASTAPI_ROUTE_PATHS = {"/", "/static", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/health"}
+HTMX_SHA384 = "H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
 
 
 def active_change_dir() -> Path:
@@ -253,6 +277,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
             "## T8 implementation decision",
             "## T9 implementation decision",
             "## T10 implementation decision",
+            "## T11 implementation decision",
         ],
         "acceptance.md": ["## Final acceptance criteria"],
     }
@@ -269,7 +294,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t10_is_complete_and_t11_is_next() -> None:
+def test_chg_0002_t11_is_complete_and_t12_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -290,11 +315,11 @@ def test_chg_0002_t10_is_complete_and_t11_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10"}
-    assert incomplete == {f"T{index}" for index in range(11, 16)}
+    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11"}
+    assert incomplete == {f"T{index}" for index in range(12, 16)}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T11 Implement Jinja2 and HTMX web skeleton"
+    assert state["tasks"]["next_task"] == "T12 Add unit, contract and active-change acceptance tests"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -392,12 +417,12 @@ def test_env_example_contains_only_current_safe_configuration() -> None:
         assert forbidden not in text
 
 
-def test_t6_application_has_no_business_or_web_routes() -> None:
+def test_application_has_health_api_home_page_static_mount_and_no_business_routes() -> None:
     app = create_application()
 
     assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
+    assert {"/", "/static", "/health"} <= route_paths(app)
     assert set(app.openapi()["paths"]) == {"/health"}
-    assert "/" not in route_paths(app)
     for forbidden in ["/ready", "/live", "/metrics", "/status", "/api/health", "/login", "/messages", "/products", "/publish", "/schedule", "/wecom", "/ai", "/accounts"]:
         assert forbidden not in app.openapi()["paths"]
 
@@ -929,6 +954,137 @@ def test_t10_health_contract_and_runtime_schema_are_semantically_consistent() ->
     for name in ["HealthResponse", "DatabaseHealth", "SchedulerHealth"]:
         assert name in contract["components"]["schemas"]
         assert name in runtime["components"]["schemas"]
+
+
+def test_t11_web_files_templates_static_assets_and_htmx_are_present() -> None:
+    for relative in WEB_MODULES:
+        assert (ROOT / relative).is_file()
+
+    assert WEB_PACKAGE_PATH.is_absolute()
+    assert TEMPLATES_PATH == WEB_PACKAGE_PATH / "templates"
+    assert STATIC_PATH == WEB_PACKAGE_PATH / "static"
+    assert TEMPLATES_PATH.is_dir()
+    assert STATIC_PATH.is_dir()
+
+    digest = base64.b64encode(
+        hashlib.sha384((STATIC_PATH / "vendor" / "htmx.min.js").read_bytes()).digest()
+    ).decode()
+    assert digest == HTMX_SHA384
+    assert "BSD 2-Clause" in (STATIC_PATH / "vendor" / "htmx.LICENSE.txt").read_text(
+        encoding="utf-8"
+    )
+    assert 'version:"2.0.10"' in (STATIC_PATH / "vendor" / "htmx.min.js").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_t11_home_route_renders_with_jinja_excluded_from_openapi_and_get_only(tmp_path: Path) -> None:
+    settings = ApplicationSettings(
+        environment="test",
+        app_title="<XIANYU Core>",
+        database_path=tmp_path / "home.db",
+    )
+    app = create_application(settings=settings)
+    home_routes = [route for route in app.routes if isinstance(route, APIRoute) and route.path == HOME_PATH]
+    assert len(home_routes) == 1
+    assert home_routes[0].methods == {"GET"}
+    assert home_routes[0].include_in_schema is False
+    assert home_routes[0].name == HOME_ROUTE_NAME
+
+    with TestClient(app) as client:
+        response = client.get(HOME_PATH)
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/html; charset=utf-8")
+        body = response.text
+        assert "&lt;XIANYU Core&gt;" in body
+        assert "<XIANYU Core>" not in body
+        assert '/static/styles.css' in body
+        assert '/static/vendor/htmx.min.js' in body
+        assert 'hx-get="/health"' in body
+        assert "Health not requested." in body
+        assert client.post(HOME_PATH).status_code == 405
+        assert client.put(HOME_PATH).status_code == 405
+        assert client.patch(HOME_PATH).status_code == 405
+        assert client.delete(HOME_PATH).status_code == 405
+
+    assert set(app.openapi()["paths"]) == {"/health"}
+    assert "/" not in app.openapi()["paths"]
+    assert "/static" not in app.openapi()["paths"]
+
+
+def test_t11_static_mount_is_local_package_scoped_and_serves_assets(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "static.db")
+    )
+    mounts = [route for route in app.routes if isinstance(route, Mount) and route.path == STATIC_URL_PATH]
+    assert len(mounts) == 1
+    mount = mounts[0]
+    assert mount.name == STATIC_ROUTE_NAME
+    assert isinstance(mount.app, StaticFiles)
+    assert mount.app.directory == str(STATIC_PATH)
+    assert mount.app.html is False
+    assert mount.app.follow_symlink is False
+
+    with TestClient(app) as client:
+        assert client.get("/static/styles.css").status_code == 200
+        assert client.get("/static/vendor/htmx.min.js").status_code == 200
+        license_response = client.get("/static/vendor/htmx.LICENSE.txt")
+        assert license_response.status_code == 200
+        assert "BSD 2-Clause" in license_response.text
+
+
+def test_t11_template_environment_isolated_and_no_external_or_mutating_web_behavior() -> None:
+    first = create_templates()
+    second = create_templates()
+    assert isinstance(first, Jinja2Templates)
+    assert isinstance(second, Jinja2Templates)
+    assert first is not second
+    assert first.env is not second.env
+    assert "&lt;safe&gt;" in first.env.from_string("{{ value }}").render(value="<safe>")
+
+    combined = "\n".join(
+        (ROOT / relative).read_text(encoding="utf-8")
+        for relative in WEB_MODULES
+        if not relative.endswith("htmx.min.js")
+    ).lower()
+    for forbidden in [
+        "https://",
+        "http://",
+        "//cdn",
+        "unpkg",
+        "fonts.googleapis",
+        "@import",
+        "|safe",
+        "hx-post",
+        "hx-put",
+        "hx-patch",
+        "hx-delete",
+        "hx-ws",
+        "hx-sse",
+        "initialize_database",
+        "create_database_engine",
+        "upgrade_database",
+        "open_session",
+        "add_job",
+        "remove_job",
+        "requests.",
+        "httpx.",
+        "playwright",
+        "selenium",
+        "wecom",
+        "openai",
+    ]:
+        assert forbidden not in combined
+
+
+def test_t11_pyproject_package_data_includes_web_assets() -> None:
+    package_data = pyproject()["tool"]["setuptools"]["package-data"]
+    assert package_data["xianyu_system.web"] == [
+        "templates/*.html",
+        "static/*.css",
+        "static/vendor/*.js",
+        "static/vendor/*.txt",
+    ]
 
 
 def test_deferred_core_modules_and_artifacts_are_not_created() -> None:

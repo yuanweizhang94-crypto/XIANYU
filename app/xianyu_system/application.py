@@ -15,6 +15,7 @@ from xianyu_system.core.scheduler import (
     shutdown_scheduler,
     start_scheduler,
 )
+from xianyu_system.web.router import register_web
 
 LifespanHandler = Callable[[FastAPI], AbstractAsyncContextManager[None]]
 
@@ -127,4 +128,5 @@ def create_application(
     )
     app.state.settings = resolved_settings
     app.include_router(api_router)
+    register_web(app)
     return app
