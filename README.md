@@ -176,7 +176,8 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - CHG-0003-xianyu-account-boundary is the only active change.
 - CHG-0003 status is `APPROVED`.
 - T1 project-owner approval is complete.
-- T2 account and Profile terminology is the next executable task.
+- T2 account and Profile isolation terminology is complete.
+- T3 security and credential-handling boundaries is the next executable task.
 - No CHG-0003 runtime implementation has started.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 - T1 through T15 are complete for archived CHG-0002.
@@ -188,6 +189,17 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - `CAP-XY-SCHEDULE` remains `planned`.
 - No Xianyu account runtime, Cookie import, browser Profile loading, login, or external platform access is implemented.
 - Approval of CHG-0003 does not mean that runtime implementation, real account access, Cookie or Token handling, browser Profile loading, Ready-for-review, auto-merge, or merge has been approved.
+
+Within CHG-0003:
+
+- Platform Account means the real external Xianyu account.
+- Account Reference means the repository-owned non-secret logical reference.
+- Profile means the local isolation boundary and does not mean a browser profile.
+- Profile Identifier is the canonical local identity.
+- Credential Reference is an opaque reference and never contains secret material.
+- Session Material remains sensitive and outside the approved implementation boundary.
+
+Completion of T2 does not authorize T3, credential handling, persistence, browser integration, Ready-for-review, auto-merge, or merge.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 

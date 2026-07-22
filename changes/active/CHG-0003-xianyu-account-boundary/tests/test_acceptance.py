@@ -40,7 +40,7 @@ def test_chg_0003_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0003 / name) == "APPROVED"
 
 
-def test_chg_0003_approval_completes_only_t1() -> None:
+def test_chg_0003_t2_completion_advances_only_to_t3() -> None:
     task_lines = [
         line
         for line in (CHG_0003 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -49,7 +49,8 @@ def test_chg_0003_approval_completes_only_t1() -> None:
 
     assert len(task_lines) == 9
     assert task_lines[0].startswith("- [x]")
-    assert all(line.startswith("- [ ]") for line in task_lines[1:])
+    assert task_lines[1].startswith("- [x]")
+    assert all(line.startswith("- [ ]") for line in task_lines[2:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8")
@@ -58,20 +59,14 @@ def test_chg_0003_approval_completes_only_t1() -> None:
     assert state["active_change"]["id"] == "CHG-0003-xianyu-account-boundary"
     assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 1
+    assert state["tasks"]["completed"] == 2
 
-    assert state["tasks"]["items"][0]["text"] == (
-        "T1 Obtain explicit project-owner approval for CHG-0003"
-    )
     assert state["tasks"]["items"][0]["completed"] is True
-
-    assert state["tasks"]["items"][1]["text"] == (
-        "T2 Finalize account and Profile isolation terminology"
-    )
-    assert state["tasks"]["items"][1]["completed"] is False
+    assert state["tasks"]["items"][1]["completed"] is True
+    assert state["tasks"]["items"][2]["completed"] is False
 
     assert state["tasks"]["next_task"] == (
-        "T2 Finalize account and Profile isolation terminology"
+        "T3 Approve security and credential-handling boundaries"
     )
 
 
@@ -108,13 +103,38 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
     design = (CHG_0003 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0003 / "acceptance.md").read_text(encoding="utf-8")
 
-    assert "This approval transition completes T1 only." in proposal
-    assert "T2 must not begin in the same execution." in proposal
+    required_terms = [
+        "Platform Account",
+        "Account Reference",
+        "Profile",
+        "Profile Identifier",
+        "Account Alias",
+        "External Account Identifier",
+        "Credential Reference",
+        "Session Material",
+        "Profile-scoped State",
+        "Isolation Boundary",
+        "Synthetic Fixture",
+    ]
+    for term in required_terms:
+        assert term in design
 
-    assert "No runtime account design or implementation has been approved yet." in design
-    assert "T2 is the next executable task." in design
-    assert "T2 must be performed in a separate execution." in design
+    assert "A Profile is not a browser profile" in design
+    assert "Each Profile owns exactly one Account Reference." in design
+    assert "Each Account Reference belongs to exactly one Profile." in design
+    assert "A Credential Reference must never contain a secret value." in design
+    assert "Profile-scoped State must not be shared as mutable state across Profiles." in design
+    assert "Missing, ambiguous, conflicting, or cross-Profile ownership information must fail closed." in design
+    assert "Deferred to T3" in design
+    assert "Deferred to T4" in design
+    assert "Deferred to T5" in design
+    assert "Deferred to T6" in design
 
-    assert "This approval transition completes T1 only." in acceptance
-    assert "No runtime implementation" in acceptance
+    assert "T1 and T2 are complete." in proposal
+    assert "T3 is the next executable task" in proposal
+    assert "This execution completes T2 only." in proposal
+    assert "T3 must not begin in the same execution." in proposal
+
+    assert "T1 and T2 are complete." in acceptance
+    assert "T3 is the next executable task" in acceptance
     assert "PR #3 remains Draft" in acceptance
