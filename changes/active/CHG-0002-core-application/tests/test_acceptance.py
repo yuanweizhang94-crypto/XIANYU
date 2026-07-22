@@ -270,8 +270,32 @@ def chg_0002_tasks():
 
 def ensure_verified_candidate_commit_is_available() -> None:
     candidate_ref = f"{VERIFIED_CANDIDATE_SHA}^{{commit}}"
-    exists = subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT)
-    if exists.returncode != 0:
+
+    def candidate_exists() -> bool:
+        return subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT).returncode == 0
+
+    def candidate_is_head_ancestor() -> bool:
+        return (
+            subprocess.run(
+                ["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"],
+                cwd=ROOT,
+            ).returncode
+            == 0
+        )
+
+    if candidate_exists() and candidate_is_head_ancestor():
+        return
+
+    is_shallow = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    if is_shallow == "true":
+        subprocess.run(["git", "fetch", "--no-tags", "--unshallow", "origin"], cwd=ROOT, check=True)
+    else:
         subprocess.run(
             ["git", "fetch", "--no-tags", "--depth=1000", "origin", "feat/CHG-0002-core-application"],
             cwd=ROOT,
@@ -279,41 +303,9 @@ def ensure_verified_candidate_commit_is_available() -> None:
             text=True,
             capture_output=True,
         )
+
     subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT, check=True)
-
-    direct_ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT)
-    if direct_ancestor.returncode == 0:
-        return
-
-    subprocess.run(
-        ["git", "fetch", "--no-tags", "--depth=1000", "origin", "feat/CHG-0002-core-application"],
-        cwd=ROOT,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    fetched_head = subprocess.run(
-        ["git", "rev-parse", "FETCH_HEAD"],
-        cwd=ROOT,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.strip()
-    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, fetched_head], cwd=ROOT, check=True)
-    head_parents = subprocess.run(
-        ["git", "show", "-s", "--format=%P", "HEAD"],
-        cwd=ROOT,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.split()
-    assert fetched_head == subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=ROOT,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.strip() or fetched_head in head_parents
+    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
 
 def pyproject() -> dict[str, object]:
     return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
