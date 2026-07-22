@@ -217,7 +217,7 @@ def dev_dependencies() -> list[str]:
 
 
 def route_paths(app: FastAPI) -> set[str]:
-    return {str(route.path) for route in app.routes}
+    return {str(route.path) for route in app.routes if hasattr(route, "path")}
 
 
 def project_events(captured: str) -> list[dict[str, object]]:

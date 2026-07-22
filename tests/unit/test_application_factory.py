@@ -57,7 +57,7 @@ def clear_supported_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def route_paths(app: FastAPI) -> set[str]:
-    return {str(route.path) for route in app.routes}
+    return {str(route.path) for route in app.routes if hasattr(route, "path")}
 
 
 def project_events(captured: str) -> list[dict[str, object]]:
@@ -179,8 +179,8 @@ def test_health_route_is_registered_once_per_application_instance() -> None:
     first = create_application()
     second = create_application()
 
-    assert sum(1 for route in first.routes if str(route.path) == "/health") == 1
-    assert sum(1 for route in second.routes if str(route.path) == "/health") == 1
+    assert sum(1 for path in route_paths(first) if path == "/health") == 1
+    assert sum(1 for path in route_paths(second) if path == "/health") == 1
     assert first.routes is not second.routes
 
 
