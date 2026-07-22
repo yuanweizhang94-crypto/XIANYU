@@ -11,9 +11,11 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
+from xianyu_system.core.database import DatabaseResources, open_session
 from xianyu_system.core.logging import ManagedStreamHandler
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -146,7 +148,7 @@ def test_application_has_no_custom_business_routes() -> None:
     assert "/" not in route_paths(app)
 
 
-def test_custom_lifespan_runs_startup_and_shutdown_once() -> None:
+def test_custom_lifespan_runs_startup_and_shutdown_once(tmp_path: Path) -> None:
     events: list[str] = []
 
     @asynccontextmanager
@@ -155,7 +157,10 @@ def test_custom_lifespan_runs_startup_and_shutdown_once() -> None:
         yield
         events.append("shutdown")
 
-    app = create_application(lifespan=lifespan)
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "custom.db"),
+    )
 
     with TestClient(app):
         assert events == ["startup"]
@@ -163,9 +168,12 @@ def test_custom_lifespan_runs_startup_and_shutdown_once() -> None:
     assert events == ["startup", "shutdown"]
 
 
-def test_settings_injection_preserves_custom_lifespan_behavior() -> None:
+def test_settings_injection_preserves_custom_lifespan_behavior(tmp_path: Path) -> None:
     events: list[str] = []
-    supplied_settings = ApplicationSettings(app_title="LIFESPAN APP")
+    supplied_settings = ApplicationSettings(
+        app_title="LIFESPAN APP",
+        database_path=tmp_path / "settings-lifespan.db",
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -182,7 +190,7 @@ def test_settings_injection_preserves_custom_lifespan_behavior() -> None:
     assert events == ["startup", "shutdown"]
 
 
-def test_lifespan_state_is_isolated_per_application() -> None:
+def test_lifespan_state_is_isolated_per_application(tmp_path: Path) -> None:
     first_events: list[str] = []
     second_events: list[str] = []
 
@@ -198,8 +206,14 @@ def test_lifespan_state_is_isolated_per_application() -> None:
         yield
         second_events.append("second-shutdown")
 
-    first = create_application(lifespan=first_lifespan)
-    second = create_application(lifespan=second_lifespan)
+    first = create_application(
+        lifespan=first_lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "first.db"),
+    )
+    second = create_application(
+        lifespan=second_lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "second.db"),
+    )
 
     with TestClient(first):
         assert first_events == ["first-startup"]
@@ -265,8 +279,8 @@ def test_create_application_does_not_configure_logging_immediately() -> None:
     assert not hasattr(app.state, "logger")
 
 
-def test_logging_lifespan_adds_logger_and_cleans_managed_handler() -> None:
-    settings = ApplicationSettings(log_level="ERROR")
+def test_logging_lifespan_adds_logger_and_cleans_managed_handler(tmp_path: Path) -> None:
+    settings = ApplicationSettings(log_level="ERROR", database_path=tmp_path / "logging.db")
     app = create_application(settings=settings)
 
     with TestClient(app):
@@ -278,16 +292,22 @@ def test_logging_lifespan_adds_logger_and_cleans_managed_handler() -> None:
     assert not any(isinstance(handler, ManagedStreamHandler) for handler in logger.handlers)
 
 
-def test_application_instances_get_distinct_logger_names() -> None:
-    first = create_application()
-    second = create_application()
+def test_application_instances_get_distinct_logger_names(tmp_path: Path) -> None:
+    first = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "first-logger.db")
+    )
+    second = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "second-logger.db")
+    )
 
     with TestClient(first), TestClient(second):
         assert first.state.logger.name != second.state.logger.name
 
 
-def test_lifespan_emits_structured_startup_and_shutdown_events(capsys: pytest.CaptureFixture[str]) -> None:
-    settings = ApplicationSettings(environment="test")
+def test_lifespan_emits_structured_startup_and_shutdown_events(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    settings = ApplicationSettings(environment="test", database_path=tmp_path / "events.db")
     app = create_application(settings=settings)
 
     with TestClient(app):
@@ -296,23 +316,34 @@ def test_lifespan_emits_structured_startup_and_shutdown_events(capsys: pytest.Ca
     events = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
     assert [event["event"] for event in events] == [
         "application.startup",
+        "database.ready",
+        "database.shutdown",
         "application.shutdown",
     ]
     assert [event["message"] for event in events] == [
         "Application startup",
+        "Database ready",
+        "Database shutdown",
         "Application shutdown",
     ]
-    assert all(event["environment"] == "test" for event in events)
+    assert events[0]["environment"] == "test"
+    assert events[-1]["environment"] == "test"
+    assert events[1]["journal_mode"] == "wal"
 
 
-def test_project_and_custom_lifespan_order_is_composed(capsys: pytest.CaptureFixture[str]) -> None:
+def test_project_and_custom_lifespan_order_is_composed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.logger.info("custom startup", extra={"event": "custom.startup"})
         yield
         app.state.logger.info("custom shutdown", extra={"event": "custom.shutdown"})
 
-    app = create_application(lifespan=lifespan)
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "composed.db"),
+    )
 
     with TestClient(app):
         pass
@@ -320,19 +351,24 @@ def test_project_and_custom_lifespan_order_is_composed(capsys: pytest.CaptureFix
     events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
     assert events == [
         "application.startup",
+        "database.ready",
         "custom.startup",
         "custom.shutdown",
+        "database.shutdown",
         "application.shutdown",
     ]
 
 
-def test_custom_lifespan_exception_still_cleans_project_handler() -> None:
+def test_custom_lifespan_exception_still_cleans_project_handler(tmp_path: Path) -> None:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
         raise RuntimeError("custom shutdown failure")
 
-    app = create_application(lifespan=lifespan)
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "exception.db"),
+    )
 
     with pytest.raises(RuntimeError), TestClient(app):
         pass
@@ -360,4 +396,141 @@ def test_importing_main_does_not_emit_logs_or_create_files(tmp_path: Path) -> No
     assert result.stderr == ""
     assert not (tmp_path / "logs").exists()
     for pattern in ["*.log", "*.db", "*.sqlite", "*.sqlite3"]:
+        assert list(tmp_path.glob(pattern)) == []
+
+
+
+def test_create_application_does_not_create_database_immediately(tmp_path: Path) -> None:
+    path = tmp_path / "not-created.db"
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=path)
+    )
+
+    assert not path.exists()
+    assert not hasattr(app.state, "database")
+
+
+def test_database_lifespan_initializes_session_and_cleans_up(tmp_path: Path) -> None:
+    path = tmp_path / "lifespan.db"
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=path)
+    )
+
+    assert not hasattr(app.state, "database")
+    with TestClient(app):
+        assert isinstance(app.state.database, DatabaseResources)
+        assert path.exists()
+        with app.state.database.engine.connect() as connection:
+            assert str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
+        with open_session(app.state.database) as session:
+            assert session.execute(text("SELECT 1")).scalar_one() == 1
+
+    assert app.state.database is None
+    path.unlink()
+    assert not path.exists()
+
+
+def test_custom_lifespan_can_use_database_during_startup_and_shutdown(tmp_path: Path) -> None:
+    events: list[str] = []
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        with open_session(app.state.database) as session:
+            assert session.execute(text("SELECT 1")).scalar_one() == 1
+        events.append("custom-startup-db-ready")
+        yield
+        with open_session(app.state.database) as session:
+            assert session.execute(text("SELECT 1")).scalar_one() == 1
+        events.append("custom-shutdown-db-ready")
+
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "custom-db.db"),
+    )
+
+    with TestClient(app):
+        assert events == ["custom-startup-db-ready"]
+
+    assert events == ["custom-startup-db-ready", "custom-shutdown-db-ready"]
+    assert app.state.database is None
+
+
+def test_application_instances_use_isolated_database_resources(tmp_path: Path) -> None:
+    first = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "first-app.db")
+    )
+    second = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "second-app.db")
+    )
+
+    with TestClient(first), TestClient(second):
+        assert first.state.database is not second.state.database
+        assert first.state.database.engine is not second.state.database.engine
+        assert first.state.database.session_factory is not second.state.database.session_factory
+        assert first.state.database.path != second.state.database.path
+
+
+def test_custom_lifespan_exception_still_disposes_database(tmp_path: Path) -> None:
+    path = tmp_path / "custom-failure.db"
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        yield
+        raise RuntimeError("custom shutdown failure")
+
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=path),
+    )
+
+    with pytest.raises(RuntimeError), TestClient(app):
+        pass
+
+    assert app.state.database is None
+    path.unlink()
+    assert not path.exists()
+
+
+def test_database_initialization_failure_cleans_logging_and_skips_custom_lifespan(
+    tmp_path: Path,
+) -> None:
+    events: list[str] = []
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        events.append("custom-startup")
+        yield
+        events.append("custom-shutdown")
+
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path),
+    )
+
+    with pytest.raises(ValueError), TestClient(app):
+        pass
+
+    assert events == []
+    assert app.state.database is None
+    assert not any(isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers)
+
+
+def test_importing_main_does_not_create_default_database_file(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    pythonpath_parts = [str(ROOT / "app")]
+    if env.get("PYTHONPATH"):
+        pythonpath_parts.append(env["PYTHONPATH"])
+    env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+
+    subprocess.run(
+        [sys.executable, "-c", "import xianyu_system.main"],
+        cwd=tmp_path,
+        env=env,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+    assert not (tmp_path / "data").exists()
+    for pattern in ["*.db", "*.sqlite", "*.sqlite3"]:
         assert list(tmp_path.glob(pattern)) == []

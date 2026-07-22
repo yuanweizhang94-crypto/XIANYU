@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 6,
-    "next_task": "T7 Implement SQLite WAL and SQLAlchemy infrastructure",
+    "completed": 7,
+    "next_task": "T8 Establish Alembic migration baseline",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -37,7 +37,7 @@
       },
       {
         "text": "T7 Implement SQLite WAL and SQLAlchemy infrastructure",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T8 Establish Alembic migration baseline",

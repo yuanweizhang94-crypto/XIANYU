@@ -91,6 +91,16 @@ Logging is configured during the FastAPI application lifespan startup, not durin
 
 The current logging boundary does not create log files or a `logs/` directory and does not send logs to any external logging service.
 
+## Current database infrastructure
+
+The database infrastructure boundary is `xianyu_system.core.database`.
+
+It uses SQLite through the `sqlite+pysqlite` driver. The database path comes from `XIANYU_DATABASE_PATH` through `ApplicationSettings.database_path`. Creating an Engine does not by itself connect or create a database file.
+
+The database is initialized during FastAPI application lifespan startup. Initialization enables and verifies WAL mode, enables SQLite foreign keys, and sets a 5000ms busy timeout for project Engine connections. Sessions are created through one Session factory, and the Session context manager closes sessions without automatically committing.
+
+The application disposes its Engine during lifespan shutdown. `Base.metadata` currently contains no business tables, Alembic has not been implemented yet, and the database layer does not store real customer data.
+
 ## Verification commands
 
 ```bash

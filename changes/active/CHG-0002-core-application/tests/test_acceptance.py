@@ -12,12 +12,23 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from pydantic_settings import BaseSettings
 
 from scripts.generate_state import project_state_json
 from scripts.repo_utils import parse_tasks, read_yaml
 from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
+from xianyu_system.core.database import (
+    Base,
+    DatabaseResources,
+    build_sqlite_url,
+    create_database_engine,
+    create_session_factory,
+    dispose_database,
+    initialize_database,
+    open_session,
+)
 from xianyu_system.core.logging import (
     REDACTED_VALUE,
     ManagedStreamHandler,
@@ -72,8 +83,10 @@ CONFIGURATION_MODULES = [
 LOGGING_MODULES = [
     "app/xianyu_system/core/logging.py",
 ]
-DEFERRED_CORE_PATHS = [
+DATABASE_MODULES = [
     "app/xianyu_system/core/database.py",
+]
+DEFERRED_CORE_PATHS = [
     "app/xianyu_system/core/scheduler.py",
     "app/xianyu_system/api",
     "app/xianyu_system/web",
@@ -198,6 +211,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
             "## T4 implementation decision",
             "## T5 implementation decision",
             "## T6 implementation decision",
+            "## T7 implementation decision",
         ],
         "acceptance.md": ["## Final acceptance criteria"],
     }
@@ -214,7 +228,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t6_is_complete_and_t7_is_next() -> None:
+def test_chg_0002_t7_is_complete_and_t8_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -235,11 +249,11 @@ def test_chg_0002_t6_is_complete_and_t7_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6"}
-    assert incomplete == {f"T{index}" for index in range(7, 16)}
+    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7"}
+    assert incomplete == {f"T{index}" for index in range(8, 16)}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T7 Implement SQLite WAL and SQLAlchemy infrastructure"
+    assert state["tasks"]["next_task"] == "T8 Establish Alembic migration baseline"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -395,10 +409,19 @@ def test_t6_logging_redacts_sensitive_fields_and_messages() -> None:
 
 
 def test_t6_logging_is_configured_only_during_lifespan_and_uses_distinct_loggers(
+    tmp_path: Path,
     capsys,
 ) -> None:
-    first = create_application(settings=ApplicationSettings(environment="test", log_level="INFO"))
-    second = create_application(settings=ApplicationSettings(environment="test", log_level="INFO"))
+    first = create_application(
+        settings=ApplicationSettings(
+            environment="test", log_level="INFO", database_path=tmp_path / "first-logging.db"
+        )
+    )
+    second = create_application(
+        settings=ApplicationSettings(
+            environment="test", log_level="INFO", database_path=tmp_path / "second-logging.db"
+        )
+    )
 
     assert not hasattr(first.state, "logger")
     assert not hasattr(second.state, "logger")
@@ -412,7 +435,83 @@ def test_t6_logging_is_configured_only_during_lifespan_and_uses_distinct_loggers
     assert not any(isinstance(handler, ManagedStreamHandler) for handler in first.state.logger.handlers)
     events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
     assert events.count("application.startup") == 2
+    assert events.count("database.ready") == 2
+    assert events.count("database.shutdown") == 2
     assert events.count("application.shutdown") == 2
+
+
+def test_t7_database_module_exists_with_sqlalchemy_boundaries(tmp_path: Path) -> None:
+    for relative in DATABASE_MODULES:
+        assert (ROOT / relative).is_file()
+
+    assert Base.metadata.tables == {}
+    url = build_sqlite_url(tmp_path / "acceptance db.sqlite")
+    assert url.drivername == "sqlite+pysqlite"
+    assert url.database == str((tmp_path / "acceptance db.sqlite").resolve(strict=False))
+
+    engine = create_database_engine(tmp_path / "lazy.db")
+    try:
+        assert not (tmp_path / "lazy.db").exists()
+        factory = create_session_factory(engine)
+        assert factory.kw["autoflush"] is False
+        assert factory.kw["expire_on_commit"] is False
+    finally:
+        engine.dispose()
+
+    source = (ROOT / "app/xianyu_system/core/database.py").read_text(encoding="utf-8")
+    assert "check_same_thread" in source
+    assert "journal_mode=WAL" in source
+    assert "foreign_keys=ON" in source
+    assert "busy_timeout=5000" in source
+    assert "metadata.create_all" not in source
+    assert "metadata.drop_all" not in source
+    assert "Table(" not in source
+    assert "mapped_column(" not in source
+    assert "__tablename__" not in source
+
+
+def test_t7_database_initialization_wal_session_and_empty_schema(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "acceptance.db")
+    try:
+        assert isinstance(resources, DatabaseResources)
+        assert resources.path.is_absolute()
+        assert resources.path.exists()
+        with resources.engine.connect() as connection:
+            assert str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
+            assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+            assert connection.exec_driver_sql("PRAGMA busy_timeout").scalar_one() >= 5000
+            tables = connection.exec_driver_sql(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).scalars().all()
+            assert [name for name in tables if not str(name).startswith("sqlite_")] == []
+        with open_session(resources) as session:
+            assert session.execute(text("SELECT 1")).scalar_one() == 1
+    finally:
+        dispose_database(resources)
+
+
+def test_t7_database_lifespan_initializes_and_disposes_per_application(
+    tmp_path: Path, capsys
+) -> None:
+    first = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "first-app.db")
+    )
+    second = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "second-app.db")
+    )
+
+    assert not hasattr(first.state, "database")
+    with TestClient(first), TestClient(second):
+        assert isinstance(first.state.database, DatabaseResources)
+        assert isinstance(second.state.database, DatabaseResources)
+        assert first.state.database.engine is not second.state.database.engine
+        assert first.state.database.path != second.state.database.path
+
+    assert first.state.database is None
+    assert second.state.database is None
+    events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
+    assert events.count("database.ready") == 2
+    assert events.count("database.shutdown") == 2
 
 
 def test_deferred_core_modules_and_artifacts_are_not_created() -> None:
@@ -427,6 +526,15 @@ def test_deferred_core_modules_and_artifacts_are_not_created() -> None:
     ).stdout.splitlines()
     forbidden_suffixes = (".db", ".sqlite", ".sqlite3")
     assert [path for path in tracked if path.endswith(forbidden_suffixes)] == []
+    ignored_runtime = {".mypy_cache", ".venv", "__pycache__"}
+    project_database_files = [
+        path
+        for path in ROOT.rglob("*")
+        if path.is_file()
+        and path.suffix in forbidden_suffixes
+        and ignored_runtime.isdisjoint(path.relative_to(ROOT).parts)
+    ]
+    assert project_database_files == []
 
 
 def test_openapi_contract_still_has_no_business_or_health_paths() -> None:

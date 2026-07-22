@@ -98,6 +98,7 @@ Importing any Core module must not:
 - `application.py` owns the reusable FastAPI application factory.
 - T4 initially introduced the no-op lifespan.
 - T6 extends the project lifespan with logging startup and shutdown while preserving custom lifespan composition.
+- T7 extends the project lifespan with database initialization after logging startup and database disposal before logging shutdown.
 - `create_application()` accepts an optional lifespan handler for isolated tests and later approved infrastructure integration.
 - `main.py` exposes one ASGI entry application created by the factory.
 - Application creation does not start a server, scheduler, database, migration, browser, or external client.
@@ -127,6 +128,20 @@ Importing any Core module must not:
 - Root logging configuration and caller-owned handlers are not modified.
 - No log file or log directory is created.
 - T6 does not implement database, migration, scheduler, API, or web behavior.
+
+## T7 implementation decision
+
+- `core/database.py` is the single SQLite and SQLAlchemy infrastructure boundary.
+- SQLite URLs are created with SQLAlchemy `URL.create()` and the `sqlite+pysqlite` driver.
+- Engine creation is lazy and does not connect or create a database file.
+- Explicit database initialization creates the parent directory, opens the database, enables and verifies WAL, and validates connectivity.
+- SQLite foreign keys are enabled and busy timeout is set to 5000 milliseconds for each project-engine connection.
+- `DatabaseResources` owns the resolved path, Engine, and Session factory for one application instance.
+- `open_session()` closes sessions but does not automatically commit.
+- `Base.metadata` is currently empty and no business schema is created.
+- Database initialization and disposal are controlled by the FastAPI lifespan.
+- Each application receives an independent Engine and Session factory.
+- T7 does not introduce Alembic files, migrations, scheduler behavior, API routes, web routes, or business tables.
 
 ## Testing rules
 

@@ -30,6 +30,27 @@ Provide the single SQLite WAL, SQLAlchemy, and Alembic infrastructure boundary f
 - Avoid module-import side effects: imports must not create database files or open connections.
 - Establish Alembic baseline without business tables in this change.
 
+## T7 implementation decision
+
+- Implementation file: `app/xianyu_system/core/database.py`.
+- SQLite driver: `sqlite+pysqlite`.
+- Database path comes from `ApplicationSettings.database_path`.
+- Paths are resolved to absolute paths at initialization.
+- Engine creation alone does not connect or create files.
+- Database initialization occurs in FastAPI lifespan.
+- SQLite uses WAL.
+- SQLite foreign keys are enabled.
+- SQLite busy timeout is 5000ms.
+- File SQLite uses `check_same_thread=False`.
+- Session factory is unified.
+- Session context closes sessions but does not auto-commit.
+- `Base.metadata` currently has no tables.
+- No business schema is created.
+- Engine is disposed during lifespan shutdown.
+- Capability remains `implementing`.
+- Registry implementation and test path fields remain deferred to T13.
+- Alembic remains deferred to T8.
+
 ## Acceptance criteria
 
 - SQLite WAL is enabled by the unified database module.
