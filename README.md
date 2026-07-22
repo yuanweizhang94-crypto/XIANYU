@@ -171,15 +171,20 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 ## Core verification status
 
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+- T1 through T15 are complete.
+- CHG-0002 remains `VERIFYING`.
+- PR #2 remains Draft, open, and unmerged.
+- The final branch is pushed.
+- No unfinished task remains in the current change.
 - `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR` are `verified`.
 - Each verified Core capability records `d11f1afc4564298e8c2709fdb80a41a491dbb1ea` in `last_verified_commit`.
 - Verified Core capabilities have cleared their registry `active_change` field.
-- CHG-0002 remains `VERIFYING`.
-- T15 remains incomplete.
 - The seven non-Core capabilities remain `planned`.
 - `CAP-XY-SCHEDULE` remains `planned`.
+- CHG-0003 has not started.
+- Ready-for-review and merge are not authorized.
+- The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
-- PR #2 remains Draft.
 
 ## Permanent test layers
 

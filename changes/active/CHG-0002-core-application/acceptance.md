@@ -35,14 +35,16 @@ Change ID: CHG-0002-core-application
 
 The change is VERIFYING.
 
-T1 through T14 are complete after candidate commit d11f1afc4564298e8c2709fdb80a41a491dbb1ea passes complete local verification.
+T1 through T15 are complete.
 
-T15 Push branch and open Draft PR is the next task.
+The final branch is pushed and the existing Draft PR #2 is open, targets main, and remains unmerged.
 
-CAP-CORE-CONFIG, CAP-CORE-DATABASE, and CAP-HEALTH-MONITOR are verified and record d11f1afc4564298e8c2709fdb80a41a491dbb1ea as their last verified commit.
+No unfinished task remains in CHG-0002.
 
-The verified capabilities are no longer bound through their registry active_change fields.
+CAP-CORE-CONFIG, CAP-CORE-DATABASE, and CAP-HEALTH-MONITOR remain verified and continue to record d11f1afc4564298e8c2709fdb80a41a491dbb1ea as their last verified commit.
 
 The seven non-Core capabilities remain planned and unbound.
 
-The change remains active and the pull request must remain Draft until T15 is complete.
+The active change remains under changes/active until an explicitly authorized merge and later archive transition.
+
+Completing T15 does not authorize marking the pull request Ready, enabling auto-merge, merging the pull request, or starting CHG-0003.

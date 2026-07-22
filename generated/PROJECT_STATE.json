@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 14,
-    "next_task": "T15 Push branch and open Draft PR",
+    "completed": 15,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -69,7 +69,7 @@
       },
       {
         "text": "T15 Push branch and open Draft PR",
-        "completed": false
+        "completed": true
       }
     ]
   },

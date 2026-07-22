@@ -250,6 +250,21 @@ Importing any Core module must not:
 - `CAP-XY-SCHEDULE` remains planned because Core scheduler lifecycle infrastructure does not implement Xianyu scheduling behavior.
 - T14 changes verification metadata, tests, and documentation only; no application runtime, contract, migration, dependency, or workflow behavior changes.
 
+## T15 Draft PR administration decision
+
+- The final CHG-0002 branch is pushed to `feat/CHG-0002-core-application`.
+- The existing pull request is PR #2 targeting `main`.
+- PR #2 remains open, Draft, and unmerged.
+- T15 uses the existing Draft PR and does not create a duplicate pull request.
+- All fifteen CHG-0002 tasks are complete.
+- The active change remains `VERIFYING` until the project owner explicitly authorizes a later Ready-for-review or merge transition.
+- The three verified Core capabilities continue to record candidate commit `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+- The seven non-Core capabilities remain planned.
+- `CAP-XY-SCHEDULE` remains planned.
+- T15 changes final administration documentation, task state, acceptance assertions, and generated project state only.
+- T15 does not modify application runtime behavior, contracts, capability evidence paths, migrations, dependencies, governance scripts, or CI workflows.
+- No CHG-0003 preparation, archive move, Ready-for-review transition, auto-merge, or merge is performed.
+
 ## Testing rules
 
 * Application factory tests must create more than one application instance.

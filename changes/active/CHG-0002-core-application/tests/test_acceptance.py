@@ -485,6 +485,10 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
             "## T9 implementation decision",
             "## T10 implementation decision",
             "## T11 implementation decision",
+            "## T12 implementation decision",
+            "## T13 implementation decision",
+            "## T14 verification decision",
+            "## T15 Draft PR administration decision",
         ],
         "acceptance.md": ["## Final acceptance criteria"],
     }
@@ -501,7 +505,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t14_is_complete_and_t15_is_next() -> None:
+def test_chg_0002_all_tasks_are_complete() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -522,11 +526,40 @@ def test_chg_0002_t14_is_complete_and_t15_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T14"}
-    assert incomplete == {"T15"}
+    assert completed == {
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9",
+        "T10",
+        "T11",
+        "T12",
+        "T13",
+        "T14",
+        "T15",
+    }
+    assert incomplete == set()
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T15 Push branch and open Draft PR"
+    assert state["tasks"]["total"] == 15
+    assert state["tasks"]["completed"] == 15
+    assert state["tasks"]["next_task"] is None
+
+    combined = "\n".join(
+        (active_change_dir() / relative).read_text(encoding="utf-8")
+        if relative != "README.md"
+        else (ROOT / relative).read_text(encoding="utf-8")
+        for relative in ["README.md", "design.md", "acceptance.md", "tasks.md"]
+    )
+    for required in ["T1 through T15 are complete", "PR #2", "Draft", "VERIFYING"]:
+        assert required in combined
+    for forbidden in ["PR #2 is merged", "CHG-0002 is archived", "CHG-0003 is active"]:
+        assert forbidden not in combined
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -1735,8 +1768,8 @@ def test_t13_registry_specs_and_project_state_are_consistent() -> None:
     registry = registry_by_id()
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     state_by_id = {item["id"]: item for item in state["capabilities"]["items"]}
-    assert state["tasks"]["completed"] == 14
-    assert state["tasks"]["next_task"] == "T15 Push branch and open Draft PR"
+    assert state["tasks"]["completed"] == 15
+    assert state["tasks"]["next_task"] is None
     assert state["capabilities"]["by_status"] == {"planned": 7, "verified": 3}
     for cap_id, expected in EXPECTED_CORE_CAPABILITY_PATHS.items():
         spec = (ROOT / registry[cap_id]["specification"]).read_text(encoding="utf-8")
