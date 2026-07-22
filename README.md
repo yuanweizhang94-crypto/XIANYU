@@ -210,7 +210,7 @@ The permanent tests specifically verify:
 10. Synthetic credentials, account data, Cookies, Tokens, Secrets, and browser profiles are not loaded or exposed.
 11. No Xianyu, WeCom, AI Provider, Playwright, browser automation, or external business integration is implemented.
 
-The Core capability registry entries remain in implementation status until the dedicated capability registry update and complete validation steps are performed.
+The three Core capability registry entries are verified after complete validation and record the approved verification candidate commit. The seven non-Core capabilities remain planned.
 
 ## Verification commands
 

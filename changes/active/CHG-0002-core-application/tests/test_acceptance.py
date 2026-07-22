@@ -561,6 +561,11 @@ def test_chg_0002_all_tasks_are_complete() -> None:
     for forbidden in ["PR #2 is merged", "CHG-0002 is archived", "CHG-0003 is active"]:
         assert forbidden not in combined
 
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "The Core capability registry entries remain in implementation status" not in readme
+    assert "The three Core capability registry entries are verified" in readme
+    assert "The seven non-Core capabilities remain planned" in readme
+
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
     runtime = runtime_dependencies()
