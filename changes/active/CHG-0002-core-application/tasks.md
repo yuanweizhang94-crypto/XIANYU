@@ -14,7 +14,7 @@ Change ID: CHG-0002-core-application
 - [x] T9 Implement scheduler lifecycle skeleton
 - [x] T10 Implement health API contract and route
 - [x] T11 Implement Jinja2 and HTMX web skeleton
-- [ ] T12 Add unit, contract and active-change acceptance tests
+- [x] T12 Add unit, contract and active-change acceptance tests
 - [ ] T13 Update capability registry implementation and verification paths
 - [ ] T14 Run complete local verification
 - [ ] T15 Push branch and open Draft PR

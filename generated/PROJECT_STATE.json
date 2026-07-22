@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 11,
-    "next_task": "T12 Add unit, contract and active-change acceptance tests",
+    "completed": 12,
+    "next_task": "T13 Update capability registry implementation and verification paths",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -57,7 +57,7 @@
       },
       {
         "text": "T12 Add unit, contract and active-change acceptance tests",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T13 Update capability registry implementation and verification paths",

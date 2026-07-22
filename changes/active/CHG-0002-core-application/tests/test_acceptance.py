@@ -293,7 +293,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t11_is_complete_and_t12_is_next() -> None:
+def test_chg_0002_t12_is_complete_and_t13_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -314,11 +314,11 @@ def test_chg_0002_t11_is_complete_and_t12_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11"}
-    assert incomplete == {f"T{index}" for index in range(12, 16)}
+    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"}
+    assert incomplete == {f"T{index}" for index in range(13, 16)}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T12 Add unit, contract and active-change acceptance tests"
+    assert state["tasks"]["next_task"] == "T13 Update capability registry implementation and verification paths"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -1160,3 +1160,316 @@ def test_branch_name_matches_active_change_id() -> None:
     match = re.search(r"CHG-\d{4}-[A-Za-z0-9_.-]+", branch)
     assert match is not None
     assert match.group(0) == CHG_0002
+
+
+
+def test_final_acceptance_01_application_factory_is_documented_and_reusable() -> None:
+    assert create_application.__doc__
+    app = create_application()
+    assert isinstance(app, FastAPI)
+    assert app.state.settings.app_title == "XIANYU"
+    assert set(app.openapi()["paths"]) == {"/health"}
+
+
+def test_final_acceptance_02_multiple_applications_do_not_share_runtime_state(tmp_path: Path) -> None:
+    first = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "first-final.db")
+    )
+    second = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "second-final.db")
+    )
+
+    with TestClient(first) as first_client, TestClient(second) as second_client:
+        assert first.state.settings is not second.state.settings
+        assert first.state.database is not second.state.database
+        assert first.state.database.engine is not second.state.database.engine
+        assert first.state.scheduler is not second.state.scheduler
+        assert first.state.web_templates is not second.state.web_templates
+        assert first_client.get("/health").json()["status"] == "ok"
+        assert second_client.get("/health").json()["status"] == "ok"
+
+
+def test_final_acceptance_03_health_response_is_structured_and_safe(tmp_path: Path) -> None:
+    settings = ApplicationSettings(environment="test", database_path=tmp_path / "health-final.db")
+    app = create_application(settings=settings)
+
+    with TestClient(app) as client:
+        response = client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert set(data) == {"status", "service", "version", "environment", "database", "scheduler"}
+    assert data["database"] == {"status": "ok", "connected": True, "journal_mode": "wal"}
+    assert data["scheduler"] == {"status": "ok", "running": True, "job_count": 0, "timezone": "UTC"}
+
+
+def test_final_acceptance_04_openapi_exposes_only_health_operation() -> None:
+    schema = create_application().openapi()
+    assert set(schema["paths"]) == {"/health"}
+    operation = schema["paths"]["/health"]["get"]
+    assert operation["operationId"] == "get_health"
+    assert {"200", "503"} <= set(operation["responses"])
+    assert "HealthResponse" in schema["components"]["schemas"]
+
+
+def test_final_acceptance_05_configuration_supports_environment_and_explicit_overrides(monkeypatch) -> None:
+    monkeypatch.setenv("XIANYU_APP_TITLE", "ENV CORE")
+    monkeypatch.setenv("XIANYU_ENVIRONMENT", "test")
+    env_app = create_application()
+    explicit = ApplicationSettings(app_title="EXPLICIT CORE", environment="local")
+    explicit_app = create_application(settings=explicit)
+
+    assert env_app.state.settings.app_title == "ENV CORE"
+    assert env_app.state.settings.environment == "test"
+    assert explicit_app.state.settings is explicit
+    assert explicit_app.state.settings.app_title == "EXPLICIT CORE"
+    assert explicit_app.state.settings.environment == "local"
+
+
+def test_final_acceptance_06_logging_redacts_sensitive_fields_and_text() -> None:
+    stream = io.StringIO()
+    logger = configure_logging(level="INFO", logger_name="xianyu.final.redaction", stream=stream)
+    try:
+        logger.info(
+            "token=visible-token password: visible-password",
+            extra={"cookie": "visible-cookie", "nested": {"client_secret": "visible-secret"}},
+        )
+    finally:
+        shutdown_logging(logger)
+
+    rendered = stream.getvalue()
+    assert REDACTED_VALUE in rendered
+    for forbidden in ["visible-token", "visible-password", "visible-cookie", "visible-secret"]:
+        assert forbidden not in rendered
+
+
+def test_final_acceptance_07_database_infrastructure_is_single_boundary() -> None:
+    database_source = (ROOT / "app/xianyu_system/core/database.py").read_text(encoding="utf-8")
+    assert "create_engine(" in database_source
+    assert "sessionmaker(" in database_source
+    for relative in API_MODULES + WEB_MODULES[:2]:
+        source = (ROOT / relative).read_text(encoding="utf-8")
+        assert "create_engine(" not in source
+        assert "sqlite3.connect" not in source
+        assert "sessionmaker(" not in source
+
+
+def test_final_acceptance_08_sqlite_connections_enable_wal(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "wal-final.db")
+    try:
+        with resources.engine.connect() as connection:
+            assert str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
+            assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+    finally:
+        dispose_database(resources)
+
+
+def test_final_acceptance_09_sessions_are_opened_through_database_boundary(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "session-final.db")
+    try:
+        with open_session(resources) as session:
+            assert session.execute(text("SELECT 1")).scalar_one() == 1
+        route_sources = "\n".join((ROOT / relative).read_text(encoding="utf-8") for relative in API_MODULES + WEB_MODULES[:2])
+        assert "open_session(" not in route_sources
+    finally:
+        dispose_database(resources)
+
+
+def test_final_acceptance_10_alembic_baseline_executes_successfully(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "alembic-final.db")
+    try:
+        assert get_current_revision(resources) is None
+        upgrade_database(resources)
+        assert get_current_revision(resources) == BASELINE_REVISION
+        assert set(inspect(resources.engine).get_table_names()) <= {"alembic_version"}
+    finally:
+        dispose_database(resources)
+
+
+def test_final_acceptance_11_database_tests_use_temporary_paths(tmp_path: Path) -> None:
+    db_path = tmp_path / "temporary-final.db"
+    app = create_application(settings=ApplicationSettings(environment="test", database_path=db_path))
+    with TestClient(app):
+        assert app.state.database.path == db_path.resolve(strict=False)
+    assert db_path.exists()
+    assert not (ROOT / "data" / "xianyu.db").exists()
+
+
+def test_final_acceptance_12_importing_modules_does_not_create_database_file(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join([str(ROOT / "app"), str(ROOT)])
+    env["XIANYU_DATABASE_PATH"] = str(tmp_path / "must-not-exist.db")
+    result = subprocess.run(
+        [sys.executable, "-c", "import xianyu_system.application; import xianyu_system.main"],
+        cwd=tmp_path,
+        env=env,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    assert result.stderr == ""
+    assert not (tmp_path / "must-not-exist.db").exists()
+    assert list(tmp_path.glob("*.db")) == []
+
+
+def test_final_acceptance_13_importing_modules_does_not_start_scheduler(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join([str(ROOT / "app"), str(ROOT)])
+    script = """
+import json
+import threading
+before = sorted(thread.name for thread in threading.enumerate())
+import xianyu_system.core.scheduler
+import xianyu_system.main
+after = sorted(thread.name for thread in threading.enumerate())
+print(json.dumps({"before": before, "after": after}))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env=env,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    report = json.loads(result.stdout)
+    assert report["after"] == report["before"]
+
+
+def test_final_acceptance_14_scheduler_starts_through_application_lifespan(tmp_path: Path) -> None:
+    app = create_application(settings=ApplicationSettings(environment="test", database_path=tmp_path / "start-final.db"))
+    assert not hasattr(app.state, "scheduler")
+    with TestClient(app):
+        assert isinstance(app.state.scheduler, BackgroundScheduler)
+        assert app.state.scheduler.running is True
+        assert app.state.scheduler.get_jobs() == []
+
+
+def test_final_acceptance_15_scheduler_shuts_down_through_application_lifespan(tmp_path: Path) -> None:
+    app = create_application(settings=ApplicationSettings(environment="test", database_path=tmp_path / "stop-final.db"))
+    with TestClient(app):
+        scheduler = app.state.scheduler
+        assert scheduler.running is True
+    assert app.state.scheduler is None
+    assert scheduler.running is False
+
+
+def test_final_acceptance_16_minimal_home_page_renders_through_jinja(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", app_title="<Core Final>", database_path=tmp_path / "home-final.db")
+    )
+    with TestClient(app) as client:
+        response = client.get(HOME_PATH)
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html; charset=utf-8")
+    assert "&lt;Core Final&gt;" in response.text
+    assert "<Core Final>" not in response.text
+
+
+def test_final_acceptance_17_htmx_static_boundary_is_local_and_served(tmp_path: Path) -> None:
+    digest = base64.b64encode(hashlib.sha384((STATIC_PATH / "vendor" / "htmx.min.js").read_bytes()).digest()).decode()
+    app = create_application(settings=ApplicationSettings(environment="test", database_path=tmp_path / "htmx-final.db"))
+    with TestClient(app) as client:
+        response = client.get("/static/vendor/htmx.min.js")
+        license_response = client.get("/static/vendor/htmx.LICENSE.txt")
+    assert digest == HTMX_SHA384
+    assert response.status_code == 200
+    assert license_response.status_code == 200
+    assert "BSD 2-Clause" in license_response.text
+
+
+def test_final_acceptance_18_tests_define_no_real_external_network_access() -> None:
+    t12_sources = "\n".join(
+        (ROOT / relative).read_text(encoding="utf-8")
+        for relative in [
+            "tests/unit/test_import_safety.py",
+            "tests/contract/test_core_runtime.py",
+            "tests/contract/test_distribution.py",
+            "tests/contract/test_security_boundary.py",
+        ]
+    )
+    assert "socket.socket.connect" in t12_sources
+    forbidden_patterns = [
+        "requests" + ".",
+        "httpx" + ".get",
+        "httpx" + ".post",
+        "httpx" + ".put",
+        "httpx" + ".patch",
+        "httpx" + ".delete",
+        "urllib" + ".request",
+    ]
+    for forbidden in forbidden_patterns:
+        assert forbidden not in t12_sources
+
+
+def test_final_acceptance_19_runtime_ignores_real_account_and_secret_environment(monkeypatch, tmp_path: Path) -> None:
+    synthetic = "synthetic-final-secret-value"
+    for key in ["WECOM_TOKEN", "AI_PROVIDER_SECRET", "BROWSER_PROFILE", "XIANYU_COOKIE"]:
+        monkeypatch.setenv(key, synthetic)
+    app = create_application(settings=ApplicationSettings(environment="test", database_path=tmp_path / "secret-final.db"))
+    with TestClient(app) as client:
+        combined = client.get("/").text + client.get("/health").text + client.get("/openapi.json").text
+    assert synthetic not in combined
+    assert synthetic not in json.dumps(app.state.settings.model_dump(), default=str)
+
+
+def test_final_acceptance_20_no_external_business_integration_is_implemented() -> None:
+    combined = "\n".join(
+        path.read_text(encoding="utf-8").lower()
+        for path in (ROOT / "app/xianyu_system").rglob("*.py")
+        if "__pycache__" not in path.parts
+    )
+    for forbidden in ["playwright", "selenium", "wecom", "wechat", "openai", "langchain", "requests.", "httpx.", "add_job(", "scheduled_job(", "__tablename__", "mapped_column"]:
+        assert forbidden not in combined
+    assert Base.metadata.tables == {}
+
+
+def test_final_acceptance_21_core_config_not_marked_verified_before_final_validation() -> None:
+    capability = registry_by_id()["CAP-CORE-CONFIG"]
+    assert capability["status"] == "implementing"
+    assert capability["active_change"] == CHG_0002
+    assert capability["last_verified_commit"] is None
+
+
+def test_final_acceptance_22_core_database_not_marked_verified_before_final_validation() -> None:
+    capability = registry_by_id()["CAP-CORE-DATABASE"]
+    assert capability["status"] == "implementing"
+    assert capability["active_change"] == CHG_0002
+    assert capability["last_verified_commit"] is None
+
+
+def test_final_acceptance_23_health_monitor_not_marked_verified_before_final_validation() -> None:
+    capability = registry_by_id()["CAP-HEALTH-MONITOR"]
+    assert capability["status"] == "implementing"
+    assert capability["active_change"] == CHG_0002
+    assert capability["last_verified_commit"] is None
+
+
+def test_final_acceptance_24_permanent_and_active_acceptance_test_layers_exist() -> None:
+    for relative in [
+        "tests/unit/test_import_safety.py",
+        "tests/contract/test_core_runtime.py",
+        "tests/contract/test_distribution.py",
+        "tests/contract/test_security_boundary.py",
+        "changes/active/CHG-0002-core-application/tests/test_acceptance.py",
+    ]:
+        path = ROOT / relative
+        assert path.is_file()
+        source = path.read_text(encoding="utf-8")
+        assert "pytest" + ".skip" not in source
+        assert "pytest" + ".xfail" not in source
+    task_status = {task.text: task.completed for task in chg_0002_tasks()}
+    assert task_status["T12 Add unit, contract and active-change acceptance tests"] is True
+
+
+def test_final_acceptance_25_quality_and_ci_boundaries_are_defined() -> None:
+    workflows = {path.name: path.read_text(encoding="utf-8") for path in (ROOT / ".github/workflows").glob("*.yml")}
+    assert {"quality.yml", "tests.yml", "security.yml"} <= set(workflows)
+    assert "ruff check ." in workflows["quality.yml"]
+    assert "mypy scripts app" in workflows["quality.yml"]
+    assert "pytest" in workflows["tests.yml"]
+    assert "python scripts/verify_repository.py" in workflows["tests.yml"]
+    assert "python scripts/security_scan.py" in workflows["security.yml"]
+    for relative in ["scripts/validate_change.py", "scripts/detect_duplicate_capabilities.py", "scripts/security_scan.py", "scripts/verify_repository.py"]:
+        assert (ROOT / relative).is_file()

@@ -211,6 +211,20 @@ Importing any Core module must not:
 - Runtime OpenAPI remains limited to `/health`.
 - T11 does not implement business pages, business APIs, domain modules, Xianyu, WeCom, AI, or browser automation.
 
+
+## T12 implementation decision
+
+- T12 adds permanent executable evidence without changing Core runtime behavior.
+- Unit import-safety tests verify that importing Core modules does not create database files, start the scheduler, configure root logging, create log files, or attempt external network access.
+- Core runtime contract tests exercise the application factory, lifespan startup and shutdown, SQLite WAL resources, empty SQLAlchemy metadata, scheduler lifecycle, OpenAPI health surface, local web surface, multiple concurrent application instances, and repeated lifecycle isolation.
+- Distribution contract tests build a wheel from the approved source, verify packaged templates and static assets, validate the vendored HTMX bytes and license, install the wheel into an isolated target directory, and smoke-test `/`, `/health`, and local static assets from outside the source tree.
+- Security-boundary contract tests use synthetic credential-like environment values, block socket connections, verify read-only HTTP methods, scan first-party web assets for external or mutating dependencies, and confirm no external business integration or scheduler jobs exist.
+- Active-change acceptance tests now include explicit final acceptance evidence for all 25 CHG-0002 final criteria.
+- These tests do not introduce skips, xfails, sleeps, real network clients, external service credentials, browser profiles, or unapproved dependencies.
+- T12 does not modify runtime modules, OpenAPI contracts, specs, migrations, project dependencies, or GitHub workflow definitions.
+- T12 does not mark Core capabilities as verified; capability registry implementation paths and verification metadata remain deferred to T13.
+- T12 does not implement Xianyu, WeCom, AI Provider, Playwright, scheduled publishing, business routes, business pages, or database business schema.
+
 ## Testing rules
 
 * Application factory tests must create more than one application instance.

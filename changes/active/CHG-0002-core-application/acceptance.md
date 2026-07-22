@@ -35,14 +35,12 @@ Change ID: CHG-0002-core-application
 
 The change is IMPLEMENTING.
 
-T1 through T11 are complete after the Jinja2 home page, local static resource, HTMX asset, package-data, isolation, and security-boundary tests pass.
+T1 through T12 are complete after permanent unit, contract, distribution, security, and active-change acceptance tests pass.
 
-T12 Add unit, contract and active-change acceptance tests is the next task.
+T13 Update capability registry implementation and verification paths is the next task.
 
-GET / renders a minimal server-rendered Core page and is excluded from OpenAPI.
+The permanent test suite now provides explicit executable evidence for all 25 final acceptance criteria.
 
-HTMX is served locally through the web static boundary and performs only a user-triggered GET /health request.
-
-No business page, form submission, external service call, database write, migration, or scheduler job is implemented.
+Capability registry implementation paths, test paths, verified status, and last verified commit remain deferred.
 
 The three Core capabilities remain implementing.

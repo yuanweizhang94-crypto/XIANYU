@@ -156,6 +156,33 @@ It creates an APScheduler 3.x `BackgroundScheduler` with an in-memory `MemoryJob
 
 The current scheduler registers no jobs, uses no persistent job store, creates no scheduler database tables, and does not implement scheduled publishing or other business workflows.
 
+
+## Permanent test layers
+
+CHG-0002 now has permanent test coverage across these layers:
+
+- Unit tests for import safety and side-effect boundaries.
+- Contract tests for Core runtime lifecycle, health, database, scheduler, web, distribution, and security boundaries.
+- Distribution tests for offline wheel build, package-data inclusion, vendored HTMX integrity, and installed-package smoke behavior.
+- Security-boundary tests for synthetic secret non-exposure, blocked external sockets, read-only HTTP behavior, and absence of external business integrations.
+- Active-change acceptance tests mapping executable evidence to all 25 CHG-0002 final acceptance criteria.
+
+The permanent tests specifically verify:
+
+1. Application construction remains reusable and side-effect free.
+2. Multiple application instances can run in one process without resource sharing.
+3. `/health` remains the only OpenAPI path.
+4. The home page and static resources are local package resources.
+5. HTMX remains locally vendored with the approved SHA-384 digest.
+6. SQLite is initialized only during lifespan startup and runs in WAL mode.
+7. SQLAlchemy metadata remains empty and no business tables are created.
+8. Scheduler startup and shutdown are controlled by the application lifespan and no jobs are registered.
+9. Imports do not create databases, logs, scheduler threads, or network connections.
+10. Synthetic credentials, account data, Cookies, Tokens, Secrets, and browser profiles are not loaded or exposed.
+11. No Xianyu, WeCom, AI Provider, Playwright, browser automation, or external business integration is implemented.
+
+The Core capability registry entries remain in implementation status until the dedicated capability registry update and complete validation steps are performed.
+
 ## Verification commands
 
 ```bash
