@@ -1,22 +1,45 @@
 capabilities:
 - id: CAP-CORE-CONFIG
   name: Core configuration
-  status: planned
+  status: verified
   owner_module: app.core.config
   specification: specs/capabilities/CAP-CORE-CONFIG.md
-  implementation_paths: []
-  test_paths: []
+  implementation_paths:
+  - app/xianyu_system/core/config.py
+  - app/xianyu_system/application.py
+  test_paths:
+  - tests/unit/test_config.py
+  - tests/unit/test_application_factory.py
+  - tests/unit/test_import_safety.py
+  - tests/contract/test_core_runtime.py
+  - tests/contract/test_distribution.py
+  - tests/contract/test_security_boundary.py
+  - changes/active/CHG-0002-core-application/tests/test_acceptance.py
   active_change: null
-  last_verified_commit: null
+  last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea
 - id: CAP-CORE-DATABASE
   name: Core database
-  status: planned
+  status: verified
   owner_module: app.core.database
   specification: specs/capabilities/CAP-CORE-DATABASE.md
-  implementation_paths: []
-  test_paths: []
+  implementation_paths:
+  - app/xianyu_system/core/database.py
+  - app/xianyu_system/application.py
+  - alembic.ini
+  - migrations/env.py
+  - migrations/script.py.mako
+  - migrations/versions/0001_core_baseline.py
+  test_paths:
+  - tests/unit/test_database.py
+  - tests/unit/test_application_factory.py
+  - tests/unit/test_import_safety.py
+  - tests/contract/test_migrations.py
+  - tests/contract/test_core_runtime.py
+  - tests/contract/test_distribution.py
+  - tests/contract/test_security_boundary.py
+  - changes/active/CHG-0002-core-application/tests/test_acceptance.py
   active_change: null
-  last_verified_commit: null
+  last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea
 - id: CAP-XY-ACCOUNT
   name: Xianyu account boundary
   status: planned
@@ -82,10 +105,22 @@ capabilities:
   last_verified_commit: null
 - id: CAP-HEALTH-MONITOR
   name: Health monitor
-  status: planned
+  status: verified
   owner_module: app.health
   specification: specs/capabilities/CAP-HEALTH-MONITOR.md
-  implementation_paths: []
-  test_paths: []
+  implementation_paths:
+  - app/xianyu_system/api/health.py
+  - app/xianyu_system/api/router.py
+  - app/xianyu_system/application.py
+  - contracts/openapi.yaml
+  test_paths:
+  - tests/unit/test_health.py
+  - tests/unit/test_application_factory.py
+  - tests/unit/test_import_safety.py
+  - tests/contract/test_health_openapi.py
+  - tests/contract/test_core_runtime.py
+  - tests/contract/test_distribution.py
+  - tests/contract/test_security_boundary.py
+  - changes/active/CHG-0002-core-application/tests/test_acceptance.py
   active_change: null
-  last_verified_commit: null
+  last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea

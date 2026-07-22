@@ -50,6 +50,11 @@ def test_pytest_default_testpaths_include_tests_and_active_changes_only() -> Non
     assert "changes/archive" not in testpaths
 
 
+def test_quality_workflow_mypy_checks_scripts_and_app() -> None:
+    text = (ROOT / ".github" / "workflows" / "quality.yml").read_text(encoding="utf-8")
+    assert re.search(r"run:\s*mypy scripts app\b", text)
+
+
 def test_current_active_change_specific_tests_are_discoverable() -> None:
     active_changes = find_active_changes(ROOT)
     for change_dir in active_changes:

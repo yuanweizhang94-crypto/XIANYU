@@ -1,0 +1,20 @@
+# CHG-0002 Tasks
+
+Status: VERIFYING
+Change ID: CHG-0002-core-application
+
+- [x] T1 Archive CHG-0001 and establish CHG-0002 active change
+- [x] T2 Approve CHG-0002 architecture and dependency boundary
+- [x] T3 Add approved core application dependencies
+- [x] T4 Implement application factory and lifespan
+- [x] T5 Implement typed configuration
+- [x] T6 Implement structured redacted logging
+- [x] T7 Implement SQLite WAL and SQLAlchemy infrastructure
+- [x] T8 Establish Alembic migration baseline
+- [x] T9 Implement scheduler lifecycle skeleton
+- [x] T10 Implement health API contract and route
+- [x] T11 Implement Jinja2 and HTMX web skeleton
+- [x] T12 Add unit, contract and active-change acceptance tests
+- [x] T13 Update capability registry implementation and verification paths
+- [x] T14 Run complete local verification
+- [x] T15 Push branch and open Draft PR

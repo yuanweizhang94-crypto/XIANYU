@@ -21,7 +21,7 @@
 python scripts/verify_repository.py
 pytest
 ruff check .
-mypy scripts
+mypy scripts app
 ```
 
 7. Confirm no sensitive data, unapproved dependency, duplicate capability, or out-of-scope business logic exists.

@@ -1,7 +1,105 @@
 openapi: 3.1.0
 info:
-  title: XIANYU API Contracts
+  title: XIANYU
   version: 0.1.0
-  description: >
-    Baseline OpenAPI document. Business APIs will be added by later approved changes.
-paths: {}
+  description: Read-only local XIANYU Core API contract.
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Get Core health
+      description: Report read-only local Core health without external service checks.
+      operationId: get_health
+      responses:
+        "200":
+          description: Core infrastructure is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: One or more local Core components are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+components:
+  schemas:
+    DatabaseHealth:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - connected
+        - journal_mode
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - unavailable
+        connected:
+          type: boolean
+        journal_mode:
+          anyOf:
+            - type: string
+              enum:
+                - wal
+            - type: "null"
+    SchedulerHealth:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - running
+        - job_count
+        - timezone
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - unavailable
+        running:
+          type: boolean
+        job_count:
+          type: integer
+          minimum: 0
+        timezone:
+          type: string
+          enum:
+            - UTC
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - service
+        - version
+        - environment
+        - database
+        - scheduler
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+        service:
+          type: string
+          minLength: 1
+          maxLength: 100
+        version:
+          type: string
+          minLength: 1
+          maxLength: 50
+        environment:
+          type: string
+          enum:
+            - local
+            - test
+        database:
+          $ref: "#/components/schemas/DatabaseHealth"
+        scheduler:
+          $ref: "#/components/schemas/SchedulerHealth"

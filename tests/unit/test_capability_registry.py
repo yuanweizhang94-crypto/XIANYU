@@ -42,7 +42,8 @@ def test_planned_capability_bound_to_active_change_fails(tmp_path: Path) -> None
     (root / "adapters").mkdir(parents=True)
 
     registry = read_yaml(root / "specs" / "CAPABILITY_REGISTRY.yaml")
-    registry["capabilities"][0]["active_change"] = "CHG-0002-test-change"
+    planned = next(item for item in registry["capabilities"] if item["status"] == "planned")
+    planned["active_change"] = "CHG-0002-test-change"
     import yaml
 
     (root / "specs" / "CAPABILITY_REGISTRY.yaml").write_text(

@@ -37,3 +37,15 @@ def test_account_specific_filename_fails(tmp_path: Path) -> None:
 
 def test_current_registry_has_no_duplicates() -> None:
     assert detect_duplicate_capabilities(ROOT) == []
+
+
+def test_unapproved_implementation_path_conflict_still_fails(tmp_path: Path) -> None:
+    root = copy_registry_tree(tmp_path)
+    registry_path = root / "specs" / "CAPABILITY_REGISTRY.yaml"
+    registry = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
+    capabilities = registry["capabilities"]
+    capabilities[0]["implementation_paths"] = ["app/unapproved_shared.py"]
+    capabilities[1]["implementation_paths"] = ["app/unapproved_shared.py"]
+    (root / "app" / "unapproved_shared.py").write_text("# synthetic duplicate\n", encoding="utf-8")
+    registry_path.write_text(yaml.safe_dump(registry, allow_unicode=True), encoding="utf-8")
+    assert any("implementation path conflict" in error for error in detect_duplicate_capabilities(root))

@@ -2,61 +2,73 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0001-project-baseline",
+    "id": "CHG-0002-core-application",
     "status": "VERIFYING",
-    "path": "changes/active/CHG-0001-project-baseline"
+    "path": "changes/active/CHG-0002-core-application"
   },
   "tasks": {
-    "total": 12,
-    "completed": 12,
+    "total": 15,
+    "completed": 15,
     "next_task": null,
     "items": [
       {
-        "text": "T1 Establish root governance files",
+        "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
         "completed": true
       },
       {
-        "text": "T2 Establish project scope and architecture specifications",
+        "text": "T2 Approve CHG-0002 architecture and dependency boundary",
         "completed": true
       },
       {
-        "text": "T3 Establish capability registry and capability specifications",
+        "text": "T3 Add approved core application dependencies",
         "completed": true
       },
       {
-        "text": "T4 Establish ADRs",
+        "text": "T4 Implement application factory and lifespan",
         "completed": true
       },
       {
-        "text": "T5 Establish OpenAPI and JSON Schema empty contracts",
+        "text": "T5 Implement typed configuration",
         "completed": true
       },
       {
-        "text": "T6 Establish project state generation script",
+        "text": "T6 Implement structured redacted logging",
         "completed": true
       },
       {
-        "text": "T7 Establish change and duplicate capability validation scripts",
+        "text": "T7 Implement SQLite WAL and SQLAlchemy infrastructure",
         "completed": true
       },
       {
-        "text": "T8 Establish unified repository verification script",
+        "text": "T8 Establish Alembic migration baseline",
         "completed": true
       },
       {
-        "text": "T9 Establish tests",
+        "text": "T9 Implement scheduler lifecycle skeleton",
         "completed": true
       },
       {
-        "text": "T10 Establish GitHub templates and CI",
+        "text": "T10 Implement health API contract and route",
         "completed": true
       },
       {
-        "text": "T11 Run complete verification",
+        "text": "T11 Implement Jinja2 and HTMX web skeleton",
         "completed": true
       },
       {
-        "text": "T12 Create commit and push branch",
+        "text": "T12 Add unit, contract and active-change acceptance tests",
+        "completed": true
+      },
+      {
+        "text": "T13 Update capability registry implementation and verification paths",
+        "completed": true
+      },
+      {
+        "text": "T14 Run complete local verification",
+        "completed": true
+      },
+      {
+        "text": "T15 Push branch and open Draft PR",
         "completed": true
       }
     ]
@@ -64,30 +76,58 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 10
+      "planned": 7,
+      "verified": 3
     },
     "items": [
       {
         "id": "CAP-CORE-CONFIG",
         "name": "Core configuration",
-        "status": "planned",
+        "status": "verified",
         "owner_module": "app.core.config",
         "specification": "specs/capabilities/CAP-CORE-CONFIG.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/core/config.py",
+          "app/xianyu_system/application.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_config.py",
+          "tests/unit/test_application_factory.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_distribution.py",
+          "tests/contract/test_security_boundary.py",
+          "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+        ],
         "active_change": null,
-        "last_verified_commit": null
+        "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
       },
       {
         "id": "CAP-CORE-DATABASE",
         "name": "Core database",
-        "status": "planned",
+        "status": "verified",
         "owner_module": "app.core.database",
         "specification": "specs/capabilities/CAP-CORE-DATABASE.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/core/database.py",
+          "app/xianyu_system/application.py",
+          "alembic.ini",
+          "migrations/env.py",
+          "migrations/script.py.mako",
+          "migrations/versions/0001_core_baseline.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_database.py",
+          "tests/unit/test_application_factory.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_distribution.py",
+          "tests/contract/test_security_boundary.py",
+          "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+        ],
         "active_change": null,
-        "last_verified_commit": null
+        "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
       },
       {
         "id": "CAP-XY-ACCOUNT",
@@ -169,13 +209,27 @@
       {
         "id": "CAP-HEALTH-MONITOR",
         "name": "Health monitor",
-        "status": "planned",
+        "status": "verified",
         "owner_module": "app.health",
         "specification": "specs/capabilities/CAP-HEALTH-MONITOR.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/api/health.py",
+          "app/xianyu_system/api/router.py",
+          "app/xianyu_system/application.py",
+          "contracts/openapi.yaml"
+        ],
+        "test_paths": [
+          "tests/unit/test_health.py",
+          "tests/unit/test_application_factory.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_health_openapi.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_distribution.py",
+          "tests/contract/test_security_boundary.py",
+          "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+        ],
         "active_change": null,
-        "last_verified_commit": null
+        "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
       }
     ]
   }
