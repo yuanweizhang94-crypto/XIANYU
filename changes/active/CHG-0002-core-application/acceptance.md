@@ -35,12 +35,12 @@ Change ID: CHG-0002-core-application
 
 The change is IMPLEMENTING.
 
-T1 through T7 are complete after SQLite WAL and SQLAlchemy infrastructure tests pass.
+T1 through T8 are complete after the Alembic empty baseline, upgrade, downgrade, and migration contract tests pass.
 
-T8 Establish Alembic migration baseline is the next task.
+T9 Implement scheduler lifecycle skeleton is the next task.
+
+The current migration baseline creates no business schema and stores no customer data.
 
 Scheduler, health API, and web implementation remain incomplete.
-
-The database infrastructure contains no business tables or real customer data.
 
 The three Core capabilities remain implementing.

@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-TEXT_SUFFIXES = {".md", ".py", ".toml", ".yaml", ".yml", ".json"}
+TEXT_SUFFIXES = {".ini", ".json", ".mako", ".md", ".py", ".toml", ".yaml", ".yml"}
 IGNORED_PARTS = {".git", ".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", "build", "dist"}
 REPLACEMENT_CHARACTER = "\ufffd"
 REPEATED_QUESTION_MARKS = "?" * 3

@@ -101,6 +101,25 @@ The database is initialized during FastAPI application lifespan startup. Initial
 
 The application disposes its Engine during lifespan shutdown. `Base.metadata` currently contains no business tables, Alembic has not been implemented yet, and the database layer does not store real customer data.
 
+## Current migrations
+
+Alembic is configured through `alembic.ini` and the `migrations/` directory. The current revision is `0001_core_baseline`. Current metadata is empty and there are no business tables. Applying the baseline records Alembic version state only.
+
+Programmatic migrations share an existing project Engine `Connection`. CLI migrations must pass an explicit database path, for example:
+
+```bash
+python -m alembic -c alembic.ini -x database_path=/tmp/xianyu.db upgrade head
+```
+
+Inspect migration heads and history with:
+
+```bash
+python -m alembic -c alembic.ini heads
+python -m alembic -c alembic.ini history
+```
+
+Application startup does not automatically run migrations. Do not run migration tests against real data stores. Future schema must be introduced through an approved change and a new revision.
+
 ## Verification commands
 
 ```bash

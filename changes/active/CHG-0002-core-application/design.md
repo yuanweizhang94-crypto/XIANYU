@@ -143,6 +143,22 @@ Importing any Core module must not:
 - Each application receives an independent Engine and Session factory.
 - T7 does not introduce Alembic files, migrations, scheduler behavior, API routes, web routes, or business tables.
 
+## T8 implementation decision
+
+- `alembic.ini` and `migrations/` establish the repository migration environment.
+- `Base.metadata` is Alembic's only target metadata.
+- The first revision is the deterministic empty baseline `0001_core_baseline`.
+- The baseline creates no business tables and writes no business data.
+- Programmatic migrations share the existing application Engine connection through Alembic `Config.attributes`.
+- Standalone CLI migrations require an explicit `-x database_path=...` argument and use the unified database infrastructure.
+- No database URL or local machine path is stored in Alembic configuration.
+- Alembic does not install or modify Python logging configuration.
+- Application startup initializes SQLite infrastructure but does not automatically upgrade migrations.
+- Migration execution is an explicit administrative action.
+- `Base.metadata` remains empty after T8.
+- The only database table produced by applying the baseline is Alembic's own version table.
+- T8 does not implement scheduler, health API, web routes, or business schema.
+
 ## Testing rules
 
 * Application factory tests must create more than one application instance.

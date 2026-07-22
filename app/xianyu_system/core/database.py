@@ -6,9 +6,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from alembic import command
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
 from sqlalchemy import URL, create_engine, event
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+ALEMBIC_CONFIG_PATH = REPOSITORY_ROOT / "alembic.ini"
+MIGRATIONS_PATH = REPOSITORY_ROOT / "migrations"
+BASELINE_REVISION = "0001_core_baseline"
 
 
 class Base(DeclarativeBase):
@@ -112,14 +120,62 @@ def dispose_database(resources: DatabaseResources) -> None:
     resources.engine.dispose()
 
 
+def build_alembic_config(
+    *,
+    connection: Connection | None = None,
+) -> Config:
+    """Build an Alembic Config without opening a database connection."""
+    config = Config(str(ALEMBIC_CONFIG_PATH))
+    config.set_main_option("script_location", str(MIGRATIONS_PATH))
+    if connection is not None:
+        config.attributes["connection"] = connection
+    return config
+
+
+def upgrade_database(
+    resources: DatabaseResources,
+    revision: str = "head",
+) -> None:
+    """Upgrade the provided database resources using a shared Connection."""
+    with resources.engine.begin() as connection:
+        config = build_alembic_config(connection=connection)
+        command.upgrade(config, revision)
+
+
+def downgrade_database(
+    resources: DatabaseResources,
+    revision: str = "base",
+) -> None:
+    """Downgrade the provided database resources using a shared Connection."""
+    with resources.engine.begin() as connection:
+        config = build_alembic_config(connection=connection)
+        command.downgrade(config, revision)
+
+
+def get_current_revision(
+    resources: DatabaseResources,
+) -> str | None:
+    """Return the current Alembic revision without mutating the database."""
+    with resources.engine.connect() as connection:
+        migration_context = MigrationContext.configure(connection)
+        return migration_context.get_current_revision()
+
+
 __all__ = [
+    "ALEMBIC_CONFIG_PATH",
+    "BASELINE_REVISION",
+    "MIGRATIONS_PATH",
     "Base",
     "DatabaseResources",
+    "build_alembic_config",
     "build_sqlite_url",
     "create_database_engine",
     "create_session_factory",
     "dispose_database",
+    "downgrade_database",
+    "get_current_revision",
     "initialize_database",
     "open_session",
     "resolve_database_path",
+    "upgrade_database",
 ]

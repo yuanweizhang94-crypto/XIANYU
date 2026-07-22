@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 7,
-    "next_task": "T8 Establish Alembic migration baseline",
+    "completed": 8,
+    "next_task": "T9 Implement scheduler lifecycle skeleton",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -41,7 +41,7 @@
       },
       {
         "text": "T8 Establish Alembic migration baseline",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T9 Implement scheduler lifecycle skeleton",

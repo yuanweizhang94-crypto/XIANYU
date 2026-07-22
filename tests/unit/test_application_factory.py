@@ -15,7 +15,13 @@ from sqlalchemy import text
 
 from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
-from xianyu_system.core.database import DatabaseResources, open_session
+from xianyu_system.core.database import (
+    BASELINE_REVISION,
+    DatabaseResources,
+    get_current_revision,
+    open_session,
+    upgrade_database,
+)
 from xianyu_system.core.logging import ManagedStreamHandler
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -534,3 +540,71 @@ def test_importing_main_does_not_create_default_database_file(tmp_path: Path) ->
     assert not (tmp_path / "data").exists()
     for pattern in ["*.db", "*.sqlite", "*.sqlite3"]:
         assert list(tmp_path.glob(pattern)) == []
+
+
+def test_application_startup_does_not_automatically_run_alembic(tmp_path: Path) -> None:
+    path = tmp_path / "no-auto-migration.db"
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=path)
+    )
+
+    with TestClient(app):
+        assert path.exists()
+        assert get_current_revision(app.state.database) is None
+        with app.state.database.engine.connect() as connection:
+            tables = connection.exec_driver_sql(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).scalars().all()
+        assert "alembic_version" not in set(tables)
+
+    assert app.state.database is None
+
+
+def test_custom_lifespan_can_explicitly_run_alembic_upgrade(tmp_path: Path) -> None:
+    events: list[str] = []
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        assert get_current_revision(app.state.database) is None
+        upgrade_database(app.state.database)
+        assert get_current_revision(app.state.database) == BASELINE_REVISION
+        events.append("explicit-migration")
+        yield
+        assert get_current_revision(app.state.database) == BASELINE_REVISION
+
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "explicit.db"),
+    )
+
+    with TestClient(app):
+        assert events == ["explicit-migration"]
+
+    assert app.state.database is None
+
+
+def test_explicit_migration_does_not_break_logging_lifespan(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        upgrade_database(app.state.database)
+        app.state.logger.info("migration complete", extra={"event": "migration.complete"})
+        yield
+
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "logging-migration.db"),
+    )
+
+    with TestClient(app):
+        pass
+
+    events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
+    assert events == [
+        "application.startup",
+        "database.ready",
+        "migration.complete",
+        "database.shutdown",
+        "application.shutdown",
+    ]

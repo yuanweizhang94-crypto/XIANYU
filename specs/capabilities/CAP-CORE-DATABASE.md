@@ -51,6 +51,23 @@ Provide the single SQLite WAL, SQLAlchemy, and Alembic infrastructure boundary f
 - Registry implementation and test path fields remain deferred to T13.
 - Alembic remains deferred to T8.
 
+## T8 implementation decision
+
+- Alembic config: `alembic.ini`.
+- Migration environment: `migrations/env.py`.
+- Baseline revision: `0001_core_baseline`.
+- Target metadata: `Base.metadata`.
+- Current metadata contains no business tables.
+- Programmatic migration shares an existing SQLAlchemy Connection through `Config.attributes`.
+- Standalone CLI migration requires explicit `-x database_path=...`.
+- No default database URL is stored in `alembic.ini`.
+- Alembic logging configuration is not installed.
+- Upgrade and downgrade use the unified project Engine.
+- Application startup does not automatically migrate.
+- Current baseline creates no business schema.
+- Capability remains `implementing`.
+- Registry implementation and test path fields remain deferred to T13.
+
 ## Acceptance criteria
 
 - SQLite WAL is enabled by the unified database module.

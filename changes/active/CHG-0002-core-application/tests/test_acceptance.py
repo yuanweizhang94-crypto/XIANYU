@@ -10,24 +10,31 @@ import sys
 import tomllib
 from pathlib import Path
 
+from alembic import command
+from alembic.script import ScriptDirectory
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import text
 from pydantic_settings import BaseSettings
+from sqlalchemy import inspect, text
 
 from scripts.generate_state import project_state_json
 from scripts.repo_utils import parse_tasks, read_yaml
 from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
 from xianyu_system.core.database import (
+    BASELINE_REVISION,
     Base,
     DatabaseResources,
+    build_alembic_config,
     build_sqlite_url,
     create_database_engine,
     create_session_factory,
     dispose_database,
+    downgrade_database,
+    get_current_revision,
     initialize_database,
     open_session,
+    upgrade_database,
 )
 from xianyu_system.core.logging import (
     REDACTED_VALUE,
@@ -95,9 +102,15 @@ DEFERRED_CORE_PATHS = [
     "app/xianyu_system/api/health.py",
     "app/xianyu_system/web/router.py",
 ]
-FORBIDDEN_ARTIFACT_PATHS = [
+MIGRATION_PATHS = [
     "alembic.ini",
-    "migrations",
+    "migrations/README.md",
+    "migrations/env.py",
+    "migrations/script.py.mako",
+    "migrations/versions/__init__.py",
+    "migrations/versions/0001_core_baseline.py",
+]
+FORBIDDEN_ARTIFACT_PATHS = [
     "alembic",
     "templates",
     "static",
@@ -212,6 +225,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
             "## T5 implementation decision",
             "## T6 implementation decision",
             "## T7 implementation decision",
+            "## T8 implementation decision",
         ],
         "acceptance.md": ["## Final acceptance criteria"],
     }
@@ -228,7 +242,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t7_is_complete_and_t8_is_next() -> None:
+def test_chg_0002_t8_is_complete_and_t9_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -249,11 +263,11 @@ def test_chg_0002_t7_is_complete_and_t8_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7"}
-    assert incomplete == {f"T{index}" for index in range(8, 16)}
+    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"}
+    assert incomplete == {f"T{index}" for index in range(9, 16)}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T8 Establish Alembic migration baseline"
+    assert state["tasks"]["next_task"] == "T9 Implement scheduler lifecycle skeleton"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -512,6 +526,168 @@ def test_t7_database_lifespan_initializes_and_disposes_per_application(
     events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
     assert events.count("database.ready") == 2
     assert events.count("database.shutdown") == 2
+
+
+def test_t8_alembic_files_and_configuration_are_minimal() -> None:
+    for relative in MIGRATION_PATHS:
+        assert (ROOT / relative).is_file()
+
+    config_text = (ROOT / "alembic.ini").read_text(encoding="utf-8")
+    assert "script_location = %(here)s/migrations" in config_text
+    assert "sqlalchemy.url =" in config_text
+    assert "data/xianyu.db" not in config_text
+    assert "[loggers]" not in config_text
+    assert "[handlers]" not in config_text
+    assert "[formatters]" not in config_text
+
+    config = build_alembic_config()
+    assert config.get_main_option("sqlalchemy.url") == ""
+    script = ScriptDirectory.from_config(config)
+    assert script.get_heads() == [BASELINE_REVISION]
+    assert script.get_revision(BASELINE_REVISION).down_revision is None
+
+
+def test_t8_alembic_environment_uses_base_metadata_and_shared_connection() -> None:
+    env_source = (ROOT / "migrations" / "env.py").read_text(encoding="utf-8")
+    baseline_source = (ROOT / "migrations" / "versions" / "0001_core_baseline.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "target_metadata = Base.metadata" in env_source
+    assert "MetaData(" not in env_source
+    assert 'config.attributes.get("connection")' in env_source
+    assert "fileConfig(" not in env_source
+    assert "logging.config" not in env_source
+    assert "engine_from_config" not in env_source
+    assert "create_engine" not in env_source
+    assert "get_explicit_database_path" in env_source
+    assert "database_path" in env_source
+
+    assert f'revision: str = "{BASELINE_REVISION}"' in baseline_source
+    assert "down_revision: str | None = None" in baseline_source
+    assert "pass" in baseline_source
+    for forbidden in [
+        "op.create_table",
+        "op.drop_table",
+        "op.add_column",
+        "op.execute",
+        "bulk_insert",
+        "Table(",
+        "__tablename__",
+        "mapped_column(",
+        "metadata.create_all",
+        "metadata.drop_all",
+    ]:
+        assert forbidden not in baseline_source
+    assert Base.metadata.tables == {}
+
+
+def test_t8_programmatic_upgrade_downgrade_check_and_no_business_tables(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "acceptance-migration.db")
+    try:
+        assert get_current_revision(resources) is None
+        upgrade_database(resources)
+        assert get_current_revision(resources) == BASELINE_REVISION
+        assert set(inspect(resources.engine).get_table_names()) <= {"alembic_version"}
+        upgrade_database(resources)
+        assert get_current_revision(resources) == BASELINE_REVISION
+        with resources.engine.begin() as connection:
+            command.check(build_alembic_config(connection=connection))
+        downgrade_database(resources)
+        assert get_current_revision(resources) is None
+        upgrade_database(resources)
+        assert get_current_revision(resources) == BASELINE_REVISION
+    finally:
+        dispose_database(resources)
+
+
+def test_t8_cli_and_offline_paths_require_explicit_database_path(tmp_path: Path) -> None:
+    cli_db = tmp_path / "cli.db"
+    cli = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "alembic",
+            "-c",
+            "alembic.ini",
+            "-x",
+            f"database_path={cli_db}",
+            "upgrade",
+            "head",
+        ],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    assert cli.returncode == 0
+    assert cli_db.exists()
+
+    missing = subprocess.run(
+        [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+    assert missing.returncode != 0
+    assert "database_path" in missing.stdout + missing.stderr
+    assert "shared connection" in missing.stdout + missing.stderr
+
+    offline_db = tmp_path / "offline.db"
+    offline = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "alembic",
+            "-c",
+            "alembic.ini",
+            "-x",
+            f"database_path={offline_db}",
+            "upgrade",
+            "head",
+            "--sql",
+        ],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    assert "alembic_version" in offline.stdout
+    assert not offline_db.exists()
+    assert not (ROOT / "data" / "xianyu.db").exists()
+
+
+def test_t8_application_startup_does_not_auto_migrate(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "app.db")
+    )
+
+    with TestClient(app):
+        assert get_current_revision(app.state.database) is None
+        assert set(inspect(app.state.database.engine).get_table_names()) == set()
+
+    assert app.state.database is None
+
+
+def test_t8_migration_files_have_no_sensitive_or_business_data() -> None:
+    combined = "\n".join(
+        path.read_text(encoding="utf-8").lower()
+        for path in (ROOT / "migrations").rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    )
+    for forbidden in [
+        "cookie",
+        "token",
+        "secret",
+        "password",
+        "customer",
+        "message content",
+        "phone",
+        "email address",
+        "real account",
+    ]:
+        assert forbidden not in combined
+
 
 
 def test_deferred_core_modules_and_artifacts_are_not_created() -> None:

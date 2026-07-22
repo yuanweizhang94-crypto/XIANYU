@@ -6,23 +6,32 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import cast
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from sqlalchemy import create_engine, text
+from alembic.config import Config
+from alembic.util.exc import CommandError
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from xianyu_system.core import database
 from xianyu_system.core.database import (
+    ALEMBIC_CONFIG_PATH,
+    BASELINE_REVISION,
+    MIGRATIONS_PATH,
     Base,
     DatabaseResources,
+    build_alembic_config,
     build_sqlite_url,
     create_database_engine,
     dispose_database,
+    downgrade_database,
+    get_current_revision,
     initialize_database,
     open_session,
     resolve_database_path,
+    upgrade_database,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -264,3 +273,86 @@ def test_database_module_contains_no_business_schema_construction() -> None:
     assert "mapped_column(" not in source
     assert "__tablename__" not in source
     assert importlib.import_module("xianyu_system.core.database") is database
+
+
+def test_alembic_paths_are_repository_constants() -> None:
+    assert ALEMBIC_CONFIG_PATH == ROOT / "alembic.ini"
+    assert MIGRATIONS_PATH == ROOT / "migrations"
+    assert BASELINE_REVISION == "0001_core_baseline"
+
+
+def test_build_alembic_config_is_isolated_and_has_no_side_effects(tmp_path: Path) -> None:
+    config = build_alembic_config()
+    second = build_alembic_config()
+
+    assert isinstance(config, Config)
+    assert config is not second
+    assert Path(config.config_file_name or "") == ALEMBIC_CONFIG_PATH
+    assert Path(config.get_main_option("script_location")) == MIGRATIONS_PATH
+    assert config.get_main_option("sqlalchemy.url") == ""
+    assert not (tmp_path / "config.db").exists()
+
+
+def test_build_alembic_config_stores_shared_connection(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "config-connection.db")
+    try:
+        with resources.engine.connect() as connection:
+            config = build_alembic_config(connection=connection)
+            assert config.attributes["connection"] is connection
+    finally:
+        dispose_database(resources)
+
+
+def test_get_current_revision_returns_none_before_migration(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "unmigrated.db")
+    try:
+        assert get_current_revision(resources) is None
+        assert Base.metadata.tables == {}
+    finally:
+        dispose_database(resources)
+
+
+def test_upgrade_and_downgrade_database_manage_empty_baseline(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "baseline.db")
+    try:
+        upgrade_database(resources)
+        assert get_current_revision(resources) == BASELINE_REVISION
+        assert set(inspect(resources.engine).get_table_names()) <= {"alembic_version"}
+
+        downgrade_database(resources)
+        assert get_current_revision(resources) is None
+        assert set(inspect(resources.engine).get_table_names()) <= {"alembic_version"}
+    finally:
+        dispose_database(resources)
+
+
+def test_migration_api_does_not_create_second_engine_or_dispose_resources_engine(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "shared-engine.db")
+    try:
+        with patch("xianyu_system.core.database.create_database_engine") as create_engine_mock:
+            upgrade_database(resources)
+            downgrade_database(resources)
+        create_engine_mock.assert_not_called()
+        with resources.engine.connect() as connection:
+            assert connection.execute(text("SELECT 1")).scalar_one() == 1
+    finally:
+        dispose_database(resources)
+
+
+def test_migration_failure_propagates_and_engine_remains_usable(tmp_path: Path) -> None:
+    resources = initialize_database(tmp_path / "bad-revision.db")
+    try:
+        with pytest.raises(CommandError):
+            upgrade_database(resources, revision="not_a_revision")
+        with resources.engine.connect() as connection:
+            assert connection.execute(text("SELECT 1")).scalar_one() == 1
+        assert get_current_revision(resources) is None
+    finally:
+        dispose_database(resources)
+
+
+def test_application_sources_do_not_auto_run_migrations() -> None:
+    for relative in ["app/xianyu_system/application.py", "app/xianyu_system/main.py"]:
+        source = (ROOT / relative).read_text(encoding="utf-8")
+        assert "command.upgrade" not in source
+        assert "upgrade_database" not in source
