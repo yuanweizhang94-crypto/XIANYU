@@ -174,8 +174,10 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - Merge commit: `e2d41e0cc392ae0298688c01147e983317c7e1df`.
 - CHG-0002 is archived.
 - CHG-0003-xianyu-account-boundary is the only active change.
-- CHG-0003 status is `DRAFT`.
-- No CHG-0003 implementation is authorized.
+- CHG-0003 status is `APPROVED`.
+- T1 project-owner approval is complete.
+- T2 account and Profile terminology is the next executable task.
+- No CHG-0003 runtime implementation has started.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 - T1 through T15 are complete for archived CHG-0002.
 - `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR` are `verified`.
@@ -185,6 +187,7 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - `CAP-XY-ACCOUNT` remains planned and unbound.
 - `CAP-XY-SCHEDULE` remains `planned`.
 - No Xianyu account runtime, Cookie import, browser Profile loading, login, or external platform access is implemented.
+- Approval of CHG-0003 does not mean that runtime implementation, real account access, Cookie or Token handling, browser Profile loading, Ready-for-review, auto-merge, or merge has been approved.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 

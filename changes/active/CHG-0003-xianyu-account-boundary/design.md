@@ -1,13 +1,15 @@
 # CHG-0003 Design
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0003-xianyu-account-boundary
 
 ## Design state
 
-No runtime design is approved.
+CHG-0003 is approved for controlled, task-by-task execution.
 
-This document records questions and constraints for later review.
+No runtime account design or implementation has been approved yet.
+
+T2-T5 must finalize the terminology, security, persistence, migration, module ownership, and testing boundaries before T6 may begin.
 
 ## Proposed boundary
 
@@ -21,7 +23,7 @@ The future account boundary may describe:
 - Secret-reference interfaces without storing real secret values.
 - Fail-closed behavior.
 
-## Required decisions before approval
+## Required decisions before runtime implementation
 
 - Exact account and Profile terminology.
 - Whether profile metadata is persistent.
@@ -46,6 +48,12 @@ The future account boundary may describe:
 
 None.
 
-## Approval boundary
+## Execution boundary
 
-No implementation task may begin until this change is explicitly approved.
+The project-owner approval completes T1 only.
+
+T2 is the next executable task.
+
+T2 must be performed in a separate execution.
+
+No runtime implementation may begin before T2-T5 are completed and all approved decisions are recorded in this document.

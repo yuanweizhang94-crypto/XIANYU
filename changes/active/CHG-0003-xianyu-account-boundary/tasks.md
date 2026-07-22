@@ -1,9 +1,9 @@
 # CHG-0003 Tasks
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0003-xianyu-account-boundary
 
-- [ ] T1 Obtain explicit project-owner approval for CHG-0003
+- [x] T1 Obtain explicit project-owner approval for CHG-0003
 - [ ] T2 Finalize account and Profile isolation terminology
 - [ ] T3 Approve security and credential-handling boundaries
 - [ ] T4 Approve persistence and migration boundaries
