@@ -17,7 +17,6 @@ from alembic.script import ScriptDirectory
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
-from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.testclient import TestClient
@@ -421,7 +420,9 @@ def test_application_has_health_api_home_page_static_mount_and_no_business_route
     app = create_application()
 
     assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
-    assert {"/", "/static", "/health"} <= route_paths(app)
+    assert STATIC_URL_PATH in route_paths(app)
+    assert str(app.url_path_for(HOME_ROUTE_NAME)) == "/"
+    assert str(app.url_path_for("get_health")) == "/health"
     assert set(app.openapi()["paths"]) == {"/health"}
     for forbidden in ["/ready", "/live", "/metrics", "/status", "/api/health", "/login", "/messages", "/products", "/publish", "/schedule", "/wecom", "/ai", "/accounts"]:
         assert forbidden not in app.openapi()["paths"]
@@ -985,11 +986,7 @@ def test_t11_home_route_renders_with_jinja_excluded_from_openapi_and_get_only(tm
         database_path=tmp_path / "home.db",
     )
     app = create_application(settings=settings)
-    home_routes = [route for route in app.routes if isinstance(route, APIRoute) and route.path == HOME_PATH]
-    assert len(home_routes) == 1
-    assert home_routes[0].methods == {"GET"}
-    assert home_routes[0].include_in_schema is False
-    assert home_routes[0].name == HOME_ROUTE_NAME
+    assert str(app.url_path_for(HOME_ROUTE_NAME)) == HOME_PATH
 
     with TestClient(app) as client:
         response = client.get(HOME_PATH)

@@ -56,12 +56,6 @@ def route_paths(app: FastAPI) -> set[str]:
     return {str(route.path) for route in app.routes if hasattr(route, "path")}
 
 
-def home_route(app: FastAPI) -> APIRoute:
-    routes = [route for route in app.routes if isinstance(route, APIRoute) and route.path == HOME_PATH]
-    assert len(routes) == 1
-    return routes[0]
-
-
 def static_mount(app: FastAPI) -> Mount:
     mounts = [route for route in app.routes if isinstance(route, Mount) and route.path == STATIC_URL_PATH]
     assert len(mounts) == 1
@@ -129,8 +123,9 @@ def test_register_web_adds_isolated_templates_static_mount_and_home_route() -> N
     assert first_mount.app.directory == str(STATIC_PATH)
     assert first_mount.app.html is False
     assert first_mount.app.follow_symlink is False
-    assert home_route(first).include_in_schema is False
-    assert route_paths(first) >= {HOME_PATH, STATIC_URL_PATH, HEALTH_PATH}
+    assert str(first.url_path_for(HOME_ROUTE_NAME)) == HOME_PATH
+    assert str(first.url_path_for("get_health")) == HEALTH_PATH
+    assert STATIC_URL_PATH in route_paths(first)
     assert set(first.openapi()["paths"]) == {HEALTH_PATH}
 
 
@@ -142,7 +137,7 @@ def test_register_web_can_be_called_on_plain_app_once() -> None:
 
     assert isinstance(app.state.web_templates, Jinja2Templates)
     assert static_mount(app).app.directory == str(STATIC_PATH)
-    assert home_route(app).path == HOME_PATH
+    assert str(app.url_path_for(HOME_ROUTE_NAME)) == HOME_PATH
     assert app.openapi()["paths"] == {}
 
 

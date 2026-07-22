@@ -24,6 +24,7 @@ from xianyu_system.core.database import (
     upgrade_database,
 )
 from xianyu_system.core.logging import ManagedStreamHandler
+from xianyu_system.web.router import HOME_ROUTE_NAME, STATIC_URL_PATH
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FASTAPI_ROUTE_PATHS = {"/", "/static", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/health"}
@@ -155,7 +156,9 @@ def test_application_has_only_health_api_route_and_no_business_routes() -> None:
     app = create_application()
 
     assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
-    assert {"/", "/static", "/health"} <= route_paths(app)
+    assert STATIC_URL_PATH in route_paths(app)
+    assert str(app.url_path_for(HOME_ROUTE_NAME)) == "/"
+    assert str(app.url_path_for("get_health")) == "/health"
     assert set(app.openapi()["paths"]) == {"/health"}
     for forbidden in [
         "/ready",
