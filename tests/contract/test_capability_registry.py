@@ -137,6 +137,21 @@ def project_state_capabilities_by_id() -> dict[str, dict[str, object]]:
     return {str(item["id"]): item for item in state["capabilities"]["items"]}
 
 
+def ensure_verified_candidate_commit_is_available() -> None:
+    candidate_ref = f"{VERIFIED_CANDIDATE_SHA}^{{commit}}"
+    exists = subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT)
+    if exists.returncode != 0:
+        subprocess.run(
+            ["git", "fetch", "--no-tags", "--depth=50", "origin", "feat/CHG-0002-core-application"],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+    subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT, check=True)
+    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
+
+
 def all_registered_paths(capability: dict[str, object]) -> list[str]:
     return [str(path) for path in capability["implementation_paths"] + capability["test_paths"]]
 
@@ -209,8 +224,7 @@ def test_capability_spec_documents_match_registry_paths_and_t14_status() -> None
 def test_core_capability_statuses_are_verified_with_candidate_commit() -> None:
     items = capabilities_by_id()
     assert re.fullmatch(r"[0-9a-f]{40}", VERIFIED_CANDIDATE_SHA)
-    subprocess.run(["git", "cat-file", "-e", f"{VERIFIED_CANDIDATE_SHA}^{{commit}}"], cwd=ROOT, check=True)
-    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
+    ensure_verified_candidate_commit_is_available()
     for cap_id in CORE_CAPABILITIES:
         capability = items[cap_id]
         assert capability["status"] == "verified"

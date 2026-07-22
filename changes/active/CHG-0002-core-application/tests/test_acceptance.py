@@ -268,6 +268,21 @@ def chg_0002_tasks():
     return parse_tasks(active_change_dir() / "tasks.md")
 
 
+def ensure_verified_candidate_commit_is_available() -> None:
+    candidate_ref = f"{VERIFIED_CANDIDATE_SHA}^{{commit}}"
+    exists = subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT)
+    if exists.returncode != 0:
+        subprocess.run(
+            ["git", "fetch", "--no-tags", "--depth=50", "origin", "feat/CHG-0002-core-application"],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+    subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT, check=True)
+    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
+
+
 def pyproject() -> dict[str, object]:
     return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
@@ -1181,8 +1196,7 @@ def test_openapi_contract_has_only_health_path_and_no_business_paths() -> None:
 def test_core_capabilities_are_verified_after_complete_candidate_validation() -> None:
     registry = registry_by_id()
     assert {str(item["status"]) for item in registry.values() if item["id"] in CORE_CAPABILITIES} == {"verified"}
-    subprocess.run(["git", "cat-file", "-e", f"{VERIFIED_CANDIDATE_SHA}^{{commit}}"], cwd=ROOT, check=True)
-    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
+    ensure_verified_candidate_commit_is_available()
     for cap_id in CORE_CAPABILITIES:
         capability = registry[cap_id]
         assert capability["active_change"] is None
