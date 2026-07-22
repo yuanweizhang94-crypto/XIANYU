@@ -7,13 +7,13 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 CHG-0003 is approved for controlled, task-by-task execution.
 
-T1 and T2 are complete.
+T1, T2, and T3 are complete.
 
-The canonical account and Profile isolation terminology is finalized.
+The canonical terminology and security and credential-handling boundaries are finalized.
 
-T3 is the next executable task.
+T4 is the next executable task.
 
-No security model, persistence model, runtime ownership model, or runtime implementation has been approved.
+No persistence model, migration model, runtime ownership model, provider integration, or runtime implementation has been approved.
 
 ## Canonical terminology
 
@@ -139,18 +139,342 @@ Only Synthetic Fixtures may be used in CHG-0003 tests before later explicit auth
 12. Only Synthetic Fixtures may be used while real account access remains out of scope.
 
 
-## Decisions deferred after T2
+## Security data classification
 
-### Deferred to T3
+### Secret Material
 
-- Credential Reference security model.
-- Secret-storage provider requirements.
-- Encryption requirements.
-- Permission and authorization checks.
-- Risk-state handling.
-- Sensitive logging and redaction.
-- Credential and Session Material lifecycle.
-- Failure behavior for invalid or unavailable credentials.
+Secret Material includes all Session Material and any value that can authenticate, authorize, recover, impersonate, or continue access to a Platform Account.
+
+Examples include Cookies, Tokens, passwords, private keys, authorization headers, QR-code login material, SMS verification data, recovery codes, browser local storage, browser session storage, device-binding secrets, and equivalent values.
+
+Secret Material must never be committed to the repository.
+
+Secret Material must never be stored directly in repository configuration, application configuration, environment files, ordinary environment variables, database columns, migration fixtures, logs, audit events, exception messages, telemetry, URLs, command-line arguments, PR text, issues, test snapshots, or Synthetic Fixtures.
+
+### Sensitive Non-secret Metadata
+
+Sensitive Non-secret Metadata includes Credential References, External Account Identifiers, account risk states, credential-resolution outcomes, provider identifiers, authorization outcomes, and Profile-to-credential associations.
+
+Sensitive Non-secret Metadata is not authentication material, but it must remain Profile-scoped and subject to least-privilege access.
+
+It must not be treated as public data.
+
+### Ordinary Profile Metadata
+
+Profile Identifier and Account Alias are non-secret repository concepts.
+
+They must still follow Profile isolation and must not be used to infer authorization, authentication, ownership, or platform validity.
+
+Data classification does not authorize persistence.
+
+Persistence remains deferred to T4.
+
+## Secure Storage Boundary
+
+Secure Storage Boundary
+
+A future external or operating-system-backed boundary responsible for storing and releasing Secret Material.
+
+The Secure Storage Boundary is outside the repository domain model and outside ordinary application persistence.
+
+1. Secret Material is stored outside the repository and outside ordinary application database storage.
+
+2. Stored Secret Material must be encrypted at rest by the selected provider.
+
+3. Provider access must be protected by operating-system, service-account, or equivalent access controls.
+
+4. Access must follow least privilege.
+
+5. Secret Material must be isolated by Profile and Credential Reference.
+
+6. A provider must not return one Profile's Secret Material for another Profile.
+
+7. A Credential Reference must remain opaque and must not embed the secret value, plaintext storage path, encryption key, raw provider token, or recoverable secret content.
+
+8. Provider errors must not include Secret Material.
+
+9. Provider selection, integration, module ownership, process ownership, and concrete APIs remain deferred to T5.
+
+10. No Secure Storage Boundary is implemented during T3.
+
+T3 does not choose a concrete provider, decide database fields, or define interface code.
+
+## Credential Reference security rules
+
+1. Each Credential Reference belongs to exactly one Profile.
+
+2. A Credential Reference must not be shared across Profiles.
+
+3. A Credential Reference must not be copied from one Profile to another.
+
+4. A Credential Reference must not contain Secret Material.
+
+5. A Credential Reference must not encode a password, Cookie, Token, authorization header, browser path, external account password, encryption key, or other recoverable secret.
+
+6. A Credential Reference must not prove that Secret Material exists, is valid, is current, or is authorized for use.
+
+7. Missing, malformed, unknown, conflicting, or cross-Profile Credential References must fail closed.
+
+8. There must be no implicit default Credential Reference.
+
+9. There must be no global current-account credential state.
+
+10. Future credential resolution must require an explicit Profile Identifier and the Profile-owned Credential Reference.
+
+11. A future operation must verify Profile ownership before requesting Secret Material.
+
+12. Credential Reference persistence format remains deferred to T4.
+
+13. Credential Reference provider and runtime ownership remain deferred to T5.
+
+## Future credential resolution boundary
+
+This section defines a future implementation constraint, not a current implementation.
+
+A future credential-resolution operation must require:
+
+- An explicit Profile Identifier.
+- The Credential Reference owned by that Profile.
+- An explicit operation purpose.
+- An explicit authorization decision.
+- A non-blocked risk decision.
+
+A future credential-resolution operation must satisfy:
+
+1. Resolve only the Secret Material required for one explicit operation.
+
+2. Keep resolved Secret Material in memory for the shortest practical period.
+
+3. Do not persist resolved Secret Material.
+
+4. Do not cache resolved Secret Material across operations.
+
+5. Do not serialize resolved Secret Material.
+
+6. Do not place resolved Secret Material in logs, events, exceptions, metrics, tracing attributes, URLs, command-line arguments, database values, or API responses.
+
+7. Do not reuse resolved Secret Material across Profiles.
+
+8. Do not silently fall back to another Credential Reference.
+
+9. Do not retry using another Profile's credentials.
+
+10. Release references to resolved Secret Material after the operation.
+
+11. Do not claim guaranteed memory zeroization in a managed runtime.
+
+12. If ownership, authorization, resolution, or risk state changes during an operation, stop and fail closed.
+
+T3 does not implement this flow.
+
+## Credential resolution and authorization states
+
+This section defines two independent conceptual state axes.
+
+### Credential Resolution Status
+
+Allowed conceptual statuses:
+
+```text
+UNRESOLVED
+RESOLVED
+MISSING
+UNAVAILABLE
+INVALID
+EXPIRED
+REVOKED
+```
+
+- UNRESOLVED: No resolution result exists.
+- RESOLVED: The Secure Storage Boundary returned operation-scoped Secret Material.
+- MISSING: The Credential Reference or referenced material does not exist.
+- UNAVAILABLE: The Secure Storage Boundary cannot safely provide a result.
+- INVALID: The material is structurally or semantically invalid.
+- EXPIRED: The material is no longer current.
+- REVOKED: Use has been explicitly withdrawn.
+
+### Operation Authorization Status
+
+Allowed conceptual statuses:
+
+```text
+UNKNOWN
+AUTHORIZED
+VERIFICATION_REQUIRED
+PERMISSION_DENIED
+RISK_BLOCKED
+```
+
+- UNKNOWN: Authorization or platform risk state is not known.
+- AUTHORIZED: A separate approved authorization boundary permits the explicit operation.
+- VERIFICATION_REQUIRED: Human or platform verification is required.
+- PERMISSION_DENIED: The operation is not permitted.
+- RISK_BLOCKED: Risk controls prohibit the operation.
+
+A future operation may proceed only when:
+
+- Credential Resolution Status is RESOLVED; and
+- Operation Authorization Status is AUTHORIZED; and
+- Profile ownership remains exact and unambiguous.
+
+Every other status or combination must deny the operation and fail closed.
+
+RESOLVED alone does not authorize use.
+
+AUTHORIZED without RESOLVED Secret Material does not authorize use.
+
+UNKNOWN must never be treated as AUTHORIZED.
+
+VERIFICATION_REQUIRED must never be bypassed or automatically converted to AUTHORIZED.
+
+T3 does not implement state-machine code.
+
+## Permission and risk boundary
+
+1. Permission must be explicit and operation-specific.
+
+2. Permission must be evaluated for the exact Profile.
+
+3. Permission must not be inherited from another Profile.
+
+4. Permission must not be inferred from previous success.
+
+5. Permission must not be inferred from the presence of a Credential Reference.
+
+6. Permission must not be inferred from the presence of Session Material.
+
+7. Unknown permission fails closed.
+
+8. Unknown risk state fails closed.
+
+9. Platform verification or risk controls must never be bypassed.
+
+10. VERIFICATION_REQUIRED requires explicit external resolution and cannot be handled automatically by CHG-0003.
+
+11. PERMISSION_DENIED and RISK_BLOCKED prohibit retries that switch Profiles or credentials.
+
+12. The repository must not guess whether a Platform Account is safe to operate.
+
+## Logging, errors, and redaction
+
+Allowed logging and audit fields:
+
+```text
+event type
+Profile Identifier
+timestamp
+operation purpose
+outcome class
+non-secret reason code
+non-secret correlation identifier
+```
+
+Prohibited fields:
+
+```text
+Secret Material
+full Credential Reference
+External Account Identifier
+account password
+Cookie
+Token
+authorization header
+QR-code material
+SMS verification data
+browser local storage
+browser session storage
+browser user-data path
+customer data
+request or response payload containing sensitive values
+raw provider error content that may contain sensitive values
+```
+
+1. Secret Material must never appear in logs, exception messages, audit events, traces, metrics, snapshots, test output, or PR text.
+
+2. Full Credential References must not be logged.
+
+3. A future implementation may use a separately generated non-secret correlation identifier, but the generation design remains deferred.
+
+4. Errors exposed outside the Secure Storage Boundary must use non-secret reason codes.
+
+5. Provider errors must be sanitized before they cross the provider boundary.
+
+6. Redaction failure must fail closed and suppress the unsafe diagnostic.
+
+7. Debug mode must not weaken these rules.
+
+8. Tests must not assert or snapshot raw Secret Material.
+
+## Prohibited Secret Material ingress
+
+Secret Material must not enter the future system through:
+
+- Source files.
+- Git-tracked configuration.
+- .env files.
+- Ordinary environment variables.
+- Command-line arguments.
+- URL paths.
+- URL query parameters.
+- HTTP response bodies intended for operators.
+- Log fields.
+- Audit fields.
+- Issue or pull-request text.
+- Test fixtures.
+- Test snapshots.
+- Browser-directory copies.
+- Database seed files.
+- Migration files.
+
+A future secure ingress mechanism requires a separate approved design.
+
+T3 does not approve or implement a Secret Material import channel.
+
+## Credential lifecycle boundary
+
+1. Rotation must not expose the previous or replacement Secret Material to ordinary application persistence.
+
+2. Rotation must not create cross-Profile credential reuse.
+
+3. A revoked credential must not be automatically restored.
+
+4. An expired credential must not be treated as valid.
+
+5. An invalid credential must not trigger fallback to another Profile.
+
+6. A missing credential must not trigger credential discovery across Profiles.
+
+7. A replaced Credential Reference must not cause automatic fallback to its predecessor.
+
+8. Revocation must deny future resolution.
+
+9. Credential history and retention policy remain deferred to T4 and the selected Secure Storage Boundary.
+
+10. Concrete rotation and revocation workflows remain deferred to T5 and T6.
+
+11. No lifecycle operation is implemented during T3.
+
+## Security testing boundary
+
+1. Only Synthetic Fixtures may be used.
+
+2. Synthetic Fixtures must not be derived from real Platform Accounts, customers, credentials, browser directories, Cookies, Tokens, or Session Material.
+
+3. Synthetic values must be visibly artificial.
+
+4. Tests must not require a real Secure Storage Boundary.
+
+5. Tests must not access an operating-system credential store.
+
+6. Tests must not access browser user-data directories.
+
+7. Tests must not access external networks.
+
+8. Tests must validate documentation, generated state, repository boundaries, prohibited paths, and absence of real sensitive values.
+
+9. T3 tests do not constitute implementation evidence for CAP-XY-ACCOUNT.
+
+## Decisions deferred after T3
 
 ### Deferred to T4
 
@@ -158,23 +482,33 @@ Only Synthetic Fixtures may be used in CHG-0003 tests before later explicit auth
 - Database schema.
 - Migration requirements.
 - Retention and deletion behavior.
-- Uniqueness constraints.
-- Storage of Account Alias or External Account Identifier.
+- Credential Reference persistence format.
 - Profile lifecycle persistence.
+- Storage of Account Alias or External Account Identifier.
+- Persistence of non-secret audit metadata.
 
 ### Deferred to T5
 
+- Secure Storage provider selection.
+- Provider integration ownership.
 - Module ownership.
 - Worker ownership.
 - API ownership.
 - Process and concurrency isolation.
 - Runtime resource ownership.
+- Secure ingress mechanism.
+- Credential-resolution interface ownership.
 - Profile loading and unloading boundaries.
 
 ### Deferred to T6
 
 - All runtime implementation.
-
+- Credential provider implementation.
+- Secret retrieval.
+- Account access.
+- Browser integration.
+- Login behavior.
+- Rotation and revocation workflows.
 
 ## Security constraints
 
@@ -191,10 +525,10 @@ None.
 
 ## Execution boundary
 
-T1 and T2 are complete.
+T1, T2, and T3 are complete.
 
-T3 is the next executable task.
+T4 is the next executable task.
 
-T3 must be performed in a separate execution.
+T4 must be performed in a separate execution.
 
-This T2 execution does not authorize credential handling, secret storage, persistence, database changes, API changes, worker changes, browser integration, account access, or runtime implementation.
+This T3 execution does not authorize persistence, database changes, migrations, provider selection, API changes, worker changes, browser integration, account access, Secret Material handling, or runtime implementation.

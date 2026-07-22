@@ -5,7 +5,7 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 - [x] T1 Obtain explicit project-owner approval for CHG-0003
 - [x] T2 Finalize account and Profile isolation terminology
-- [ ] T3 Approve security and credential-handling boundaries
+- [x] T3 Approve security and credential-handling boundaries
 - [ ] T4 Approve persistence and migration boundaries
 - [ ] T5 Approve runtime module and ownership boundaries
 - [ ] T6 Implement only the approved account boundary

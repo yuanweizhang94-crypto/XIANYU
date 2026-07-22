@@ -3,72 +3,78 @@
 Status: APPROVED
 Change ID: CHG-0003-xianyu-account-boundary
 
-## T2 acceptance criteria
+## T3 acceptance criteria
 
 1. CHG-0003 remains the only active change.
 
 2. CHG-0003 remains APPROVED in proposal, design, tasks, and acceptance.
 
-3. T1 and T2 are complete.
+3. T1, T2, and T3 are complete.
 
-4. T3-T9 remain incomplete.
+4. T4-T9 remain incomplete.
 
-5. generated/PROJECT_STATE.json reports two completed tasks.
+5. generated/PROJECT_STATE.json reports three completed tasks.
 
-6. generated/PROJECT_STATE.json reports T3 as next_task.
+6. generated/PROJECT_STATE.json reports T4 as next_task.
 
-7. The design defines Platform Account.
+7. All T2 canonical terminology and invariants remain intact.
 
-8. The design defines Account Reference.
+8. Secret Material is formally classified and prohibited from repository and ordinary application persistence.
 
-9. The design defines Profile and explicitly distinguishes it from a browser profile.
+9. Sensitive Non-secret Metadata is formally classified.
 
-10. The design defines Profile Identifier.
+10. Secure Storage Boundary requirements are defined without choosing or implementing a provider.
 
-11. The design defines Account Alias.
+11. Credential References are Profile-owned, opaque, and secret-free.
 
-12. The design defines External Account Identifier.
+12. Cross-Profile Credential Reference reuse is prohibited.
 
-13. The design defines Credential Reference.
+13. Future resolution requires explicit Profile Identifier, Credential Reference, purpose, authorization, and risk decision.
 
-14. The design defines Session Material.
+14. Credential Resolution Status values are defined.
 
-15. The design defines Profile-scoped State.
+15. Operation Authorization Status values are defined.
 
-16. The design defines Isolation Boundary.
+16. Only RESOLVED plus AUTHORIZED permits a future operation.
 
-17. The design defines Synthetic Fixture.
+17. UNKNOWN, MISSING, UNAVAILABLE, INVALID, EXPIRED, REVOKED, VERIFICATION_REQUIRED, PERMISSION_DENIED, and RISK_BLOCKED fail closed.
 
-18. The design records the one-to-one ownership relationship between Profile and Account Reference.
+18. Platform verification and risk controls may not be bypassed.
 
-19. The design prohibits cross-Profile mutable-state, Credential Reference, and Session Material reuse.
+19. Secret Material is prohibited from logs, errors, audit events, traces, metrics, snapshots, URLs, command-line arguments, environment variables, databases, migrations, and tests.
 
-20. Missing, ambiguous, conflicting, or cross-Profile ownership information fails closed.
+20. Full Credential References and External Account Identifiers are prohibited from logs.
 
-21. T3 security decisions remain deferred.
+21. Provider errors must be sanitized before crossing the provider boundary.
 
-22. T4 persistence and migration decisions remain deferred.
+22. Rotation, revocation, expiration, and replacement may not cause implicit fallback or cross-Profile reuse.
 
-23. T5 module and runtime ownership decisions remain deferred.
+23. Only Synthetic Fixtures are allowed in tests.
 
-24. CAP-XY-ACCOUNT remains planned and unbound.
+24. T4 persistence and migration decisions remain deferred.
 
-25. CAP-XY-ACCOUNT retains no implementation or test evidence paths.
+25. T5 provider, module, worker, API, process, and runtime ownership decisions remain deferred.
 
-26. No runtime, API, contract, migration, dependency, CI, capability registry, capability specification, archived change, or permanent test file is modified.
+26. T6 runtime implementation remains deferred.
 
-27. No real account, credential, Cookie, Token, browser directory, customer data, or Session Material is added.
+27. CAP-XY-ACCOUNT remains planned and unbound.
 
-28. PR #3 remains Draft, open, and unmerged.
+28. CAP-XY-ACCOUNT retains no implementation or test evidence paths.
 
-29. Auto-merge remains disabled.
+29. No runtime, API, contract, migration, dependency, CI, registry, capability specification, archived change, or permanent test file is modified.
 
-30. Repository verification, security scan, Ruff, Mypy, and the complete test suite pass.
+30. No real account, credential, Cookie, Token, password, browser directory, customer data, or Session Material is added.
+
+31. PR #3 remains Draft, open, and unmerged.
+
+32. Auto-merge remains disabled.
+
+33. Repository verification, security scan, Ruff, Mypy, and the complete test suite pass.
 
 ## Current authorization
 
-T1 and T2 are complete.
+T1, T2, and T3 are complete.
 
-T3 is the next executable task and must be performed separately.
+T4 is the next executable task and must be performed separately.
 
-This execution does not authorize security implementation, credential handling, persistence, database changes, API changes, worker changes, browser integration, account access, capability binding, Ready-for-review, auto-merge, or merge.
+This execution does not authorize persistence, database changes, migrations, provider selection, provider integration, API changes, worker changes, browser integration, account access, Secret Material handling, capability binding, Ready-for-review, auto-merge, or merge.

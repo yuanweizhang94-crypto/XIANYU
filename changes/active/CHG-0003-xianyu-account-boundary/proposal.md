@@ -15,13 +15,13 @@ Prepare a formally reviewable boundary for Xianyu account and Profile isolation.
 
 The project owner approved CHG-0003 for controlled, one-task-at-a-time execution.
 
-T1 and T2 are complete.
+T1, T2, and T3 are complete.
 
-The account and Profile isolation terminology is finalized.
+The terminology and security and credential-handling boundaries are finalized.
 
-T3 is the next executable task and must be performed separately.
+T4 is the next executable task and must be performed separately.
 
-No runtime implementation, real account access, Credential Reference implementation, Session Material handling, browser integration, capability binding, Ready-for-review, auto-merge, or merge is authorized.
+No persistence, migration, runtime implementation, provider integration, real account access, Session Material handling, browser integration, capability binding, Ready-for-review, auto-merge, or merge is authorized.
 
 ## Goals
 
@@ -45,6 +45,20 @@ No runtime implementation, real account access, Credential Reference implementat
 - Isolation Boundary prohibits cross-Profile mutable-state or secret reuse.
 - Synthetic Fixture is the only allowed test data category.
 
+## T3 security outcome
+
+- Secret Material is prohibited from repository and ordinary application persistence.
+- Credential References are opaque, Profile-owned, and never contain secret values.
+- Future Secret Material storage requires a Secure Storage Boundary.
+- Future resolution requires exact Profile ownership, explicit purpose, explicit authorization, and a non-blocked risk state.
+- Only RESOLVED plus AUTHORIZED may permit a future operation.
+- Unknown, missing, unavailable, invalid, expired, revoked, verification-required, denied, or risk-blocked states fail closed.
+- Sensitive logs, errors, traces, metrics, and audits must not contain Secret Material.
+- Full Credential References and External Account Identifiers must not be logged.
+- Secret Material ingress through source files, environment variables, command-line arguments, URLs, tests, databases, or PR text is prohibited.
+- Rotation and revocation must not create fallback or cross-Profile reuse.
+- Only Synthetic Fixtures are allowed in tests.
+
 ## Non-goals
 
 - No real Xianyu login.
@@ -56,15 +70,15 @@ No runtime implementation, real account access, Credential Reference implementat
 - No API route.
 - No external network request.
 - No registry capability binding.
-- No runtime implementation during the T2 terminology transition.
-- No runtime implementation before T3-T5 have been completed and their decisions have been formally recorded.
+- No runtime implementation during the T3 security boundary transition.
+- No runtime implementation before T4 and T5 have been completed and their decisions have been formally recorded.
 
 ## Execution boundary
 
 Only one unfinished task may be executed at a time.
 
-This execution completes T2 only.
+This execution completes T3 only.
 
-T3 must not begin in the same execution.
+T4 must not begin in the same execution.
 
-Runtime implementation remains prohibited until T3-T5 are complete and all approved decisions are recorded.
+Runtime implementation remains prohibited until T4 and T5 are complete and all approved decisions are recorded.

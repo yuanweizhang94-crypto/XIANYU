@@ -40,7 +40,7 @@ def test_chg_0003_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0003 / name) == "APPROVED"
 
 
-def test_chg_0003_t2_completion_advances_only_to_t3() -> None:
+def test_chg_0003_t3_completion_advances_only_to_t4() -> None:
     task_lines = [
         line
         for line in (CHG_0003 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -48,9 +48,8 @@ def test_chg_0003_t2_completion_advances_only_to_t3() -> None:
     ]
 
     assert len(task_lines) == 9
-    assert task_lines[0].startswith("- [x]")
-    assert task_lines[1].startswith("- [x]")
-    assert all(line.startswith("- [ ]") for line in task_lines[2:])
+    assert all(line.startswith("- [x]") for line in task_lines[:3])
+    assert all(line.startswith("- [ ]") for line in task_lines[3:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8")
@@ -59,14 +58,15 @@ def test_chg_0003_t2_completion_advances_only_to_t3() -> None:
     assert state["active_change"]["id"] == "CHG-0003-xianyu-account-boundary"
     assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 2
+    assert state["tasks"]["completed"] == 3
 
     assert state["tasks"]["items"][0]["completed"] is True
     assert state["tasks"]["items"][1]["completed"] is True
-    assert state["tasks"]["items"][2]["completed"] is False
+    assert state["tasks"]["items"][2]["completed"] is True
+    assert state["tasks"]["items"][3]["completed"] is False
 
     assert state["tasks"]["next_task"] == (
-        "T3 Approve security and credential-handling boundaries"
+        "T4 Approve persistence and migration boundaries"
     )
 
 
@@ -125,16 +125,52 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
     assert "A Credential Reference must never contain a secret value." in design
     assert "Profile-scoped State must not be shared as mutable state across Profiles." in design
     assert "Missing, ambiguous, conflicting, or cross-Profile ownership information must fail closed." in design
-    assert "Deferred to T3" in design
-    assert "Deferred to T4" in design
-    assert "Deferred to T5" in design
-    assert "Deferred to T6" in design
 
-    assert "T1 and T2 are complete." in proposal
-    assert "T3 is the next executable task" in proposal
-    assert "This execution completes T2 only." in proposal
-    assert "T3 must not begin in the same execution." in proposal
+    required_sections = [
+        "## Security data classification",
+        "## Secure Storage Boundary",
+        "## Credential Reference security rules",
+        "## Future credential resolution boundary",
+        "## Credential resolution and authorization states",
+        "## Permission and risk boundary",
+        "## Logging, errors, and redaction",
+        "## Prohibited Secret Material ingress",
+        "## Credential lifecycle boundary",
+        "## Security testing boundary",
+        "## Decisions deferred after T3",
+    ]
+    for section in required_sections:
+        assert section in design
 
-    assert "T1 and T2 are complete." in acceptance
-    assert "T3 is the next executable task" in acceptance
+    required_security_rules = [
+        "Secret Material must never be committed to the repository.",
+        "Each Credential Reference belongs to exactly one Profile.",
+        "A Credential Reference must not be shared across Profiles.",
+        "There must be no implicit default Credential Reference.",
+        "There must be no global current-account credential state.",
+        "Do not cache resolved Secret Material across operations.",
+        "Do not silently fall back to another Credential Reference.",
+        "Credential Resolution Status is RESOLVED",
+        "Operation Authorization Status is AUTHORIZED",
+        "UNKNOWN must never be treated as AUTHORIZED.",
+        "VERIFICATION_REQUIRED must never be bypassed",
+        "Secret Material must never appear in logs",
+        "Full Credential References must not be logged.",
+        "Rotation must not create cross-Profile credential reuse.",
+        "Only Synthetic Fixtures may be used.",
+    ]
+    for rule in required_security_rules:
+        assert rule in design
+
+    assert "### Deferred to T4" in design
+    assert "### Deferred to T5" in design
+    assert "### Deferred to T6" in design
+
+    assert "T1, T2, and T3 are complete." in proposal
+    assert "T4 is the next executable task" in proposal
+    assert "This execution completes T3 only." in proposal
+    assert "T4 must not begin in the same execution." in proposal
+
+    assert "T1, T2, and T3 are complete." in acceptance
+    assert "T4 is the next executable task" in acceptance
     assert "PR #3 remains Draft" in acceptance

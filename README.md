@@ -177,7 +177,8 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - CHG-0003 status is `APPROVED`.
 - T1 project-owner approval is complete.
 - T2 account and Profile isolation terminology is complete.
-- T3 security and credential-handling boundaries is the next executable task.
+- T3 security and credential-handling boundaries is complete.
+- T4 persistence and migration boundaries is the next executable task.
 - No CHG-0003 runtime implementation has started.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 - T1 through T15 are complete for archived CHG-0002.
@@ -188,7 +189,7 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - `CAP-XY-ACCOUNT` remains planned and unbound.
 - `CAP-XY-SCHEDULE` remains `planned`.
 - No Xianyu account runtime, Cookie import, browser Profile loading, login, or external platform access is implemented.
-- Approval of CHG-0003 does not mean that runtime implementation, real account access, Cookie or Token handling, browser Profile loading, Ready-for-review, auto-merge, or merge has been approved.
+- Approval and T3 completion of CHG-0003 do not mean that runtime implementation, real account access, Cookie or Token handling, browser Profile loading, Ready-for-review, auto-merge, or merge has been approved.
 
 Within CHG-0003:
 
@@ -199,7 +200,18 @@ Within CHG-0003:
 - Credential Reference is an opaque reference and never contains secret material.
 - Session Material remains sensitive and outside the approved implementation boundary.
 
-Completion of T2 does not authorize T3, credential handling, persistence, browser integration, Ready-for-review, auto-merge, or merge.
+
+Within the approved CHG-0003 security boundary:
+
+- Secret Material is prohibited from repository and ordinary application persistence.
+- Credential References are opaque, Profile-owned, and never contain secret values.
+- A future Secure Storage Boundary must enforce encryption at rest and least-privilege access.
+- A future operation may proceed only with exact Profile ownership, successful resolution, explicit authorization, and a non-blocked risk decision.
+- Unknown, unavailable, invalid, expired, revoked, denied, verification-required, or risk-blocked states fail closed.
+- Secret Material and full Credential References must not appear in logs or diagnostics.
+- Only Synthetic Fixtures are permitted in tests.
+
+Completion of T3 does not authorize T4, persistence, migrations, provider integration, Secret Material handling, browser integration, Ready-for-review, auto-merge, or merge.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 
