@@ -102,6 +102,18 @@ Importing any Core module must not:
 - Application creation does not start a server, scheduler, database, migration, browser, or external client.
 - No API or web route is registered in T4.
 
+## T5 implementation decision
+
+- `ApplicationSettings` is the single typed configuration model.
+- Supported sources are safe defaults, `XIANYU_` environment variables, and explicit constructor overrides.
+- Explicit constructor overrides have higher priority than environment variables.
+- Environment variables have higher priority than defaults.
+- Settings are immutable after validation.
+- `.env` files are not loaded automatically.
+- Configuration instantiation does not create directories, database files, logs, or network clients.
+- The application factory stores the resolved settings instance in `app.state.settings`.
+- T5 does not implement logging, database connections, migrations, scheduler behavior, API routes, or web routes.
+
 ## Testing rules
 
 * Application factory tests must create more than one application instance.

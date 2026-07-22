@@ -7,10 +7,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from xianyu_system.application import APP_TITLE, APP_VERSION, create_application
+from xianyu_system.application import create_application
+from xianyu_system.core.config import ApplicationSettings
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
@@ -22,6 +24,25 @@ FORBIDDEN_IMPORT_ARTIFACTS = [
     "migrations",
     "logs",
 ]
+SUPPORTED_ENV_VARS = [
+    "XIANYU_ENVIRONMENT",
+    "XIANYU_APP_TITLE",
+    "XIANYU_APP_VERSION",
+    "XIANYU_DEBUG",
+    "XIANYU_LOG_LEVEL",
+    "XIANYU_DATABASE_PATH",
+    "xianyu_environment",
+    "xianyu_app_title",
+    "xianyu_app_version",
+    "xianyu_debug",
+    "xianyu_log_level",
+    "xianyu_database_path",
+]
+
+
+def clear_supported_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in SUPPORTED_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
 
 
 def route_paths(app: FastAPI) -> set[str]:
@@ -40,11 +61,78 @@ def test_repeated_creation_returns_isolated_instances() -> None:
     assert first.state is not second.state
 
 
-def test_application_metadata_is_stable() -> None:
+def test_application_metadata_is_stable(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_supported_environment(monkeypatch)
     app = create_application()
 
-    assert app.title == APP_TITLE == "XIANYU"
-    assert app.version == APP_VERSION == "0.1.0"
+    assert app.title == "XIANYU"
+    assert app.version == "0.1.0"
+    assert app.debug is False
+
+
+def test_default_application_contains_settings_instance(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_supported_environment(monkeypatch)
+    app = create_application()
+
+    assert isinstance(app.state.settings, ApplicationSettings)
+
+
+def test_default_applications_have_distinct_settings_instances(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clear_supported_environment(monkeypatch)
+    first = create_application()
+    second = create_application()
+
+    assert first.state.settings is not second.state.settings
+
+
+def test_supplied_settings_instance_is_stored_on_application_state() -> None:
+    supplied_settings = ApplicationSettings(app_title="Supplied XIANYU")
+
+    app = create_application(settings=supplied_settings)
+
+    assert app.state.settings is supplied_settings
+
+
+def test_supplied_settings_metadata_is_applied_to_fastapi() -> None:
+    supplied_settings = ApplicationSettings(
+        app_title="TEST APP",
+        app_version="9.8.7",
+        debug=True,
+    )
+
+    app = create_application(settings=supplied_settings)
+
+    assert app.title == "TEST APP"
+    assert app.version == "9.8.7"
+    assert app.debug is True
+
+
+def test_environment_can_influence_default_application(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_supported_environment(monkeypatch)
+    monkeypatch.setenv("XIANYU_APP_TITLE", "ENV APP")
+    monkeypatch.setenv("XIANYU_APP_VERSION", "2.0.0")
+    monkeypatch.setenv("XIANYU_DEBUG", "true")
+
+    app = create_application()
+
+    assert app.title == "ENV APP"
+    assert app.version == "2.0.0"
+    assert app.debug is True
+
+
+def test_explicit_settings_override_environment_for_application(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clear_supported_environment(monkeypatch)
+    monkeypatch.setenv("XIANYU_APP_TITLE", "ENV APP")
+    supplied_settings = ApplicationSettings(app_title="EXPLICIT APP")
+
+    app = create_application(settings=supplied_settings)
+
+    assert app.state.settings is supplied_settings
+    assert app.title == "EXPLICIT APP"
 
 
 def test_application_has_no_custom_business_routes() -> None:
@@ -52,6 +140,8 @@ def test_application_has_no_custom_business_routes() -> None:
 
     assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
     assert app.openapi()["paths"] == {}
+    assert "/health" not in app.openapi()["paths"]
+    assert "/" not in route_paths(app)
 
 
 def test_custom_lifespan_runs_startup_and_shutdown_once() -> None:
@@ -66,6 +156,25 @@ def test_custom_lifespan_runs_startup_and_shutdown_once() -> None:
     app = create_application(lifespan=lifespan)
 
     with TestClient(app):
+        assert events == ["startup"]
+
+    assert events == ["startup", "shutdown"]
+
+
+def test_settings_injection_preserves_custom_lifespan_behavior() -> None:
+    events: list[str] = []
+    supplied_settings = ApplicationSettings(app_title="LIFESPAN APP")
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        events.append("startup")
+        yield
+        events.append("shutdown")
+
+    app = create_application(lifespan=lifespan, settings=supplied_settings)
+
+    with TestClient(app):
+        assert app.state.settings is supplied_settings
         assert events == ["startup"]
 
     assert events == ["startup", "shutdown"]
@@ -113,6 +222,7 @@ def test_main_entry_exposes_fastapi_app_and_factory_remains_reusable() -> None:
     assert isinstance(app, FastAPI)
     assert isinstance(other, FastAPI)
     assert app is not other
+    assert isinstance(app.state.settings, ApplicationSettings)
 
 
 def test_application_sources_do_not_use_legacy_event_or_uvicorn_runner() -> None:

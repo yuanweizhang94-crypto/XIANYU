@@ -7,7 +7,7 @@ Change ID: CHG-0002-core-application
 - [x] T2 Approve CHG-0002 architecture and dependency boundary
 - [x] T3 Add approved core application dependencies
 - [x] T4 Implement application factory and lifespan
-- [ ] T5 Implement typed configuration
+- [x] T5 Implement typed configuration
 - [ ] T6 Implement structured redacted logging
 - [ ] T7 Implement SQLite WAL and SQLAlchemy infrastructure
 - [ ] T8 Establish Alembic migration baseline

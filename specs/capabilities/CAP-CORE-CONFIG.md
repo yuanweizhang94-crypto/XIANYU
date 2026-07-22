@@ -28,6 +28,20 @@ Provide the single typed configuration boundary for the modular-monolith Core wi
 - Do not read real Cookie, Token, Secret, Password, browser profile, or platform account credentials.
 - Keep configuration replaceable for repeated application creation in tests.
 
+## T5 implementation decisions
+
+- Implementation file: `app/xianyu_system/core/config.py`.
+- Settings type: `ApplicationSettings`.
+- Environment prefix: `XIANYU_`.
+- Explicit constructor values override environment values.
+- Environment values override defaults.
+- Settings are immutable.
+- `.env` files are not automatically loaded.
+- No secret-bearing platform fields exist in CHG-0002 Core settings.
+- Application factory stores resolved settings in `app.state.settings`.
+- Capability remains `implementing` until full CHG-0002 verification.
+- Registry implementation and test paths remain deferred to T13.
+
 ## Acceptance criteria
 
 - Configuration can be constructed for local default usage.

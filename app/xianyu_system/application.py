@@ -5,8 +5,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 from fastapi import FastAPI
 
-APP_TITLE = "XIANYU"
-APP_VERSION = "0.1.0"
+from xianyu_system.core.config import ApplicationSettings
 
 LifespanHandler = Callable[[FastAPI], AbstractAsyncContextManager[None]]
 
@@ -17,10 +16,19 @@ async def application_lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-def create_application(*, lifespan: LifespanHandler | None = None) -> FastAPI:
+def create_application(
+    *,
+    lifespan: LifespanHandler | None = None,
+    settings: ApplicationSettings | None = None,
+) -> FastAPI:
     """Create an isolated XIANYU FastAPI application instance."""
-    return FastAPI(
-        title=APP_TITLE,
-        version=APP_VERSION,
+    resolved_settings = settings if settings is not None else ApplicationSettings()
+
+    app = FastAPI(
+        title=resolved_settings.app_title,
+        version=resolved_settings.app_version,
+        debug=resolved_settings.debug,
         lifespan=lifespan or application_lifespan,
     )
+    app.state.settings = resolved_settings
+    return app

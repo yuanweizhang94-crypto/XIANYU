@@ -1,6 +1,6 @@
 # XIANYU
 
-XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository state contains governance, specifications, validation scripts, tests, and CI only. It does not provide real Xianyu publishing, message receiving, message sending, automated reply, WeCom, AI Provider, FastAPI, database business logic, WebSocket, Playwright, or scheduled publishing capability.
+XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository state contains governance, specifications, validation scripts, tests, CI, and the initial Core application boundary. It does not provide real Xianyu publishing, message receiving, message sending, automated reply, WeCom, AI Provider, business API routes, database business logic, WebSocket, Playwright, or scheduled publishing capability.
 
 ## Project goal
 
@@ -17,12 +17,13 @@ The final intended business path is:
 
 ## Current phase
 
-The current phase is repository baseline only:
+The current phase is repository baseline plus the initial Core application boundary:
 
 - Governance and fact-source rules.
 - Scope, architecture, capability, ADR, and contract placeholders.
 - Context, state generation, validation, duplicate capability detection, and security scan scripts.
 - Unit, contract, acceptance tests, and GitHub CI.
+- FastAPI application factory and typed local configuration boundary.
 
 ## Technical direction
 
@@ -63,6 +64,23 @@ python -m pip install -e .[dev]
 python scripts/project_context.py
 ```
 
+## Current configuration
+
+The typed configuration class is `xianyu_system.core.config.ApplicationSettings`.
+
+Current supported environment variables use the `XIANYU_` prefix:
+
+- `XIANYU_ENVIRONMENT`
+- `XIANYU_APP_TITLE`
+- `XIANYU_APP_VERSION`
+- `XIANYU_DEBUG`
+- `XIANYU_LOG_LEVEL`
+- `XIANYU_DATABASE_PATH`
+
+Configuration source priority is explicit constructor override, then `XIANYU_` environment variable, then safe default value.
+
+The application does not automatically load `.env` files. Constructing settings does not create a database file or directory. Current settings do not include real platform credential fields.
+
 ## Verification commands
 
 ```bash
@@ -84,4 +102,4 @@ mypy scripts app
 
 ## Current capability statement
 
-This repository currently contains no real business capability. It cannot log in to Xianyu, publish listings, receive messages, send messages, call WeCom, call AI, run FastAPI routes, create business database tables, install browsers, or access real accounts.
+This repository currently contains no real business capability. It cannot log in to Xianyu, publish listings, receive messages, send messages, call WeCom, call AI, run business FastAPI routes, create business database tables, install browsers, or access real accounts.

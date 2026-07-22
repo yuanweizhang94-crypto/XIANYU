@@ -9,10 +9,12 @@ import tomllib
 from pathlib import Path
 
 from fastapi import FastAPI
+from pydantic_settings import BaseSettings
 
 from scripts.generate_state import project_state_json
 from scripts.repo_utils import parse_tasks, read_yaml
 from xianyu_system.application import create_application
+from xianyu_system.core.config import ApplicationSettings
 
 ROOT = Path(__file__).resolve().parents[4]
 CHG_0001 = "CHG-0001-project-baseline"
@@ -52,15 +54,17 @@ APPLICATION_MODULES = [
     "app/xianyu_system/application.py",
     "app/xianyu_system/main.py",
 ]
-DEFERRED_CORE_PATHS = [
-    "app/xianyu_system/core",
-    "app/xianyu_system/api",
-    "app/xianyu_system/web",
-    "app/xianyu_system/domain",
+CONFIGURATION_MODULES = [
+    "app/xianyu_system/core/__init__.py",
     "app/xianyu_system/core/config.py",
+]
+DEFERRED_CORE_PATHS = [
     "app/xianyu_system/core/logging.py",
     "app/xianyu_system/core/database.py",
     "app/xianyu_system/core/scheduler.py",
+    "app/xianyu_system/api",
+    "app/xianyu_system/web",
+    "app/xianyu_system/domain",
     "app/xianyu_system/api/router.py",
     "app/xianyu_system/api/health.py",
     "app/xianyu_system/web/router.py",
@@ -74,6 +78,33 @@ FORBIDDEN_ARTIFACT_PATHS = [
     "app/xianyu_system/templates",
     "app/xianyu_system/static",
 ]
+SUPPORTED_ENV_EXAMPLE_KEYS = {
+    "XIANYU_ENVIRONMENT",
+    "XIANYU_APP_TITLE",
+    "XIANYU_APP_VERSION",
+    "XIANYU_DEBUG",
+    "XIANYU_LOG_LEVEL",
+    "XIANYU_DATABASE_PATH",
+}
+FORBIDDEN_ENV_EXAMPLE_PARTS = {
+    "WECOM",
+    "AI_",
+    "COOKIE",
+    "TOKEN",
+    "SECRET",
+    "PROFILE",
+}
+FORBIDDEN_SETTING_FIELD_PARTS = {
+    "secret",
+    "token",
+    "cookie",
+    "password",
+    "credential",
+    "profile",
+    "wecom",
+    "api_key",
+    "captcha",
+}
 DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 
 
@@ -148,7 +179,11 @@ def test_only_chg_0002_is_active_and_implementing() -> None:
 def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     expected_headings = {
         "proposal.md": ["## Problem", "## Goal"],
-        "design.md": ["## Responsibility rules", "## T4 implementation decision"],
+        "design.md": [
+            "## Responsibility rules",
+            "## T4 implementation decision",
+            "## T5 implementation decision",
+        ],
         "acceptance.md": ["## Final acceptance criteria"],
     }
     for name in CORE_DOCUMENTS:
@@ -164,7 +199,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t4_is_complete_and_t5_is_next() -> None:
+def test_chg_0002_t5_is_complete_and_t6_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -185,11 +220,11 @@ def test_chg_0002_t4_is_complete_and_t5_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4"}
-    assert incomplete == {f"T{index}" for index in range(5, 16)}
+    assert completed == {"T1", "T2", "T3", "T4", "T5"}
+    assert incomplete == {f"T{index}" for index in range(6, 16)}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T5 Implement typed configuration"
+    assert state["tasks"]["next_task"] == "T6 Implement structured redacted logging"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -207,36 +242,52 @@ def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
             assert "<" in requirement
 
 
-def test_application_factory_files_exist_and_create_isolated_fastapi_instances() -> None:
-    for relative in APPLICATION_MODULES:
+def test_t5_configuration_modules_exist_with_settings_boundary() -> None:
+    for relative in CONFIGURATION_MODULES:
         assert (ROOT / relative).is_file()
+    assert issubclass(ApplicationSettings, BaseSettings)
+    assert ApplicationSettings.model_config["env_prefix"] == "XIANYU_"
+    assert ApplicationSettings.model_config["frozen"] is True
+    assert ApplicationSettings.model_config["env_file"] is None
+    assert set(ApplicationSettings.model_fields) == {
+        "environment",
+        "app_title",
+        "app_version",
+        "debug",
+        "log_level",
+        "database_path",
+    }
 
+
+def test_t5_settings_have_no_sensitive_platform_fields() -> None:
+    field_names = set(ApplicationSettings.model_fields)
+    assert all(
+        forbidden not in field_name
+        for field_name in field_names
+        for forbidden in FORBIDDEN_SETTING_FIELD_PARTS
+    )
+
+
+def test_application_factory_accepts_and_stores_settings() -> None:
+    supplied = ApplicationSettings(app_title="Configured XIANYU", app_version="5.0.0", debug=True)
+    app = create_application(settings=supplied)
+
+    assert app.state.settings is supplied
+    assert app.title == "Configured XIANYU"
+    assert app.version == "5.0.0"
+    assert app.debug is True
+
+
+def test_default_applications_get_distinct_settings_instances() -> None:
     first = create_application()
     second = create_application()
 
-    assert isinstance(first, FastAPI)
-    assert isinstance(second, FastAPI)
-    assert first is not second
-    assert first.state is not second.state
+    assert isinstance(first.state.settings, ApplicationSettings)
+    assert isinstance(second.state.settings, ApplicationSettings)
+    assert first.state.settings is not second.state.settings
 
 
-def test_t4_application_has_no_business_or_health_routes() -> None:
-    app = create_application()
-
-    assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
-    assert app.openapi()["paths"] == {}
-    assert "/health" not in app.openapi()["paths"]
-    assert "/" not in route_paths(app)
-
-
-def test_t4_application_sources_avoid_legacy_events_and_server_startup() -> None:
-    for relative in APPLICATION_MODULES:
-        source = (ROOT / relative).read_text(encoding="utf-8")
-        assert ".on_event(" not in source
-        assert "uvicorn.run(" not in source
-
-
-def test_t4_imports_do_not_create_database_or_runtime_artifacts(tmp_path: Path) -> None:
+def test_t5_imports_do_not_create_database_or_runtime_artifacts(tmp_path: Path) -> None:
     env = os.environ.copy()
     pythonpath_parts = [str(ROOT / "app")]
     if env.get("PYTHONPATH"):
@@ -244,7 +295,7 @@ def test_t4_imports_do_not_create_database_or_runtime_artifacts(tmp_path: Path) 
     env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
 
     result = subprocess.run(
-        [sys.executable, "-c", "import xianyu_system.application; import xianyu_system.main"],
+        [sys.executable, "-c", "import xianyu_system.core.config; import xianyu_system.main"],
         cwd=tmp_path,
         env=env,
         check=True,
@@ -253,8 +304,38 @@ def test_t4_imports_do_not_create_database_or_runtime_artifacts(tmp_path: Path) 
     )
 
     assert result.stderr == ""
-    for pattern in ["*.db", "*.sqlite", "*.sqlite3", "alembic.ini", "migrations", "logs"]:
+    for relative in ["data", "logs", ".env"]:
+        assert not (tmp_path / relative).exists()
+    for pattern in ["*.db", "*.sqlite", "*.sqlite3"]:
         assert list(tmp_path.glob(pattern)) == []
+
+
+def test_env_example_contains_only_current_safe_configuration() -> None:
+    lines = (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+    assignments = [line for line in lines if line and not line.startswith("#")]
+    keys = {line.split("=", 1)[0] for line in assignments}
+    text = "\n".join(lines).upper()
+
+    assert keys == SUPPORTED_ENV_EXAMPLE_KEYS
+    assert len(assignments) == 6
+    for forbidden in FORBIDDEN_ENV_EXAMPLE_PARTS:
+        assert forbidden not in text
+
+
+def test_t5_application_has_no_business_or_health_routes() -> None:
+    app = create_application()
+
+    assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
+    assert app.openapi()["paths"] == {}
+    assert "/health" not in app.openapi()["paths"]
+    assert "/" not in route_paths(app)
+
+
+def test_t5_application_sources_avoid_legacy_events_and_server_startup() -> None:
+    for relative in APPLICATION_MODULES:
+        source = (ROOT / relative).read_text(encoding="utf-8")
+        assert ".on_event(" not in source
+        assert "uvicorn.run(" not in source
 
 
 def test_deferred_core_modules_and_artifacts_are_not_created() -> None:

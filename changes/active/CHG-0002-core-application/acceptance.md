@@ -35,10 +35,12 @@ Change ID: CHG-0002-core-application
 
 The change is IMPLEMENTING.
 
-T1 through T4 are complete after the application factory and lifespan tests pass.
+T1 through T5 are complete after typed configuration tests pass.
 
-T5 Implement typed configuration is the next task.
+T6 Implement structured redacted logging is the next task.
 
-Configuration, logging, database, migrations, scheduler, health API, and web implementation remain incomplete.
+Database connections, migrations, scheduler, health API, and web implementation remain incomplete.
 
-The three Core capabilities remain implementing.
+CAP-CORE-CONFIG remains implementing until complete CHG-0002 verification.
+
+The other two Core capabilities also remain implementing.

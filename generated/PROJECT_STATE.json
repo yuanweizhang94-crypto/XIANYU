@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 4,
-    "next_task": "T5 Implement typed configuration",
+    "completed": 5,
+    "next_task": "T6 Implement structured redacted logging",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -29,7 +29,7 @@
       },
       {
         "text": "T5 Implement typed configuration",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T6 Implement structured redacted logging",
