@@ -173,7 +173,7 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 - T1 through T15 are complete.
 - CHG-0002 remains `VERIFYING`.
-- PR #2 remains Draft, open, and unmerged.
+- PR #2 is Ready for review, open, and unmerged.
 - The final branch is pushed.
 - No unfinished task remains in the current change.
 - `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR` are `verified`.
@@ -182,7 +182,7 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - The seven non-Core capabilities remain `planned`.
 - `CAP-XY-SCHEDULE` remains `planned`.
 - CHG-0003 has not started.
-- Ready-for-review and merge are not authorized.
+- The Ready-for-review transition was explicitly authorized and completed; merge remains unauthorized.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 

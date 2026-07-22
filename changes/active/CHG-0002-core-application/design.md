@@ -265,6 +265,20 @@ Importing any Core module must not:
 - T15 does not modify application runtime behavior, contracts, capability evidence paths, migrations, dependencies, governance scripts, or CI workflows.
 - No CHG-0003 preparation, archive move, Ready-for-review transition, auto-merge, or merge is performed.
 
+## Post-T15 Ready-for-review transition decision
+
+- The project owner explicitly authorized moving PR #2 from Draft to Ready for review.
+- PR #2 is now Ready for review, open, and unmerged.
+- The PR head remains `3070a3b28dc8be437d476042eb039c07ac0ba553` and the base remains `main`.
+- The Ready transition modified no repository files and created no commit.
+- GitHub Actions `quality`, `tests`, and `security` remain successful.
+- No unresolved review thread exists.
+- Auto-merge is not enabled.
+- Ready-for-review authorization does not authorize merge.
+- CHG-0002 remains `VERIFYING` under `changes/active/`.
+- CHG-0003 has not started.
+- A later merge requires separate explicit project-owner authorization.
+
 ## Testing rules
 
 * Application factory tests must create more than one application instance.

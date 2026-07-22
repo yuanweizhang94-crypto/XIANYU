@@ -31,13 +31,13 @@ Change ID: CHG-0002-core-application
 24. All permanent tests and CHG-0002 active-change acceptance tests pass.
 25. Ruff, Mypy, repository verification, and all required GitHub Actions pass.
 
-## Current preparation-stage status
+## Current review-stage status
 
 The change is VERIFYING.
 
 T1 through T15 are complete.
 
-The final branch is pushed and the existing Draft PR #2 is open, targets main, and remains unmerged.
+The final branch is pushed and PR #2 is Ready for review, open, targets main, and remains unmerged.
 
 No unfinished task remains in CHG-0002.
 
@@ -47,4 +47,4 @@ The seven non-Core capabilities remain planned and unbound.
 
 The active change remains under changes/active until an explicitly authorized merge and later archive transition.
 
-Completing T15 does not authorize marking the pull request Ready, enabling auto-merge, merging the pull request, or starting CHG-0003.
+The project owner explicitly authorized and completed the Ready-for-review transition after T15. This authorization does not enable auto-merge and does not authorize merging the pull request, deleting the branch, archiving CHG-0002, or starting CHG-0003.

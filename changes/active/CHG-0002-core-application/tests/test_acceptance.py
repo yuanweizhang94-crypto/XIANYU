@@ -562,9 +562,33 @@ def test_chg_0002_all_tasks_are_complete() -> None:
         assert forbidden not in combined
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    acceptance = (active_change_dir() / "acceptance.md").read_text(encoding="utf-8")
+    design = (active_change_dir() / "design.md").read_text(encoding="utf-8")
+
     assert "The Core capability registry entries remain in implementation status" not in readme
     assert "The three Core capability registry entries are verified" in readme
     assert "The seven non-Core capabilities remain planned" in readme
+
+    assert "PR #2 remains Draft, open, and unmerged." not in readme
+    assert "Ready-for-review and merge are not authorized." not in readme
+    assert "PR #2 is Ready for review, open, and unmerged." in readme
+    assert (
+        "The Ready-for-review transition was explicitly authorized and completed; "
+        "merge remains unauthorized."
+    ) in readme
+
+    assert "## Current preparation-stage status" not in acceptance
+    assert "## Current review-stage status" in acceptance
+    assert (
+        "PR #2 is Ready for review, open, targets main, and remains unmerged."
+    ) in acceptance
+    assert "does not authorize merging the pull request" in acceptance
+    assert "starting CHG-0003" in acceptance
+
+    assert "## T15 Draft PR administration decision" in design
+    assert "## Post-T15 Ready-for-review transition decision" in design
+    assert "Ready-for-review authorization does not authorize merge." in design
+    assert "CHG-0003 has not started." in design
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
