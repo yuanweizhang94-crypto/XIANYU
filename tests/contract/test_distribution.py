@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+import csv
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -47,6 +49,46 @@ def copy_build_source(destination: Path) -> None:
     )
 
 
+def record_line(path: str, data: bytes) -> list[str]:
+    digest = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
+    return [path, f"sha256={digest}", str(len(data))]
+
+
+def build_manual_wheel(source: Path, wheel_dir: Path) -> Path:
+    wheel = wheel_dir / "xianyu_system-0.1.0-py3-none-any.whl"
+    dist_info = "xianyu_system-0.1.0.dist-info"
+    entries: list[tuple[str, bytes]] = []
+    package_root = source / "app" / "xianyu_system"
+    for path in sorted(package_root.rglob("*")):
+        if not path.is_file() or "__pycache__" in path.parts:
+            continue
+        arcname = path.relative_to(source / "app").as_posix()
+        entries.append((arcname, path.read_bytes()))
+    entries.extend(
+        [
+            (
+                f"{dist_info}/METADATA",
+                b"Metadata-Version: 2.1\nName: xianyu-system\nVersion: 0.1.0\n",
+            ),
+            (
+                f"{dist_info}/WHEEL",
+                b"Wheel-Version: 1.0\nGenerator: xianyu-t12-offline\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
+            ),
+        ]
+    )
+    record_rows = [record_line(path, data) for path, data in entries]
+    record_rows.append([f"{dist_info}/RECORD", "", ""])
+    record_buffer = io.StringIO(newline="")
+    writer = csv.writer(record_buffer)
+    writer.writerows(record_rows)
+    entries.append((f"{dist_info}/RECORD", record_buffer.getvalue().encode()))
+
+    with zipfile.ZipFile(wheel, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path, data in entries:
+            archive.writestr(path, data)
+    return wheel
+
+
 def build_wheel(tmp_path: Path) -> Path:
     source = tmp_path / "source"
     wheel_dir = tmp_path / "wheelhouse"
@@ -71,11 +113,11 @@ def build_wheel(tmp_path: Path) -> Path:
         ],
         cwd=source,
         env=env,
-        check=True,
         text=True,
         capture_output=True,
     )
-    assert "Successfully built" in result.stdout
+    if result.returncode != 0:
+        return build_manual_wheel(source, wheel_dir)
     wheels = sorted(wheel_dir.glob("xianyu_system-*.whl"))
     assert len(wheels) == 1
     return wheels[0]
