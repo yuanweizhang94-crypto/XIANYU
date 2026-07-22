@@ -9,13 +9,16 @@ from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from fastapi.testclient import TestClient
 from alembic.config import Config
 from alembic.util.exc import CommandError
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from xianyu_system.application import create_application
 from xianyu_system.core import database
+from xianyu_system.core.config import ApplicationSettings
 from xianyu_system.core.database import (
     ALEMBIC_CONFIG_PATH,
     BASELINE_REVISION,
@@ -366,3 +369,24 @@ def test_scheduler_is_not_persisted_through_database_job_store() -> None:
     assert "SQLAlchemyJobStore" not in scheduler_source
     assert "apscheduler_jobs" not in scheduler_source
     assert "create_all" not in scheduler_source
+
+
+def test_health_endpoint_uses_existing_database_engine_without_writes(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "health-db.db")
+    )
+
+    with TestClient(app) as client:
+        resources = app.state.database
+        engine = resources.engine
+        before_revision = get_current_revision(resources)
+        before_tables = set(inspect(engine).get_table_names())
+        with patch("xianyu_system.core.database.create_database_engine") as create_engine_mock:
+            assert client.get("/health").status_code == 200
+        after_revision = get_current_revision(resources)
+        after_tables = set(inspect(engine).get_table_names())
+        assert resources.engine is engine
+
+    create_engine_mock.assert_not_called()
+    assert before_revision == after_revision is None
+    assert before_tables == after_tables == set()

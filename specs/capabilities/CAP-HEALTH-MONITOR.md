@@ -8,20 +8,39 @@ Provide a read-only Core health boundary that reports local application status w
 
 - Active change: CHG-0002-core-application.
 - Registry status during implementation: implementing.
-- Final status after acceptance: verified.
+- Capability verification and `last_verified_commit` remain deferred.
 
-## Planned implementation paths
+## T10 implementation decision
 
-- `app/xianyu_system/api/health.py`
-- `app/xianyu_system/api/router.py`
-- `app/xianyu_system/application.py`
-- `contracts/openapi.yaml` for the `/health` contract when T10 begins.
-
-## Planned test paths
-
-- `tests/unit/` for route and response behavior.
-- `tests/contract/` for OpenAPI `/health` contract coverage.
-- `changes/active/CHG-0002-core-application/tests/` for CHG-0002 acceptance coverage.
+- Implementation files:
+  - `app/xianyu_system/api/health.py`
+  - `app/xianyu_system/api/router.py`
+  - `app/xianyu_system/application.py`
+- Contract:
+  - `contracts/openapi.yaml`
+- Endpoint:
+  - `GET /health`
+- Healthy HTTP status:
+  - `200`
+- Degraded HTTP status:
+  - `503`
+- Health sources:
+  - current application settings
+  - existing `DatabaseResources`
+  - existing `BackgroundScheduler`
+- Database probe:
+  - `SELECT 1`
+  - `PRAGMA journal_mode`
+- Scheduler probe:
+  - running state
+  - job count
+  - UTC timezone
+- Health collection is read-only.
+- No external service checks are performed.
+- No database path, exception text, credentials, account identifiers, or customer data are exposed.
+- Application factory registers the API router.
+- Capability remains `implementing`.
+- Registry implementation and test paths remain deferred to T13.
 
 ## Requirements
 
@@ -29,17 +48,21 @@ Provide a read-only Core health boundary that reports local application status w
 - Include only local Core health information that is safe to disclose.
 - Avoid external network calls, real Xianyu checks, real WeCom checks, and AI provider calls.
 - Keep route code free of direct database connection creation.
+- Do not run migrations or write database data from health checks.
+- Do not start, stop, or mutate scheduler jobs from health checks.
 
 ## Acceptance criteria
 
 - `/health` returns structured health status.
 - OpenAPI contains `/health`.
+- Healthy local Core infrastructure returns HTTP 200.
+- Degraded local Core infrastructure returns HTTP 503.
 - Health checks do not access real external networks or accounts.
 - `CAP-HEALTH-MONITOR` is updated to verified only after CHG-0002 implementation and validation are complete.
 
 ## Security boundaries
 
-- Do not expose Cookie, Token, Secret, Password, account identifiers, customer data, or browser profile details.
+- Do not expose Cookie, Token, Secret, Password, account identifiers, customer data, database paths, exception details, or browser profile details.
 - Do not bypass platform verification or risk controls.
 - Do not call external platforms.
 

@@ -176,6 +176,20 @@ Importing any Core module must not:
 - `CAP-XY-SCHEDULE` remains planned and unbound because the T9 scheduler is infrastructure only.
 - T9 does not implement health API, web routes, templates, static assets, or business schema.
 
+## T10 implementation decision
+
+- `api/health.py` owns the read-only Core health models, local probes, aggregation, and `GET /health` route.
+- `api/router.py` is the HTTP API aggregation boundary.
+- The application factory registers the Core API router once per application instance.
+- A healthy response returns HTTP 200 with overall status `ok`.
+- A local component failure returns HTTP 503 with overall status `degraded`.
+- Database health uses the existing application Engine for `SELECT 1` and `PRAGMA journal_mode`; it does not create an Engine, write data, or run migrations.
+- Scheduler health reads only running state, job count, and UTC timezone; it does not start, stop, or modify jobs.
+- Health responses expose no database path, exception details, credentials, account identifiers, customer data, or browser information.
+- Health checks do not access Xianyu, WeCom, AI providers, browsers, or any external network.
+- `contracts/openapi.yaml` defines the `/health` operation and response schemas.
+- T10 does not implement web pages, Jinja2 templates, HTMX resources, business API routes, or external integrations.
+
 ## Testing rules
 
 * Application factory tests must create more than one application instance.

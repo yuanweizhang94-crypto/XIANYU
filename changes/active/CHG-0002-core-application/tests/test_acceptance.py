@@ -21,6 +21,14 @@ from sqlalchemy import inspect, text
 
 from scripts.generate_state import project_state_json
 from scripts.repo_utils import parse_tasks, read_yaml
+from xianyu_system.api.health import (
+    DatabaseHealth,
+    HealthResponse,
+    SchedulerHealth,
+    collect_database_health,
+    collect_health,
+    collect_scheduler_health,
+)
 from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
 from xianyu_system.core.database import (
@@ -104,12 +112,14 @@ DATABASE_MODULES = [
 SCHEDULER_MODULES = [
     "app/xianyu_system/core/scheduler.py",
 ]
-DEFERRED_CORE_PATHS = [
-    "app/xianyu_system/api",
-    "app/xianyu_system/web",
-    "app/xianyu_system/domain",
+API_MODULES = [
+    "app/xianyu_system/api/__init__.py",
     "app/xianyu_system/api/router.py",
     "app/xianyu_system/api/health.py",
+]
+DEFERRED_CORE_PATHS = [
+    "app/xianyu_system/web",
+    "app/xianyu_system/domain",
     "app/xianyu_system/web/router.py",
 ]
 MIGRATION_PATHS = [
@@ -155,7 +165,7 @@ FORBIDDEN_SETTING_FIELD_PARTS = {
     "api_key",
     "captcha",
 }
-DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
+DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/health"}
 
 
 def active_change_dir() -> Path:
@@ -242,6 +252,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
             "## T7 implementation decision",
             "## T8 implementation decision",
             "## T9 implementation decision",
+            "## T10 implementation decision",
         ],
         "acceptance.md": ["## Final acceptance criteria"],
     }
@@ -258,7 +269,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t9_is_complete_and_t10_is_next() -> None:
+def test_chg_0002_t10_is_complete_and_t11_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -279,11 +290,11 @@ def test_chg_0002_t9_is_complete_and_t10_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9"}
-    assert incomplete == {f"T{index}" for index in range(10, 16)}
+    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10"}
+    assert incomplete == {f"T{index}" for index in range(11, 16)}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T10 Implement health API contract and route"
+    assert state["tasks"]["next_task"] == "T11 Implement Jinja2 and HTMX web skeleton"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -381,13 +392,14 @@ def test_env_example_contains_only_current_safe_configuration() -> None:
         assert forbidden not in text
 
 
-def test_t6_application_has_no_business_or_health_routes() -> None:
+def test_t6_application_has_no_business_or_web_routes() -> None:
     app = create_application()
 
     assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
-    assert app.openapi()["paths"] == {}
-    assert "/health" not in app.openapi()["paths"]
+    assert set(app.openapi()["paths"]) == {"/health"}
     assert "/" not in route_paths(app)
+    for forbidden in ["/ready", "/live", "/metrics", "/status", "/api/health", "/login", "/messages", "/products", "/publish", "/schedule", "/wecom", "/ai", "/accounts"]:
+        assert forbidden not in app.openapi()["paths"]
 
 
 def test_t6_application_sources_avoid_legacy_events_and_server_startup() -> None:
@@ -794,6 +806,131 @@ def test_t9_schedule_capability_remains_planned_and_unbound() -> None:
     assert capability["last_verified_commit"] is None
 
 
+
+def test_t10_api_modules_and_health_models_exist() -> None:
+    for relative in API_MODULES:
+        assert (ROOT / relative).is_file()
+    assert HealthResponse.model_fields.keys() == {
+        "status",
+        "service",
+        "version",
+        "environment",
+        "database",
+        "scheduler",
+    }
+    assert DatabaseHealth.model_fields.keys() == {"status", "connected", "journal_mode"}
+    assert SchedulerHealth.model_fields.keys() == {"status", "running", "job_count", "timezone"}
+
+
+def test_t10_health_endpoint_returns_200_and_safe_local_state(tmp_path: Path) -> None:
+    settings = ApplicationSettings(environment="test", database_path=tmp_path / "acceptance-health.db")
+    app = create_application(settings=settings)
+
+    with TestClient(app) as client:
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {
+            "status": "ok",
+            "service": settings.app_title,
+            "version": settings.app_version,
+            "environment": "test",
+            "database": {"status": "ok", "connected": True, "journal_mode": "wal"},
+            "scheduler": {"status": "ok", "running": True, "job_count": 0, "timezone": "UTC"},
+        }
+        assert get_current_revision(app.state.database) is None
+        assert set(inspect(app.state.database.engine).get_table_names()) == set()
+        assert app.state.scheduler.get_jobs() == []
+
+    body = json.dumps(data).lower()
+    assert str(settings.database_path).lower() not in body
+    for forbidden in ["cookie", "token", "secret", "password", "credential", "account", "customer", "traceback", "exception"]:
+        assert forbidden not in body
+
+
+def test_t10_health_degraded_behavior_outside_lifespan_and_component_failures(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "degraded.db")
+    )
+
+    outside = collect_health(app)
+    assert outside.status == "degraded"
+    assert outside.database.status == "unavailable"
+    assert outside.scheduler.status == "unavailable"
+
+    assert collect_database_health(None) == DatabaseHealth(
+        status="unavailable", connected=False, journal_mode=None
+    )
+    assert collect_scheduler_health(None) == SchedulerHealth(
+        status="unavailable", running=False, job_count=0, timezone="UTC"
+    )
+
+
+def test_t10_health_route_is_get_only_and_has_expected_runtime_openapi(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "openapi-health.db")
+    )
+
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200
+        assert client.post("/health").status_code == 405
+        assert client.put("/health").status_code == 405
+        assert client.delete("/health").status_code == 405
+
+    schema = app.openapi()
+    assert set(schema["paths"]) == {"/health"}
+    operation = schema["paths"]["/health"]["get"]
+    assert operation["operationId"] == "get_health"
+    assert {"200", "503"} <= set(operation["responses"])
+    assert operation.get("parameters", []) == []
+    assert "security" not in schema
+    assert "securitySchemes" not in schema.get("components", {})
+
+
+def test_t10_health_source_has_no_external_write_migration_or_scheduler_mutation_code() -> None:
+    combined = "\n".join((ROOT / relative).read_text(encoding="utf-8") for relative in API_MODULES)
+    for forbidden in [
+        "requests.",
+        "httpx.",
+        "urllib.",
+        "socket.",
+        "playwright",
+        "selenium",
+        "wecom",
+        "openai",
+        "initialize_database",
+        "create_database_engine",
+        "create_session_factory",
+        "upgrade_database",
+        "command.upgrade",
+        "metadata.create_all",
+        "INSERT ",
+        "UPDATE ",
+        "DELETE ",
+        "CREATE TABLE",
+        ".add_job(",
+        ".remove_job(",
+        ".remove_all_jobs(",
+    ]:
+        assert forbidden not in combined
+
+
+def test_t10_health_contract_and_runtime_schema_are_semantically_consistent() -> None:
+    import yaml
+
+    contract = yaml.safe_load((ROOT / "contracts" / "openapi.yaml").read_text(encoding="utf-8"))
+    runtime = create_application().openapi()
+    assert set(contract["paths"]) == set(runtime["paths"]) == {"/health"}
+    contract_operation = contract["paths"]["/health"]["get"]
+    runtime_operation = runtime["paths"]["/health"]["get"]
+    assert contract_operation["operationId"] == runtime_operation["operationId"] == "get_health"
+    assert {"200", "503"} <= set(contract_operation["responses"])
+    assert {"200", "503"} <= set(runtime_operation["responses"])
+    for name in ["HealthResponse", "DatabaseHealth", "SchedulerHealth"]:
+        assert name in contract["components"]["schemas"]
+        assert name in runtime["components"]["schemas"]
+
+
 def test_deferred_core_modules_and_artifacts_are_not_created() -> None:
     for relative in DEFERRED_CORE_PATHS + FORBIDDEN_ARTIFACT_PATHS:
         assert not (ROOT / relative).exists()
@@ -817,12 +954,18 @@ def test_deferred_core_modules_and_artifacts_are_not_created() -> None:
     assert project_database_files == []
 
 
-def test_openapi_contract_still_has_no_business_or_health_paths() -> None:
+def test_openapi_contract_has_only_health_path_and_no_business_paths() -> None:
     import yaml
 
     openapi = yaml.safe_load((ROOT / "contracts" / "openapi.yaml").read_text(encoding="utf-8"))
-    assert openapi["paths"] == {}
-    assert "/health" not in openapi["paths"]
+    assert set(openapi["paths"]) == {"/health"}
+    operation = openapi["paths"]["/health"]["get"]
+    assert operation["operationId"] == "get_health"
+    assert set(operation["responses"]) == {"200", "503"}
+    assert "security" not in openapi
+    assert "securitySchemes" not in openapi.get("components", {})
+    for forbidden in ["/", "/ready", "/live", "/metrics", "/status", "/api/health", "/login", "/messages", "/products", "/publish", "/schedule", "/wecom", "/ai", "/accounts"]:
+        assert forbidden not in openapi["paths"]
 
 
 def test_core_capabilities_are_implementing_and_none_are_verified() -> None:

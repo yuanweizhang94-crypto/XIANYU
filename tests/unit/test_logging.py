@@ -10,8 +10,11 @@ import sys
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
+from xianyu_system.application import create_application
 from xianyu_system.core import logging as project_logging
+from xianyu_system.core.config import ApplicationSettings
 from xianyu_system.core.logging import (
     REDACTED_VALUE,
     ManagedStreamHandler,
@@ -336,3 +339,20 @@ def test_logging_module_uses_only_standard_library_imports() -> None:
     assert "basicConfig(" not in source
     assert "logging.shutdown(" not in source
     assert importlib.import_module("xianyu_system.core.logging") is project_logging
+
+
+def test_health_endpoint_does_not_change_root_or_project_log_handlers(tmp_path: Path) -> None:
+    root = logging.getLogger()
+    original_root_handlers = list(root.handlers)
+    original_root_level = root.level
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "health-logging.db")
+    )
+
+    with TestClient(app) as client:
+        logger = app.state.logger
+        project_handlers = list(logger.handlers)
+        assert client.get("/health").status_code == 200
+        assert list(logger.handlers) == project_handlers
+        assert list(root.handlers) == original_root_handlers
+        assert root.level == original_root_level

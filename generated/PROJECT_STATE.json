@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 9,
-    "next_task": "T10 Implement health API contract and route",
+    "completed": 10,
+    "next_task": "T11 Implement Jinja2 and HTMX web skeleton",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -49,7 +49,7 @@
       },
       {
         "text": "T10 Implement health API contract and route",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T11 Implement Jinja2 and HTMX web skeleton",

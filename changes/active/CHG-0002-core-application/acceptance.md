@@ -35,12 +35,14 @@ Change ID: CHG-0002-core-application
 
 The change is IMPLEMENTING.
 
-T1 through T9 are complete after the scheduler lifecycle skeleton starts and shuts down through the FastAPI lifespan with no registered jobs and no persistent scheduler storage.
+T1 through T10 are complete after the health route, degraded behavior, OpenAPI contract, read-only probe, and security-boundary tests pass.
 
-T10 Implement health API contract and route is the next task.
+T11 Implement Jinja2 and HTMX web skeleton is the next task.
 
-The current migration baseline creates no business schema and stores no customer data.
+GET /health reports only safe local Core state and performs no external service checks.
 
-Health API and web implementation remain incomplete.
+The health route does not write database data, run migrations, or modify scheduler jobs.
+
+Web pages, templates, and static resources remain incomplete.
 
 The three Core capabilities remain implementing.

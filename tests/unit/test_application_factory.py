@@ -26,7 +26,7 @@ from xianyu_system.core.database import (
 from xianyu_system.core.logging import ManagedStreamHandler
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
+DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/health"}
 FORBIDDEN_IMPORT_ARTIFACTS = [
     "*.db",
     "*.sqlite",
@@ -151,13 +151,77 @@ def test_explicit_settings_override_environment_for_application(
     assert app.title == "EXPLICIT APP"
 
 
-def test_application_has_no_custom_business_routes() -> None:
+def test_application_has_only_health_api_route_and_no_business_routes() -> None:
     app = create_application()
 
     assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
-    assert app.openapi()["paths"] == {}
-    assert "/health" not in app.openapi()["paths"]
+    assert set(app.openapi()["paths"]) == {"/health"}
     assert "/" not in route_paths(app)
+    for forbidden in [
+        "/ready",
+        "/live",
+        "/metrics",
+        "/status",
+        "/api/health",
+        "/login",
+        "/messages",
+        "/products",
+        "/publish",
+        "/schedule",
+        "/wecom",
+        "/ai",
+        "/accounts",
+    ]:
+        assert forbidden not in app.openapi()["paths"]
+
+
+def test_health_route_is_registered_once_per_application_instance() -> None:
+    first = create_application()
+    second = create_application()
+
+    assert sum(1 for route in first.routes if str(route.path) == "/health") == 1
+    assert sum(1 for route in second.routes if str(route.path) == "/health") == 1
+    assert first.routes is not second.routes
+
+
+def test_create_application_openapi_has_no_file_or_lifespan_side_effects(tmp_path: Path) -> None:
+    path = tmp_path / "openapi.db"
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=path)
+    )
+
+    assert set(app.openapi()["paths"]) == {"/health"}
+    assert not path.exists()
+    assert not hasattr(app.state, "database")
+    assert not hasattr(app.state, "scheduler")
+    assert not hasattr(app.state, "logger")
+
+
+def test_health_endpoint_available_during_project_and_custom_lifespan(tmp_path: Path) -> None:
+    events: list[str] = []
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        events.append("custom-startup")
+        assert app.state.database is not None
+        assert app.state.scheduler.running is True
+        yield
+        events.append("custom-shutdown")
+
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "health-lifespan.db"),
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+        assert events == ["custom-startup"]
+
+    assert events == ["custom-startup", "custom-shutdown"]
+    assert app.state.database is None
+    assert app.state.scheduler is None
 
 
 def test_custom_lifespan_runs_startup_and_shutdown_once(tmp_path: Path) -> None:

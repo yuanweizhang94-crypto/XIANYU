@@ -8,11 +8,14 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+from fastapi.testclient import TestClient
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.base import SchedulerAlreadyRunningError
 from sqlalchemy import inspect
 
+from xianyu_system.application import create_application
+from xianyu_system.core.config import ApplicationSettings
 from xianyu_system.core.database import dispose_database, get_current_revision, initialize_database
 from xianyu_system.core.scheduler import (
     SCHEDULER_TIMEZONE,
@@ -153,3 +156,23 @@ def test_scheduler_does_not_create_database_tables_or_migration_state(tmp_path: 
     finally:
         shutdown_scheduler(scheduler)
         dispose_database(resources)
+
+
+def test_health_endpoint_does_not_mutate_scheduler_or_jobs(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "health-scheduler.db")
+    )
+
+    with TestClient(app) as client:
+        scheduler = app.state.scheduler
+        assert scheduler.running is True
+        assert scheduler.get_jobs() == []
+        assert client.get("/health").status_code == 200
+        assert scheduler.running is True
+        assert scheduler.get_jobs() == []
+
+
+def test_health_api_source_does_not_call_scheduler_mutators() -> None:
+    source = (ROOT / "app/xianyu_system/api/health.py").read_text(encoding="utf-8")
+    for forbidden in [".add_job(", ".remove_job(", ".remove_all_jobs(", ".pause(", ".resume(", ".start(", ".shutdown("]:
+        assert forbidden not in source

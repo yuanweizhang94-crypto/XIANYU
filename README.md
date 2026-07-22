@@ -23,7 +23,7 @@ The current phase is repository baseline plus the initial Core application bound
 - Scope, architecture, capability, ADR, and contract placeholders.
 - Context, state generation, validation, duplicate capability detection, and security scan scripts.
 - Unit, contract, acceptance tests, and GitHub CI.
-- FastAPI application factory, typed local configuration, structured logging, SQLite/Alembic infrastructure, and scheduler lifecycle boundaries.
+- FastAPI application factory, typed local configuration, structured logging, SQLite/Alembic infrastructure, scheduler lifecycle boundaries, and a read-only health API.
 
 ## Technical direction
 
@@ -120,6 +120,18 @@ python -m alembic -c alembic.ini history
 
 Application startup does not automatically run migrations. Do not run migration tests against real data stores. Future schema must be introduced through an approved change and a new revision.
 
+
+## Current health API
+
+The current API boundary exposes only `GET /health`. A healthy local Core returns HTTP 200 with `status: ok`; a local component failure returns HTTP 503 with `status: degraded`.
+
+The response includes safe `service`, `version`, and `environment` values from the current application settings. It reports database connectivity and WAL status, plus scheduler running state, job count, and UTC timezone.
+
+The database probe is read-only and only executes `SELECT 1` and `PRAGMA journal_mode` against the existing application Engine. The health route does not write database data, automatically run migrations, create tables, or create a new database Engine.
+
+The scheduler probe only reads running state and job count from the existing scheduler. It does not register, start, stop, pause, resume, or remove scheduler jobs.
+
+The health API performs no external service checks and does not expose database paths, exception details, credentials, account identifiers, customer data, browser profile details, Cookies, Tokens, Secrets, or Passwords. The OpenAPI contract is `contracts/openapi.yaml`. There are currently no other business API routes, and web pages remain unimplemented.
 
 ## Current scheduler infrastructure
 

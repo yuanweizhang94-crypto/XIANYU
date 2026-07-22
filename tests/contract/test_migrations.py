@@ -325,3 +325,22 @@ def test_scheduler_adds_no_migration_revision_or_scheduler_table_names() -> None
     assert "SQLAlchemyJobStore" not in scheduler_source
     assert "apscheduler_jobs" not in scheduler_source
     assert "op.create_table" not in scheduler_source
+
+
+def test_health_api_does_not_run_migrations_or_add_revisions(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "health-migration.db")
+    )
+
+    with TestClient(app) as client:
+        resources = app.state.database
+        assert get_current_revision(resources) is None
+        assert client.get("/health").status_code == 200
+        assert get_current_revision(resources) is None
+        assert set(inspect(resources.engine).get_table_names()) == set()
+
+    revision_files = sorted(path.name for path in (ROOT / "migrations" / "versions").glob("*.py"))
+    assert revision_files == ["0001_core_baseline.py", "__init__.py"]
+    source = (ROOT / "app/xianyu_system/api/health.py").read_text(encoding="utf-8")
+    for forbidden in ["upgrade_database", "downgrade_database", "command.upgrade", "alembic", "op.create_table"]:
+        assert forbidden not in source

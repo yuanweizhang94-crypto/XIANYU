@@ -5,6 +5,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 from fastapi import FastAPI
 
+from xianyu_system.api.router import api_router
 from xianyu_system.core.config import ApplicationSettings
 from xianyu_system.core.database import dispose_database, initialize_database
 from xianyu_system.core.logging import configure_logging, shutdown_logging
@@ -125,4 +126,5 @@ def create_application(
         lifespan=compose_lifespan(lifespan),
     )
     app.state.settings = resolved_settings
+    app.include_router(api_router)
     return app
