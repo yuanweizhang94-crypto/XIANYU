@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import base64
 import hashlib
 import io
@@ -7,6 +8,7 @@ import json
 import logging
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tomllib
@@ -246,10 +248,129 @@ EXPECTED_CORE_CAPABILITY_PATHS = {
         ],
     },
 }
+TEST_SCAN_ROOTS = [
+    ROOT / "tests",
+    ROOT / "changes" / "active" / CHG_0002 / "tests",
+]
+EXCLUDED_TEST_PATH_PARTS = {
+    ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "archive",
+}
+SUBPROCESS_CALLS = {
+    "subprocess.call",
+    "subprocess.check_call",
+    "subprocess.check_output",
+    "subprocess.Popen",
+    "subprocess.run",
+}
+GIT_EXECUTABLE = "git"
+FORBIDDEN_GIT_NETWORK_SUBCOMMANDS = {"clone", "fetch", "ls-remote", "pull"}
+CANDIDATE_CHECK_FILES = [
+    "tests/contract/test_capability_registry.py",
+    "changes/active/CHG-0002-core-application/tests/test_acceptance.py",
+]
+ALLOWED_CANDIDATE_GIT_SUBCOMMANDS = {"cat-file", "merge-base", "rev-parse"}
 
 
 def active_change_dir() -> Path:
     return ROOT / "changes" / "active" / CHG_0002
+
+
+def iter_current_test_files() -> list[Path]:
+    files: list[Path] = []
+    for scan_root in TEST_SCAN_ROOTS:
+        files.extend(
+            sorted(
+                path
+                for path in scan_root.rglob("*.py")
+                if EXCLUDED_TEST_PATH_PARTS.isdisjoint(path.relative_to(ROOT).parts)
+            )
+        )
+    return files
+
+
+def qualified_call_name(node: ast.AST) -> str | None:
+    if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
+        return None
+    return f"{node.value.id}.{node.attr}"
+
+
+def literal_command_tokens(node: ast.AST) -> list[str] | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return shlex.split(node.value)
+    if isinstance(node, ast.List | ast.Tuple):
+        values: list[str] = []
+        for item in node.elts:
+            if isinstance(item, ast.Constant) and isinstance(item.value, str):
+                values.append(item.value)
+            else:
+                values.append("<dynamic>")
+        return values
+    return None
+
+
+def subprocess_call_uses_shell(call: ast.Call) -> bool:
+    for keyword in call.keywords:
+        if keyword.arg == "shell" and isinstance(keyword.value, ast.Constant):
+            return keyword.value.value is True
+    return False
+
+
+def is_forbidden_git_network_command(tokens: list[str]) -> bool:
+    normalized = [token.lower() for token in tokens]
+    if len(normalized) < 2 or normalized[0] != GIT_EXECUTABLE:
+        return False
+    if normalized[1] in FORBIDDEN_GIT_NETWORK_SUBCOMMANDS:
+        return True
+    if len(normalized) < 3 or normalized[2] != "update":
+        return False
+    return normalized[1] in {"remote", "submodule"}
+
+
+def remote_git_command_violations() -> list[str]:
+    violations: list[str] = []
+    for path in iter_current_test_files():
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            call_name = qualified_call_name(node.func)
+            if call_name not in SUBPROCESS_CALLS and call_name != "os.system":
+                continue
+            relative = path.relative_to(ROOT).as_posix()
+            if call_name in SUBPROCESS_CALLS and subprocess_call_uses_shell(node):
+                violations.append(f"{relative}:{node.lineno}: shell=True subprocess call")
+            if not node.args:
+                continue
+            tokens = literal_command_tokens(node.args[0])
+            if tokens is not None and is_forbidden_git_network_command(tokens):
+                violations.append(f"{relative}:{node.lineno}: forbidden git network command")
+    return violations
+
+
+def candidate_check_git_subcommands() -> list[str]:
+    subcommands: list[str] = []
+    for relative_path in CANDIDATE_CHECK_FILES:
+        path = ROOT / relative_path
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            if node.name != "assert_verified_candidate_commit_is_valid_offline":
+                continue
+            for call in ast.walk(node):
+                if not isinstance(call, ast.Call) or qualified_call_name(call.func) not in SUBPROCESS_CALLS:
+                    continue
+                if not call.args:
+                    continue
+                tokens = literal_command_tokens(call.args[0])
+                if tokens is not None and len(tokens) >= 2 and tokens[0] == GIT_EXECUTABLE:
+                    subcommands.append(tokens[1])
+    return subcommands
 
 
 def status_for(path: Path) -> str:
@@ -268,44 +389,35 @@ def chg_0002_tasks():
     return parse_tasks(active_change_dir() / "tasks.md")
 
 
-def ensure_verified_candidate_commit_is_available() -> None:
+def assert_verified_candidate_commit_is_valid_offline() -> None:
     candidate_ref = f"{VERIFIED_CANDIDATE_SHA}^{{commit}}"
-
-    def candidate_exists() -> bool:
-        return subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT).returncode == 0
-
-    def candidate_is_head_ancestor() -> bool:
-        return (
-            subprocess.run(
-                ["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"],
-                cwd=ROOT,
-            ).returncode
-            == 0
+    candidate_exists = (
+        subprocess.run(
+            ["git", "cat-file", "-e", candidate_ref],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+    if candidate_exists:
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
         )
-
-    if candidate_exists() and candidate_is_head_ancestor():
+        assert ancestor.returncode == 0
         return
 
-    is_shallow = subprocess.run(
+    shallow = subprocess.run(
         ["git", "rev-parse", "--is-shallow-repository"],
         cwd=ROOT,
         check=True,
         text=True,
         capture_output=True,
     ).stdout.strip()
-    if is_shallow == "true":
-        subprocess.run(["git", "fetch", "--no-tags", "--unshallow", "origin"], cwd=ROOT, check=True)
-    else:
-        subprocess.run(
-            ["git", "fetch", "--no-tags", "--depth=1000", "origin", "feat/CHG-0002-core-application"],
-            cwd=ROOT,
-            check=True,
-            text=True,
-            capture_output=True,
-        )
-
-    subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT, check=True)
-    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
+    assert shallow == "true", "verified candidate commit is missing from a complete local repository"
 
 def pyproject() -> dict[str, object]:
     return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -1220,7 +1332,7 @@ def test_openapi_contract_has_only_health_path_and_no_business_paths() -> None:
 def test_core_capabilities_are_verified_after_complete_candidate_validation() -> None:
     registry = registry_by_id()
     assert {str(item["status"]) for item in registry.values() if item["id"] in CORE_CAPABILITIES} == {"verified"}
-    ensure_verified_candidate_commit_is_available()
+    assert_verified_candidate_commit_is_valid_offline()
     for cap_id in CORE_CAPABILITIES:
         capability = registry[cap_id]
         assert capability["active_change"] is None
@@ -1474,6 +1586,7 @@ def test_final_acceptance_17_htmx_static_boundary_is_local_and_served(tmp_path: 
 
 
 def test_final_acceptance_18_tests_define_no_real_external_network_access() -> None:
+    current_test_sources = "\n".join(path.read_text(encoding="utf-8") for path in iter_current_test_files())
     t12_sources = "\n".join(
         (ROOT / relative).read_text(encoding="utf-8")
         for relative in [
@@ -1495,6 +1608,17 @@ def test_final_acceptance_18_tests_define_no_real_external_network_access() -> N
     ]
     for forbidden in forbidden_patterns:
         assert forbidden not in t12_sources
+    for forbidden in [
+        "github" + ".com",
+        "api" + ".github",
+        "git@" + "github",
+    ]:
+        assert forbidden not in current_test_sources.lower()
+    assert remote_git_command_violations() == []
+
+    candidate_subcommands = candidate_check_git_subcommands()
+    assert set(candidate_subcommands) == ALLOWED_CANDIDATE_GIT_SUBCOMMANDS
+    assert "fetch" not in candidate_subcommands
 
 
 def test_final_acceptance_19_runtime_ignores_real_account_and_secret_environment(monkeypatch, tmp_path: Path) -> None:

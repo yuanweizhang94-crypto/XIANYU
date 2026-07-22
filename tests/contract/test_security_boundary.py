@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import json
+import shlex
 import socket
 from pathlib import Path
 
@@ -28,12 +30,84 @@ APP_SOURCE_FILES = [
     for path in (ROOT / "app/xianyu_system").rglob("*.py")
     if "__pycache__" not in path.parts
 ]
+TEST_SCAN_ROOTS = [
+    ROOT / "tests",
+    ROOT / "changes" / "active" / "CHG-0002-core-application" / "tests",
+]
+EXCLUDED_TEST_PATH_PARTS = {
+    ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "archive",
+}
+SUBPROCESS_CALLS = {
+    "subprocess.call",
+    "subprocess.check_call",
+    "subprocess.check_output",
+    "subprocess.Popen",
+    "subprocess.run",
+}
+GIT_EXECUTABLE = "git"
+FORBIDDEN_GIT_NETWORK_SUBCOMMANDS = {"clone", "fetch", "ls-remote", "pull"}
 
 
 def assert_no_synthetic_values(payload: object) -> None:
     text = json.dumps(payload, ensure_ascii=False, default=str) if not isinstance(payload, str) else payload
     for secret in SYNTHETIC_SECRETS.values():
         assert secret not in text
+
+
+def iter_current_test_files() -> list[Path]:
+    files: list[Path] = []
+    for scan_root in TEST_SCAN_ROOTS:
+        files.extend(
+            sorted(
+                path
+                for path in scan_root.rglob("*.py")
+                if EXCLUDED_TEST_PATH_PARTS.isdisjoint(path.relative_to(ROOT).parts)
+            )
+        )
+    return files
+
+
+def qualified_call_name(node: ast.AST) -> str | None:
+    if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
+        return None
+    return f"{node.value.id}.{node.attr}"
+
+
+def literal_command_tokens(node: ast.AST) -> list[str] | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return shlex.split(node.value)
+    if isinstance(node, ast.List | ast.Tuple):
+        values: list[str] = []
+        for item in node.elts:
+            if isinstance(item, ast.Constant) and isinstance(item.value, str):
+                values.append(item.value)
+            else:
+                values.append("<dynamic>")
+        return values
+    return None
+
+
+def subprocess_call_uses_shell(call: ast.Call) -> bool:
+    for keyword in call.keywords:
+        if keyword.arg == "shell" and isinstance(keyword.value, ast.Constant):
+            return keyword.value.value is True
+    return False
+
+
+def is_forbidden_git_network_command(tokens: list[str]) -> bool:
+    normalized = [token.lower() for token in tokens]
+    if len(normalized) < 2 or normalized[0] != GIT_EXECUTABLE:
+        return False
+    if normalized[1] in FORBIDDEN_GIT_NETWORK_SUBCOMMANDS:
+        return True
+    if len(normalized) < 3 or normalized[2] != "update":
+        return False
+    return normalized[1] in {"remote", "submodule"}
 
 
 def test_synthetic_credentials_are_not_loaded_or_exposed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys) -> None:
@@ -84,6 +158,27 @@ def test_in_process_routes_do_not_attempt_external_socket_connections(monkeypatc
 
     monkeypatch.setattr(socket.socket, "connect", original_connect)
     assert attempts == []
+
+
+def test_current_tests_do_not_execute_remote_git_commands() -> None:
+    violations: list[str] = []
+    for path in iter_current_test_files():
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            call_name = qualified_call_name(node.func)
+            if call_name not in SUBPROCESS_CALLS and call_name != "os.system":
+                continue
+            relative = path.relative_to(ROOT).as_posix()
+            if call_name in SUBPROCESS_CALLS and subprocess_call_uses_shell(node):
+                violations.append(f"{relative}:{node.lineno}: shell=True subprocess call")
+            if not node.args:
+                continue
+            tokens = literal_command_tokens(node.args[0])
+            if tokens is not None and is_forbidden_git_network_command(tokens):
+                violations.append(f"{relative}:{node.lineno}: forbidden git network command")
+    assert violations == []
 
 
 def test_runtime_http_surface_is_read_only_and_does_not_accept_business_writes(tmp_path: Path) -> None:

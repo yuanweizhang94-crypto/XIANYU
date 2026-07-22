@@ -137,44 +137,35 @@ def project_state_capabilities_by_id() -> dict[str, dict[str, object]]:
     return {str(item["id"]): item for item in state["capabilities"]["items"]}
 
 
-def ensure_verified_candidate_commit_is_available() -> None:
+def assert_verified_candidate_commit_is_valid_offline() -> None:
     candidate_ref = f"{VERIFIED_CANDIDATE_SHA}^{{commit}}"
-
-    def candidate_exists() -> bool:
-        return subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT).returncode == 0
-
-    def candidate_is_head_ancestor() -> bool:
-        return (
-            subprocess.run(
-                ["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"],
-                cwd=ROOT,
-            ).returncode
-            == 0
+    candidate_exists = (
+        subprocess.run(
+            ["git", "cat-file", "-e", candidate_ref],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+    if candidate_exists:
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
         )
-
-    if candidate_exists() and candidate_is_head_ancestor():
+        assert ancestor.returncode == 0
         return
 
-    is_shallow = subprocess.run(
+    shallow = subprocess.run(
         ["git", "rev-parse", "--is-shallow-repository"],
         cwd=ROOT,
         check=True,
         text=True,
         capture_output=True,
     ).stdout.strip()
-    if is_shallow == "true":
-        subprocess.run(["git", "fetch", "--no-tags", "--unshallow", "origin"], cwd=ROOT, check=True)
-    else:
-        subprocess.run(
-            ["git", "fetch", "--no-tags", "--depth=1000", "origin", "feat/CHG-0002-core-application"],
-            cwd=ROOT,
-            check=True,
-            text=True,
-            capture_output=True,
-        )
-
-    subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT, check=True)
-    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
+    assert shallow == "true", "verified candidate commit is missing from a complete local repository"
 
 def all_registered_paths(capability: dict[str, object]) -> list[str]:
     return [str(path) for path in capability["implementation_paths"] + capability["test_paths"]]
@@ -248,7 +239,7 @@ def test_capability_spec_documents_match_registry_paths_and_t14_status() -> None
 def test_core_capability_statuses_are_verified_with_candidate_commit() -> None:
     items = capabilities_by_id()
     assert re.fullmatch(r"[0-9a-f]{40}", VERIFIED_CANDIDATE_SHA)
-    ensure_verified_candidate_commit_is_available()
+    assert_verified_candidate_commit_is_valid_offline()
     for cap_id in CORE_CAPABILITIES:
         capability = items[cap_id]
         assert capability["status"] == "verified"
