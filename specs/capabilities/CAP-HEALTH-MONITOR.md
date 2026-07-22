@@ -26,7 +26,7 @@ Provide a read-only Core health boundary that reports local application status w
 - `tests/contract/test_core_runtime.py`
 - `tests/contract/test_distribution.py`
 - `tests/contract/test_security_boundary.py`
-- `changes/active/CHG-0002-core-application/tests/test_acceptance.py`
+- `changes/archive/CHG-0002-core-application/tests/test_acceptance.py`
 
 ## Requirements
 

@@ -170,19 +170,21 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 
 ## Core verification status
 
+- CHG-0002 was merged through PR #2.
+- Merge commit: `e2d41e0cc392ae0298688c01147e983317c7e1df`.
+- CHG-0002 is archived.
+- CHG-0003-xianyu-account-boundary is the only active change.
+- CHG-0003 status is `DRAFT`.
+- No CHG-0003 implementation is authorized.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
-- T1 through T15 are complete.
-- CHG-0002 remains `VERIFYING`.
-- PR #2 is Ready for review, open, and unmerged.
-- The final branch is pushed.
-- No unfinished task remains in the current change.
+- T1 through T15 are complete for archived CHG-0002.
 - `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR` are `verified`.
 - Each verified Core capability records `d11f1afc4564298e8c2709fdb80a41a491dbb1ea` in `last_verified_commit`.
 - Verified Core capabilities have cleared their registry `active_change` field.
 - The seven non-Core capabilities remain `planned`.
+- `CAP-XY-ACCOUNT` remains planned and unbound.
 - `CAP-XY-SCHEDULE` remains `planned`.
-- CHG-0003 has not started.
-- The Ready-for-review transition was explicitly authorized and completed; merge remains unauthorized.
+- No Xianyu account runtime, Cookie import, browser Profile loading, login, or external platform access is implemented.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 
@@ -194,7 +196,7 @@ CHG-0002 now has permanent test coverage across these layers:
 - Contract tests for Core runtime lifecycle, health, database, scheduler, web, distribution, and security boundaries.
 - Distribution tests for offline wheel build, package-data inclusion, vendored HTMX integrity, and installed-package smoke behavior.
 - Security-boundary tests for synthetic secret non-exposure, blocked external sockets, read-only HTTP behavior, and absence of external business integrations.
-- Active-change acceptance tests mapping executable evidence to all 25 CHG-0002 final acceptance criteria.
+- Archived CHG-0002 acceptance tests mapping executable evidence to all 25 CHG-0002 final acceptance criteria, plus the active CHG-0003 draft acceptance tests.
 
 The permanent tests specifically verify:
 

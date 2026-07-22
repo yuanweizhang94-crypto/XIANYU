@@ -14,7 +14,7 @@ capabilities:
   - tests/contract/test_core_runtime.py
   - tests/contract/test_distribution.py
   - tests/contract/test_security_boundary.py
-  - changes/active/CHG-0002-core-application/tests/test_acceptance.py
+  - changes/archive/CHG-0002-core-application/tests/test_acceptance.py
   active_change: null
   last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea
 - id: CAP-CORE-DATABASE
@@ -37,7 +37,7 @@ capabilities:
   - tests/contract/test_core_runtime.py
   - tests/contract/test_distribution.py
   - tests/contract/test_security_boundary.py
-  - changes/active/CHG-0002-core-application/tests/test_acceptance.py
+  - changes/archive/CHG-0002-core-application/tests/test_acceptance.py
   active_change: null
   last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea
 - id: CAP-XY-ACCOUNT
@@ -121,6 +121,6 @@ capabilities:
   - tests/contract/test_core_runtime.py
   - tests/contract/test_distribution.py
   - tests/contract/test_security_boundary.py
-  - changes/active/CHG-0002-core-application/tests/test_acceptance.py
+  - changes/archive/CHG-0002-core-application/tests/test_acceptance.py
   active_change: null
   last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea

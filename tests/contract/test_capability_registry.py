@@ -52,7 +52,7 @@ EXPECTED_CORE_CAPABILITY_PATHS = {
             "tests/contract/test_core_runtime.py",
             "tests/contract/test_distribution.py",
             "tests/contract/test_security_boundary.py",
-            "changes/active/CHG-0002-core-application/tests/test_acceptance.py",
+            "changes/archive/CHG-0002-core-application/tests/test_acceptance.py",
         ],
     },
     "CAP-CORE-DATABASE": {
@@ -72,7 +72,7 @@ EXPECTED_CORE_CAPABILITY_PATHS = {
             "tests/contract/test_core_runtime.py",
             "tests/contract/test_distribution.py",
             "tests/contract/test_security_boundary.py",
-            "changes/active/CHG-0002-core-application/tests/test_acceptance.py",
+            "changes/archive/CHG-0002-core-application/tests/test_acceptance.py",
         ],
     },
     "CAP-HEALTH-MONITOR": {
@@ -90,7 +90,7 @@ EXPECTED_CORE_CAPABILITY_PATHS = {
             "tests/contract/test_core_runtime.py",
             "tests/contract/test_distribution.py",
             "tests/contract/test_security_boundary.py",
-            "changes/active/CHG-0002-core-application/tests/test_acceptance.py",
+            "changes/archive/CHG-0002-core-application/tests/test_acceptance.py",
         ],
     },
 }
@@ -106,7 +106,7 @@ APPROVED_SHARED_PATHS = {
     "tests/contract/test_core_runtime.py",
     "tests/contract/test_distribution.py",
     "tests/contract/test_security_boundary.py",
-    "changes/active/CHG-0002-core-application/tests/test_acceptance.py",
+    "changes/archive/CHG-0002-core-application/tests/test_acceptance.py",
 }
 FORBIDDEN_PATH_PARTS = {
     ".git",
@@ -215,7 +215,7 @@ def test_registry_path_responsibilities_are_separated() -> None:
         for relative_path in capability["test_paths"]:
             assert relative_path.startswith((
                 "tests/",
-                "changes/active/CHG-0002-core-application/tests/",
+                "changes/archive/CHG-0002-core-application/tests/",
             ))
             assert not relative_path.startswith("app/")
 

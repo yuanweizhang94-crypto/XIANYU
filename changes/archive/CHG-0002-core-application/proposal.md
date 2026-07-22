@@ -1,6 +1,6 @@
 # CHG-0002 Core Application Proposal
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0002-core-application
 
 ## Problem
@@ -71,3 +71,23 @@ The Core must provide stable boundaries for application creation, typed configur
 Revert the independent CHG-0002 pull request to remove the Core application skeleton.
 
 Rollback must preserve the CHG-0001 governance baseline and its archived historical evidence.
+
+## Merge and archive record
+
+PR #2 was merged into main.
+
+Merge commit: `e2d41e0cc392ae0298688c01147e983317c7e1df`.
+
+Merged feature head: `8180d67788c304548c1ad541011317ca41ab95cb`.
+
+CHG-0002 is archived after successful merge.
+
+The three Core capabilities remain verified.
+
+Their `last_verified_commit` remains `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+
+Archiving CHG-0002 does not change runtime behavior.
+
+Archiving does not reverify capabilities.
+
+Archiving does not authorize CHG-0003 implementation.
