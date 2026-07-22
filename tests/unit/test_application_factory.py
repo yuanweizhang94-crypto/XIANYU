@@ -179,9 +179,9 @@ def test_health_route_is_registered_once_per_application_instance() -> None:
     first = create_application()
     second = create_application()
 
-    assert sum(1 for path in route_paths(first) if path == "/health") == 1
-    assert sum(1 for path in route_paths(second) if path == "/health") == 1
-    assert first.routes is not second.routes
+    assert list(first.openapi()["paths"]).count("/health") == 1
+    assert list(second.openapi()["paths"]).count("/health") == 1
+    assert first.openapi() is not second.openapi()
 
 
 def test_create_application_openapi_has_no_file_or_lifespan_side_effects(tmp_path: Path) -> None:
