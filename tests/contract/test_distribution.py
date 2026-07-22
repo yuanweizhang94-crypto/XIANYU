@@ -231,4 +231,3 @@ print(json.dumps({"package_file": str(package_file), "status": "ok"}, sort_keys=
     report = json.loads(result.stdout)
     assert report["status"] == "ok"
     assert str(install_dir) in report["package_file"]
-
