@@ -1,6 +1,6 @@
 # CHG-0002 Tasks
 
-Status: IMPLEMENTING
+Status: VERIFYING
 Change ID: CHG-0002-core-application
 
 - [x] T1 Archive CHG-0001 and establish CHG-0002 active change
@@ -16,5 +16,5 @@ Change ID: CHG-0002-core-application
 - [x] T11 Implement Jinja2 and HTMX web skeleton
 - [x] T12 Add unit, contract and active-change acceptance tests
 - [x] T13 Update capability registry implementation and verification paths
-- [ ] T14 Run complete local verification
+- [x] T14 Run complete local verification
 - [ ] T15 Push branch and open Draft PR

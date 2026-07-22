@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+import subprocess
 from collections import Counter
 from pathlib import Path, PureWindowsPath
 
@@ -13,6 +15,7 @@ REGISTRY_PATH = ROOT / "specs" / "CAPABILITY_REGISTRY.yaml"
 SCHEMA_PATH = ROOT / "contracts" / "schemas" / "capability-registry.schema.json"
 PROJECT_STATE_PATH = ROOT / "generated" / "PROJECT_STATE.json"
 CHG_0002 = "CHG-0002-core-application"
+VERIFIED_CANDIDATE_SHA = "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
 CORE_CAPABILITIES = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
 EXPECTED_CAPABILITY_IDS = {
     "CAP-CORE-CONFIG",
@@ -187,7 +190,7 @@ def test_registry_path_responsibilities_are_separated() -> None:
             assert not relative_path.startswith("app/")
 
 
-def test_capability_spec_documents_match_registry_paths_and_t13_status() -> None:
+def test_capability_spec_documents_match_registry_paths_and_t14_status() -> None:
     items = capabilities_by_id()
     for cap_id in CORE_CAPABILITIES:
         spec_text = (ROOT / EXPECTED_SPECIFICATIONS[cap_id]).read_text(encoding="utf-8")
@@ -196,18 +199,23 @@ def test_capability_spec_documents_match_registry_paths_and_t13_status() -> None
         assert "deferred to T13" not in spec_text
         assert "Registry implementation and test paths remain deferred to T13" not in spec_text
         assert "## T13 registry decision" in spec_text
-        assert "capability remains `implementing`" in spec_text.lower()
+        assert "## T14 verification decision" in spec_text
+        assert VERIFIED_CANDIDATE_SHA in spec_text
+        assert "registry status is now `verified`" in spec_text
+        assert "verification remains deferred" not in spec_text.lower()
         assert "last_verified_commit" in spec_text
-        assert "T14" in spec_text
 
 
-def test_core_capability_statuses_remain_implementing_and_unverified() -> None:
+def test_core_capability_statuses_are_verified_with_candidate_commit() -> None:
     items = capabilities_by_id()
+    assert re.fullmatch(r"[0-9a-f]{40}", VERIFIED_CANDIDATE_SHA)
+    subprocess.run(["git", "cat-file", "-e", f"{VERIFIED_CANDIDATE_SHA}^{{commit}}"], cwd=ROOT, check=True)
+    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
     for cap_id in CORE_CAPABILITIES:
         capability = items[cap_id]
-        assert capability["status"] == "implementing"
-        assert capability["active_change"] == CHG_0002
-        assert capability["last_verified_commit"] is None
+        assert capability["status"] == "verified"
+        assert capability["active_change"] is None
+        assert capability["last_verified_commit"] == VERIFIED_CANDIDATE_SHA
 
 
 def test_other_capabilities_remain_planned_empty_and_unbound() -> None:
@@ -245,10 +253,11 @@ def test_project_state_matches_registry_paths_and_status_counts() -> None:
     for cap_id in CORE_CAPABILITIES:
         assert state_items[cap_id]["implementation_paths"] == registry_items[cap_id]["implementation_paths"]
         assert state_items[cap_id]["test_paths"] == registry_items[cap_id]["test_paths"]
-        assert state_items[cap_id]["status"] == "implementing"
-        assert state_items[cap_id]["last_verified_commit"] is None
+        assert state_items[cap_id]["status"] == "verified"
+        assert state_items[cap_id]["active_change"] is None
+        assert state_items[cap_id]["last_verified_commit"] == VERIFIED_CANDIDATE_SHA
     state = json.loads(PROJECT_STATE_PATH.read_text(encoding="utf-8"))
-    assert state["capabilities"]["by_status"] == {"implementing": 3, "planned": 7}
+    assert state["capabilities"]["by_status"] == {"planned": 7, "verified": 3}
 
 
 def test_path_lists_have_no_duplicates_and_shared_paths_are_approved() -> None:

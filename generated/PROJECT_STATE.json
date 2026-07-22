@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0002-core-application",
-    "status": "IMPLEMENTING",
+    "status": "VERIFYING",
     "path": "changes/active/CHG-0002-core-application"
   },
   "tasks": {
     "total": 15,
-    "completed": 13,
-    "next_task": "T14 Run complete local verification",
+    "completed": 14,
+    "next_task": "T15 Push branch and open Draft PR",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -65,7 +65,7 @@
       },
       {
         "text": "T14 Run complete local verification",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T15 Push branch and open Draft PR",
@@ -76,14 +76,14 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "implementing": 3,
-      "planned": 7
+      "planned": 7,
+      "verified": 3
     },
     "items": [
       {
         "id": "CAP-CORE-CONFIG",
         "name": "Core configuration",
-        "status": "implementing",
+        "status": "verified",
         "owner_module": "app.core.config",
         "specification": "specs/capabilities/CAP-CORE-CONFIG.md",
         "implementation_paths": [
@@ -99,13 +99,13 @@
           "tests/contract/test_security_boundary.py",
           "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
         ],
-        "active_change": "CHG-0002-core-application",
-        "last_verified_commit": null
+        "active_change": null,
+        "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
       },
       {
         "id": "CAP-CORE-DATABASE",
         "name": "Core database",
-        "status": "implementing",
+        "status": "verified",
         "owner_module": "app.core.database",
         "specification": "specs/capabilities/CAP-CORE-DATABASE.md",
         "implementation_paths": [
@@ -126,8 +126,8 @@
           "tests/contract/test_security_boundary.py",
           "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
         ],
-        "active_change": "CHG-0002-core-application",
-        "last_verified_commit": null
+        "active_change": null,
+        "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
       },
       {
         "id": "CAP-XY-ACCOUNT",
@@ -209,7 +209,7 @@
       {
         "id": "CAP-HEALTH-MONITOR",
         "name": "Health monitor",
-        "status": "implementing",
+        "status": "verified",
         "owner_module": "app.health",
         "specification": "specs/capabilities/CAP-HEALTH-MONITOR.md",
         "implementation_paths": [
@@ -228,8 +228,8 @@
           "tests/contract/test_security_boundary.py",
           "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
         ],
-        "active_change": "CHG-0002-core-application",
-        "last_verified_commit": null
+        "active_change": null,
+        "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
       }
     ]
   }

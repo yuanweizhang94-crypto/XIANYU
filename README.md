@@ -166,7 +166,20 @@ CHG-0002 records exact repository-relative implementation and verification file 
 
 `app/xianyu_system/application.py` is a shared integration boundary where configuration injection, database lifecycle wiring, and health route registration meet. Integrated runtime, distribution, import-safety, security-boundary, and active-change acceptance tests may provide evidence for more than one Core capability when they exercise real cross-capability behavior.
 
-The three Core capabilities remain `implementing`, remain bound to `CHG-0002-core-application`, and do not record `last_verified_commit` until T14 complete verification. The seven non-Core capabilities remain `planned`, unbound, and without implementation or verification paths. Core Scheduler infrastructure does not make `CAP-XY-SCHEDULE` a business capability implementation.
+The three Core capabilities are now `verified`, are no longer bound through registry `active_change`, and record `d11f1afc4564298e8c2709fdb80a41a491dbb1ea` as `last_verified_commit`. The seven non-Core capabilities remain `planned`, unbound, and without implementation or verification paths. Core Scheduler infrastructure does not make `CAP-XY-SCHEDULE` a business capability implementation.
+
+## Core verification status
+
+- Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+- `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR` are `verified`.
+- Each verified Core capability records `d11f1afc4564298e8c2709fdb80a41a491dbb1ea` in `last_verified_commit`.
+- Verified Core capabilities have cleared their registry `active_change` field.
+- CHG-0002 remains `VERIFYING`.
+- T15 remains incomplete.
+- The seven non-Core capabilities remain `planned`.
+- `CAP-XY-SCHEDULE` remains `planned`.
+- Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
+- PR #2 remains Draft.
 
 ## Permanent test layers
 

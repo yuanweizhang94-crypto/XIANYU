@@ -1,6 +1,6 @@
 # CHG-0002 Core Application Design
 
-Status: IMPLEMENTING
+Status: VERIFYING
 Change ID: CHG-0002-core-application
 
 ## Design goal
@@ -233,10 +233,22 @@ Importing any Core module must not:
 - Primary implementation ownership remains separated across configuration, database, and health boundaries.
 - Shared application-factory and integrated contract paths may appear under more than one Core capability where they provide real cross-capability evidence.
 - Core scheduler infrastructure is not registered as `CAP-XY-SCHEDULE` business implementation.
-- All three Core capabilities remain `implementing` and bound to `CHG-0002-core-application`.
-- `last_verified_commit` remains unset until T14 complete verification.
+- All three Core capabilities remained `implementing` and bound to `CHG-0002-core-application` until T14 verification.
+- `last_verified_commit` remained unset until T14 complete verification.
 - The seven non-Core capabilities remain planned, unbound, and without implementation or test paths.
 - T13 changes registry evidence and documentation only; it does not change application runtime behavior.
+
+## T14 verification decision
+
+- Candidate commit `d11f1afc4564298e8c2709fdb80a41a491dbb1ea` was verified before any verification-state metadata was changed.
+- Complete unit, contract, distribution, security, active-change acceptance, warning-mode, order-independence, Ruff, Mypy, repository, migration, OpenAPI, HTMX, and artifact checks passed.
+- `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR` are now `verified`.
+- Each verified capability records `d11f1afc4564298e8c2709fdb80a41a491dbb1ea` as `last_verified_commit`.
+- Verified capabilities clear their registry `active_change` field.
+- CHG-0002 moves from `IMPLEMENTING` to `VERIFYING` while final Draft PR administration remains incomplete.
+- The seven non-Core capabilities remain planned and unbound.
+- `CAP-XY-SCHEDULE` remains planned because Core scheduler lifecycle infrastructure does not implement Xianyu scheduling behavior.
+- T14 changes verification metadata, tests, and documentation only; no application runtime, contract, migration, dependency, or workflow behavior changes.
 
 ## Testing rules
 

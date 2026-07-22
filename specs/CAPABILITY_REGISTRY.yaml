@@ -1,7 +1,7 @@
 capabilities:
 - id: CAP-CORE-CONFIG
   name: Core configuration
-  status: implementing
+  status: verified
   owner_module: app.core.config
   specification: specs/capabilities/CAP-CORE-CONFIG.md
   implementation_paths:
@@ -15,11 +15,11 @@ capabilities:
   - tests/contract/test_distribution.py
   - tests/contract/test_security_boundary.py
   - changes/active/CHG-0002-core-application/tests/test_acceptance.py
-  active_change: CHG-0002-core-application
-  last_verified_commit: null
+  active_change: null
+  last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea
 - id: CAP-CORE-DATABASE
   name: Core database
-  status: implementing
+  status: verified
   owner_module: app.core.database
   specification: specs/capabilities/CAP-CORE-DATABASE.md
   implementation_paths:
@@ -38,8 +38,8 @@ capabilities:
   - tests/contract/test_distribution.py
   - tests/contract/test_security_boundary.py
   - changes/active/CHG-0002-core-application/tests/test_acceptance.py
-  active_change: CHG-0002-core-application
-  last_verified_commit: null
+  active_change: null
+  last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea
 - id: CAP-XY-ACCOUNT
   name: Xianyu account boundary
   status: planned
@@ -105,7 +105,7 @@ capabilities:
   last_verified_commit: null
 - id: CAP-HEALTH-MONITOR
   name: Health monitor
-  status: implementing
+  status: verified
   owner_module: app.health
   specification: specs/capabilities/CAP-HEALTH-MONITOR.md
   implementation_paths:
@@ -122,5 +122,5 @@ capabilities:
   - tests/contract/test_distribution.py
   - tests/contract/test_security_boundary.py
   - changes/active/CHG-0002-core-application/tests/test_acceptance.py
-  active_change: CHG-0002-core-application
-  last_verified_commit: null
+  active_change: null
+  last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea

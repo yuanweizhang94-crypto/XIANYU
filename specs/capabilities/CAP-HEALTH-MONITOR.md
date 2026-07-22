@@ -6,9 +6,9 @@ Provide a read-only Core health boundary that reports local application status w
 
 ## Current implementation change
 
-- Active change: CHG-0002-core-application.
-- Registry status during implementation: implementing.
-- Capability verification and `last_verified_commit` remain deferred.
+- Active change: none; verification recorded by CHG-0002-core-application T14.
+- Registry status: verified.
+- Last verified commit: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 
 ## Registered implementation paths
 
@@ -66,15 +66,24 @@ Provide a read-only Core health boundary that reports local application status w
 - No external service checks are performed.
 - No database path, exception text, credentials, account identifiers, or customer data are exposed.
 - Application factory registers the API router.
-- Capability remains `implementing`.
+- Capability remained `implementing` until T14 verification.
 
 ## T13 registry decision
 
 - The health capability now records the health models and route, API aggregation boundary, application router registration, and OpenAPI contract.
 - Verification paths cover unit health behavior, runtime OpenAPI, import safety, integrated runtime behavior, installed-package behavior, external-network blocking, sensitive-data boundaries, and active-change acceptance.
 - Database, scheduler, and web implementation files are not claimed as health-owned implementation paths.
-- The capability remains `implementing`.
-- `last_verified_commit` remains unset until T14 complete verification.
+- The capability remained `implementing` until T14 verification.
+- `last_verified_commit` remained unset until T14 complete verification.
+
+## T14 verification decision
+
+- Complete local verification passed for candidate commit `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+- The registry status is now `verified`.
+- The capability is no longer bound through `active_change`.
+- `last_verified_commit` is `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+- Verification covers the read-only `GET /health` endpoint, 200 and 503 behavior, runtime OpenAPI, local database and scheduler probes, and sensitive-data boundaries.
+- No external service health check, database write, migration, scheduler mutation, account lookup, or customer-data exposure is included.
 
 ## Acceptance criteria
 

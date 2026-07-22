@@ -1,6 +1,6 @@
 # CHG-0002 Acceptance
 
-Status: IMPLEMENTING
+Status: VERIFYING
 Change ID: CHG-0002-core-application
 
 ## Final acceptance criteria
@@ -33,14 +33,16 @@ Change ID: CHG-0002-core-application
 
 ## Current preparation-stage status
 
-The change is IMPLEMENTING.
+The change is VERIFYING.
 
-T1 through T13 are complete after the three Core capability registry entries record exact implementation and verification paths and the registry contract tests pass.
+T1 through T14 are complete after candidate commit d11f1afc4564298e8c2709fdb80a41a491dbb1ea passes complete local verification.
 
-T14 Run complete local verification is the next task.
+T15 Push branch and open Draft PR is the next task.
 
-CAP-CORE-CONFIG, CAP-CORE-DATABASE, and CAP-HEALTH-MONITOR remain implementing and bound to CHG-0002-core-application.
+CAP-CORE-CONFIG, CAP-CORE-DATABASE, and CAP-HEALTH-MONITOR are verified and record d11f1afc4564298e8c2709fdb80a41a491dbb1ea as their last verified commit.
 
-Their last_verified_commit values remain unset until complete verification.
+The verified capabilities are no longer bound through their registry active_change fields.
 
 The seven non-Core capabilities remain planned and unbound.
+
+The change remains active and the pull request must remain Draft until T15 is complete.

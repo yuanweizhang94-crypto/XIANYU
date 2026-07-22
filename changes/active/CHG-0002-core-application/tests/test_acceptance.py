@@ -79,6 +79,7 @@ from xianyu_system.web.router import (
 ROOT = Path(__file__).resolve().parents[4]
 CHG_0001 = "CHG-0001-project-baseline"
 CHG_0002 = "CHG-0002-core-application"
+VERIFIED_CANDIDATE_SHA = "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
 CORE_CAPABILITIES = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
 APPROVED_CORE_RUNTIME = {
     "fastapi",
@@ -313,11 +314,11 @@ def test_chg_0001_exists_only_in_archive_with_history_preserved() -> None:
     assert (archive / "tests" / "test_acceptance.py").is_file()
 
 
-def test_only_chg_0002_is_active_and_implementing() -> None:
+def test_only_chg_0002_is_active_and_verifying() -> None:
     active_dirs = sorted(path.name for path in (ROOT / "changes" / "active").iterdir() if path.is_dir())
     assert active_dirs == [CHG_0002]
     for name in CHANGE_DOCUMENTS:
-        assert status_for(active_change_dir() / name) == "IMPLEMENTING"
+        assert status_for(active_change_dir() / name) == "VERIFYING"
 
 
 def test_chg_0002_core_documents_are_readable_and_complete() -> None:
@@ -340,7 +341,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
         text = (active_change_dir() / name).read_text(encoding="utf-8")
         assert REPEATED_QUESTION_MARKS not in text
         assert REPLACEMENT_CHARACTER not in text
-        assert status_for(active_change_dir() / name) == "IMPLEMENTING"
+        assert status_for(active_change_dir() / name) == "VERIFYING"
         for heading in expected_headings[name]:
             assert heading in text
 
@@ -349,7 +350,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t13_is_complete_and_t14_is_next() -> None:
+def test_chg_0002_t14_is_complete_and_t15_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -370,11 +371,11 @@ def test_chg_0002_t13_is_complete_and_t14_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13"}
-    assert incomplete == {"T14", "T15"}
+    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T14"}
+    assert incomplete == {"T15"}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T14 Run complete local verification"
+    assert state["tasks"]["next_task"] == "T15 Push branch and open Draft PR"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -1177,16 +1178,15 @@ def test_openapi_contract_has_only_health_path_and_no_business_paths() -> None:
         assert forbidden not in openapi["paths"]
 
 
-def test_core_capabilities_are_implementing_and_none_are_verified() -> None:
+def test_core_capabilities_are_verified_after_complete_candidate_validation() -> None:
     registry = registry_by_id()
-    assert {str(item["status"]) for item in registry.values() if item["id"] in CORE_CAPABILITIES} == {
-        "implementing"
-    }
+    assert {str(item["status"]) for item in registry.values() if item["id"] in CORE_CAPABILITIES} == {"verified"}
+    subprocess.run(["git", "cat-file", "-e", f"{VERIFIED_CANDIDATE_SHA}^{{commit}}"], cwd=ROOT, check=True)
+    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
     for cap_id in CORE_CAPABILITIES:
         capability = registry[cap_id]
-        assert capability["active_change"] == CHG_0002
-        assert capability["last_verified_commit"] is None
-    assert all(capability["status"] != "verified" for capability in registry.values())
+        assert capability["active_change"] is None
+        assert capability["last_verified_commit"] == VERIFIED_CANDIDATE_SHA
 
 
 def test_other_capabilities_remain_planned_and_unbound() -> None:
@@ -1481,25 +1481,25 @@ def test_final_acceptance_20_no_external_business_integration_is_implemented() -
     assert Base.metadata.tables == {}
 
 
-def test_final_acceptance_21_core_config_not_marked_verified_before_final_validation() -> None:
+def test_final_acceptance_21_core_config_verified_after_complete_validation() -> None:
     capability = registry_by_id()["CAP-CORE-CONFIG"]
-    assert capability["status"] == "implementing"
-    assert capability["active_change"] == CHG_0002
-    assert capability["last_verified_commit"] is None
+    assert capability["status"] == "verified"
+    assert capability["active_change"] is None
+    assert capability["last_verified_commit"] == VERIFIED_CANDIDATE_SHA
 
 
-def test_final_acceptance_22_core_database_not_marked_verified_before_final_validation() -> None:
+def test_final_acceptance_22_core_database_verified_after_complete_validation() -> None:
     capability = registry_by_id()["CAP-CORE-DATABASE"]
-    assert capability["status"] == "implementing"
-    assert capability["active_change"] == CHG_0002
-    assert capability["last_verified_commit"] is None
+    assert capability["status"] == "verified"
+    assert capability["active_change"] is None
+    assert capability["last_verified_commit"] == VERIFIED_CANDIDATE_SHA
 
 
-def test_final_acceptance_23_health_monitor_not_marked_verified_before_final_validation() -> None:
+def test_final_acceptance_23_health_monitor_verified_after_complete_validation() -> None:
     capability = registry_by_id()["CAP-HEALTH-MONITOR"]
-    assert capability["status"] == "implementing"
-    assert capability["active_change"] == CHG_0002
-    assert capability["last_verified_commit"] is None
+    assert capability["status"] == "verified"
+    assert capability["active_change"] is None
+    assert capability["last_verified_commit"] == VERIFIED_CANDIDATE_SHA
 
 
 def test_final_acceptance_24_permanent_and_active_acceptance_test_layers_exist() -> None:
@@ -1547,14 +1547,13 @@ def test_t13_core_capability_registry_paths_are_exact_and_existing() -> None:
             assert not Path(relative_path).is_absolute()
 
 
-def test_t13_core_capability_registry_status_and_binding_are_preserved() -> None:
+def test_t14_core_capability_registry_status_and_binding_are_verified() -> None:
     registry = registry_by_id()
     for cap_id in CORE_CAPABILITIES:
         capability = registry[cap_id]
-        assert capability["status"] == "implementing"
-        assert capability["active_change"] == CHG_0002
-        assert capability["last_verified_commit"] is None
-    assert all(capability["status"] != "verified" for capability in registry.values())
+        assert capability["status"] == "verified"
+        assert capability["active_change"] is None
+        assert capability["last_verified_commit"] == VERIFIED_CANDIDATE_SHA
 
 
 def test_t13_non_core_capabilities_remain_planned_with_empty_paths() -> None:
@@ -1574,9 +1573,9 @@ def test_t13_registry_specs_and_project_state_are_consistent() -> None:
     registry = registry_by_id()
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     state_by_id = {item["id"]: item for item in state["capabilities"]["items"]}
-    assert state["tasks"]["completed"] == 13
-    assert state["tasks"]["next_task"] == "T14 Run complete local verification"
-    assert state["capabilities"]["by_status"] == {"implementing": 3, "planned": 7}
+    assert state["tasks"]["completed"] == 14
+    assert state["tasks"]["next_task"] == "T15 Push branch and open Draft PR"
+    assert state["capabilities"]["by_status"] == {"planned": 7, "verified": 3}
     for cap_id, expected in EXPECTED_CORE_CAPABILITY_PATHS.items():
         spec = (ROOT / registry[cap_id]["specification"]).read_text(encoding="utf-8")
         assert state_by_id[cap_id]["implementation_paths"] == expected["implementation_paths"]
@@ -1585,6 +1584,9 @@ def test_t13_registry_specs_and_project_state_are_consistent() -> None:
             assert f"`{relative_path}`" in spec
         assert "deferred to T13" not in spec
         assert "## T13 registry decision" in spec
+        assert "## T14 verification decision" in spec
+        assert VERIFIED_CANDIDATE_SHA in spec
+        assert "registry status is now `verified`" in spec
 
 
 def test_t13_registry_keeps_capability_identity_fields_stable() -> None:

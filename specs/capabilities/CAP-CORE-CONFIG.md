@@ -6,9 +6,9 @@ Provide the single typed configuration boundary for the modular-monolith Core wi
 
 ## Current implementation change
 
-- Active change: CHG-0002-core-application.
-- Registry status during implementation: implementing.
-- Final status after acceptance: verified.
+- Active change: none; verification recorded by CHG-0002-core-application T14.
+- Registry status: verified.
+- Last verified commit: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 
 ## Registered implementation paths
 
@@ -44,16 +44,25 @@ Provide the single typed configuration boundary for the modular-monolith Core wi
 - `.env` files are not automatically loaded.
 - No secret-bearing platform fields exist in CHG-0002 Core settings.
 - Application factory stores resolved settings in `app.state.settings`.
-- Capability remains `implementing` until full CHG-0002 verification.
+- Capability remained `implementing` until full CHG-0002 verification passed in T14.
 
 ## T13 registry decision
 
 - Registry implementation and verification paths now point to exact repository files.
 - Paths are repository-relative, deterministic, and verified to exist.
-- The capability remains `implementing`.
-- `active_change` remains `CHG-0002-core-application`.
-- `last_verified_commit` remains unset until T14 complete verification.
+- The capability remained `implementing` until T14 verification.
+- `active_change` remained `CHG-0002-core-application` until T14 verification.
+- `last_verified_commit` remained unset until T14 complete verification.
 - T13 does not change runtime behavior or configuration fields.
+
+## T14 verification decision
+
+- Complete local verification passed for candidate commit `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+- The registry status is now `verified`.
+- The capability is no longer bound through `active_change`.
+- `last_verified_commit` is `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+- The verified scope is limited to typed Core configuration, safe environment overrides, application-factory injection, and the registered verification paths.
+- No external platform credentials, secret manager integration, or production deployment configuration is included.
 
 ## Acceptance criteria
 

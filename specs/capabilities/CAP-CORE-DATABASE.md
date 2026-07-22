@@ -6,9 +6,9 @@ Provide the single SQLite WAL, SQLAlchemy, and Alembic infrastructure boundary f
 
 ## Current implementation change
 
-- Active change: CHG-0002-core-application.
-- Registry status during implementation: implementing.
-- Final status after acceptance: verified.
+- Active change: none; verification recorded by CHG-0002-core-application T14.
+- Registry status: verified.
+- Last verified commit: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 
 ## Registered implementation paths
 
@@ -55,7 +55,7 @@ Provide the single SQLite WAL, SQLAlchemy, and Alembic infrastructure boundary f
 - `Base.metadata` currently has no tables.
 - No business schema is created.
 - Engine is disposed during lifespan shutdown.
-- Capability remains `implementing`.
+- Capability remained `implementing` until T14 verification.
 - Alembic remains deferred to T8.
 
 ## T8 implementation decision
@@ -72,15 +72,24 @@ Provide the single SQLite WAL, SQLAlchemy, and Alembic infrastructure boundary f
 - Upgrade and downgrade use the unified project Engine.
 - Application startup does not automatically migrate.
 - Current baseline creates no business schema.
-- Capability remains `implementing`.
+- Capability remained `implementing` until T14 verification.
 
 ## T13 registry decision
 
 - The database capability now records the unified SQLAlchemy module, application lifecycle wiring, Alembic configuration, migration environment, template, and deterministic empty baseline revision.
 - Verification paths cover database unit behavior, migration contracts, import safety, integrated runtime behavior, installed-package behavior, security boundaries, and active-change acceptance.
 - No database file, business table, ORM business model, or customer data path is registered.
-- The capability remains `implementing`.
-- `last_verified_commit` remains unset until T14 complete verification.
+- The capability remained `implementing` until T14 verification.
+- `last_verified_commit` remained unset until T14 complete verification.
+
+## T14 verification decision
+
+- Complete local verification passed for candidate commit `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+- The registry status is now `verified`.
+- The capability is no longer bound through `active_change`.
+- `last_verified_commit` is `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+- Verification covers SQLite WAL, foreign keys, busy timeout, SQLAlchemy Engine and Session boundaries, explicit Alembic migration execution, and the empty deterministic baseline.
+- No business table, customer data, default production database, automatic migration, or persistent scheduler table is included.
 
 ## Acceptance criteria
 
