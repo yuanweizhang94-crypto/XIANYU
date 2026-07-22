@@ -11,7 +11,8 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy import inspect, text
 
 from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
@@ -57,6 +58,11 @@ def clear_supported_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def route_paths(app: FastAPI) -> set[str]:
     return {str(route.path) for route in app.routes}
+
+
+def project_events(captured: str) -> list[dict[str, object]]:
+    records = [json.loads(line) for line in captured.splitlines() if line]
+    return [record for record in records if "event" in record]
 
 
 def test_create_application_returns_fastapi_instance() -> None:
@@ -319,22 +325,30 @@ def test_lifespan_emits_structured_startup_and_shutdown_events(
     with TestClient(app):
         pass
 
-    events = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
+    events = project_events(capsys.readouterr().err)
     assert [event["event"] for event in events] == [
         "application.startup",
         "database.ready",
+        "scheduler.ready",
+        "scheduler.shutdown",
         "database.shutdown",
         "application.shutdown",
     ]
     assert [event["message"] for event in events] == [
         "Application startup",
         "Database ready",
+        "Scheduler ready",
+        "Scheduler shutdown",
         "Database shutdown",
         "Application shutdown",
     ]
     assert events[0]["environment"] == "test"
     assert events[-1]["environment"] == "test"
     assert events[1]["journal_mode"] == "wal"
+    assert events[2]["running"] is True
+    assert events[2]["job_count"] == 0
+    assert events[2]["timezone"] == "UTC"
+    assert events[3]["running"] is False
 
 
 def test_project_and_custom_lifespan_order_is_composed(
@@ -354,12 +368,14 @@ def test_project_and_custom_lifespan_order_is_composed(
     with TestClient(app):
         pass
 
-    events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
+    events = [event["event"] for event in project_events(capsys.readouterr().err)]
     assert events == [
         "application.startup",
         "database.ready",
+        "scheduler.ready",
         "custom.startup",
         "custom.shutdown",
+        "scheduler.shutdown",
         "database.shutdown",
         "application.shutdown",
     ]
@@ -434,6 +450,82 @@ def test_database_lifespan_initializes_session_and_cleans_up(tmp_path: Path) -> 
     assert app.state.database is None
     path.unlink()
     assert not path.exists()
+
+
+def test_create_application_does_not_create_or_start_scheduler_immediately(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "not-started.db")
+    )
+
+    assert not hasattr(app.state, "scheduler")
+
+
+def test_scheduler_lifespan_starts_and_stops_with_no_jobs(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "scheduler.db")
+    )
+
+    with TestClient(app):
+        assert isinstance(app.state.scheduler, BackgroundScheduler)
+        assert app.state.scheduler.running is True
+        assert app.state.scheduler.get_jobs() == []
+
+    assert app.state.scheduler is None
+
+
+def test_application_instances_use_isolated_scheduler_resources(tmp_path: Path) -> None:
+    first = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "first-scheduler.db")
+    )
+    second = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "second-scheduler.db")
+    )
+
+    with TestClient(first), TestClient(second):
+        assert first.state.scheduler is not second.state.scheduler
+        assert first.state.scheduler.running is True
+        assert second.state.scheduler.running is True
+        assert first.state.scheduler.get_jobs() == []
+        assert second.state.scheduler.get_jobs() == []
+
+
+def test_custom_lifespan_can_use_scheduler_during_startup_and_shutdown(tmp_path: Path) -> None:
+    events: list[str] = []
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        assert app.state.scheduler.running is True
+        assert app.state.scheduler.get_jobs() == []
+        events.append("custom-startup-scheduler-ready")
+        yield
+        assert app.state.scheduler.running is True
+        assert app.state.scheduler.get_jobs() == []
+        events.append("custom-shutdown-scheduler-ready")
+
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "custom-scheduler.db"),
+    )
+
+    with TestClient(app):
+        assert events == ["custom-startup-scheduler-ready"]
+
+    assert events == ["custom-startup-scheduler-ready", "custom-shutdown-scheduler-ready"]
+    assert app.state.scheduler is None
+
+
+def test_application_startup_does_not_automatically_create_scheduler_tables(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "scheduler-tables.db")
+    )
+
+    with TestClient(app):
+        assert get_current_revision(app.state.database) is None
+        assert set(inspect(app.state.database.engine).get_table_names()) == set()
+        assert app.state.scheduler.get_jobs() == []
+
+    assert app.state.database is None
+    assert app.state.scheduler is None
 
 
 def test_custom_lifespan_can_use_database_during_startup_and_shutdown(tmp_path: Path) -> None:
@@ -521,6 +613,61 @@ def test_database_initialization_failure_cleans_logging_and_skips_custom_lifespa
     assert not any(isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers)
 
 
+def test_scheduler_start_failure_disposes_database_and_skips_custom_lifespan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    path = tmp_path / "scheduler-start-failure.db"
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        events.append("custom-startup")
+        yield
+        events.append("custom-shutdown")
+
+    def fail_start(_: BackgroundScheduler) -> None:
+        raise RuntimeError("scheduler start failure")
+
+    monkeypatch.setattr("xianyu_system.application.start_scheduler", fail_start)
+    app = create_application(
+        lifespan=lifespan,
+        settings=ApplicationSettings(environment="test", database_path=path),
+    )
+
+    with pytest.raises(RuntimeError, match="scheduler start failure"), TestClient(app):
+        pass
+
+    assert events == []
+    assert app.state.database is None
+    assert app.state.scheduler is None
+    assert not any(isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers)
+    path.unlink()
+    assert not path.exists()
+
+
+def test_scheduler_shutdown_failure_still_disposes_database_and_logging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "scheduler-shutdown-failure.db"
+
+    def fail_shutdown(_: BackgroundScheduler) -> None:
+        raise RuntimeError("scheduler shutdown failure")
+
+    monkeypatch.setattr("xianyu_system.application.shutdown_scheduler", fail_shutdown)
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=path),
+    )
+
+    with pytest.raises(RuntimeError, match="scheduler shutdown failure"), TestClient(app):
+        assert app.state.scheduler.running is True
+
+    assert app.state.database is None
+    assert app.state.scheduler is None
+    assert not any(isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers)
+    path.unlink()
+    assert not path.exists()
+
+
 def test_importing_main_does_not_create_default_database_file(tmp_path: Path) -> None:
     env = os.environ.copy()
     pythonpath_parts = [str(ROOT / "app")]
@@ -600,11 +747,13 @@ def test_explicit_migration_does_not_break_logging_lifespan(
     with TestClient(app):
         pass
 
-    events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
+    events = [event["event"] for event in project_events(capsys.readouterr().err)]
     assert events == [
         "application.startup",
         "database.ready",
+        "scheduler.ready",
         "migration.complete",
+        "scheduler.shutdown",
         "database.shutdown",
         "application.shutdown",
     ]

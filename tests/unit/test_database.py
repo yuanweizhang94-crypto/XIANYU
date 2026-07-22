@@ -356,3 +356,13 @@ def test_application_sources_do_not_auto_run_migrations() -> None:
         source = (ROOT / relative).read_text(encoding="utf-8")
         assert "command.upgrade" not in source
         assert "upgrade_database" not in source
+
+
+def test_scheduler_is_not_persisted_through_database_job_store() -> None:
+    database_source = (ROOT / "app/xianyu_system/core/database.py").read_text(encoding="utf-8")
+    scheduler_source = (ROOT / "app/xianyu_system/core/scheduler.py").read_text(encoding="utf-8")
+
+    assert "apscheduler" not in database_source.lower()
+    assert "SQLAlchemyJobStore" not in scheduler_source
+    assert "apscheduler_jobs" not in scheduler_source
+    assert "create_all" not in scheduler_source

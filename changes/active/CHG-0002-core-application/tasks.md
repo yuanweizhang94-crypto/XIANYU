@@ -11,7 +11,7 @@ Change ID: CHG-0002-core-application
 - [x] T6 Implement structured redacted logging
 - [x] T7 Implement SQLite WAL and SQLAlchemy infrastructure
 - [x] T8 Establish Alembic migration baseline
-- [ ] T9 Implement scheduler lifecycle skeleton
+- [x] T9 Implement scheduler lifecycle skeleton
 - [ ] T10 Implement health API contract and route
 - [ ] T11 Implement Jinja2 and HTMX web skeleton
 - [ ] T12 Add unit, contract and active-change acceptance tests

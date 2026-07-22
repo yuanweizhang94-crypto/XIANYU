@@ -35,12 +35,12 @@ Change ID: CHG-0002-core-application
 
 The change is IMPLEMENTING.
 
-T1 through T8 are complete after the Alembic empty baseline, upgrade, downgrade, and migration contract tests pass.
+T1 through T9 are complete after the scheduler lifecycle skeleton starts and shuts down through the FastAPI lifespan with no registered jobs and no persistent scheduler storage.
 
-T9 Implement scheduler lifecycle skeleton is the next task.
+T10 Implement health API contract and route is the next task.
 
 The current migration baseline creates no business schema and stores no customer data.
 
-Scheduler, health API, and web implementation remain incomplete.
+Health API and web implementation remain incomplete.
 
 The three Core capabilities remain implementing.

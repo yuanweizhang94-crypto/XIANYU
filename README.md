@@ -23,7 +23,7 @@ The current phase is repository baseline plus the initial Core application bound
 - Scope, architecture, capability, ADR, and contract placeholders.
 - Context, state generation, validation, duplicate capability detection, and security scan scripts.
 - Unit, contract, acceptance tests, and GitHub CI.
-- FastAPI application factory and typed local configuration boundary.
+- FastAPI application factory, typed local configuration, structured logging, SQLite/Alembic infrastructure, and scheduler lifecycle boundaries.
 
 ## Technical direction
 
@@ -99,7 +99,7 @@ It uses SQLite through the `sqlite+pysqlite` driver. The database path comes fro
 
 The database is initialized during FastAPI application lifespan startup. Initialization enables and verifies WAL mode, enables SQLite foreign keys, and sets a 5000ms busy timeout for project Engine connections. Sessions are created through one Session factory, and the Session context manager closes sessions without automatically committing.
 
-The application disposes its Engine during lifespan shutdown. `Base.metadata` currently contains no business tables, Alembic has not been implemented yet, and the database layer does not store real customer data.
+The application disposes its Engine during lifespan shutdown. `Base.metadata` currently contains no business tables, Alembic is configured with an empty baseline revision, and the database layer does not store real customer data.
 
 ## Current migrations
 
@@ -119,6 +119,15 @@ python -m alembic -c alembic.ini history
 ```
 
 Application startup does not automatically run migrations. Do not run migration tests against real data stores. Future schema must be introduced through an approved change and a new revision.
+
+
+## Current scheduler infrastructure
+
+The scheduler infrastructure boundary is `xianyu_system.core.scheduler`.
+
+It creates an APScheduler 3.x `BackgroundScheduler` with an in-memory `MemoryJobStore` and UTC timezone. The scheduler is created and started during the FastAPI application lifespan after logging and database initialization, then shut down before database disposal and logging cleanup.
+
+The current scheduler registers no jobs, uses no persistent job store, creates no scheduler database tables, and does not implement scheduled publishing or other business workflows.
 
 ## Verification commands
 

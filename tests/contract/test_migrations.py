@@ -315,3 +315,13 @@ def test_migration_directory_contains_no_business_or_sensitive_data() -> None:
 
     for term in forbidden_terms:
         assert term not in combined
+
+
+def test_scheduler_adds_no_migration_revision_or_scheduler_table_names() -> None:
+    revision_files = sorted((ROOT / "migrations" / "versions").glob("*.py"))
+    scheduler_source = (ROOT / "app/xianyu_system/core/scheduler.py").read_text(encoding="utf-8")
+
+    assert [path.name for path in revision_files] == ["0001_core_baseline.py", "__init__.py"]
+    assert "SQLAlchemyJobStore" not in scheduler_source
+    assert "apscheduler_jobs" not in scheduler_source
+    assert "op.create_table" not in scheduler_source

@@ -8,6 +8,12 @@ from fastapi import FastAPI
 from xianyu_system.core.config import ApplicationSettings
 from xianyu_system.core.database import dispose_database, initialize_database
 from xianyu_system.core.logging import configure_logging, shutdown_logging
+from xianyu_system.core.scheduler import (
+    SCHEDULER_TIMEZONE,
+    create_scheduler,
+    shutdown_scheduler,
+    start_scheduler,
+)
 
 LifespanHandler = Callable[[FastAPI], AbstractAsyncContextManager[None]]
 
@@ -20,6 +26,7 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger = configure_logging(level=settings.log_level, logger_name=logger_name)
     app.state.logger = logger
     database = None
+    scheduler = None
     logger.info(
         "Application startup",
         extra={"event": "application.startup", "environment": settings.environment},
@@ -31,8 +38,46 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
             "Database ready",
             extra={"event": "database.ready", "journal_mode": "wal"},
         )
+
         try:
-            yield
+            scheduler = create_scheduler(logger=logger)
+            start_scheduler(scheduler)
+            app.state.scheduler = scheduler
+            logger.info(
+                "Scheduler ready",
+                extra={
+                    "event": "scheduler.ready",
+                    "running": scheduler.running,
+                    "job_count": len(scheduler.get_jobs()),
+                    "timezone": str(SCHEDULER_TIMEZONE),
+                },
+            )
+            try:
+                yield
+            finally:
+                shutdown_error: BaseException | None = None
+                if scheduler is not None:
+                    try:
+                        shutdown_scheduler(scheduler)
+                    except Exception as exc:
+                        shutdown_error = exc
+                app.state.scheduler = None
+                logger.info(
+                    "Scheduler shutdown",
+                    extra={
+                        "event": "scheduler.shutdown",
+                        "running": False,
+                        "job_count": 0,
+                    },
+                )
+                if shutdown_error is not None:
+                    raise shutdown_error
+        except Exception:
+            active_scheduler = getattr(app.state, "scheduler", None)
+            app.state.scheduler = None
+            if scheduler is not None and active_scheduler is scheduler:
+                shutdown_scheduler(scheduler)
+            raise
         finally:
             logger.info("Database shutdown", extra={"event": "database.shutdown"})
             if database is not None:
@@ -41,6 +86,8 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         if database is None:
             app.state.database = None
+        if scheduler is None:
+            app.state.scheduler = None
         logger.info(
             "Application shutdown",
             extra={"event": "application.shutdown", "environment": settings.environment},

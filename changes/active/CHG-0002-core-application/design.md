@@ -159,6 +159,23 @@ Importing any Core module must not:
 - The only database table produced by applying the baseline is Alembic's own version table.
 - T8 does not implement scheduler, health API, web routes, or business schema.
 
+
+## T9 implementation decision
+
+- `core/scheduler.py` is the single scheduler infrastructure boundary.
+- The scheduler uses APScheduler 3.x `BackgroundScheduler`.
+- Scheduler state is process-local and uses APScheduler `MemoryJobStore` only.
+- Scheduler timezone is UTC through `SCHEDULER_TIMEZONE`.
+- Module import does not create, start, or register scheduler jobs.
+- Application lifespan creates and starts one scheduler after logging and database initialization.
+- The scheduler is stored on `app.state.scheduler` only while the application lifespan is active.
+- Custom lifespan startup runs after the scheduler is ready, and custom lifespan shutdown runs before scheduler shutdown.
+- Application shutdown closes the scheduler before database disposal and before logging handler cleanup.
+- Scheduler shutdown failures do not skip database disposal or logging cleanup.
+- T9 registers no jobs, creates no scheduler database table, adds no migration revision, and does not implement scheduled publishing business logic.
+- `CAP-XY-SCHEDULE` remains planned and unbound because the T9 scheduler is infrastructure only.
+- T9 does not implement health API, web routes, templates, static assets, or business schema.
+
 ## Testing rules
 
 * Application factory tests must create more than one application instance.
@@ -172,7 +189,7 @@ Importing any Core module must not:
 
 * No dependency installation before T3.
 * T4 creates only `application.py` and `main.py`.
-* Configuration, logging, database, scheduler, API, and web modules remain deferred to their approved tasks.
+* Configuration, logging, database, scheduler, API, and web modules are introduced only in their approved tasks.
 * No database file or migration creation before the relevant approved task.
 * No `/health` implementation before T10.
 * No HTML template implementation before T11.

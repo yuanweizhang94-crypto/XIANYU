@@ -12,6 +12,8 @@ from pathlib import Path
 
 from alembic import command
 from alembic.script import ScriptDirectory
+from apscheduler.jobstores.memory import MemoryJobStore
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic_settings import BaseSettings
@@ -43,6 +45,12 @@ from xianyu_system.core.logging import (
     configure_logging,
     redact_value,
     shutdown_logging,
+)
+from xianyu_system.core.scheduler import (
+    SCHEDULER_TIMEZONE,
+    create_scheduler,
+    shutdown_scheduler,
+    start_scheduler,
 )
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -93,8 +101,10 @@ LOGGING_MODULES = [
 DATABASE_MODULES = [
     "app/xianyu_system/core/database.py",
 ]
-DEFERRED_CORE_PATHS = [
+SCHEDULER_MODULES = [
     "app/xianyu_system/core/scheduler.py",
+]
+DEFERRED_CORE_PATHS = [
     "app/xianyu_system/api",
     "app/xianyu_system/web",
     "app/xianyu_system/domain",
@@ -200,6 +210,11 @@ def route_paths(app: FastAPI) -> set[str]:
     return {str(route.path) for route in app.routes}
 
 
+def project_events(captured: str) -> list[dict[str, object]]:
+    records = [json.loads(line) for line in captured.splitlines() if line]
+    return [record for record in records if "event" in record]
+
+
 def test_chg_0001_exists_only_in_archive_with_history_preserved() -> None:
     assert not (ROOT / "changes" / "active" / CHG_0001).exists()
     archive = ROOT / "changes" / "archive" / CHG_0001
@@ -226,6 +241,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
             "## T6 implementation decision",
             "## T7 implementation decision",
             "## T8 implementation decision",
+            "## T9 implementation decision",
         ],
         "acceptance.md": ["## Final acceptance criteria"],
     }
@@ -242,7 +258,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t8_is_complete_and_t9_is_next() -> None:
+def test_chg_0002_t9_is_complete_and_t10_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -263,11 +279,11 @@ def test_chg_0002_t8_is_complete_and_t9_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"}
-    assert incomplete == {f"T{index}" for index in range(9, 16)}
+    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9"}
+    assert incomplete == {f"T{index}" for index in range(10, 16)}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T9 Implement scheduler lifecycle skeleton"
+    assert state["tasks"]["next_task"] == "T10 Implement health API contract and route"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -447,9 +463,11 @@ def test_t6_logging_is_configured_only_during_lifespan_and_uses_distinct_loggers
         assert any(isinstance(handler, ManagedStreamHandler) for handler in first.state.logger.handlers)
 
     assert not any(isinstance(handler, ManagedStreamHandler) for handler in first.state.logger.handlers)
-    events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
+    events = [event["event"] for event in project_events(capsys.readouterr().err)]
     assert events.count("application.startup") == 2
     assert events.count("database.ready") == 2
+    assert events.count("scheduler.ready") == 2
+    assert events.count("scheduler.shutdown") == 2
     assert events.count("database.shutdown") == 2
     assert events.count("application.shutdown") == 2
 
@@ -523,8 +541,10 @@ def test_t7_database_lifespan_initializes_and_disposes_per_application(
 
     assert first.state.database is None
     assert second.state.database is None
-    events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
+    events = [event["event"] for event in project_events(capsys.readouterr().err)]
     assert events.count("database.ready") == 2
+    assert events.count("scheduler.ready") == 2
+    assert events.count("scheduler.shutdown") == 2
     assert events.count("database.shutdown") == 2
 
 
@@ -688,6 +708,90 @@ def test_t8_migration_files_have_no_sensitive_or_business_data() -> None:
     ]:
         assert forbidden not in combined
 
+
+
+
+def test_t9_scheduler_module_exists_with_in_memory_lifecycle_boundary() -> None:
+    for relative in SCHEDULER_MODULES:
+        assert (ROOT / relative).is_file()
+
+    logger = logging.getLogger("xianyu.acceptance.scheduler")
+    logger.handlers.clear()
+    logger.propagate = False
+    scheduler = create_scheduler(logger=logger)
+    try:
+        assert isinstance(scheduler, BackgroundScheduler)
+        assert scheduler.running is False
+        assert scheduler.timezone == SCHEDULER_TIMEZONE
+        assert isinstance(scheduler._jobstores["default"], MemoryJobStore)
+        assert scheduler.get_jobs() == []
+
+        start_scheduler(scheduler)
+        assert scheduler.running is True
+        assert scheduler.get_jobs() == []
+    finally:
+        shutdown_scheduler(scheduler)
+
+    assert scheduler.running is False
+
+
+def test_t9_scheduler_source_has_no_jobs_persistence_or_business_logic() -> None:
+    source = (ROOT / "app/xianyu_system/core/scheduler.py").read_text(encoding="utf-8")
+
+    assert "BackgroundScheduler" in source
+    assert "MemoryJobStore" in source
+    assert "UTC" in source
+    assert "SQLAlchemyJobStore" not in source
+    assert "apscheduler_jobs" not in source
+    assert "add_job(" not in source
+    assert "scheduled_job(" not in source
+    for forbidden in ["xianyu", "wecom", "ai_provider", "playwright", "selenium"]:
+        assert forbidden not in source.lower()
+
+
+def test_t9_application_lifespan_starts_and_stops_scheduler_in_order(
+    tmp_path: Path, capsys
+) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "scheduler-app.db")
+    )
+
+    assert not hasattr(app.state, "scheduler")
+    with TestClient(app):
+        assert isinstance(app.state.scheduler, BackgroundScheduler)
+        assert app.state.scheduler.running is True
+        assert app.state.scheduler.get_jobs() == []
+        assert get_current_revision(app.state.database) is None
+
+    assert app.state.scheduler is None
+    assert app.state.database is None
+    events = [event["event"] for event in project_events(capsys.readouterr().err)]
+    assert events == [
+        "application.startup",
+        "database.ready",
+        "scheduler.ready",
+        "scheduler.shutdown",
+        "database.shutdown",
+        "application.shutdown",
+    ]
+
+
+def test_t9_scheduler_does_not_create_database_tables_or_migration_state(tmp_path: Path) -> None:
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "scheduler-db.db")
+    )
+
+    with TestClient(app):
+        assert get_current_revision(app.state.database) is None
+        assert set(inspect(app.state.database.engine).get_table_names()) == set()
+
+
+def test_t9_schedule_capability_remains_planned_and_unbound() -> None:
+    capability = registry_by_id()["CAP-XY-SCHEDULE"]
+
+    assert capability["status"] == "planned"
+    assert capability["active_change"] is None
+    assert capability["last_verified_commit"] is None
 
 
 def test_deferred_core_modules_and_artifacts_are_not_created() -> None:

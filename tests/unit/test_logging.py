@@ -19,6 +19,7 @@ from xianyu_system.core.logging import (
     redact_value,
     shutdown_logging,
 )
+from xianyu_system.core.scheduler import create_scheduler, shutdown_scheduler, start_scheduler
 
 ROOT = Path(__file__).resolve().parents[2]
 SENSITIVE_VALUE = "synthetic" + "-value"
@@ -293,6 +294,35 @@ logging_boundary.shutdown_logging(logger)
     for pattern in ["*.log", "*.db", "*.sqlite", "*.sqlite3"]:
         assert list(tmp_path.glob(pattern)) == []
 
+
+
+def test_scheduler_logs_use_project_json_formatter_and_preserve_root_logger() -> None:
+    root = logging.getLogger()
+    original_level = root.level
+    original_handlers = list(root.handlers)
+    original_propagate = root.propagate
+    stream = io.StringIO()
+    logger = configure_logging(
+        level="INFO",
+        logger_name=logger_name("scheduler"),
+        stream=stream,
+    )
+
+    scheduler = create_scheduler(logger=logger)
+    try:
+        start_scheduler(scheduler)
+    finally:
+        shutdown_scheduler(scheduler)
+        shutdown_logging(logger)
+
+    records = parsed_lines(stream)
+    assert records
+    assert all(set(record) >= {"timestamp", "level", "logger", "message"} for record in records)
+    assert any(record["message"] == "Scheduler started" for record in records)
+    assert any(record["message"] == "Scheduler has been shut down" for record in records)
+    assert root.level == original_level
+    assert list(root.handlers) == original_handlers
+    assert root.propagate == original_propagate
 
 def test_logging_module_uses_only_standard_library_imports() -> None:
     source = (ROOT / "app/xianyu_system/core/logging.py").read_text(encoding="utf-8")

@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 8,
-    "next_task": "T9 Implement scheduler lifecycle skeleton",
+    "completed": 9,
+    "next_task": "T10 Implement health API contract and route",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -45,7 +45,7 @@
       },
       {
         "text": "T9 Implement scheduler lifecycle skeleton",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T10 Implement health API contract and route",
