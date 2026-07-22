@@ -15,6 +15,6 @@ Change ID: CHG-0002-core-application
 - [x] T10 Implement health API contract and route
 - [x] T11 Implement Jinja2 and HTMX web skeleton
 - [x] T12 Add unit, contract and active-change acceptance tests
-- [ ] T13 Update capability registry implementation and verification paths
+- [x] T13 Update capability registry implementation and verification paths
 - [ ] T14 Run complete local verification
 - [ ] T15 Push branch and open Draft PR

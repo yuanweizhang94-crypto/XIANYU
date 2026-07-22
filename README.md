@@ -157,6 +157,17 @@ It creates an APScheduler 3.x `BackgroundScheduler` with an in-memory `MemoryJob
 The current scheduler registers no jobs, uses no persistent job store, creates no scheduler database tables, and does not implement scheduled publishing or other business workflows.
 
 
+
+## Core capability evidence registry
+
+The capability registry is `specs/CAPABILITY_REGISTRY.yaml`.
+
+CHG-0002 records exact repository-relative implementation and verification file paths for `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR`. Paths use POSIX separators and point to files, not directories, generated artifacts, temporary files, database files, logs, caches, or globs.
+
+`app/xianyu_system/application.py` is a shared integration boundary where configuration injection, database lifecycle wiring, and health route registration meet. Integrated runtime, distribution, import-safety, security-boundary, and active-change acceptance tests may provide evidence for more than one Core capability when they exercise real cross-capability behavior.
+
+The three Core capabilities remain `implementing`, remain bound to `CHG-0002-core-application`, and do not record `last_verified_commit` until T14 complete verification. The seven non-Core capabilities remain `planned`, unbound, and without implementation or verification paths. Core Scheduler infrastructure does not make `CAP-XY-SCHEDULE` a business capability implementation.
+
 ## Permanent test layers
 
 CHG-0002 now has permanent test coverage across these layers:

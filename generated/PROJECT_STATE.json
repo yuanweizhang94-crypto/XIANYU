@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 15,
-    "completed": 12,
-    "next_task": "T13 Update capability registry implementation and verification paths",
+    "completed": 13,
+    "next_task": "T14 Run complete local verification",
     "items": [
       {
         "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -61,7 +61,7 @@
       },
       {
         "text": "T13 Update capability registry implementation and verification paths",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T14 Run complete local verification",
@@ -86,8 +86,19 @@
         "status": "implementing",
         "owner_module": "app.core.config",
         "specification": "specs/capabilities/CAP-CORE-CONFIG.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/core/config.py",
+          "app/xianyu_system/application.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_config.py",
+          "tests/unit/test_application_factory.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_distribution.py",
+          "tests/contract/test_security_boundary.py",
+          "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+        ],
         "active_change": "CHG-0002-core-application",
         "last_verified_commit": null
       },
@@ -97,8 +108,24 @@
         "status": "implementing",
         "owner_module": "app.core.database",
         "specification": "specs/capabilities/CAP-CORE-DATABASE.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/core/database.py",
+          "app/xianyu_system/application.py",
+          "alembic.ini",
+          "migrations/env.py",
+          "migrations/script.py.mako",
+          "migrations/versions/0001_core_baseline.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_database.py",
+          "tests/unit/test_application_factory.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_distribution.py",
+          "tests/contract/test_security_boundary.py",
+          "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+        ],
         "active_change": "CHG-0002-core-application",
         "last_verified_commit": null
       },
@@ -185,8 +212,22 @@
         "status": "implementing",
         "owner_module": "app.health",
         "specification": "specs/capabilities/CAP-HEALTH-MONITOR.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/api/health.py",
+          "app/xianyu_system/api/router.py",
+          "app/xianyu_system/application.py",
+          "contracts/openapi.yaml"
+        ],
+        "test_paths": [
+          "tests/unit/test_health.py",
+          "tests/unit/test_application_factory.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_health_openapi.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_distribution.py",
+          "tests/contract/test_security_boundary.py",
+          "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+        ],
         "active_change": "CHG-0002-core-application",
         "last_verified_commit": null
       }

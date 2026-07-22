@@ -10,6 +10,33 @@ Provide a read-only Core health boundary that reports local application status w
 - Registry status during implementation: implementing.
 - Capability verification and `last_verified_commit` remain deferred.
 
+## Registered implementation paths
+
+- `app/xianyu_system/api/health.py`
+- `app/xianyu_system/api/router.py`
+- `app/xianyu_system/application.py`
+- `contracts/openapi.yaml`
+
+## Registered verification paths
+
+- `tests/unit/test_health.py`
+- `tests/unit/test_application_factory.py`
+- `tests/unit/test_import_safety.py`
+- `tests/contract/test_health_openapi.py`
+- `tests/contract/test_core_runtime.py`
+- `tests/contract/test_distribution.py`
+- `tests/contract/test_security_boundary.py`
+- `changes/active/CHG-0002-core-application/tests/test_acceptance.py`
+
+## Requirements
+
+- Expose `/health` as a structured HTTP API response.
+- Include only local Core health information that is safe to disclose.
+- Avoid external network calls, real Xianyu checks, real WeCom checks, and AI provider calls.
+- Keep route code free of direct database connection creation.
+- Do not run migrations or write database data from health checks.
+- Do not start, stop, or mutate scheduler jobs from health checks.
+
 ## T10 implementation decision
 
 - Implementation files:
@@ -40,16 +67,14 @@ Provide a read-only Core health boundary that reports local application status w
 - No database path, exception text, credentials, account identifiers, or customer data are exposed.
 - Application factory registers the API router.
 - Capability remains `implementing`.
-- Registry implementation and test paths remain deferred to T13.
 
-## Requirements
+## T13 registry decision
 
-- Expose `/health` as a structured HTTP API response.
-- Include only local Core health information that is safe to disclose.
-- Avoid external network calls, real Xianyu checks, real WeCom checks, and AI provider calls.
-- Keep route code free of direct database connection creation.
-- Do not run migrations or write database data from health checks.
-- Do not start, stop, or mutate scheduler jobs from health checks.
+- The health capability now records the health models and route, API aggregation boundary, application router registration, and OpenAPI contract.
+- Verification paths cover unit health behavior, runtime OpenAPI, import safety, integrated runtime behavior, installed-package behavior, external-network blocking, sensitive-data boundaries, and active-change acceptance.
+- Database, scheduler, and web implementation files are not claimed as health-owned implementation paths.
+- The capability remains `implementing`.
+- `last_verified_commit` remains unset until T14 complete verification.
 
 ## Acceptance criteria
 

@@ -190,6 +190,62 @@ FORBIDDEN_SETTING_FIELD_PARTS = {
 DEFAULT_FASTAPI_ROUTE_PATHS = {"/", "/static", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/health"}
 HTMX_SHA384 = "H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
 
+EXPECTED_CORE_CAPABILITY_PATHS = {
+    "CAP-CORE-CONFIG": {
+        "implementation_paths": [
+            "app/xianyu_system/core/config.py",
+            "app/xianyu_system/application.py",
+        ],
+        "test_paths": [
+            "tests/unit/test_config.py",
+            "tests/unit/test_application_factory.py",
+            "tests/unit/test_import_safety.py",
+            "tests/contract/test_core_runtime.py",
+            "tests/contract/test_distribution.py",
+            "tests/contract/test_security_boundary.py",
+            "changes/active/CHG-0002-core-application/tests/test_acceptance.py",
+        ],
+    },
+    "CAP-CORE-DATABASE": {
+        "implementation_paths": [
+            "app/xianyu_system/core/database.py",
+            "app/xianyu_system/application.py",
+            "alembic.ini",
+            "migrations/env.py",
+            "migrations/script.py.mako",
+            "migrations/versions/0001_core_baseline.py",
+        ],
+        "test_paths": [
+            "tests/unit/test_database.py",
+            "tests/unit/test_application_factory.py",
+            "tests/unit/test_import_safety.py",
+            "tests/contract/test_migrations.py",
+            "tests/contract/test_core_runtime.py",
+            "tests/contract/test_distribution.py",
+            "tests/contract/test_security_boundary.py",
+            "changes/active/CHG-0002-core-application/tests/test_acceptance.py",
+        ],
+    },
+    "CAP-HEALTH-MONITOR": {
+        "implementation_paths": [
+            "app/xianyu_system/api/health.py",
+            "app/xianyu_system/api/router.py",
+            "app/xianyu_system/application.py",
+            "contracts/openapi.yaml",
+        ],
+        "test_paths": [
+            "tests/unit/test_health.py",
+            "tests/unit/test_application_factory.py",
+            "tests/unit/test_import_safety.py",
+            "tests/contract/test_health_openapi.py",
+            "tests/contract/test_core_runtime.py",
+            "tests/contract/test_distribution.py",
+            "tests/contract/test_security_boundary.py",
+            "changes/active/CHG-0002-core-application/tests/test_acceptance.py",
+        ],
+    },
+}
+
 
 def active_change_dir() -> Path:
     return ROOT / "changes" / "active" / CHG_0002
@@ -293,7 +349,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t12_is_complete_and_t13_is_next() -> None:
+def test_chg_0002_t13_is_complete_and_t14_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -314,11 +370,11 @@ def test_chg_0002_t12_is_complete_and_t13_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"}
-    assert incomplete == {f"T{index}" for index in range(13, 16)}
+    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13"}
+    assert incomplete == {"T14", "T15"}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T13 Update capability registry implementation and verification paths"
+    assert state["tasks"]["next_task"] == "T14 Run complete local verification"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -1473,3 +1529,72 @@ def test_final_acceptance_25_quality_and_ci_boundaries_are_defined() -> None:
     assert "python scripts/security_scan.py" in workflows["security.yml"]
     for relative in ["scripts/validate_change.py", "scripts/detect_duplicate_capabilities.py", "scripts/security_scan.py", "scripts/verify_repository.py"]:
         assert (ROOT / relative).is_file()
+
+
+
+def test_t13_core_capability_registry_paths_are_exact_and_existing() -> None:
+    registry = registry_by_id()
+    for cap_id, expected in EXPECTED_CORE_CAPABILITY_PATHS.items():
+        capability = registry[cap_id]
+        assert capability["implementation_paths"] == expected["implementation_paths"]
+        assert capability["test_paths"] == expected["test_paths"]
+        for relative_path in expected["implementation_paths"] + expected["test_paths"]:
+            assert (ROOT / relative_path).is_file()
+            assert "\\" not in relative_path
+            assert not relative_path.startswith("./")
+            assert ".." not in relative_path.split("/")
+            assert not any(marker in relative_path for marker in ["*", "?", "[", "]"])
+            assert not Path(relative_path).is_absolute()
+
+
+def test_t13_core_capability_registry_status_and_binding_are_preserved() -> None:
+    registry = registry_by_id()
+    for cap_id in CORE_CAPABILITIES:
+        capability = registry[cap_id]
+        assert capability["status"] == "implementing"
+        assert capability["active_change"] == CHG_0002
+        assert capability["last_verified_commit"] is None
+    assert all(capability["status"] != "verified" for capability in registry.values())
+
+
+def test_t13_non_core_capabilities_remain_planned_with_empty_paths() -> None:
+    registry = registry_by_id()
+    for cap_id, capability in registry.items():
+        if cap_id in CORE_CAPABILITIES:
+            continue
+        assert capability["status"] == "planned"
+        assert capability["implementation_paths"] == []
+        assert capability["test_paths"] == []
+        assert capability["active_change"] is None
+        assert capability["last_verified_commit"] is None
+    assert registry["CAP-XY-SCHEDULE"]["status"] == "planned"
+
+
+def test_t13_registry_specs_and_project_state_are_consistent() -> None:
+    registry = registry_by_id()
+    state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    state_by_id = {item["id"]: item for item in state["capabilities"]["items"]}
+    assert state["tasks"]["completed"] == 13
+    assert state["tasks"]["next_task"] == "T14 Run complete local verification"
+    assert state["capabilities"]["by_status"] == {"implementing": 3, "planned": 7}
+    for cap_id, expected in EXPECTED_CORE_CAPABILITY_PATHS.items():
+        spec = (ROOT / registry[cap_id]["specification"]).read_text(encoding="utf-8")
+        assert state_by_id[cap_id]["implementation_paths"] == expected["implementation_paths"]
+        assert state_by_id[cap_id]["test_paths"] == expected["test_paths"]
+        for relative_path in expected["implementation_paths"] + expected["test_paths"]:
+            assert f"`{relative_path}`" in spec
+        assert "deferred to T13" not in spec
+        assert "## T13 registry decision" in spec
+
+
+def test_t13_registry_keeps_capability_identity_fields_stable() -> None:
+    registry = registry_by_id()
+    assert registry["CAP-CORE-CONFIG"]["name"] == "Core configuration"
+    assert registry["CAP-CORE-CONFIG"]["owner_module"] == "app.core.config"
+    assert registry["CAP-CORE-CONFIG"]["specification"] == "specs/capabilities/CAP-CORE-CONFIG.md"
+    assert registry["CAP-CORE-DATABASE"]["name"] == "Core database"
+    assert registry["CAP-CORE-DATABASE"]["owner_module"] == "app.core.database"
+    assert registry["CAP-CORE-DATABASE"]["specification"] == "specs/capabilities/CAP-CORE-DATABASE.md"
+    assert registry["CAP-HEALTH-MONITOR"]["name"] == "Health monitor"
+    assert registry["CAP-HEALTH-MONITOR"]["owner_module"] == "app.health"
+    assert registry["CAP-HEALTH-MONITOR"]["specification"] == "specs/capabilities/CAP-HEALTH-MONITOR.md"

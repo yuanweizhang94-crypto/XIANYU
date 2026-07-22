@@ -19,6 +19,7 @@ ACCOUNT_SPECIFIC_FILE_RE = re.compile(
     re.IGNORECASE,
 )
 SOURCE_DIRS = ["app", "worker", "adapters"]
+APPROVED_SHARED_IMPLEMENTATION_PATHS = {"app/xianyu_system/application.py"}
 
 
 class DuplicateCapabilityError(ValueError):
@@ -63,6 +64,8 @@ def detect_duplicate_capabilities(root: Path) -> list[str]:
             implementation_owner[impl_path] = cap_id
 
     for impl_path, owners in conflicts.items():
+        if impl_path in APPROVED_SHARED_IMPLEMENTATION_PATHS:
+            continue
         unique_owners = sorted(set(owners))
         errors.append(f"implementation path conflict: {impl_path} -> {', '.join(unique_owners)}")
 

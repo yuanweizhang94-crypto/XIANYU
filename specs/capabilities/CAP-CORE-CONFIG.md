@@ -10,15 +10,20 @@ Provide the single typed configuration boundary for the modular-monolith Core wi
 - Registry status during implementation: implementing.
 - Final status after acceptance: verified.
 
-## Planned implementation paths
+## Registered implementation paths
 
 - `app/xianyu_system/core/config.py`
-- `app/xianyu_system/application.py` for dependency injection into the application factory.
+- `app/xianyu_system/application.py`
 
-## Planned test paths
+## Registered verification paths
 
-- `tests/unit/` for configuration parsing and override behavior.
-- `changes/active/CHG-0002-core-application/tests/` for CHG-0002 acceptance coverage.
+- `tests/unit/test_config.py`
+- `tests/unit/test_application_factory.py`
+- `tests/unit/test_import_safety.py`
+- `tests/contract/test_core_runtime.py`
+- `tests/contract/test_distribution.py`
+- `tests/contract/test_security_boundary.py`
+- `changes/active/CHG-0002-core-application/tests/test_acceptance.py`
 
 ## Requirements
 
@@ -40,7 +45,15 @@ Provide the single typed configuration boundary for the modular-monolith Core wi
 - No secret-bearing platform fields exist in CHG-0002 Core settings.
 - Application factory stores resolved settings in `app.state.settings`.
 - Capability remains `implementing` until full CHG-0002 verification.
-- Registry implementation and test paths remain deferred to T13.
+
+## T13 registry decision
+
+- Registry implementation and verification paths now point to exact repository files.
+- Paths are repository-relative, deterministic, and verified to exist.
+- The capability remains `implementing`.
+- `active_change` remains `CHG-0002-core-application`.
+- `last_verified_commit` remains unset until T14 complete verification.
+- T13 does not change runtime behavior or configuration fields.
 
 ## Acceptance criteria
 

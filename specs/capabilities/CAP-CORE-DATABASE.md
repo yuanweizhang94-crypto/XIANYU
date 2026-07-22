@@ -10,17 +10,25 @@ Provide the single SQLite WAL, SQLAlchemy, and Alembic infrastructure boundary f
 - Registry status during implementation: implementing.
 - Final status after acceptance: verified.
 
-## Planned implementation paths
+## Registered implementation paths
 
 - `app/xianyu_system/core/database.py`
-- Alembic configuration and baseline migration files when T8 begins.
-- `app/xianyu_system/application.py` for lifecycle wiring.
+- `app/xianyu_system/application.py`
+- `alembic.ini`
+- `migrations/env.py`
+- `migrations/script.py.mako`
+- `migrations/versions/0001_core_baseline.py`
 
-## Planned test paths
+## Registered verification paths
 
-- `tests/unit/` for database engine/session and WAL behavior.
-- `tests/contract/` for migration and schema-contract behavior when introduced.
-- `changes/active/CHG-0002-core-application/tests/` for CHG-0002 acceptance coverage.
+- `tests/unit/test_database.py`
+- `tests/unit/test_application_factory.py`
+- `tests/unit/test_import_safety.py`
+- `tests/contract/test_migrations.py`
+- `tests/contract/test_core_runtime.py`
+- `tests/contract/test_distribution.py`
+- `tests/contract/test_security_boundary.py`
+- `changes/active/CHG-0002-core-application/tests/test_acceptance.py`
 
 ## Requirements
 
@@ -48,7 +56,6 @@ Provide the single SQLite WAL, SQLAlchemy, and Alembic infrastructure boundary f
 - No business schema is created.
 - Engine is disposed during lifespan shutdown.
 - Capability remains `implementing`.
-- Registry implementation and test path fields remain deferred to T13.
 - Alembic remains deferred to T8.
 
 ## T8 implementation decision
@@ -66,7 +73,14 @@ Provide the single SQLite WAL, SQLAlchemy, and Alembic infrastructure boundary f
 - Application startup does not automatically migrate.
 - Current baseline creates no business schema.
 - Capability remains `implementing`.
-- Registry implementation and test path fields remain deferred to T13.
+
+## T13 registry decision
+
+- The database capability now records the unified SQLAlchemy module, application lifecycle wiring, Alembic configuration, migration environment, template, and deterministic empty baseline revision.
+- Verification paths cover database unit behavior, migration contracts, import safety, integrated runtime behavior, installed-package behavior, security boundaries, and active-change acceptance.
+- No database file, business table, ORM business model, or customer data path is registered.
+- The capability remains `implementing`.
+- `last_verified_commit` remains unset until T14 complete verification.
 
 ## Acceptance criteria
 

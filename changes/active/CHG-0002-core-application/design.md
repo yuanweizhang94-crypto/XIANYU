@@ -225,6 +225,19 @@ Importing any Core module must not:
 - T12 does not mark Core capabilities as verified; capability registry implementation paths and verification metadata remain deferred to T13.
 - T12 does not implement Xianyu, WeCom, AI Provider, Playwright, scheduled publishing, business routes, business pages, or database business schema.
 
+
+## T13 implementation decision
+
+- T13 registers exact implementation and verification file paths for `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR`.
+- Registry paths use repository-relative POSIX syntax and point only to existing files.
+- Primary implementation ownership remains separated across configuration, database, and health boundaries.
+- Shared application-factory and integrated contract paths may appear under more than one Core capability where they provide real cross-capability evidence.
+- Core scheduler infrastructure is not registered as `CAP-XY-SCHEDULE` business implementation.
+- All three Core capabilities remain `implementing` and bound to `CHG-0002-core-application`.
+- `last_verified_commit` remains unset until T14 complete verification.
+- The seven non-Core capabilities remain planned, unbound, and without implementation or test paths.
+- T13 changes registry evidence and documentation only; it does not change application runtime behavior.
+
 ## Testing rules
 
 * Application factory tests must create more than one application instance.

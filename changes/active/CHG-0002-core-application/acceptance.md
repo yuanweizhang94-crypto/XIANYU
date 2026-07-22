@@ -35,12 +35,12 @@ Change ID: CHG-0002-core-application
 
 The change is IMPLEMENTING.
 
-T1 through T12 are complete after permanent unit, contract, distribution, security, and active-change acceptance tests pass.
+T1 through T13 are complete after the three Core capability registry entries record exact implementation and verification paths and the registry contract tests pass.
 
-T13 Update capability registry implementation and verification paths is the next task.
+T14 Run complete local verification is the next task.
 
-The permanent test suite now provides explicit executable evidence for all 25 final acceptance criteria.
+CAP-CORE-CONFIG, CAP-CORE-DATABASE, and CAP-HEALTH-MONITOR remain implementing and bound to CHG-0002-core-application.
 
-Capability registry implementation paths, test paths, verified status, and last verified commit remain deferred.
+Their last_verified_commit values remain unset until complete verification.
 
-The three Core capabilities remain implementing.
+The seven non-Core capabilities remain planned and unbound.
