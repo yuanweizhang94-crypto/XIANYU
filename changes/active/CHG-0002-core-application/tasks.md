@@ -8,7 +8,7 @@ Change ID: CHG-0002-core-application
 - [x] T3 Add approved core application dependencies
 - [x] T4 Implement application factory and lifespan
 - [x] T5 Implement typed configuration
-- [ ] T6 Implement structured redacted logging
+- [x] T6 Implement structured redacted logging
 - [ ] T7 Implement SQLite WAL and SQLAlchemy infrastructure
 - [ ] T8 Establish Alembic migration baseline
 - [ ] T9 Implement scheduler lifecycle skeleton

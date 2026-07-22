@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import json
+import logging
 import os
 import re
 import subprocess
@@ -9,12 +11,21 @@ import tomllib
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from pydantic_settings import BaseSettings
 
 from scripts.generate_state import project_state_json
 from scripts.repo_utils import parse_tasks, read_yaml
 from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
+from xianyu_system.core.logging import (
+    REDACTED_VALUE,
+    ManagedStreamHandler,
+    StructuredJsonFormatter,
+    configure_logging,
+    redact_value,
+    shutdown_logging,
+)
 
 ROOT = Path(__file__).resolve().parents[4]
 CHG_0001 = "CHG-0001-project-baseline"
@@ -58,8 +69,10 @@ CONFIGURATION_MODULES = [
     "app/xianyu_system/core/__init__.py",
     "app/xianyu_system/core/config.py",
 ]
-DEFERRED_CORE_PATHS = [
+LOGGING_MODULES = [
     "app/xianyu_system/core/logging.py",
+]
+DEFERRED_CORE_PATHS = [
     "app/xianyu_system/core/database.py",
     "app/xianyu_system/core/scheduler.py",
     "app/xianyu_system/api",
@@ -77,6 +90,7 @@ FORBIDDEN_ARTIFACT_PATHS = [
     "static",
     "app/xianyu_system/templates",
     "app/xianyu_system/static",
+    "logs",
 ]
 SUPPORTED_ENV_EXAMPLE_KEYS = {
     "XIANYU_ENVIRONMENT",
@@ -183,6 +197,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
             "## Responsibility rules",
             "## T4 implementation decision",
             "## T5 implementation decision",
+            "## T6 implementation decision",
         ],
         "acceptance.md": ["## Final acceptance criteria"],
     }
@@ -199,7 +214,7 @@ def test_chg_0002_core_documents_are_readable_and_complete() -> None:
     assert len(criteria) == 25
 
 
-def test_chg_0002_t5_is_complete_and_t6_is_next() -> None:
+def test_chg_0002_t6_is_complete_and_t7_is_next() -> None:
     tasks = chg_0002_tasks()
     assert [task.text for task in tasks] == [
         "T1 Archive CHG-0001 and establish CHG-0002 active change",
@@ -220,11 +235,11 @@ def test_chg_0002_t5_is_complete_and_t6_is_next() -> None:
     ]
     completed = {task.text.split(" ", 1)[0] for task in tasks if task.completed}
     incomplete = {task.text.split(" ", 1)[0] for task in tasks if not task.completed}
-    assert completed == {"T1", "T2", "T3", "T4", "T5"}
-    assert incomplete == {f"T{index}" for index in range(6, 16)}
+    assert completed == {"T1", "T2", "T3", "T4", "T5", "T6"}
+    assert incomplete == {f"T{index}" for index in range(7, 16)}
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["next_task"] == "T6 Implement structured redacted logging"
+    assert state["tasks"]["next_task"] == "T7 Implement SQLite WAL and SQLAlchemy infrastructure"
 
 
 def test_approved_core_dependencies_are_declared_with_dev_httpx_only() -> None:
@@ -322,7 +337,7 @@ def test_env_example_contains_only_current_safe_configuration() -> None:
         assert forbidden not in text
 
 
-def test_t5_application_has_no_business_or_health_routes() -> None:
+def test_t6_application_has_no_business_or_health_routes() -> None:
     app = create_application()
 
     assert route_paths(app) <= DEFAULT_FASTAPI_ROUTE_PATHS
@@ -331,11 +346,73 @@ def test_t5_application_has_no_business_or_health_routes() -> None:
     assert "/" not in route_paths(app)
 
 
-def test_t5_application_sources_avoid_legacy_events_and_server_startup() -> None:
+def test_t6_application_sources_avoid_legacy_events_and_server_startup() -> None:
     for relative in APPLICATION_MODULES:
         source = (ROOT / relative).read_text(encoding="utf-8")
         assert ".on_event(" not in source
         assert "uvicorn.run(" not in source
+
+
+def test_t6_logging_module_exists_with_standard_library_boundaries() -> None:
+    for relative in LOGGING_MODULES:
+        assert (ROOT / relative).is_file()
+    assert issubclass(StructuredJsonFormatter, logging.Formatter)
+    assert callable(redact_value)
+    assert callable(configure_logging)
+    assert callable(shutdown_logging)
+
+    source = (ROOT / "app/xianyu_system/core/logging.py").read_text(encoding="utf-8")
+    assert "import logging" in source
+    assert "basicConfig(" not in source
+    assert "logging.shutdown(" not in source
+    assert "FileHandler" not in source
+    for forbidden in ["structlog", "python-json-logger", "loguru", "sentry", "opentelemetry"]:
+        assert forbidden not in source
+
+
+def test_t6_logging_redacts_sensitive_fields_and_messages() -> None:
+    synthetic = "synthetic" + "-value"
+    assert redact_value({"token": synthetic, "safe": "ok"}) == {
+        "token": REDACTED_VALUE,
+        "safe": "ok",
+    }
+
+    stream = io.StringIO()
+    logger = configure_logging(level="INFO", logger_name="xianyu.acceptance.logging", stream=stream)
+    logger.info(
+        "Authorization: Bearer " + synthetic,
+        extra={"event": "acceptance", "Cookie": synthetic, "password_policy_enabled": True},
+    )
+    shutdown_logging(logger)
+
+    line = stream.getvalue().strip()
+    data = json.loads(line)
+    assert data["event"] == "acceptance"
+    assert data["Cookie"] == REDACTED_VALUE
+    assert data["password_policy_enabled"] is True
+    assert synthetic not in line
+    assert REDACTED_VALUE in line
+
+
+def test_t6_logging_is_configured_only_during_lifespan_and_uses_distinct_loggers(
+    capsys,
+) -> None:
+    first = create_application(settings=ApplicationSettings(environment="test", log_level="INFO"))
+    second = create_application(settings=ApplicationSettings(environment="test", log_level="INFO"))
+
+    assert not hasattr(first.state, "logger")
+    assert not hasattr(second.state, "logger")
+
+    with TestClient(first), TestClient(second):
+        assert hasattr(first.state, "logger")
+        assert hasattr(second.state, "logger")
+        assert first.state.logger.name != second.state.logger.name
+        assert any(isinstance(handler, ManagedStreamHandler) for handler in first.state.logger.handlers)
+
+    assert not any(isinstance(handler, ManagedStreamHandler) for handler in first.state.logger.handlers)
+    events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
+    assert events.count("application.startup") == 2
+    assert events.count("application.shutdown") == 2
 
 
 def test_deferred_core_modules_and_artifacts_are_not_created() -> None:

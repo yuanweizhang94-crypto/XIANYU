@@ -81,6 +81,16 @@ Configuration source priority is explicit constructor override, then `XIANYU_` e
 
 The application does not automatically load `.env` files. Constructing settings does not create a database file or directory. Current settings do not include real platform credential fields.
 
+## Current logging
+
+The structured logging boundary is `xianyu_system.core.logging`.
+
+Logs are emitted as single-line JSON records. By default, project-managed loggers write to `stderr`, and the level comes from `XIANYU_LOG_LEVEL`.
+
+Logging is configured during the FastAPI application lifespan startup, not during module import or application construction. Project loggers do not propagate to the root logger. Sensitive fields such as Secret, Token, Cookie, Password, Authorization, API key, and equivalent variants are redacted.
+
+The current logging boundary does not create log files or a `logs/` directory and does not send logs to any external logging service.
+
 ## Verification commands
 
 ```bash

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -13,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
+from xianyu_system.core.logging import ManagedStreamHandler
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FASTAPI_ROUTE_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
@@ -254,4 +256,108 @@ def test_imports_do_not_create_runtime_files(tmp_path: Path) -> None:
 
     assert result.stderr == ""
     for pattern in FORBIDDEN_IMPORT_ARTIFACTS:
+        assert list(tmp_path.glob(pattern)) == []
+
+
+def test_create_application_does_not_configure_logging_immediately() -> None:
+    app = create_application()
+
+    assert not hasattr(app.state, "logger")
+
+
+def test_logging_lifespan_adds_logger_and_cleans_managed_handler() -> None:
+    settings = ApplicationSettings(log_level="ERROR")
+    app = create_application(settings=settings)
+
+    with TestClient(app):
+        assert hasattr(app.state, "logger")
+        logger = app.state.logger
+        assert logger.level == 40
+        assert any(isinstance(handler, ManagedStreamHandler) for handler in logger.handlers)
+
+    assert not any(isinstance(handler, ManagedStreamHandler) for handler in logger.handlers)
+
+
+def test_application_instances_get_distinct_logger_names() -> None:
+    first = create_application()
+    second = create_application()
+
+    with TestClient(first), TestClient(second):
+        assert first.state.logger.name != second.state.logger.name
+
+
+def test_lifespan_emits_structured_startup_and_shutdown_events(capsys: pytest.CaptureFixture[str]) -> None:
+    settings = ApplicationSettings(environment="test")
+    app = create_application(settings=settings)
+
+    with TestClient(app):
+        pass
+
+    events = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
+    assert [event["event"] for event in events] == [
+        "application.startup",
+        "application.shutdown",
+    ]
+    assert [event["message"] for event in events] == [
+        "Application startup",
+        "Application shutdown",
+    ]
+    assert all(event["environment"] == "test" for event in events)
+
+
+def test_project_and_custom_lifespan_order_is_composed(capsys: pytest.CaptureFixture[str]) -> None:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        app.state.logger.info("custom startup", extra={"event": "custom.startup"})
+        yield
+        app.state.logger.info("custom shutdown", extra={"event": "custom.shutdown"})
+
+    app = create_application(lifespan=lifespan)
+
+    with TestClient(app):
+        pass
+
+    events = [json.loads(line)["event"] for line in capsys.readouterr().err.splitlines()]
+    assert events == [
+        "application.startup",
+        "custom.startup",
+        "custom.shutdown",
+        "application.shutdown",
+    ]
+
+
+def test_custom_lifespan_exception_still_cleans_project_handler() -> None:
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        yield
+        raise RuntimeError("custom shutdown failure")
+
+    app = create_application(lifespan=lifespan)
+
+    with pytest.raises(RuntimeError), TestClient(app):
+        pass
+
+    assert not any(isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers)
+
+
+def test_importing_main_does_not_emit_logs_or_create_files(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    pythonpath_parts = [str(ROOT / "app")]
+    if env.get("PYTHONPATH"):
+        pythonpath_parts.append(env["PYTHONPATH"])
+    env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import xianyu_system.main"],
+        cwd=tmp_path,
+        env=env,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.stdout == ""
+    assert result.stderr == ""
+    assert not (tmp_path / "logs").exists()
+    for pattern in ["*.log", "*.db", "*.sqlite", "*.sqlite3"]:
         assert list(tmp_path.glob(pattern)) == []

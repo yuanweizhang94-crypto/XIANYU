@@ -35,12 +35,10 @@ Change ID: CHG-0002-core-application
 
 The change is IMPLEMENTING.
 
-T1 through T5 are complete after typed configuration tests pass.
+T1 through T6 are complete after structured logging and redaction tests pass.
 
-T6 Implement structured redacted logging is the next task.
+T7 Implement SQLite WAL and SQLAlchemy infrastructure is the next task.
 
 Database connections, migrations, scheduler, health API, and web implementation remain incomplete.
 
-CAP-CORE-CONFIG remains implementing until complete CHG-0002 verification.
-
-The other two Core capabilities also remain implementing.
+The three Core capabilities remain implementing.

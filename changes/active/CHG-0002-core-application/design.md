@@ -96,7 +96,8 @@ Importing any Core module must not:
 ## T4 implementation decision
 
 - `application.py` owns the reusable FastAPI application factory.
-- `application_lifespan` is the default no-op async lifespan context manager.
+- T4 initially introduced the no-op lifespan.
+- T6 extends the project lifespan with logging startup and shutdown while preserving custom lifespan composition.
 - `create_application()` accepts an optional lifespan handler for isolated tests and later approved infrastructure integration.
 - `main.py` exposes one ASGI entry application created by the factory.
 - Application creation does not start a server, scheduler, database, migration, browser, or external client.
@@ -113,6 +114,19 @@ Importing any Core module must not:
 - Configuration instantiation does not create directories, database files, logs, or network clients.
 - The application factory stores the resolved settings instance in `app.state.settings`.
 - T5 does not implement logging, database connections, migrations, scheduler behavior, API routes, or web routes.
+
+## T6 implementation decision
+
+- `core/logging.py` owns structured JSON formatting, sensitive-value redaction, logger configuration, and managed-handler shutdown.
+- Logging uses the Python standard library only.
+- Each application receives a distinct non-propagating named logger during FastAPI lifespan startup.
+- Logging is not configured during module import or application construction.
+- The application logger is stored in `app.state.logger`.
+- Startup and shutdown are emitted as structured lifecycle events.
+- Project-managed handlers are removed and closed at lifespan shutdown.
+- Root logging configuration and caller-owned handlers are not modified.
+- No log file or log directory is created.
+- T6 does not implement database, migration, scheduler, API, or web behavior.
 
 ## Testing rules
 
