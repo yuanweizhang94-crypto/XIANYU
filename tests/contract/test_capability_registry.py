@@ -142,15 +142,47 @@ def ensure_verified_candidate_commit_is_available() -> None:
     exists = subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT)
     if exists.returncode != 0:
         subprocess.run(
-            ["git", "fetch", "--no-tags", "--depth=50", "origin", "feat/CHG-0002-core-application"],
+            ["git", "fetch", "--no-tags", "--depth=1000", "origin", "feat/CHG-0002-core-application"],
             cwd=ROOT,
             check=True,
             text=True,
             capture_output=True,
         )
     subprocess.run(["git", "cat-file", "-e", candidate_ref], cwd=ROOT, check=True)
-    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT, check=True)
 
+    direct_ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, "HEAD"], cwd=ROOT)
+    if direct_ancestor.returncode == 0:
+        return
+
+    subprocess.run(
+        ["git", "fetch", "--no-tags", "--depth=1000", "origin", "feat/CHG-0002-core-application"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    fetched_head = subprocess.run(
+        ["git", "rev-parse", "FETCH_HEAD"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    subprocess.run(["git", "merge-base", "--is-ancestor", VERIFIED_CANDIDATE_SHA, fetched_head], cwd=ROOT, check=True)
+    head_parents = subprocess.run(
+        ["git", "show", "-s", "--format=%P", "HEAD"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.split()
+    assert fetched_head == subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip() or fetched_head in head_parents
 
 def all_registered_paths(capability: dict[str, object]) -> list[str]:
     return [str(path) for path in capability["implementation_paths"] + capability["test_paths"]]
