@@ -986,6 +986,10 @@ T7 added permanent account-boundary tests only.
 - T7 did not modify account runtime files, Migration files, Core files, API, web, scheduler, browser, provider, Secure Storage, dependencies, CI, Registry, capability specs, or archived changes.
 - CAP-XY-ACCOUNT remains planned and unbound until T8.
 
+## T8 evidence candidate
+
+CAP-XY-ACCOUNT evidence paths are registered exactly for the approved local account boundary. The capability is temporarily `implementing`, `active_change` is bound to `CHG-0003-xianyu-account-boundary`, and `last_verified_commit` remains null. Complete verification has not yet been recorded, T8 is not complete, T9 has not started, and PR #3 remains Draft, open, and unmerged.
+
 ## Current implementation
 
 `xianyu_system.worker.account` is implemented.

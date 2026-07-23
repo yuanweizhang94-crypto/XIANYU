@@ -25,6 +25,24 @@ CHG_0003 = ACTIVE / "CHG-0003-xianyu-account-boundary"
 CORE_IDS = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
 ACCOUNT_REVISION = "0002_xianyu_account_boundary"
 ACCOUNT_TABLE = "xianyu_account_profiles"
+ACCOUNT_IMPLEMENTATION_PATHS = [
+    "app/xianyu_system/worker/account/__init__.py",
+    "app/xianyu_system/worker/account/domain.py",
+    "app/xianyu_system/worker/account/service.py",
+    "app/xianyu_system/worker/account/persistence.py",
+    "migrations/versions/0002_xianyu_account_boundary.py",
+]
+ACCOUNT_TEST_PATHS = [
+    "tests/unit/test_account_domain.py",
+    "tests/unit/test_account_service.py",
+    "tests/unit/test_import_safety.py",
+    "tests/contract/test_account_persistence.py",
+    "tests/contract/test_account_security.py",
+    "tests/contract/test_migrations.py",
+    "tests/contract/test_core_runtime.py",
+    "tests/contract/test_capability_registry.py",
+    "changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py",
+]
 
 
 def status_of(path: Path) -> str:
@@ -102,11 +120,11 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
 
     registry = registry_by_id()
     account = registry["CAP-XY-ACCOUNT"]
-    assert account["status"] == "planned"
+    assert account["status"] == "implementing"
     assert account["owner_module"] == "worker.account"
-    assert account["active_change"] is None
-    assert account["implementation_paths"] == []
-    assert account["test_paths"] == []
+    assert account["active_change"] == "CHG-0003-xianyu-account-boundary"
+    assert account["implementation_paths"] == ACCOUNT_IMPLEMENTATION_PATHS
+    assert account["test_paths"] == ACCOUNT_TEST_PATHS
     assert account["last_verified_commit"] is None
 
     worker_root = ROOT / "app" / "xianyu_system" / "worker"

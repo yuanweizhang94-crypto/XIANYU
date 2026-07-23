@@ -177,6 +177,28 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 90. Tasks remain 7/9 and next_task remains T8.
 
+## T8 evidence candidate criteria
+
+1. CAP-XY-ACCOUNT registers the exact five implementation paths.
+
+2. CAP-XY-ACCOUNT registers the exact nine test paths.
+
+3. All registered evidence paths are safe repository-relative files and exist.
+
+4. CAP-XY-ACCOUNT status is `implementing`.
+
+5. CAP-XY-ACCOUNT active_change is `CHG-0003-xianyu-account-boundary`.
+
+6. CAP-XY-ACCOUNT last_verified_commit is null.
+
+7. Capability status counts are planned 6, implementing 1, verified 3.
+
+8. Tasks remain 7/9 and next_task remains T8.
+
+9. Full collection remains 280.
+
+10. PR #3 remains Draft, open, and unmerged.
+
 ## Current authorization
 
 T1 through T7 are complete.

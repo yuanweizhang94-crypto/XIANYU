@@ -52,7 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 7,
+      "implementing": 1,
+      "planned": 6,
       "verified": 3
     },
     "items": [
@@ -108,12 +109,28 @@
       {
         "id": "CAP-XY-ACCOUNT",
         "name": "Xianyu account boundary",
-        "status": "planned",
+        "status": "implementing",
         "owner_module": "worker.account",
         "specification": "specs/capabilities/CAP-XY-ACCOUNT.md",
-        "implementation_paths": [],
-        "test_paths": [],
-        "active_change": null,
+        "implementation_paths": [
+          "app/xianyu_system/worker/account/__init__.py",
+          "app/xianyu_system/worker/account/domain.py",
+          "app/xianyu_system/worker/account/service.py",
+          "app/xianyu_system/worker/account/persistence.py",
+          "migrations/versions/0002_xianyu_account_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_account_domain.py",
+          "tests/unit/test_account_service.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_account_persistence.py",
+          "tests/contract/test_account_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py"
+        ],
+        "active_change": "CHG-0003-xianyu-account-boundary",
         "last_verified_commit": null
       },
       {

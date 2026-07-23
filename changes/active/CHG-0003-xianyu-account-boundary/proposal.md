@@ -89,6 +89,10 @@ No T8 capability evidence work, capability binding, Ready-for-review, auto-merge
 - T9 has not started.
 - PR #3 remains Draft, open, and unmerged.
 
+## T8 evidence candidate
+
+Capability evidence paths are registered for CAP-XY-ACCOUNT. The capability is temporarily `implementing`, `active_change` is bound to `CHG-0003-xianyu-account-boundary`, and `last_verified_commit` remains null until complete verification is recorded. T8 is not complete in this candidate state. T9 has not started. PR #3 remains Draft, open, and unmerged.
+
 ## T7 permanent test outcome
 
 Permanent account-boundary coverage is complete.
