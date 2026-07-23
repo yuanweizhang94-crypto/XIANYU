@@ -17,6 +17,7 @@ PROJECT_STATE_PATH = ROOT / "generated" / "PROJECT_STATE.json"
 CHG_0002 = "CHG-0002-core-application"
 CHG_0003 = "CHG-0003-xianyu-account-boundary"
 VERIFIED_CANDIDATE_SHA = "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
+ACCOUNT_VERIFIED_CANDIDATE_SHA = "2aab941cb7f713d7e46675789c47971a2c79c564"
 ACCOUNT_CAPABILITY = "CAP-XY-ACCOUNT"
 CORE_CAPABILITIES = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
 EVIDENCED_CAPABILITIES = CORE_CAPABILITIES | {ACCOUNT_CAPABILITY}
@@ -282,7 +283,8 @@ def test_capability_spec_documents_match_registry_paths_and_status() -> None:
         assert "Last verified commit: unset until T8 complete verification" in account_spec
     else:
         assert account["status"] == "verified"
-        assert account["last_verified_commit"] in account_spec
+        assert account["last_verified_commit"] == ACCOUNT_VERIFIED_CANDIDATE_SHA
+        assert ACCOUNT_VERIFIED_CANDIDATE_SHA in account_spec
         assert "Registry status: verified" in account_spec
 
 
@@ -302,8 +304,8 @@ def test_capability_statuses_match_verification_phase() -> None:
     else:
         assert account["status"] == "verified"
         assert account["active_change"] is None
-        assert isinstance(account["last_verified_commit"], str)
-        assert_commit_is_valid_offline(account["last_verified_commit"])
+        assert account["last_verified_commit"] == ACCOUNT_VERIFIED_CANDIDATE_SHA
+        assert_commit_is_valid_offline(ACCOUNT_VERIFIED_CANDIDATE_SHA)
 
 
 def test_other_capabilities_remain_planned_empty_and_unbound() -> None:
@@ -344,6 +346,7 @@ def test_project_state_matches_registry_paths_and_status_counts() -> None:
         assert state_counts == {"planned": 6, "implementing": 1, "verified": 3}
     else:
         assert state_counts == {"planned": 6, "verified": 4}
+        assert project_state_capabilities_by_id()[ACCOUNT_CAPABILITY]["last_verified_commit"] == ACCOUNT_VERIFIED_CANDIDATE_SHA
 
 
 def test_path_lists_have_no_duplicates_and_shared_paths_are_approved() -> None:

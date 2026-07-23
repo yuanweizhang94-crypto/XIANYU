@@ -7,11 +7,11 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 CHG-0003 is approved for controlled, task-by-task execution.
 
-T1 through T7 are complete.
+T1 through T8 are complete.
 
 The terminology, security, credential-handling, persistence, migration, runtime ownership, and module boundaries are finalized.
 
-T8 is the next executable task.
+T9 is the next executable task.
 
 The minimal local account boundary has been implemented. No API route, browser integration, Provider integration, background process, or external account behavior has been implemented.
 
@@ -990,6 +990,10 @@ T7 added permanent account-boundary tests only.
 
 CAP-XY-ACCOUNT evidence paths are registered exactly for the approved local account boundary. The capability is temporarily `implementing`, `active_change` is bound to `CHG-0003-xianyu-account-boundary`, and `last_verified_commit` remains null. Complete verification has not yet been recorded, T8 is not complete, T9 has not started, and PR #3 remains Draft, open, and unmerged.
 
+## T8 verification outcome
+
+The exact CAP-XY-ACCOUNT evidence paths were verified by Candidate SHA `2aab941cb7f713d7e46675789c47971a2c79c564`. Complete local verification passed, the capability moved from `implementing` to `verified`, `active_change` was cleared, and `last_verified_commit` records the Candidate SHA. No runtime, Migration, dependency, CI, API, browser, provider, Secure Storage, network, real-account, or Secret Material behavior was expanded. T9 has not started.
+
 ## Current implementation
 
 `xianyu_system.worker.account` is implemented.
@@ -1011,11 +1015,11 @@ xianyu_system.worker.account is implemented.
 
 ## Execution boundary
 
-T1 through T7 are complete.
+T1 through T8 are complete.
 
 The T6 implementation, T6 correction, and T7 permanent test coverage are complete.
 
-T8 is the next executable task.
+T9 is the next executable task.
 
 T8 must be performed in a separate execution.
 

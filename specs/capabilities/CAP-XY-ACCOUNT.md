@@ -6,9 +6,10 @@ Define the local Xianyu account boundary, Profile isolation model, and non-secre
 
 ## Current implementation change
 
-- Active change: CHG-0003-xianyu-account-boundary
-- Registry status: implementing
-- Last verified commit: unset until T8 complete verification
+- Active change: none; verification recorded by CHG-0003 T8.
+- Registry status: verified.
+- Last verified commit: `2aab941cb7f713d7e46675789c47971a2c79c564`.
+- last_verified_commit: `2aab941cb7f713d7e46675789c47971a2c79c564`
 
 ## Registered implementation paths
 
@@ -46,7 +47,17 @@ Define the local Xianyu account boundary, Profile isolation model, and non-secre
 
 ## T8 evidence candidate
 
-The registered evidence paths form the T8 Evidence Candidate for complete verification. The capability remains `implementing` and `last_verified_commit` remains unset until the candidate completes full verification and a separate verification-record commit records the candidate SHA.
+The registered evidence paths were committed in Evidence Candidate `2aab941cb7f713d7e46675789c47971a2c79c564`. Complete local verification passed for that candidate before the Registry was switched to `verified`.
+
+## T8 verification outcome
+
+- Complete local verification passed for Candidate SHA `2aab941cb7f713d7e46675789c47971a2c79c564`.
+- Registry status is now `verified`.
+- `active_change` is null.
+- `last_verified_commit` is `2aab941cb7f713d7e46675789c47971a2c79c564`.
+- The Candidate contains the exact implementation paths, test paths, and candidate state.
+- Verification is no longer deferred.
+- No real account, network, browser, Provider, Secure Storage, or Secret Material behavior was added.
 
 ## Requirements
 
@@ -76,4 +87,8 @@ The registered evidence paths form the T8 Evidence Candidate for complete verifi
 
 - Registry evidence paths are exact and safe.
 - Permanent account tests cover domain, service, persistence, security, migration, core-runtime interaction, import safety, and active-change acceptance.
-- T8 complete verification has not yet been recorded for this candidate.
+- Unit tests: 196 passed.
+- Contract tests: 65 passed.
+- Permanent acceptance tests: 15 passed.
+- Active CHG-0003 acceptance tests: 4 passed.
+- Full collection: 280.

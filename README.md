@@ -313,6 +313,14 @@ The final T7 encoding correction is complete.
 - Test counts remain unchanged.
 - T8 remains the next executable task.
 
+CAP-XY-ACCOUNT capability evidence is verified.
+
+- Evidence Candidate SHA: `2aab941cb7f713d7e46675789c47971a2c79c564`.
+- The exact implementation and verification paths are registered.
+- CAP-XY-ACCOUNT status is `verified`.
+- T9 is the next executable task.
+- PR #3 remains Draft, open, and unmerged.
+
 ## Permanent test layers
 
 CHG-0002 now has permanent test coverage across these layers:

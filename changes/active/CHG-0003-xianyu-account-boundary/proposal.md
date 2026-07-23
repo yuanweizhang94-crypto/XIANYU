@@ -15,7 +15,7 @@ Prepare a formally reviewable boundary for Xianyu account and Profile isolation.
 
 The project owner approved CHG-0003 for controlled, one-task-at-a-time execution.
 
-T1 through T7 are complete.
+T1 through T8 are complete.
 
 The terminology, security, credential-handling, persistence, migration, runtime ownership, and module boundaries are finalized.
 
@@ -206,3 +206,8 @@ This execution completes T6 only.
 T7 must not begin in the same execution.
 
 T7 may begin only in a separate execution after this commit is complete and pushed.
+
+
+## T8 verification outcome
+
+Capability evidence is registered, Candidate SHA `2aab941cb7f713d7e46675789c47971a2c79c564` completed full local verification, CAP-XY-ACCOUNT is now `verified`, `active_change` is null, and `last_verified_commit` records the Candidate SHA. Tasks are 8/9 and T9 is the next executable task. PR #3 remains Draft, open, and unmerged. No final PR administration was executed.

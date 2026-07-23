@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 7,
-    "next_task": "T8 Update capability evidence and run complete verification",
+    "completed": 8,
+    "next_task": "T9 Complete final PR administration",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0003",
@@ -41,7 +41,7 @@
       },
       {
         "text": "T8 Update capability evidence and run complete verification",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T9 Complete final PR administration",
@@ -52,9 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "implementing": 1,
       "planned": 6,
-      "verified": 3
+      "verified": 4
     },
     "items": [
       {
@@ -109,7 +108,7 @@
       {
         "id": "CAP-XY-ACCOUNT",
         "name": "Xianyu account boundary",
-        "status": "implementing",
+        "status": "verified",
         "owner_module": "worker.account",
         "specification": "specs/capabilities/CAP-XY-ACCOUNT.md",
         "implementation_paths": [
@@ -130,8 +129,8 @@
           "tests/contract/test_capability_registry.py",
           "changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py"
         ],
-        "active_change": "CHG-0003-xianyu-account-boundary",
-        "last_verified_commit": null
+        "active_change": null,
+        "last_verified_commit": "2aab941cb7f713d7e46675789c47971a2c79c564"
       },
       {
         "id": "CAP-XY-MESSAGE",

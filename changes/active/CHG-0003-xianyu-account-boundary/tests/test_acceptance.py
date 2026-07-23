@@ -25,6 +25,7 @@ CHG_0003 = ACTIVE / "CHG-0003-xianyu-account-boundary"
 CORE_IDS = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
 ACCOUNT_REVISION = "0002_xianyu_account_boundary"
 ACCOUNT_TABLE = "xianyu_account_profiles"
+ACCOUNT_VERIFIED_CANDIDATE_SHA = "2aab941cb7f713d7e46675789c47971a2c79c564"
 ACCOUNT_IMPLEMENTATION_PATHS = [
     "app/xianyu_system/worker/account/__init__.py",
     "app/xianyu_system/worker/account/domain.py",
@@ -74,7 +75,7 @@ def test_chg_0003_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0003 / name) == "APPROVED"
 
 
-def test_chg_0003_t7_completion_advances_only_to_t8() -> None:
+def test_chg_0003_t8_completion_advances_only_to_t9() -> None:
     task_lines = [
         line
         for line in (CHG_0003 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -82,8 +83,8 @@ def test_chg_0003_t7_completion_advances_only_to_t8() -> None:
     ]
 
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:7])
-    assert all(line.startswith("- [ ]") for line in task_lines[7:])
+    assert all(line.startswith("- [x]") for line in task_lines[:8])
+    assert task_lines[8].startswith("- [ ]")
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8")
@@ -92,14 +93,12 @@ def test_chg_0003_t7_completion_advances_only_to_t8() -> None:
     assert state["active_change"]["id"] == "CHG-0003-xianyu-account-boundary"
     assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 7
+    assert state["tasks"]["completed"] == 8
     assert all(
-        state["tasks"]["items"][index]["completed"] is True for index in range(7)
+        state["tasks"]["items"][index]["completed"] is True for index in range(8)
     )
-    assert state["tasks"]["items"][7]["completed"] is False
-    assert state["tasks"]["next_task"] == (
-        "T8 Update capability evidence and run complete verification"
-    )
+    assert state["tasks"]["items"][8]["completed"] is False
+    assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
 
 
 def test_account_boundary_is_implemented_locally_but_not_externally(
@@ -120,12 +119,18 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
 
     registry = registry_by_id()
     account = registry["CAP-XY-ACCOUNT"]
-    assert account["status"] == "implementing"
+    assert account["status"] == "verified"
     assert account["owner_module"] == "worker.account"
-    assert account["active_change"] == "CHG-0003-xianyu-account-boundary"
+    assert account["active_change"] is None
     assert account["implementation_paths"] == ACCOUNT_IMPLEMENTATION_PATHS
     assert account["test_paths"] == ACCOUNT_TEST_PATHS
-    assert account["last_verified_commit"] is None
+    assert account["last_verified_commit"] == ACCOUNT_VERIFIED_CANDIDATE_SHA
+    assert len(ACCOUNT_VERIFIED_CANDIDATE_SHA) == 40
+
+    account_spec = (ROOT / "specs" / "capabilities" / "CAP-XY-ACCOUNT.md").read_text(
+        encoding="utf-8"
+    )
+    assert ACCOUNT_VERIFIED_CANDIDATE_SHA in account_spec
 
     worker_root = ROOT / "app" / "xianyu_system" / "worker"
     account_root = worker_root / "account"
@@ -301,9 +306,9 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     proposal = (CHG_0003 / "proposal.md").read_text(encoding="utf-8")
     design = (CHG_0003 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0003 / "acceptance.md").read_text(encoding="utf-8")
-    assert "T1 through T7 are complete." in proposal
-    assert "T8 is the next executable task" in proposal
-    assert "T1 through T7 are complete." in acceptance
+    assert "T1 through T8 are complete." in proposal
+    assert "T9 is the next executable task" in proposal
+    assert "T1 through T8 are complete." in acceptance
     assert "PR #3 remains Draft" in acceptance
     assert "## Current implementation" in design
     assert "xianyu_system.worker.account is implemented" in design

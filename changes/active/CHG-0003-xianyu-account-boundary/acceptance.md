@@ -199,10 +199,60 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 10. PR #3 remains Draft, open, and unmerged.
 
+## T8 acceptance criteria
+
+1. T1-T8 complete.
+
+2. T9 incomplete.
+
+3. PROJECT_STATE completed = 8.
+
+4. PROJECT_STATE next_task = T9.
+
+5. CAP-XY-ACCOUNT status = verified.
+
+6. active_change = null.
+
+7. last_verified_commit is 40-character Candidate SHA `2aab941cb7f713d7e46675789c47971a2c79c564`.
+
+8. Candidate SHA exists and is a HEAD ancestor.
+
+9. Implementation Paths are the exact five approved paths.
+
+10. Test Paths are the exact nine approved paths.
+
+11. All evidence paths exist, are safe, and have no duplicates.
+
+12. Account specification lists every evidence path.
+
+13. Account specification records Candidate SHA `2aab941cb7f713d7e46675789c47971a2c79c564`.
+
+14. Capability status counts are planned 6 and verified 4.
+
+15. No capability remains implementing.
+
+16. Unit = 196.
+
+17. Contract = 65.
+
+18. Permanent acceptance = 15.
+
+19. Active acceptance = 4.
+
+20. Full collection = 280.
+
+21. Complete verification, Security, Ruff, Mypy, Pip Check, and offline gate pass.
+
+22. No runtime, Migration, dependency, or CI file is modified.
+
+23. PR #3 remains Draft, open, and unmerged.
+
+24. Ready-for-review, auto-merge, and merge are not authorized.
+
 ## Current authorization
 
-T1 through T7 are complete.
+T1 through T8 are complete.
 
-T8 is the next executable task and must be performed separately.
+T9 is the next executable task and must be performed separately.
 
-This execution does not authorize capability binding, Registry evidence updates, capability verification, Ready-for-review, auto-merge, or merge.
+This execution does not authorize Ready-for-review, reviewer requests, auto-merge, merge, close, archive, or creation of the next active change.
