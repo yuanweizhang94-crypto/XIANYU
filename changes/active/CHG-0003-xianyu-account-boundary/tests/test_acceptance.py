@@ -75,7 +75,7 @@ def test_chg_0003_is_the_only_verifying_active_change() -> None:
         assert status_of(CHG_0003 / name) == "VERIFYING"
 
 
-def test_chg_0003_t9_ready_candidate_keeps_t9_incomplete() -> None:
+def test_chg_0003_t9_completion_has_no_next_task() -> None:
     task_lines = [
         line
         for line in (CHG_0003 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -83,8 +83,7 @@ def test_chg_0003_t9_ready_candidate_keeps_t9_incomplete() -> None:
     ]
 
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:8])
-    assert task_lines[8].startswith("- [ ]")
+    assert all(line.startswith("- [x]") for line in task_lines)
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8")
@@ -93,12 +92,9 @@ def test_chg_0003_t9_ready_candidate_keeps_t9_incomplete() -> None:
     assert state["active_change"]["id"] == "CHG-0003-xianyu-account-boundary"
     assert state["active_change"]["status"] == "VERIFYING"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 8
-    assert all(
-        state["tasks"]["items"][index]["completed"] is True for index in range(8)
-    )
-    assert state["tasks"]["items"][8]["completed"] is False
-    assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
+    assert state["tasks"]["completed"] == 9
+    assert all(item["completed"] is True for item in state["tasks"]["items"])
+    assert state["tasks"]["next_task"] is None
 
 
 def test_account_boundary_is_implemented_locally_but_not_externally(
@@ -136,14 +132,21 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     design = (CHG_0003 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0003 / "acceptance.md").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "T1 through T8 are complete." in proposal
-    assert "T9 is in final PR administration." in proposal
-    assert "PR #3 remains Draft until the Phase A head passes final CI." in proposal
-    assert "T9 final PR administration is in progress." in design
-    assert "T9 is in progress and not yet complete." in design
-    assert "T9 Ready candidate criteria" in acceptance
-    assert "T9 remains incomplete before the Ready transition." in acceptance
-    assert "CHG-0003 final review preparation is in progress." in readme
+    assert "T1 through T9 are complete." in proposal
+    assert "No task remains in CHG-0003." in proposal
+    assert "PR #3 is Ready for review, open, and unmerged." in proposal
+
+    assert "T1 through T9 are complete." in design
+    assert "There is no next task in CHG-0003." in design
+    assert "CHG-0003 remains VERIFYING" in design
+
+    assert "## T9 final acceptance criteria" in acceptance
+    assert "PR #3 is Ready for review" in acceptance
+    assert "Merge requires separate explicit authorization" in acceptance
+
+    assert "CHG-0003 final PR administration is complete." in readme
+    assert "All nine tasks are complete." in readme
+    assert "PR #3 is Ready for review, open, and unmerged." in readme
 
     worker_root = ROOT / "app" / "xianyu_system" / "worker"
     account_root = worker_root / "account"
@@ -316,15 +319,6 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     for forbidden in ["Cookie=", "Token=", "Secret=", "Password="]:
         assert forbidden not in env_example
 
-    proposal = (CHG_0003 / "proposal.md").read_text(encoding="utf-8")
-    design = (CHG_0003 / "design.md").read_text(encoding="utf-8")
-    acceptance = (CHG_0003 / "acceptance.md").read_text(encoding="utf-8")
-    assert "T1 through T8 are complete." in proposal
-    assert "T9 is the next executable task" in proposal
-    assert "T1 through T8 are complete." in acceptance
-    assert "PR #3 remains Draft" in acceptance
-    assert "## Current implementation" in design
-    assert "xianyu_system.worker.account is implemented" in design
 
     resources = initialize_database(tmp_path / "account-boundary.db")
     try:

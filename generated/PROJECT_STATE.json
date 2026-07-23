@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 8,
-    "next_task": "T9 Complete final PR administration",
+    "completed": 9,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0003",
@@ -45,7 +45,7 @@
       },
       {
         "text": "T9 Complete final PR administration",
-        "completed": false
+        "completed": true
       }
     ]
   },

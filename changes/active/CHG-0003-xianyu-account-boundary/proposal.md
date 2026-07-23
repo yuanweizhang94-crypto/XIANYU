@@ -15,13 +15,13 @@ Prepare a formally reviewable boundary for Xianyu account and Profile isolation.
 
 The project owner approved CHG-0003 for controlled, one-task-at-a-time execution.
 
-T1 through T8 are complete.
+T1 through T9 are complete.
 
-T9 is in final PR administration.
+CHG-0003 status is VERIFYING.
 
-The change status is VERIFYING.
+PR #3 is Ready for review, open, and unmerged.
 
-PR #3 remains Draft until the Phase A head passes final CI.
+No task remains in CHG-0003.
 
 The terminology, security, credential-handling, persistence, migration, runtime ownership, module boundaries, and capability evidence are finalized.
 
@@ -217,12 +217,13 @@ T7 may begin only in a separate execution after this commit is complete and push
 Capability evidence is registered, Candidate SHA `2aab941cb7f713d7e46675789c47971a2c79c564` completed full local verification, CAP-XY-ACCOUNT is now `verified`, `active_change` is null, and `last_verified_commit` records the Candidate SHA. Tasks are 8/9 and T9 is the next executable task. PR #3 remains Draft, open, and unmerged. No final PR administration was executed.
 
 
-## T9 Ready candidate
+## T9 final PR administration outcome
 
-- The implementation and verification work is complete.
-- CAP-XY-ACCOUNT remains verified.
-- The Evidence Candidate remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
-- The T8 Verification Record remains `ee20c0af0e2de504953ed948c09c6f5adcdeffb9`.
-- This candidate changes only review-state documentation and acceptance evidence.
-- T9 remains unchecked until GitHub accepts the Ready-for-review transition.
-- No merge, archive, reviewer request, auto-merge, or next-change creation is authorized.
+- Ready Candidate SHA: `7301fc2cc769c97c3b4360704cb6f6e2199523ff`.
+- PR #3 successfully changed from Draft to Ready for review.
+- No Reviewer was manually requested.
+- Auto-merge is not enabled.
+- PR #3 remains open and unmerged.
+- CHG-0003 remains under `changes/active/` and is not archived.
+- No next Active Change was created.
+- Merge, source-branch deletion, archive, and next-change creation require separate explicit authorization.

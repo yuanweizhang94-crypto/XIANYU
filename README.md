@@ -371,10 +371,11 @@ mypy scripts app
 This repository currently contains no real business capability. It cannot log in to Xianyu, publish listings, receive messages, send messages, call WeCom, call AI, run business FastAPI routes, create business database tables, install browsers, or access real accounts.
 
 
-CHG-0003 final review preparation is in progress.
+CHG-0003 final PR administration is complete.
 
 - CHG-0003 status is `VERIFYING`.
-- T1 through T8 are complete.
+- All nine tasks are complete.
 - CAP-XY-ACCOUNT remains verified.
-- PR #3 remains Draft until the final Ready candidate passes CI.
-- Merge, archive, and the next active change remain out of scope.
+- PR #3 is Ready for review, open, and unmerged.
+- Merge and auto-merge remain unauthorized.
+- CHG-0003 remains under `changes/active/` until the PR is merged.

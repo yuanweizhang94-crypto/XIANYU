@@ -270,12 +270,37 @@ Change ID: CHG-0003-xianyu-account-boundary
 17. Auto-merge remains disabled.
 18. Merge and archive remain unauthorized.
 
+## T9 final acceptance criteria
+
+1. T1-T9 complete.
+2. All nine tasks are checked.
+3. PROJECT_STATE completed = 9.
+4. PROJECT_STATE next_task = null.
+5. CHG-0003 status is VERIFYING.
+6. CAP-XY-ACCOUNT remains verified.
+7. active_change remains null.
+8. last_verified_commit remains the Evidence Candidate SHA.
+9. Capability path evidence remains unchanged.
+10. Unit = 196.
+11. Contract = 65.
+12. Permanent acceptance = 15.
+13. Active acceptance = 4.
+14. Full collection = 280.
+15. PR #3 is Ready for review.
+16. PR #3 remains open and unmerged.
+17. Auto-merge is disabled.
+18. No manual Reviewer request was made.
+19. No merge, close, branch deletion, archive, or next Change creation occurred.
+20. Final GitHub Actions pass on the final administration head.
+
 ## Current authorization
 
-T1 through T8 are complete.
+T1 through T9 are complete.
 
-T9 final PR administration is in progress.
+CHG-0003 remains VERIFYING while PR #3 is under review.
 
-This phase authorizes preparation for Ready for review only.
+No further CHG-0003 task is authorized.
 
-It does not authorize reviewer requests, auto-merge, merge, close, branch deletion, archive, or creation of the next active change.
+Merge requires separate explicit authorization against the exact current PR head.
+
+Auto-merge, admin bypass, close, source-branch deletion, archive, and creation of the next active change are not authorized.
