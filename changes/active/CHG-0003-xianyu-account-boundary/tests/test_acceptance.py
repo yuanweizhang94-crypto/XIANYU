@@ -21,7 +21,9 @@ def status_of(path: Path) -> str:
 
 
 def registry_by_id() -> dict[str, dict[str, object]]:
-    registry = yaml.safe_load((ROOT / "specs" / "CAPABILITY_REGISTRY.yaml").read_text(encoding="utf-8"))
+    registry = yaml.safe_load(
+        (ROOT / "specs" / "CAPABILITY_REGISTRY.yaml").read_text(encoding="utf-8")
+    )
     return {item["id"]: item for item in registry["capabilities"]}
 
 
@@ -40,7 +42,7 @@ def test_chg_0003_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0003 / name) == "APPROVED"
 
 
-def test_chg_0003_t4_completion_advances_only_to_t5() -> None:
+def test_chg_0003_t5_completion_advances_only_to_t6() -> None:
     task_lines = [
         line
         for line in (CHG_0003 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -48,8 +50,8 @@ def test_chg_0003_t4_completion_advances_only_to_t5() -> None:
     ]
 
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:4])
-    assert all(line.startswith("- [ ]") for line in task_lines[4:])
+    assert all(line.startswith("- [x]") for line in task_lines[:5])
+    assert all(line.startswith("- [ ]") for line in task_lines[5:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8")
@@ -58,23 +60,23 @@ def test_chg_0003_t4_completion_advances_only_to_t5() -> None:
     assert state["active_change"]["id"] == "CHG-0003-xianyu-account-boundary"
     assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 4
+    assert state["tasks"]["completed"] == 5
 
-    assert state["tasks"]["items"][0]["completed"] is True
-    assert state["tasks"]["items"][1]["completed"] is True
-    assert state["tasks"]["items"][2]["completed"] is True
-    assert state["tasks"]["items"][3]["completed"] is True
-    assert state["tasks"]["items"][4]["completed"] is False
+    assert all(
+        state["tasks"]["items"][index]["completed"] is True for index in range(5)
+    )
+    assert state["tasks"]["items"][5]["completed"] is False
 
     assert state["tasks"]["next_task"] == (
-        "T5 Approve runtime module and ownership boundaries"
+        "T6 Implement only the approved account boundary"
     )
 
 
-def test_account_capability_and_security_boundary_remain_unimplemented() -> None:
+def test_account_runtime_ownership_is_approved_but_unimplemented() -> None:
     registry = registry_by_id()
     account = registry["CAP-XY-ACCOUNT"]
     assert account["status"] == "planned"
+    assert account["owner_module"] == "worker.account"
     assert account["active_change"] is None
     assert account["implementation_paths"] == []
     assert account["test_paths"] == []
@@ -83,8 +85,14 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
     for capability_id in CORE_IDS:
         capability = registry[capability_id]
         assert capability["status"] == "verified"
-        assert "changes/archive/CHG-0002-core-application/tests/test_acceptance.py" in capability["test_paths"]
-        assert "changes/active/CHG-0002-core-application/tests/test_acceptance.py" not in capability["test_paths"]
+        assert (
+            "changes/archive/CHG-0002-core-application/tests/test_acceptance.py"
+            in capability["test_paths"]
+        )
+        assert (
+            "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+            not in capability["test_paths"]
+        )
 
     forbidden_paths = [
         ROOT / "app" / "xianyu_system" / "account.py",
@@ -93,6 +101,12 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
         ROOT / "app" / "xianyu_system" / "worker" / "account.py",
     ]
     assert not any(path.exists() for path in forbidden_paths)
+
+    forbidden_runtime_paths = [
+        ROOT / "app" / "xianyu_system" / "worker",
+        ROOT / "app" / "xianyu_system" / "worker" / "account",
+    ]
+    assert not any(path.exists() for path in forbidden_runtime_paths)
 
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
     assert "Cookie=" not in env_example
@@ -125,9 +139,12 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
     assert "Each Account Reference belongs to exactly one Profile." in design
     assert "A Credential Reference must never contain a secret value." in design
     assert "Profile-scoped State must not be shared as mutable state across Profiles." in design
-    assert "Missing, ambiguous, conflicting, or cross-Profile ownership information must fail closed." in design
+    assert (
+        "Missing, ambiguous, conflicting, or cross-Profile ownership information "
+        "must fail closed."
+    ) in design
 
-    required_sections = [
+    required_security_sections = [
         "## Security data classification",
         "## Secure Storage Boundary",
         "## Credential Reference security rules",
@@ -139,7 +156,7 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
         "## Credential lifecycle boundary",
         "## Security testing boundary",
     ]
-    for section in required_sections:
+    for section in required_security_sections:
         assert section in design
 
     required_security_rules = [
@@ -162,18 +179,12 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
     for rule in required_security_rules:
         assert rule in design
 
-    assert "### Deferred to T5" in design
-    assert "### Deferred to T6" in design
-    assert "### Deferred to T7" in design
-    assert "### Deferred to T8" in design
-
     required_t4_sections = [
         "## Persistence principles",
         "## Allowed persisted data categories",
         "## Prohibited persisted data",
         "## Ownership, consistency, and concurrency requirements",
         "## Migration principles",
-        "## Decisions deferred after T4",
     ]
     for section in required_t4_sections:
         assert section in design
@@ -187,7 +198,8 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
         "Secret Material",
         "Cookies or Tokens",
         "browser Profile or user-data paths",
-        "generic JSON, BLOB, payload, properties, extras, metadata, context, or arbitrary key-value fields",
+        "generic JSON, BLOB, payload, properties, extras, metadata, context, or "
+        "arbitrary key-value fields",
         "Every record belongs to one explicit Profile.",
         "Cross-Profile mutable state or Credential Reference reuse is prohibited.",
         "Mutations must be transactional.",
@@ -199,28 +211,46 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
         "Exact table count and names",
         "Exact column names and types",
         "Exact constraints and indexes",
-        "Lifecycle state names and transitions",
         "ORM implementation",
         "Migration implementation",
     ]
     for principle in required_persistence_principles:
         assert principle in design
 
-    forbidden_t4_details = [
-        "0002_xianyu_account_boundary",
-        "xianyu_account_profiles",
+    required_t5_sections = [
+        "## Runtime ownership summary",
+        "## Approved module boundary",
+        "## Dependency direction",
+        "## Profile Identifier ownership",
+        "## Local lifecycle ownership",
+        "## Domain and persistence ownership",
+        "## Transaction and concurrency ownership",
+        "## Error and diagnostic ownership",
+        "## Credential and Secure Storage ownership",
+        "## API, worker, and process boundary",
+        "## Approved T6 implementation surface",
+        "## Decisions deferred after T5",
+    ]
+    for section in required_t5_sections:
+        assert section in design
+
+    required_t5_rules = [
+        "app/xianyu_system/worker/account/",
+        "xianyu_system.worker.account",
+        "domain.py",
+        "persistence.py",
+        "service.py",
+        "UUID version 4",
         "PENDING",
         "ENABLED",
         "DISABLED",
-        "ARCHIVED",
-        "128 characters",
-        "120 characters",
-        "256 characters",
-        "512 characters",
-        "If any row exists, abort and fail closed without dropping the table.",
+        "Repository may flush when required but must not commit independently.",
+        "No Secure Storage provider interface",
+        "The `worker` name identifies capability ownership.",
+        "T6 must be performed in a separate execution.",
     ]
-    for detail in forbidden_t4_details:
-        assert detail not in design
+    for rule in required_t5_rules:
+        assert rule in design
 
     revision_files = sorted(
         path.name for path in (ROOT / "migrations" / "versions").glob("*.py")
@@ -240,11 +270,11 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
     assert "op.create_table" not in baseline_source
     assert "__tablename__" not in database_source
 
-    assert "T1, T2, T3, and T4 are complete." in proposal
-    assert "T5 is the next executable task" in proposal
-    assert "This execution completes T4 only." in proposal
-    assert "T5 must not begin in the same execution." in proposal
+    assert "T1, T2, T3, T4, and T5 are complete." in proposal
+    assert "T6 is the next executable task" in proposal
+    assert "This execution completes T5 only." in proposal
+    assert "T6 must not begin in the same execution." in proposal
 
-    assert "T1, T2, T3, and T4 are complete." in acceptance
-    assert "T5 is the next executable task" in acceptance
+    assert "T1, T2, T3, T4, and T5 are complete." in acceptance
+    assert "T6 is the next executable task" in acceptance
     assert "PR #3 remains Draft" in acceptance

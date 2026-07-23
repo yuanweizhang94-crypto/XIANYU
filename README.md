@@ -178,8 +178,9 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - T1 project-owner approval is complete.
 - T2 account and Profile isolation terminology is complete.
 - T3 security and credential-handling boundaries is complete.
-- T4 persistence and migration boundaries is complete at the principle level.
-- T5 runtime module and ownership boundaries is the next executable task.
+- T4 persistence and migration principles is complete.
+- T5 runtime module and ownership boundaries is complete.
+- T6 implementation is the next executable task.
 - No CHG-0003 runtime or database implementation has started.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 - T1 through T15 are complete for archived CHG-0002.
@@ -190,7 +191,7 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - `CAP-XY-ACCOUNT` remains planned and unbound.
 - `CAP-XY-SCHEDULE` remains `planned`.
 - No Xianyu account runtime, Cookie import, browser Profile loading, login, or external platform access is implemented.
-- Approval and T3 completion of CHG-0003 do not mean that runtime implementation, real account access, Cookie or Token handling, browser Profile loading, Ready-for-review, auto-merge, or merge has been approved.
+- Approval and T5 completion of CHG-0003 do not mean that runtime implementation, real account access, Cookie or Token handling, browser Profile loading, Ready-for-review, auto-merge, or merge has been approved.
 
 Within CHG-0003:
 
@@ -221,10 +222,24 @@ Within the approved CHG-0003 persistence boundary:
 - Secret Material, browser state, and generic JSON, BLOB, payload, properties, extras, metadata, context, or arbitrary key-value fields are prohibited.
 - Persistence mutations require explicit Profile ownership, transactions, uniqueness protection, and concurrency-conflict protection.
 - Future migrations remain explicit and application startup must not auto-migrate.
-- Exact table names, complete column schema, field lengths, lifecycle state machine, index set, retention policy, downgrade algorithm, and Alembic revision identifier remain deferred to T5 and T6.
+- Exact physical schema and Alembic implementation remain deferred to T6.
 - T4 creates no Migration file, ORM model, table, Repository, API, or Worker.
 
-Completion of T4 does not authorize T5, ORM code, Migration files, database mutation, provider integration, browser integration, Ready-for-review, auto-merge, or merge.
+Within the approved CHG-0003 runtime ownership boundary:
+
+- CAP-XY-ACCOUNT is owned by the `worker.account` capability namespace.
+- The future package is `xianyu_system.worker.account`.
+- The minimal modules are `domain.py`, `persistence.py`, and `service.py`.
+- Domain code remains independent of SQLAlchemy and FastAPI.
+- Persistence uses the existing Core Engine and Session boundary.
+- Account Service owns logical transaction coordination.
+- Profile Identifier generation uses UUID version 4.
+- Local lifecycle states are PENDING, ENABLED, and DISABLED.
+- CHG-0003 owns opaque Credential References but does not resolve Secret Material.
+- No API, browser integration, background process, Scheduler Job, or Provider is included.
+- T5 creates no implementation files.
+
+Completion of T5 does not authorize starting T6 in the same execution, Ready-for-review, auto-merge, or merge.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 

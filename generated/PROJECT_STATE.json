@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 4,
-    "next_task": "T5 Approve runtime module and ownership boundaries",
+    "completed": 5,
+    "next_task": "T6 Implement only the approved account boundary",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0003",
@@ -29,7 +29,7 @@
       },
       {
         "text": "T5 Approve runtime module and ownership boundaries",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T6 Implement only the approved account boundary",

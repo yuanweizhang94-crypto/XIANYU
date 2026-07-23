@@ -7,13 +7,13 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 CHG-0003 is approved for controlled, task-by-task execution.
 
-T1, T2, T3, and T4 are complete.
+T1, T2, T3, T4, and T5 are complete.
 
-The terminology, security, credential-handling, and principle-level persistence and migration boundaries are finalized.
+The terminology, security, credential-handling, persistence, migration, runtime ownership, and module boundaries are finalized.
 
-T5 is the next executable task.
+T6 is the next executable task.
 
-No runtime module ownership, ORM implementation, migration implementation, provider integration, API implementation, worker implementation, or account behavior has been approved.
+No runtime implementation, ORM code, Migration file, database table, API route, Worker process, Provider integration, browser integration, or external account behavior has been implemented.
 
 ## Canonical terminology
 
@@ -568,37 +568,347 @@ Database records must not prove that a real Platform Account exists, is logged i
 - T4 creates no migration file.
 - T4 creates no ORM model, database table, Repository, DAO, API, Worker, Credential Provider, or Secure Storage implementation.
 
-## Decisions deferred after T4
+## Runtime ownership summary
 
-### Deferred to T5
+CAP-XY-ACCOUNT is owned by the `worker.account` capability namespace recorded in the capability registry.
 
-- Module ownership.
-- ORM and Repository ownership.
-- Exact table count and names.
-- Exact column names and types.
-- Exact constraints and indexes.
-- Identifier-generation strategy.
-- Lifecycle state names and transitions.
-- Retention, archive, restore, purge, and delete policies.
-- Provider and Secure Storage ownership.
-- Error ownership and runtime transaction coordination.
+The approved future Python package is:
+
+`app/xianyu_system/worker/account/`
+
+The corresponding import namespace is:
+
+`xianyu_system.worker.account`
+
+The `worker` name identifies capability ownership. It does not mean that CHG-0003 creates or starts a background process, thread, scheduler job, browser worker, or external-platform worker.
+
+T5 approves only the future package path. T5 must not create this directory, must not modify the capability registry, and leaves the registry with `status=planned` and `owner_module=worker.account`.
+
+## Approved module boundary
+
+T6 may create only this minimal future package structure for the account capability:
+
+```text
+app/xianyu_system/worker/__init__.py
+
+app/xianyu_system/worker/account/__init__.py
+app/xianyu_system/worker/account/domain.py
+app/xianyu_system/worker/account/persistence.py
+app/xianyu_system/worker/account/service.py
+```
+
+### domain.py
+
+`domain.py` owns pure domain concepts and invariants:
+
+- Profile
+- Account Reference
+- Profile Identifier
+- Account Alias
+- optional External Account Identifier
+- optional Credential Reference
+- local lifecycle status
+- domain validation
+- domain-specific non-sensitive errors
+
+`domain.py` may use only Python standard-library domain types.
+
+`domain.py` must not import FastAPI, SQLAlchemy, Alembic, APScheduler, browser libraries, HTTP clients, Core database resources, application state, or concrete adapters.
+
+### persistence.py
+
+`persistence.py` owns the SQLAlchemy relational projection and the single concrete account Repository.
+
+It may import Base, Session, and related infrastructure from `xianyu_system.core.database`.
+
+It must not create an Engine, Session factory, database path, or second persistence stack.
+
+Do not create both a Repository and DAO for the same data.
+
+Do not create a generic BaseRepository.
+
+Do not create a generic UnitOfWork framework.
+
+Do not create CQRS, an event store, an event bus, or a plugin framework.
+
+### service.py
+
+`service.py` owns account use cases and transaction coordination.
+
+It coordinates domain validation and persistence.
+
+It does not access a real Platform Account.
+
+It does not resolve Secret Material.
+
+It does not own browser, API, scheduler, or provider integration.
+
+### __init__.py
+
+`__init__.py` defines the intentionally small public package surface.
+
+Internal ORM classes and SQLAlchemy details must not become the public capability interface.
+
+Exact Python class and function names may be selected during T6, but they must remain within these responsibilities.
+
+## Dependency direction
+
+Approved dependency direction:
+
+```text
+domain.py
+    -> imported by
+persistence.py and service.py
+
+persistence.py
+    -> uses
+xianyu_system.core.database
+
+service.py
+    -> coordinates
+domain.py and persistence.py
+
+future external adapters
+    -> may call
+service.py
+```
+
+- The domain module must not depend on persistence.
+- Core database infrastructure must not import the account capability.
+- The account capability must not modify Core Engine or Session ownership.
+- API, web, scheduler, message, publish, reply, WeCom, or AI modules must not be imported into the account domain.
+- No circular dependency is approved.
+- No cross-capability mutable global state is approved.
+
+## Profile Identifier ownership
+
+The account service owns generation of new Profile Identifiers.
+
+The approved first-version generation strategy is UUID version 4 using the Python standard library.
+
+The canonical external representation is the lowercase hyphenated UUID string.
+
+The database must not generate Profile identity through auto-increment behavior.
+
+A Platform Account identifier, username, phone number, Account Alias, browser directory, or Credential Reference must not be used as the Profile Identifier.
+
+T5 approves only the algorithm and ownership. T5 does not write generation code.
+
+## Local lifecycle ownership
+
+The approved local lifecycle states are:
+
+```text
+PENDING
+ENABLED
+DISABLED
+```
+
+- PENDING: The local Profile exists but is not locally eligible for an account operation.
+- ENABLED: The local Profile is eligible to proceed to the separate T3 ownership, credential-resolution, authorization, and risk gates.
+- DISABLED: Local account operations are denied.
+
+Rules:
+
+1. A newly created Profile starts as PENDING.
+2. PENDING may transition to ENABLED or DISABLED.
+3. ENABLED may transition to DISABLED.
+4. DISABLED may transition to ENABLED.
+5. No other transition is approved.
+6. ENABLED does not prove authentication, authorization, platform validity, credential validity, or safe operation.
+7. Every future operation still requires the T3 gates.
+8. CHG-0003 does not approve archive, restore, purge, hard delete, or automatic deletion behavior.
+9. Lifecycle changes must be explicit and Profile-specific.
+10. Lifecycle changes must not automatically attach, replace, clear, restore, or resolve a Credential Reference.
+
+The states ARCHIVED, DELETED, LOCKED, AUTHENTICATED, ONLINE, LOGGED_IN, and RISK_OK are not approved as CHG-0003 local lifecycle states.
+
+## Domain and persistence ownership
+
+The domain Profile and Account Reference remain distinct concepts with a one-to-one ownership invariant.
+
+The first implementation uses one minimal relational projection owned by `xianyu_system.worker.account.persistence`.
+
+The exact physical table name, final column names, SQLAlchemy storage types, field lengths, constraint names, index names, and Alembic Revision identifier are finalized during T6 implementation within the T2-T5 approved boundaries.
+
+Required invariants:
+
+- Every persisted projection belongs to exactly one Profile Identifier.
+- A non-null Credential Reference belongs to exactly one Profile.
+- A non-null External Account Identifier must not create ambiguous ownership across Profiles.
+- Account Alias is not canonical identity and is not required to be unique.
+- Secret Material is never persisted.
+- Generic JSON, BLOB, payload, metadata, context, properties, extras, or arbitrary key-value storage remains prohibited.
+
+Approved T6 conceptual operations:
+
+```text
+create a local Profile
+read a Profile by Profile Identifier
+list local Profiles
+update non-secret display/reference metadata
+attach or replace an opaque Credential Reference
+clear an opaque Credential Reference
+change the local lifecycle status through an approved transition
+```
+
+Not approved:
+
+```text
+hard delete
+archive
+restore
+bulk update
+bulk delete
+credential discovery
+cross-Profile lookup for usable credentials
+real account login
+browser Profile loading
+external account validation
+```
+
+## Transaction and concurrency ownership
+
+CAP-CORE-DATABASE continues to own Engine creation, Session factory creation, database-path resolution, WAL configuration, connection disposal, and Alembic infrastructure.
+
+The account service owns the logical transaction boundary for each account mutation.
+
+The account Repository participates in the caller-owned Session and must not independently commit.
+
+Rules:
+
+1. One logical mutation uses one Session and one transaction.
+2. The service coordinates commit or rollback.
+3. Repository may flush when required but must not commit independently.
+4. Partial writes are prohibited.
+5. Raw SQLAlchemy Sessions must not be stored globally.
+6. There is no global current Profile.
+7. There is no global current account Session.
+8. Uniqueness conflicts fail closed.
+9. Stale concurrent writes fail closed.
+10. A minimal optimistic-concurrency token is required.
+11. The exact physical concurrency column name and SQLAlchemy implementation are selected in T6.
+12. Silent last-write-wins behavior is prohibited.
+
+A second Engine, Session factory, UnitOfWork framework, database connection manager, or transaction manager framework is not approved.
+
+## Error and diagnostic ownership
+
+The future account package owns stable non-sensitive error categories for:
+
+- invalid domain input
+- Profile not found
+- duplicate or ambiguous ownership
+- invalid lifecycle transition
+- stale concurrent update
+- persistence conflict
+- operation blocked by local lifecycle
+
+Rules:
+
+- Raw SQLAlchemy exceptions must not cross the public account service boundary.
+- Persistence errors must be translated into account-owned non-sensitive errors.
+- Error messages must not contain full Credential References, External Account Identifiers, Secret Material, raw SQL statements, provider responses, or customer data.
+- Domain errors must not expose database implementation details.
+- T5 does not require an elaborate error hierarchy.
+- T6 should implement only the minimum stable errors required by the approved use cases.
+
+## Credential and Secure Storage ownership
+
+CHG-0003 owns only the Credential Reference as an opaque, non-secret Profile-owned value.
+
+CHG-0003 does not own Secret Material storage, Secret Material resolution, credential import, browser-session import, credential rotation, provider authentication, or account login.
+
+No Secure Storage provider interface, Credential Provider interface, resolver protocol, provider adapter, or secret-ingress interface is implemented in T6.
+
+A future separately approved change must define the concrete Secure Storage capability and its integration boundary.
+
+The account service may attach, replace, or clear an opaque Credential Reference string only as non-secret metadata.
+
+The account service must not validate whether the referenced Secret Material exists or is usable.
+
+## API, worker, and process boundary
+
+CHG-0003 does not approve an HTTP API route.
+
+CHG-0003 does not approve a web UI page.
+
+CHG-0003 does not approve a Scheduler Job.
+
+CHG-0003 does not approve a background Worker process.
+
+CHG-0003 does not approve browser automation or browser Profile loading.
+
+T6 implementation remains in the pure local package and tests only. Later exposure requires a separate approved change.
+
+## Approved T6 implementation surface
+
+T6 may create or modify only these future implementation and evidence paths:
+
+```text
+app/xianyu_system/worker/__init__.py
+app/xianyu_system/worker/account/__init__.py
+app/xianyu_system/worker/account/domain.py
+app/xianyu_system/worker/account/persistence.py
+app/xianyu_system/worker/account/service.py
+migrations/versions/<one revision after 0001_core_baseline>.py
+changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py
+generated/PROJECT_STATE.json
+README.md
+```
+
+T6 explicitly excludes:
+
+- FastAPI routes
+- OpenAPI contracts
+- web templates
+- scheduler jobs
+- browser code
+- external platform adapters
+- Secret Material provider or resolver
+- WeCom
+- AI
+- message, publish, or reply modules
+- dependency changes unless separately approved before T6
+
+## Decisions deferred after T5
 
 ### Deferred to T6
 
-- ORM implementation.
-- Migration implementation.
-- Persistence operations.
-- Optimistic concurrency implementation.
-- Lifecycle implementation.
-- Downgrade guard implementation.
+- exact Python class and function names
+- ORM implementation
+- ORM model implementation
+- Migration implementation
+- migration implementation
+- Exact table count and names within the approved single minimal relational projection
+- exact physical table name
+- Exact column names and types
+- exact column names, storage types, constraints, and indexes
+- Exact constraints and indexes
+- repository implementation
+- service implementation
+- unit and active-change implementation tests
 
 ### Deferred to T7
 
-- Permanent unit, migration, security, and integration tests.
+- full permanent test coverage
+- migration contract tests
+- security regression tests
+- integration and contract tests for the account boundary
 
 ### Deferred to T8
 
-- Capability binding, evidence, status transition, and complete verification.
+- CAP-XY-ACCOUNT registry binding
+- implementation and test evidence paths
+- capability status transition
+- full verification candidate
+
+### Deferred to later changes
+
+- API, web, or scheduler exposure
+- real browser Profile and session integration
+- secure storage provider or resolver
+- external platform login and account validation
 
 ## Current implementation
 
@@ -606,10 +916,10 @@ None.
 
 ## Execution boundary
 
-T1, T2, T3, and T4 are complete.
+T1, T2, T3, T4, and T5 are complete.
 
-T5 is the next executable task.
+T6 is the next executable task.
 
-T5 must be performed in a separate execution.
+T6 must be performed in a separate execution.
 
-This T4 execution does not authorize ORM code, Migration files, database mutation, provider selection, API changes, worker changes, browser integration, account access, Secret Material handling, or runtime implementation.
+This T5 execution does not authorize runtime code, ORM code, Migration files, database mutation, API changes, Worker processes, provider integration, browser integration, account access, Secret Material handling, or external platform behavior.
