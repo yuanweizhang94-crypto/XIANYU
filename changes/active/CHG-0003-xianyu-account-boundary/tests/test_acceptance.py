@@ -40,7 +40,7 @@ def test_chg_0003_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0003 / name) == "APPROVED"
 
 
-def test_chg_0003_t3_completion_advances_only_to_t4() -> None:
+def test_chg_0003_t4_completion_advances_only_to_t5() -> None:
     task_lines = [
         line
         for line in (CHG_0003 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -48,8 +48,8 @@ def test_chg_0003_t3_completion_advances_only_to_t4() -> None:
     ]
 
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:3])
-    assert all(line.startswith("- [ ]") for line in task_lines[3:])
+    assert all(line.startswith("- [x]") for line in task_lines[:4])
+    assert all(line.startswith("- [ ]") for line in task_lines[4:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8")
@@ -58,15 +58,16 @@ def test_chg_0003_t3_completion_advances_only_to_t4() -> None:
     assert state["active_change"]["id"] == "CHG-0003-xianyu-account-boundary"
     assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 3
+    assert state["tasks"]["completed"] == 4
 
     assert state["tasks"]["items"][0]["completed"] is True
     assert state["tasks"]["items"][1]["completed"] is True
     assert state["tasks"]["items"][2]["completed"] is True
-    assert state["tasks"]["items"][3]["completed"] is False
+    assert state["tasks"]["items"][3]["completed"] is True
+    assert state["tasks"]["items"][4]["completed"] is False
 
     assert state["tasks"]["next_task"] == (
-        "T4 Approve persistence and migration boundaries"
+        "T5 Approve runtime module and ownership boundaries"
     )
 
 
@@ -137,7 +138,6 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
         "## Prohibited Secret Material ingress",
         "## Credential lifecycle boundary",
         "## Security testing boundary",
-        "## Decisions deferred after T3",
     ]
     for section in required_sections:
         assert section in design
@@ -162,15 +162,85 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
     for rule in required_security_rules:
         assert rule in design
 
-    assert "### Deferred to T4" in design
     assert "### Deferred to T5" in design
     assert "### Deferred to T6" in design
+    assert "### Deferred to T7" in design
+    assert "### Deferred to T8" in design
 
-    assert "T1, T2, and T3 are complete." in proposal
-    assert "T4 is the next executable task" in proposal
-    assert "This execution completes T3 only." in proposal
-    assert "T4 must not begin in the same execution." in proposal
+    required_t4_sections = [
+        "## Persistence scope",
+        "## Approved relational projection",
+        "## Approved future columns",
+        "## Approved future constraints and indexes",
+        "## Persisted lifecycle transitions",
+        "## Future persistence operation boundary",
+        "## Operation-scoped state that must not be persisted",
+        "## Audit persistence decision",
+        "## Retention and deletion boundary",
+        "## Database infrastructure ownership",
+        "## Approved future Alembic revision",
+        "## Approved future upgrade behavior",
+        "## Approved future downgrade behavior",
+        "## Future migration verification boundary",
+        "## Decisions deferred after T4",
+    ]
+    for section in required_t4_sections:
+        assert section in design
 
-    assert "T1, T2, and T3 are complete." in acceptance
-    assert "T4 is the next executable task" in acceptance
+    required_persistence_rules = [
+        "xianyu_account_profiles",
+        "profile_id",
+        "account_alias",
+        "external_account_identifier",
+        "credential_reference",
+        "lifecycle_status",
+        "created_at_utc",
+        "updated_at_utc",
+        "archived_at_utc",
+        "row_version",
+        "PENDING",
+        "ENABLED",
+        "DISABLED",
+        "ARCHIVED",
+        "0002_xianyu_account_boundary",
+        "0001_core_baseline",
+        "Generic or opaque payload columns are prohibited",
+        "ENABLED does not mean authenticated.",
+        "ARCHIVED is terminal",
+        "Silent last-write-wins behavior is prohibited.",
+        "No automatic purge is approved.",
+        "Application startup must not automatically execute the revision.",
+        "If any row exists, abort and fail closed without dropping the table.",
+    ]
+    for rule in required_persistence_rules:
+        assert rule in design
+
+    revision_files = sorted(
+        path.name for path in (ROOT / "migrations" / "versions").glob("*.py")
+    )
+    assert revision_files == [
+        "0001_core_baseline.py",
+        "__init__.py",
+    ]
+    assert not (
+        ROOT / "migrations" / "versions" / "0002_xianyu_account_boundary.py"
+    ).exists()
+
+    database_source = (
+        ROOT / "app" / "xianyu_system" / "core" / "database.py"
+    ).read_text(encoding="utf-8")
+    baseline_source = (
+        ROOT / "migrations" / "versions" / "0001_core_baseline.py"
+    ).read_text(encoding="utf-8")
+    assert "xianyu_account_profiles" not in database_source
+    assert "xianyu_account_profiles" not in baseline_source
+    assert "op.create_table" not in baseline_source
+
+    assert "T1, T2, T3, and T4 are complete." in proposal
+    assert "T5 is the next executable task" in proposal
+    assert "This execution completes T4 only." in proposal
+    assert "T5 must not begin in the same execution." in proposal
+
+    assert "T1, T2, T3, and T4 are complete." in acceptance
+    assert "T5 is the next executable task" in acceptance
     assert "PR #3 remains Draft" in acceptance

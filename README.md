@@ -178,8 +178,9 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - T1 project-owner approval is complete.
 - T2 account and Profile isolation terminology is complete.
 - T3 security and credential-handling boundaries is complete.
-- T4 persistence and migration boundaries is the next executable task.
-- No CHG-0003 runtime implementation has started.
+- T4 persistence and migration boundaries is complete.
+- T5 runtime module and ownership boundaries is the next executable task.
+- No CHG-0003 runtime or database implementation has started.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 - T1 through T15 are complete for archived CHG-0002.
 - `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR` are `verified`.
@@ -211,7 +212,22 @@ Within the approved CHG-0003 security boundary:
 - Secret Material and full Credential References must not appear in logs or diagnostics.
 - Only Synthetic Fixtures are permitted in tests.
 
-Completion of T3 does not authorize T4, persistence, migrations, provider integration, Secret Material handling, browser integration, Ready-for-review, auto-merge, or merge.
+
+Within the approved CHG-0003 persistence boundary:
+
+- The existing local SQLite database remains the only approved persistence target.
+- One future table, `xianyu_account_profiles`, is approved.
+- Only non-secret Profile and Account Reference metadata may be persisted.
+- Secret Material, browser state, generic JSON, BLOB, payload, or arbitrary metadata columns are prohibited.
+- Credential References are nullable, unique when present, Profile-owned, opaque, and non-secret.
+- Lifecycle values are PENDING, ENABLED, DISABLED, and ARCHIVED.
+- ENABLED does not imply authentication or authorization.
+- ARCHIVED is terminal and clears Credential Reference.
+- Mutations require optimistic row-version checks.
+- The future Alembic Revision is `0002_xianyu_account_boundary`.
+- T4 creates no table and no Migration file.
+
+Completion of T4 does not authorize T5, ORM code, Migration files, database mutation, provider integration, browser integration, Ready-for-review, auto-merge, or merge.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 

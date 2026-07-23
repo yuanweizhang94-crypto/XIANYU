@@ -3,78 +3,94 @@
 Status: APPROVED
 Change ID: CHG-0003-xianyu-account-boundary
 
-## T3 acceptance criteria
+## T4 acceptance criteria
 
 1. CHG-0003 remains the only active change.
 
 2. CHG-0003 remains APPROVED in proposal, design, tasks, and acceptance.
 
-3. T1, T2, and T3 are complete.
+3. T1, T2, T3, and T4 are complete.
 
-4. T4-T9 remain incomplete.
+4. T5-T9 remain incomplete.
 
-5. generated/PROJECT_STATE.json reports three completed tasks.
+5. generated/PROJECT_STATE.json reports four completed tasks.
 
-6. generated/PROJECT_STATE.json reports T4 as next_task.
+6. generated/PROJECT_STATE.json reports T5 as next_task.
 
-7. All T2 canonical terminology and invariants remain intact.
+7. All approved T2 terminology and T3 security rules remain intact.
 
-8. Secret Material is formally classified and prohibited from repository and ordinary application persistence.
+8. The approved persistence target is the existing CAP-CORE-DATABASE SQLite database.
 
-9. Sensitive Non-secret Metadata is formally classified.
+9. Exactly one future business table is approved: xianyu_account_profiles.
 
-10. Secure Storage Boundary requirements are defined without choosing or implementing a provider.
+10. The approved future fields and their security semantics are defined.
 
-11. Credential References are Profile-owned, opaque, and secret-free.
+11. Secret Material, browser state, payload blobs, and generic JSON or metadata columns are prohibited.
 
-12. Cross-Profile Credential Reference reuse is prohibited.
+12. Profile Identifier is the primary key and canonical local identity.
 
-13. Future resolution requires explicit Profile Identifier, Credential Reference, purpose, authorization, and risk decision.
+13. External Account Identifier and Credential Reference are unique when non-null.
 
-14. Credential Resolution Status values are defined.
+14. Credential Reference remains opaque, non-secret, and Profile-owned.
 
-15. Operation Authorization Status values are defined.
+15. Lifecycle states are PENDING, ENABLED, DISABLED, and ARCHIVED.
 
-16. Only RESOLVED plus AUTHORIZED permits a future operation.
+16. ENABLED does not imply authentication or authorization.
 
-17. UNKNOWN, MISSING, UNAVAILABLE, INVALID, EXPIRED, REVOKED, VERIFICATION_REQUIRED, PERMISSION_DENIED, and RISK_BLOCKED fail closed.
+17. ARCHIVED is terminal and requires clearing Credential Reference.
 
-18. Platform verification and risk controls may not be bypassed.
+18. Optimistic row_version concurrency is approved.
 
-19. Secret Material is prohibited from logs, errors, audit events, traces, metrics, snapshots, URLs, command-line arguments, environment variables, databases, migrations, and tests.
+19. Stale writes and uniqueness conflicts fail closed.
 
-20. Full Credential References and External Account Identifiers are prohibited from logs.
+20. Mutation operations are transactional and partial writes are prohibited.
 
-21. Provider errors must be sanitized before crossing the provider boundary.
+21. No bulk update, bulk delete, implicit Profile, credential fallback, automatic discovery, import, or backfill is approved.
 
-22. Rotation, revocation, expiration, and replacement may not cause implicit fallback or cross-Profile reuse.
+22. Operation-scoped credential, authorization, risk, and provider state is not persisted as authoritative state.
 
-23. Only Synthetic Fixtures are allowed in tests.
+23. No persistent audit-event table is approved.
 
-24. T4 persistence and migration decisions remain deferred.
+24. No automatic purge or hard-delete runtime is approved.
 
-25. T5 provider, module, worker, API, process, and runtime ownership decisions remain deferred.
+25. The approved future Revision is 0002_xianyu_account_boundary.
 
-26. T6 runtime implementation remains deferred.
+26. Its down_revision is 0001_core_baseline.
 
-27. CAP-XY-ACCOUNT remains planned and unbound.
+27. The future upgrade creates only the approved empty table, constraints, and index.
 
-28. CAP-XY-ACCOUNT retains no implementation or test evidence paths.
+28. The future downgrade fails closed when the table contains rows.
 
-29. No runtime, API, contract, migration, dependency, CI, registry, capability specification, archived change, or permanent test file is modified.
+29. Application startup remains prohibited from automatically running migrations.
 
-30. No real account, credential, Cookie, Token, password, browser directory, customer data, or Session Material is added.
+30. T4 creates no Migration file and modifies no existing Migration.
 
-31. PR #3 remains Draft, open, and unmerged.
+31. The current migration directory still contains only 0001_core_baseline.py and __init__.py.
 
-32. Auto-merge remains disabled.
+32. T5 ownership decisions remain deferred.
 
-33. Repository verification, security scan, Ruff, Mypy, and the complete test suite pass.
+33. T6 runtime and Migration implementation remains deferred.
+
+34. T7 permanent implementation tests remain deferred.
+
+35. CAP-XY-ACCOUNT remains planned and unbound.
+
+36. CAP-XY-ACCOUNT retains no implementation or test evidence paths.
+
+37. No runtime, ORM, API, contract, migration, dependency, CI, registry, capability specification, archived change, or permanent test file is modified.
+
+38. No real account, credential, Cookie, Token, password, browser directory, customer data, or Secret Material is added.
+
+39. PR #3 remains Draft, open, and unmerged.
+
+40. Auto-merge remains disabled.
+
+41. Repository verification, security scan, Ruff, Mypy, and the complete test suite pass.
 
 ## Current authorization
 
-T1, T2, and T3 are complete.
+T1, T2, T3, and T4 are complete.
 
-T4 is the next executable task and must be performed separately.
+T5 is the next executable task and must be performed separately.
 
-This execution does not authorize persistence, database changes, migrations, provider selection, provider integration, API changes, worker changes, browser integration, account access, Secret Material handling, capability binding, Ready-for-review, auto-merge, or merge.
+This execution does not authorize ORM code, Migration files, database mutation, provider selection, provider integration, API changes, worker changes, browser integration, account access, Secret Material handling, capability binding, Ready-for-review, auto-merge, or merge.

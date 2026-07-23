@@ -15,13 +15,13 @@ Prepare a formally reviewable boundary for Xianyu account and Profile isolation.
 
 The project owner approved CHG-0003 for controlled, one-task-at-a-time execution.
 
-T1, T2, and T3 are complete.
+T1, T2, T3, and T4 are complete.
 
-The terminology and security and credential-handling boundaries are finalized.
+The terminology, security, credential-handling, persistence, and migration boundaries are finalized.
 
-T4 is the next executable task and must be performed separately.
+T5 is the next executable task and must be performed separately.
 
-No persistence, migration, runtime implementation, provider integration, real account access, Session Material handling, browser integration, capability binding, Ready-for-review, auto-merge, or merge is authorized.
+No runtime ownership implementation, ORM code, Migration file, database mutation, provider integration, account access, browser integration, capability binding, Ready-for-review, auto-merge, or merge is authorized.
 
 ## Goals
 
@@ -59,6 +59,23 @@ No persistence, migration, runtime implementation, provider integration, real ac
 - Rotation and revocation must not create fallback or cross-Profile reuse.
 - Only Synthetic Fixtures are allowed in tests.
 
+## T4 persistence outcome
+
+- The approved first-version persistence target is the existing SQLite database.
+- One future table, xianyu_account_profiles, is approved.
+- The row represents one Profile and its one Account Reference.
+- Only approved non-secret fields may be persisted.
+- Secret Material, browser state, payload blobs, and generic JSON or metadata columns are prohibited.
+- Credential References may be stored only as unique opaque non-secret values.
+- Lifecycle values are PENDING, ENABLED, DISABLED, and ARCHIVED.
+- ARCHIVED is terminal and requires clearing Credential Reference.
+- Mutations use optimistic row_version checks and fail closed on stale writes.
+- No automatic purge or hard-delete runtime is approved.
+- The future Alembic revision is 0002_xianyu_account_boundary with down_revision 0001_core_baseline.
+- Upgrade creates only the approved empty table and constraints.
+- Downgrade fails closed when the table contains rows.
+- Application startup must not automatically run migrations.
+
 ## Non-goals
 
 - No real Xianyu login.
@@ -70,15 +87,15 @@ No persistence, migration, runtime implementation, provider integration, real ac
 - No API route.
 - No external network request.
 - No registry capability binding.
-- No runtime implementation during the T3 security boundary transition.
-- No runtime implementation before T4 and T5 have been completed and their decisions have been formally recorded.
+- No runtime implementation during the T4 persistence boundary transition.
+- No runtime implementation before T5 has been completed and its ownership decisions have been formally recorded.
 
 ## Execution boundary
 
 Only one unfinished task may be executed at a time.
 
-This execution completes T3 only.
+This execution completes T4 only.
 
-T4 must not begin in the same execution.
+T5 must not begin in the same execution.
 
-Runtime implementation remains prohibited until T4 and T5 are complete and all approved decisions are recorded.
+Runtime implementation remains prohibited until T5 is complete and its ownership decisions are recorded.
