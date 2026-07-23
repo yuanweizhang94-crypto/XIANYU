@@ -1,17 +1,19 @@
 # CHG-0003 Design
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0003-xianyu-account-boundary
 
 ## Design state
 
-CHG-0003 is approved for controlled, task-by-task execution.
-
 T1 through T8 are complete.
 
-The terminology, security, credential-handling, persistence, migration, runtime ownership, and module boundaries are finalized.
+T9 final PR administration is in progress.
 
-T9 is the next executable task.
+CHG-0003 status is VERIFYING.
+
+The terminology, security, credential-handling, persistence, migration, runtime ownership, module boundaries, implementation, tests, and capability evidence are finalized.
+
+T9 is in progress and not yet complete.
 
 The minimal local account boundary has been implemented. No API route, browser integration, Provider integration, background process, or external account behavior has been implemented.
 
@@ -1024,3 +1026,12 @@ T9 is the next executable task.
 T8 must be performed in a separate execution.
 
 This T7 execution did not execute T8 or T9 and does not authorize API changes, Worker processes, provider integration, browser integration, account access, Secret Material handling, capability binding, Ready-for-review, auto-merge, merge, or external platform behavior.
+
+
+## T9 Ready candidate
+
+- Runtime, persistence, migration, tests, and capability evidence are frozen.
+- Final review preparation must not modify implementation behavior.
+- The PR may move from Draft to Ready only after the Phase A head passes all required checks.
+- T9 is completed only after the Ready transition succeeds and the repository records that result.
+- CHG-0003 stays under changes/active until PR #3 is merged.

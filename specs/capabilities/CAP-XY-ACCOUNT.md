@@ -4,12 +4,11 @@
 
 Define the local Xianyu account boundary, Profile isolation model, and non-secret Account Reference evidence without accessing real accounts or external platforms.
 
-## Current implementation change
+## Current verification state
 
 - Active change: none; verification recorded by CHG-0003 T8.
 - Registry status: verified.
-- Last verified commit: `2aab941cb7f713d7e46675789c47971a2c79c564`.
-- last_verified_commit: `2aab941cb7f713d7e46675789c47971a2c79c564`
+- Last verified commit (`last_verified_commit`): `2aab941cb7f713d7e46675789c47971a2c79c564`.
 
 ## Registered implementation paths
 

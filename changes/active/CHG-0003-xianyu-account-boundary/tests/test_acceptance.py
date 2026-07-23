@@ -68,14 +68,14 @@ def test_chg_0002_is_archived_with_historical_tests_preserved() -> None:
     assert (CHG_0002 / "tests" / "test_acceptance.py").is_file()
 
 
-def test_chg_0003_is_the_only_approved_active_change() -> None:
+def test_chg_0003_is_the_only_verifying_active_change() -> None:
     active_dirs = [path.name for path in ACTIVE.iterdir() if path.is_dir()]
     assert active_dirs == ["CHG-0003-xianyu-account-boundary"]
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
-        assert status_of(CHG_0003 / name) == "APPROVED"
+        assert status_of(CHG_0003 / name) == "VERIFYING"
 
 
-def test_chg_0003_t8_completion_advances_only_to_t9() -> None:
+def test_chg_0003_t9_ready_candidate_keeps_t9_incomplete() -> None:
     task_lines = [
         line
         for line in (CHG_0003 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -91,7 +91,7 @@ def test_chg_0003_t8_completion_advances_only_to_t9() -> None:
     )
 
     assert state["active_change"]["id"] == "CHG-0003-xianyu-account-boundary"
-    assert state["active_change"]["status"] == "APPROVED"
+    assert state["active_change"]["status"] == "VERIFYING"
     assert state["tasks"]["total"] == 9
     assert state["tasks"]["completed"] == 8
     assert all(
@@ -131,6 +131,19 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
         encoding="utf-8"
     )
     assert ACCOUNT_VERIFIED_CANDIDATE_SHA in account_spec
+
+    proposal = (CHG_0003 / "proposal.md").read_text(encoding="utf-8")
+    design = (CHG_0003 / "design.md").read_text(encoding="utf-8")
+    acceptance = (CHG_0003 / "acceptance.md").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "T1 through T8 are complete." in proposal
+    assert "T9 is in final PR administration." in proposal
+    assert "PR #3 remains Draft until the Phase A head passes final CI." in proposal
+    assert "T9 final PR administration is in progress." in design
+    assert "T9 is in progress and not yet complete." in design
+    assert "T9 Ready candidate criteria" in acceptance
+    assert "T9 remains incomplete before the Ready transition." in acceptance
+    assert "CHG-0003 final review preparation is in progress." in readme
 
     worker_root = ROOT / "app" / "xianyu_system" / "worker"
     account_root = worker_root / "account"

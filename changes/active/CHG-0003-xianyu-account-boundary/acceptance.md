@@ -1,6 +1,6 @@
 # CHG-0003 Acceptance
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0003-xianyu-account-boundary
 
 ## T7 acceptance criteria
@@ -249,10 +249,33 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 24. Ready-for-review, auto-merge, and merge are not authorized.
 
+## T9 Ready candidate criteria
+
+1. CHG-0003 status is VERIFYING in proposal, design, tasks, and acceptance.
+2. T1-T8 are complete.
+3. T9 remains incomplete before the Ready transition.
+4. PROJECT_STATE completed = 8.
+5. PROJECT_STATE next_task remains T9.
+6. CAP-XY-ACCOUNT remains verified.
+7. CAP-XY-ACCOUNT active_change remains null.
+8. CAP-XY-ACCOUNT last_verified_commit remains the Evidence Candidate SHA.
+9. No runtime, Migration, Registry, dependency, CI, API, browser, Provider, Secure Storage, Scheduler, background-process, network, real-account, or Secret Material behavior changes.
+10. Unit remains 196.
+11. Contract remains 65.
+12. Permanent acceptance remains 15.
+13. Active acceptance remains 4.
+14. Full collection remains 280.
+15. Phase A GitHub Actions must pass before Ready transition.
+16. PR remains open and unmerged.
+17. Auto-merge remains disabled.
+18. Merge and archive remain unauthorized.
+
 ## Current authorization
 
 T1 through T8 are complete.
 
-T9 is the next executable task and must be performed separately.
+T9 final PR administration is in progress.
 
-This execution does not authorize Ready-for-review, reviewer requests, auto-merge, merge, close, archive, or creation of the next active change.
+This phase authorizes preparation for Ready for review only.
+
+It does not authorize reviewer requests, auto-merge, merge, close, branch deletion, archive, or creation of the next active change.

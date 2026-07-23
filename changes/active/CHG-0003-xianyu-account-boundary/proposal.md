@@ -1,6 +1,6 @@
 # CHG-0003 Proposal
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0003-xianyu-account-boundary
 
 ## Purpose
@@ -17,11 +17,15 @@ The project owner approved CHG-0003 for controlled, one-task-at-a-time execution
 
 T1 through T8 are complete.
 
-The terminology, security, credential-handling, persistence, migration, runtime ownership, and module boundaries are finalized.
+T9 is in final PR administration.
 
-T8 is the next executable task and must be performed separately.
+The change status is VERIFYING.
 
-No T8 capability evidence work, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
+PR #3 remains Draft until the Phase A head passes final CI.
+
+The terminology, security, credential-handling, persistence, migration, runtime ownership, module boundaries, and capability evidence are finalized.
+
+No reviewer request, auto-merge, merge, close, archive, source-branch deletion, or next active change is authorized in this execution.
 
 ## T6 correction
 
@@ -211,3 +215,14 @@ T7 may begin only in a separate execution after this commit is complete and push
 ## T8 verification outcome
 
 Capability evidence is registered, Candidate SHA `2aab941cb7f713d7e46675789c47971a2c79c564` completed full local verification, CAP-XY-ACCOUNT is now `verified`, `active_change` is null, and `last_verified_commit` records the Candidate SHA. Tasks are 8/9 and T9 is the next executable task. PR #3 remains Draft, open, and unmerged. No final PR administration was executed.
+
+
+## T9 Ready candidate
+
+- The implementation and verification work is complete.
+- CAP-XY-ACCOUNT remains verified.
+- The Evidence Candidate remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
+- The T8 Verification Record remains `ee20c0af0e2de504953ed948c09c6f5adcdeffb9`.
+- This candidate changes only review-state documentation and acceptance evidence.
+- T9 remains unchecked until GitHub accepts the Ready-for-review transition.
+- No merge, archive, reviewer request, auto-merge, or next-change creation is authorized.
