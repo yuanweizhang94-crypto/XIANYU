@@ -921,10 +921,41 @@ The T7 permanent account evidence was hardened before T8.
 - Account operations are now executed while network sockets, subprocesses, and user-Home discovery are blocked.
 - The runtime test proves that local Profile operations require only the supplied temporary SQLite boundary.
 - The security evidence includes static absence of browser and Credential Store integrations.
-- Persistence Contract tests no longer clear global SQLAlchemy mappers, remove shared Base metadata, or evict production modules from `sys.modules`.
+- Persistence Contract tests no longer clear global SQLAlchemy mappers, remove shared Base metadata, evict production modules from `sys.modules`, or patch metadata equality behavior.
 - The account Contract tests can execute in either persistence-first or security-first order.
 - Database-level checks explicitly reject whitespace-only External Account Identifiers.
 - Database-level checks explicitly reject whitespace-only Credential References.
+- Permanent test counts remain unchanged.
+- T7 remains complete.
+- T8 remains not started.
+
+## T7 isolation correction outcome
+
+The T7 Contract evidence is now isolated from the parent pytest process.
+
+- The replacement account package proxy was removed.
+- No account-related entry is written into `sys.modules` by Contract-module import.
+- No SQLAlchemy metadata mapping type or equality method is patched.
+- Importing the Contract modules leaves account-related modules, `Base.metadata`, and metadata comparison behavior unchanged.
+- Account ORM, Repository, Service, Migration, downgrade, concurrency, and database-constraint checks run in isolated Python processes.
+- Runtime socket, subprocess, and user-Home blocking evidence also runs in an isolated process.
+- Persistence and security Contract modules pass in either order and alongside existing Core tests.
+- Permanent test counts remain unchanged.
+- T7 remains complete.
+- T8 remains not started.
+
+## T7 import-boundary correction outcome
+
+Complete verification exposed and resolved an account package import-boundary issue before T8.
+
+- Importing the account package or account Domain no longer eagerly imports Account Service.
+- Importing account Domain types no longer loads account Persistence or registers ORM metadata.
+- `AccountService` remains part of the public `__all__` surface.
+- Accessing `AccountService` lazily loads the real Service class and approved Persistence projection.
+- No proxy module or test-only Service type is used.
+- Core runtime metadata remains empty during Domain-only test collection.
+- Permanent Import Safety evidence covers the account package and Domain module.
+- Account Contract evidence runs in isolated child processes without parent-process module or metadata shims.
 - Permanent test counts remain unchanged.
 - T7 remains complete.
 - T8 remains not started.

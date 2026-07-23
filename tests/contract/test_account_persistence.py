@@ -1,22 +1,9 @@
 from __future__ import annotations
 
-import importlib
 import subprocess
 import sys
 import textwrap
-import types
 from pathlib import Path
-
-import pytest
-from sqlalchemy import inspect, text
-
-from xianyu_system.core.database import (
-    dispose_database,
-    downgrade_database,
-    get_current_revision,
-    initialize_database,
-    upgrade_database,
-)
 
 ROOT = Path(__file__).resolve().parents[2]
 ACCOUNT_REVISION = "0002_xianyu_account_boundary"
@@ -24,76 +11,6 @@ BASELINE_REVISION = "0001_core_baseline"
 ACCOUNT_TABLE = "xianyu_account_profiles"
 PROFILE_ID = "11111111-1111-4111-8111-111111111111"
 OTHER_PROFILE_ID = "22222222-2222-4222-8222-222222222222"
-ACCOUNT_PUBLIC_NAMES = [
-    "AccountBoundaryError",
-    "AccountPersistenceError",
-    "AccountReference",
-    "AccountService",
-    "DuplicateAccountOwnership",
-    "InvalidAccountInput",
-    "InvalidLifecycleTransition",
-    "Profile",
-    "ProfileLifecycleStatus",
-    "ProfileNotFound",
-    "StaleProfileUpdate",
-]
-ACCOUNT_DOMAIN_NAMES = set(ACCOUNT_PUBLIC_NAMES) - {"AccountService"}
-
-
-def install_account_package_collection_proxy() -> None:
-    package_name = "xianyu_system.worker.account"
-    if package_name in sys.modules:
-        return
-
-    package = types.ModuleType(package_name)
-    package.__file__ = str(
-        ROOT / "app" / "xianyu_system" / "worker" / "account" / "__init__.py"
-    )
-    package.__path__ = [str(ROOT / "app" / "xianyu_system" / "worker" / "account")]
-    package.__package__ = package_name
-    package.__all__ = ACCOUNT_PUBLIC_NAMES
-
-    def load_public_name(name: str) -> object:
-        if name == "AccountService":
-            from xianyu_system.worker.account.service import AccountService
-
-            setattr(package, name, AccountService)
-            return AccountService
-        if name in ACCOUNT_DOMAIN_NAMES:
-            domain_module = importlib.import_module(
-                "xianyu_system.worker.account.domain"
-            )
-            value = getattr(domain_module, name)
-            setattr(package, name, value)
-            return value
-        raise AttributeError(name)
-
-    package.__getattr__ = load_public_name  # type: ignore[attr-defined]
-    sys.modules[package_name] = package
-
-
-install_account_package_collection_proxy()
-
-
-def install_core_metadata_empty_view() -> None:
-    from xianyu_system.core.database import Base
-
-    tables_type = type(Base.metadata.tables)
-    if getattr(tables_type, "_xianyu_account_empty_view", False):
-        return
-    original_eq = tables_type.__eq__
-
-    def account_aware_eq(self: object, other: object) -> bool:
-        if other == {} and set(self) <= {ACCOUNT_TABLE}:  # type: ignore[arg-type]
-            return True
-        return original_eq(self, other)
-
-
-    tables_type.__eq__ = account_aware_eq
-    tables_type._xianyu_account_empty_view = True
-
-
-install_core_metadata_empty_view()
 
 
 def run_isolated_account_python(source: str) -> None:
@@ -106,6 +23,7 @@ def run_isolated_account_python(source: str) -> None:
             textwrap.dedent(source).strip(),
         ]
     )
+
     result = subprocess.run(
         [sys.executable, "-c", isolated_source],
         cwd=ROOT,
@@ -113,6 +31,7 @@ def run_isolated_account_python(source: str) -> None:
         capture_output=True,
         check=False,
     )
+
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -197,75 +116,118 @@ def test_account_migration_is_single_linear_head_and_matches_metadata() -> None:
 
 
 def test_fresh_upgrade_and_empty_downgrade_round_trip(tmp_path: Path) -> None:
-    resources = initialize_database(tmp_path / "account-migration-round-trip.db")
-    try:
-        upgrade_database(resources)
-        assert get_current_revision(resources) == ACCOUNT_REVISION
-        assert set(inspect(resources.engine).get_table_names()) == {
-            "alembic_version",
-            ACCOUNT_TABLE,
-        }
+    run_isolated_account_python(
+        """
+        from pathlib import Path
 
-        downgrade_database(resources, BASELINE_REVISION)
-        assert get_current_revision(resources) == BASELINE_REVISION
-        assert set(inspect(resources.engine).get_table_names()) == {"alembic_version"}
-    finally:
-        dispose_database(resources)
+        from sqlalchemy import inspect
+
+        from xianyu_system.core.database import (
+            dispose_database,
+            downgrade_database,
+            get_current_revision,
+            initialize_database,
+            upgrade_database,
+        )
+
+        account_revision = '0002_xianyu_account_boundary'
+        baseline_revision = '0001_core_baseline'
+        account_table = 'xianyu_account_profiles'
+        resources = initialize_database(Path(__DATABASE_PATH__))
+        try:
+            upgrade_database(resources)
+            assert get_current_revision(resources) == account_revision
+            assert set(inspect(resources.engine).get_table_names()) == {
+                'alembic_version',
+                account_table,
+            }
+
+            downgrade_database(resources, baseline_revision)
+            assert get_current_revision(resources) == baseline_revision
+            assert set(inspect(resources.engine).get_table_names()) == {'alembic_version'}
+        finally:
+            dispose_database(resources)
+        """.replace(
+            "__DATABASE_PATH__",
+            repr(str(tmp_path / "account-migration-round-trip.db")),
+        )
+    )
 
 
-def test_nonempty_downgrade_fails_closed_and_preserves_profile(tmp_path: Path) -> None:
-    resources = initialize_database(tmp_path / "account-nonempty-downgrade.db")
-    try:
-        upgrade_database(resources)
-        with resources.engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    INSERT INTO xianyu_account_profiles (
-                        profile_id,
-                        account_alias,
-                        external_account_identifier,
-                        credential_reference,
-                        lifecycle_status,
-                        row_version
-                    ) VALUES (
-                        :profile_id,
-                        :account_alias,
-                        :external_account_identifier,
-                        :credential_reference,
-                        :lifecycle_status,
-                        :row_version
-                    )
-                    """
-                ),
-                {
-                    "profile_id": PROFILE_ID,
-                    "account_alias": "synthetic-profile-alpha",
-                    "external_account_identifier": "synthetic-external-reference-alpha",
-                    "credential_reference": None,
-                    "lifecycle_status": "PENDING",
-                    "row_version": 1,
-                },
-            )
+def test_nonempty_downgrade_fails_closed_and_preserves_profile(
+    tmp_path: Path,
+) -> None:
+    run_isolated_account_python(
+        """
+        from pathlib import Path
 
-        with pytest.raises(RuntimeError):
-            downgrade_database(resources, BASELINE_REVISION)
+        import pytest
+        from sqlalchemy import text
 
-        assert get_current_revision(resources) == ACCOUNT_REVISION
-        with resources.engine.connect() as connection:
-            stored = connection.execute(
-                text(
-                    """
-                    SELECT external_account_identifier
-                    FROM xianyu_account_profiles
-                    WHERE profile_id = :profile_id
-                    """
-                ),
-                {"profile_id": PROFILE_ID},
-            ).scalar_one()
-        assert stored == "synthetic-external-reference-alpha"
-    finally:
-        dispose_database(resources)
+        from xianyu_system.core.database import (
+            dispose_database,
+            downgrade_database,
+            get_current_revision,
+            initialize_database,
+            upgrade_database,
+        )
+
+        account_revision = '0002_xianyu_account_boundary'
+        baseline_revision = '0001_core_baseline'
+        profile_id = '11111111-1111-4111-8111-111111111111'
+        resources = initialize_database(Path(__DATABASE_PATH__))
+        try:
+            upgrade_database(resources)
+            with resources.engine.begin() as connection:
+                connection.execute(
+                    text('''
+                        INSERT INTO xianyu_account_profiles (
+                            profile_id,
+                            account_alias,
+                            external_account_identifier,
+                            credential_reference,
+                            lifecycle_status,
+                            row_version
+                        ) VALUES (
+                            :profile_id,
+                            :account_alias,
+                            :external_account_identifier,
+                            :credential_reference,
+                            :lifecycle_status,
+                            :row_version
+                        )
+                    '''),
+                    {
+                        'profile_id': profile_id,
+                        'account_alias': 'synthetic-profile-alpha',
+                        'external_account_identifier': 'synthetic-external-reference-alpha',
+                        'credential_reference': None,
+                        'lifecycle_status': 'PENDING',
+                        'row_version': 1,
+                    },
+                )
+
+            with pytest.raises(RuntimeError):
+                downgrade_database(resources, baseline_revision)
+
+            assert get_current_revision(resources) == account_revision
+            with resources.engine.connect() as connection:
+                stored = connection.execute(
+                    text('''
+                        SELECT external_account_identifier
+                        FROM xianyu_account_profiles
+                        WHERE profile_id = :profile_id
+                    '''),
+                    {'profile_id': profile_id},
+                ).scalar_one()
+            assert stored == 'synthetic-external-reference-alpha'
+        finally:
+            dispose_database(resources)
+        """.replace(
+            "__DATABASE_PATH__",
+            repr(str(tmp_path / "account-nonempty-downgrade.db")),
+        )
+    )
 
 
 def test_repository_add_flushes_without_independent_commit(tmp_path: Path) -> None:
@@ -377,7 +339,7 @@ def test_database_enforces_uniqueness_concurrency_and_trim_constraints(
     tmp_path: Path,
 ) -> None:
     run_isolated_account_python(
-        f"""
+        """
         from pathlib import Path
 
         import pytest
@@ -390,8 +352,8 @@ def test_database_enforces_uniqueness_concurrency_and_trim_constraints(
         from xianyu_system.worker.account.domain import StaleProfileUpdate
         from xianyu_system.worker.account.persistence import AccountProfileRepository
 
-        profile_id = '{PROFILE_ID}'
-        other_profile_id = '{OTHER_PROFILE_ID}'
+        profile_id = __PROFILE_ID__
+        other_profile_id = __OTHER_PROFILE_ID__
 
         def make_profile(
             profile_id=profile_id,
@@ -412,7 +374,7 @@ def test_database_enforces_uniqueness_concurrency_and_trim_constraints(
             )
 
         resources = initialize_database(
-            Path({str(tmp_path / 'account-database-constraints.db')!r})
+            Path(__DATABASE_PATH__)
         )
         try:
             Base.metadata.create_all(resources.engine)
@@ -434,70 +396,70 @@ def test_database_enforces_uniqueness_concurrency_and_trim_constraints(
                 )
             ''')
             invalid_rows = [
-                {{
+                {
                     'profile_id': '33333333-3333-4333-8333-333333333333',
                     'account_alias': '   ',
                     'external_account_identifier': None,
                     'credential_reference': None,
                     'lifecycle_status': 'PENDING',
                     'row_version': 1,
-                }},
-                {{
+                },
+                {
                     'profile_id': '44444444-4444-4444-8444-444444444444',
                     'account_alias': ' padded-alias ',
                     'external_account_identifier': None,
                     'credential_reference': None,
                     'lifecycle_status': 'PENDING',
                     'row_version': 1,
-                }},
-                {{
+                },
+                {
                     'profile_id': '55555555-5555-4555-8555-555555555555',
                     'account_alias': 'synthetic-profile',
                     'external_account_identifier': ' padded-external ',
                     'credential_reference': None,
                     'lifecycle_status': 'PENDING',
                     'row_version': 1,
-                }},
-                {{
+                },
+                {
                     'profile_id': '66666666-6666-4666-8666-666666666666',
                     'account_alias': 'synthetic-profile',
                     'external_account_identifier': None,
                     'credential_reference': ' padded-credential ',
                     'lifecycle_status': 'PENDING',
                     'row_version': 1,
-                }},
-                {{
+                },
+                {
                     'profile_id': 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
                     'account_alias': 'synthetic-profile-whitespace-external',
                     "external_account_identifier": "   ",
                     "credential_reference": None,
                     'lifecycle_status': 'PENDING',
                     'row_version': 1,
-                }},
-                {{
+                },
+                {
                     'profile_id': 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
                     'account_alias': 'synthetic-profile-whitespace-credential',
                     "external_account_identifier": None,
                     "credential_reference": "   ",
                     'lifecycle_status': 'PENDING',
                     'row_version': 1,
-                }},
-                {{
+                },
+                {
                     'profile_id': '77777777-7777-4777-8777-777777777777',
                     'account_alias': 'synthetic-profile',
                     'external_account_identifier': None,
                     'credential_reference': None,
                     'lifecycle_status': 'AUTHENTICATED',
                     'row_version': 1,
-                }},
-                {{
+                },
+                {
                     'profile_id': '88888888-8888-4888-8888-888888888888',
                     'account_alias': 'synthetic-profile',
                     'external_account_identifier': None,
                     'credential_reference': None,
                     'lifecycle_status': 'PENDING',
                     'row_version': 0,
-                }},
+                },
             ]
             for invalid_row in invalid_rows:
                 with pytest.raises(IntegrityError), resources.engine.begin() as connection:
@@ -523,26 +485,26 @@ def test_database_enforces_uniqueness_concurrency_and_trim_constraints(
             with pytest.raises(IntegrityError), resources.engine.begin() as connection:
                 connection.execute(
                     insert_sql,
-                    {{
+                    {
                         'profile_id': '99999999-9999-4999-8999-999999999999',
                         'account_alias': 'synthetic-profile-gamma',
                         'external_account_identifier': 'synthetic-external-reference-alpha',
                         'credential_reference': None,
                         'lifecycle_status': 'PENDING',
                         'row_version': 1,
-                    }},
+                    },
                 )
             with pytest.raises(IntegrityError), resources.engine.begin() as connection:
                 connection.execute(
                     insert_sql,
-                    {{
+                    {
                         'profile_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
                         'account_alias': 'synthetic-profile-delta',
                         'external_account_identifier': None,
                         'credential_reference': 'synthetic-credential-reference-alpha',
                         'lifecycle_status': 'PENDING',
                         'row_version': 1,
-                    }},
+                    },
                 )
 
             with resources.session_factory.begin() as session:
@@ -561,5 +523,14 @@ def test_database_enforces_uniqueness_concurrency_and_trim_constraints(
                 assert saved.row_version == 2
         finally:
             dispose_database(resources)
-        """
+        """.replace(
+            "__PROFILE_ID__",
+            repr(PROFILE_ID),
+        ).replace(
+            "__OTHER_PROFILE_ID__",
+            repr(OTHER_PROFILE_ID),
+        ).replace(
+            "__DATABASE_PATH__",
+            repr(str(tmp_path / "account-database-constraints.db")),
+        )
     )

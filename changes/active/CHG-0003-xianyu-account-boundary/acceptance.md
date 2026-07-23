@@ -115,6 +115,48 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 55. Tasks remain 7/9 and next_task remains T8.
 
+56. Account Contract test modules do not insert a replacement production package into sys.modules.
+
+57. Account Contract test modules do not assign to account-related sys.modules entries.
+
+58. Account Contract test modules do not patch the type of Base.metadata.tables.
+
+59. Account Contract test modules do not replace or patch __eq__ behavior.
+
+60. Account Contract test modules have no top-level xianyu_system, SQLAlchemy, or Alembic imports.
+
+61. Importing the Contract test modules leaves account-related sys.modules unchanged.
+
+62. Importing the Contract test modules leaves Base.metadata table membership unchanged.
+
+63. Importing the Contract test modules leaves the metadata table-mapping equality method unchanged.
+
+64. ORM, Repository, Service, and Migration checks execute in isolated child processes.
+
+65. Runtime external-resource blocking executes in an isolated child process.
+
+66. Permanent account test counts remain 10, 7, 7, and 4.
+
+67. Full test collection remains 280.
+
+68. Tasks remain 7/9 and next_task remains T8.
+
+69. Importing the account package does not eagerly import Account Service.
+
+70. Importing account Domain types does not load account Persistence.
+
+71. Importing account Domain types does not register ORM metadata.
+
+72. AccountService remains in the package public `__all__` surface.
+
+73. AccountService package access lazily loads the real Service class.
+
+74. Permanent Import Safety covers the account package and account Domain module.
+
+75. Core runtime metadata remains empty during Domain-only test collection.
+
+76. No proxy module or test-only Service type is added.
+
 ## Current authorization
 
 T1 through T7 are complete.

@@ -282,6 +282,25 @@ The T7 permanent evidence hardening is complete.
 - Database constraints explicitly reject whitespace-only external and credential references.
 - Test counts remain unchanged.
 - T8 capability evidence remains the next executable task.
+
+The T7 Contract evidence is now isolated from the parent pytest process.
+
+- No replacement account package is inserted into `sys.modules`.
+- No SQLAlchemy metadata type or equality behavior is patched.
+- Account ORM, Repository, Service, and Migration checks run in isolated Python processes.
+- Importing the Contract test modules leaves account runtime modules and Core metadata unchanged.
+- Runtime external-resource blocking and database-constraint evidence remain intact.
+- Test counts remain unchanged.
+- T8 remains the next executable task.
+
+The T7 import-boundary correction is complete.
+
+- Importing the account package or account Domain no longer eagerly imports Account Service.
+- Account Domain imports no longer load account Persistence or register ORM metadata.
+- `AccountService` remains part of the public package surface and loads lazily as the real Service class.
+- Permanent Import Safety evidence covers the account package and Domain module.
+- Core runtime metadata remains empty during Domain-only test collection.
+- No Migration, Core runtime, Registry, capability, dependency, CI, API, browser, Provider, Secure Storage, Scheduler, background-process, external-network, real-account, or Secret Material behavior was added.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 

@@ -33,6 +33,7 @@ def run_isolated_account_python(source: str) -> None:
             textwrap.dedent(source).strip(),
         ]
     )
+
     result = subprocess.run(
         [sys.executable, "-c", isolated_source],
         cwd=ROOT,
@@ -40,6 +41,7 @@ def run_isolated_account_python(source: str) -> None:
         capture_output=True,
         check=False,
     )
+
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -255,7 +257,9 @@ def test_account_operations_make_no_network_browser_or_credential_store_calls(
     )
 
 
-def test_account_errors_do_not_expose_sensitive_reference_values(tmp_path: Path) -> None:
+def test_account_errors_do_not_expose_sensitive_reference_values(
+    tmp_path: Path,
+) -> None:
     run_isolated_account_python(
         f"""
         from pathlib import Path

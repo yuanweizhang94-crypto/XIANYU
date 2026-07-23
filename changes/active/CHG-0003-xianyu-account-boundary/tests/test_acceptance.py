@@ -117,6 +117,32 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     assert (account_root / "persistence.py").is_file()
     assert (account_root / "service.py").is_file()
     assert (ROOT / "migrations" / "versions" / "0002_xianyu_account_boundary.py").is_file()
+    account_init_source = (account_root / "__init__.py").read_text(
+        encoding="utf-8-sig"
+    )
+    account_init_tree = ast.parse(account_init_source)
+    assert not account_init_source.startswith("\ufeff")
+    assert "TYPE_CHECKING" in account_init_source
+    assert "def __getattr__" in account_init_source
+    assert '"AccountService"' in account_init_source
+    assert "xianyu_system.worker.account.persistence" not in account_init_source
+    assert "sqlalchemy" not in account_init_source.lower()
+    for node in account_init_tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module is not None:
+            assert node.module != "xianyu_system.worker.account.persistence"
+            assert node.module != "xianyu_system.worker.account.service"
+
+    import_safety_source = (
+        ROOT / "tests" / "unit" / "test_import_safety.py"
+    ).read_text(encoding="utf-8-sig")
+    assert '"xianyu_system.worker.account"' in import_safety_source
+    assert '"xianyu_system.worker.account.domain"' in import_safety_source
+    assert '"xianyu_system.worker.account.service"' not in import_safety_source.split(
+        "IMPORT_MODULES", 1
+    )[1].split("]", 1)[0]
+    assert "account_service_loaded" in import_safety_source
+    assert "account_persistence_loaded" in import_safety_source
+    assert 'assert report["after"]["metadata_tables"] == []' in import_safety_source
     permanent_tests = {
         ROOT / "tests" / "unit" / "test_account_domain.py": 10,
         ROOT / "tests" / "unit" / "test_account_service.py": 7,
@@ -146,14 +172,71 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
         ROOT / "tests" / "contract" / "test_account_security.py"
     ).read_text(encoding="utf-8-sig")
     for forbidden_cleanup in [
-        "clear_mappers",
-        "Base.metadata.remove",
+        "install_account_package_collection_proxy",
+        "install_core_metadata_empty_view",
+        "types.ModuleType",
+        "sys.modules[",
         "sys.modules.pop",
+        "package.__getattr__",
+        "tables_type.__eq__",
+        "_xianyu_account_empty_view",
+        "account_aware_eq",
+        "Base.metadata.remove",
+        "clear_mappers",
         "importlib.reload",
         "cleanup_account_metadata_after_module",
     ]:
         assert forbidden_cleanup not in persistence_contract_source
         assert forbidden_cleanup not in security_contract_source
+    forbidden_contract_import_roots = {
+        "xianyu_system",
+        "sqlalchemy",
+        "alembic",
+        "types",
+        "importlib",
+    }
+    for contract_path in [
+        ROOT / "tests" / "contract" / "test_account_persistence.py",
+        ROOT / "tests" / "contract" / "test_account_security.py",
+    ]:
+        tree = ast.parse(contract_path.read_text(encoding="utf-8-sig"))
+        for node in tree.body:
+            if isinstance(node, ast.Import):
+                roots = {alias.name.split(".", 1)[0] for alias in node.names}
+                assert roots.isdisjoint(forbidden_contract_import_roots)
+            if isinstance(node, ast.ImportFrom) and node.module is not None:
+                assert (
+                    node.module.split(".", 1)[0]
+                    not in forbidden_contract_import_roots
+                )
+        contract_source = contract_path.read_text(encoding="utf-8-sig")
+        assert "run_isolated_account_python" in contract_source
+        assert "subprocess.run" in contract_source
+        assert "sys.executable" in contract_source
+
+    import runpy
+    import sys
+
+    from xianyu_system.core.database import Base
+
+    before_account_modules = {
+        name for name in sys.modules if name.startswith("xianyu_system.worker.account")
+    }
+    before_tables = tuple(Base.metadata.tables)
+    before_eq = type(Base.metadata.tables).__eq__
+    for contract_path in [
+        ROOT / "tests" / "contract" / "test_account_persistence.py",
+        ROOT / "tests" / "contract" / "test_account_security.py",
+    ]:
+        runpy.run_path(str(contract_path))
+    after_account_modules = {
+        name for name in sys.modules if name.startswith("xianyu_system.worker.account")
+    }
+    after_tables = tuple(Base.metadata.tables)
+    after_eq = type(Base.metadata.tables).__eq__
+    assert after_account_modules == before_account_modules
+    assert after_tables == before_tables
+    assert after_eq is before_eq
     assert (
         "def test_account_operations_make_no_network_browser_or_credential_store_calls"
         in security_contract_source
