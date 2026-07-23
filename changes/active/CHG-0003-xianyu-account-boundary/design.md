@@ -914,6 +914,21 @@ T6 explicitly excludes:
 - secure storage provider or resolver
 - external platform login and account validation
 
+## T7 correction outcome
+
+The T7 permanent account evidence was hardened before T8.
+
+- Account operations are now executed while network sockets, subprocesses, and user-Home discovery are blocked.
+- The runtime test proves that local Profile operations require only the supplied temporary SQLite boundary.
+- The security evidence includes static absence of browser and Credential Store integrations.
+- Persistence Contract tests no longer clear global SQLAlchemy mappers, remove shared Base metadata, or evict production modules from `sys.modules`.
+- The account Contract tests can execute in either persistence-first or security-first order.
+- Database-level checks explicitly reject whitespace-only External Account Identifiers.
+- Database-level checks explicitly reject whitespace-only Credential References.
+- Permanent test counts remain unchanged.
+- T7 remains complete.
+- T8 remains not started.
+
 ## T7 test evidence state
 
 T7 added permanent account-boundary tests only.

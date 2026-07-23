@@ -273,6 +273,15 @@ CHG-0003 permanent account coverage now verifies:
 - absence of external account, browser, API, Provider, Secure Storage, network, Scheduler, and background-process behavior.
 
 Completion of T7 does not authorize T8 in the same execution, Ready-for-review, auto-merge, or merge.
+
+The T7 permanent evidence hardening is complete.
+
+- Local account operations are tested with network, subprocess, and user-Home access blocked.
+- Account Contract tests no longer clear mappers, remove the account table from shared metadata, or evict account modules.
+- Persistence and security Contract tests pass in either execution order.
+- Database constraints explicitly reject whitespace-only external and credential references.
+- Test counts remain unchanged.
+- T8 capability evidence remains the next executable task.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 

@@ -36,6 +36,19 @@ No T8 capability evidence work, capability binding, Ready-for-review, auto-merge
 - T8/T9 are not started.
 - PR #3 remains Draft, open, and unmerged.
 
+## T7 correction
+
+- Runtime account operations are tested with network, subprocess, and Home-directory access blocked.
+- Contract tests no longer clear mappers, remove the account table from shared metadata, or evict account modules.
+- Contract tests pass in both account persistence/security execution orders.
+- Whitespace-only External Account Identifier and Credential Reference database writes are explicitly rejected.
+- No runtime or Migration implementation changed.
+- Test counts remain unchanged.
+- T8 remains the next executable task.
+- T1-T7 are complete.
+- T8/T9 are not started.
+- PR #3 remains Draft, open, and unmerged.
+
 ## T7 permanent test outcome
 
 Permanent account-boundary coverage is complete.

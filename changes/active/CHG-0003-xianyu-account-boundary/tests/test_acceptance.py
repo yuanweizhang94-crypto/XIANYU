@@ -139,6 +139,46 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
                     assert "parametrize" not in ast.unparse(decorator)
         total_t7_tests += len(tests)
     assert total_t7_tests == 28
+    persistence_contract_source = (
+        ROOT / "tests" / "contract" / "test_account_persistence.py"
+    ).read_text(encoding="utf-8-sig")
+    security_contract_source = (
+        ROOT / "tests" / "contract" / "test_account_security.py"
+    ).read_text(encoding="utf-8-sig")
+    for forbidden_cleanup in [
+        "clear_mappers",
+        "Base.metadata.remove",
+        "sys.modules.pop",
+        "importlib.reload",
+        "cleanup_account_metadata_after_module",
+    ]:
+        assert forbidden_cleanup not in persistence_contract_source
+        assert forbidden_cleanup not in security_contract_source
+    assert (
+        "def test_account_operations_make_no_network_browser_or_credential_store_calls"
+        in security_contract_source
+    )
+    for operation_name in [
+        "create_profile",
+        "get_profile",
+        "list_profiles",
+        "rename_profile",
+        "set_external_account_identifier",
+        "set_credential_reference",
+        "set_lifecycle_status",
+    ]:
+        assert operation_name in security_contract_source
+    assert "socket.create_connection" in security_contract_source
+    assert "socket.socket" in security_contract_source
+    assert "subprocess.run" in security_contract_source
+    assert "subprocess.Popen" in security_contract_source
+    assert "Path.home" in security_contract_source
+    assert (
+        '"external_account_identifier": "   "' in persistence_contract_source
+    )
+    assert '"credential_reference": "   "' in persistence_contract_source
+    assert "synthetic-profile-whitespace-external" in persistence_contract_source
+    assert "synthetic-profile-whitespace-credential" in persistence_contract_source
 
     for capability_id in CORE_IDS:
         capability = registry[capability_id]

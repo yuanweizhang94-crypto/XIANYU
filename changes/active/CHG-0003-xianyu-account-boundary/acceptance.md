@@ -89,10 +89,36 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 42. Repository verification, security scan, Ruff, Mypy, Pip Check, warning mode, and offline gates pass.
 
+43. Account operations execute successfully while socket creation and socket connections are blocked.
+
+44. Account operations execute successfully while subprocess.run and subprocess.Popen are blocked.
+
+45. Account operations execute successfully while Path.home is blocked.
+
+46. Account tests do not call a browser directory or operating-system Credential Store.
+
+47. Account Contract tests do not call clear_mappers.
+
+48. Account Contract tests do not remove the account table from shared Base.metadata.
+
+49. Account Contract tests do not evict account modules from sys.modules.
+
+50. Account persistence and security Contract modules pass in both execution orders.
+
+51. Database constraints explicitly reject whitespace-only External Account Identifiers.
+
+52. Database constraints explicitly reject whitespace-only Credential References.
+
+53. Permanent account test counts remain 10, 7, 7, and 4.
+
+54. Full collection remains 280.
+
+55. Tasks remain 7/9 and next_task remains T8.
+
 ## Current authorization
 
 T1 through T7 are complete.
 
 T8 is the next executable task and must be performed separately.
 
-This execution does not authorize capability binding, Registry evidence updates, verification status, Ready-for-review, auto-merge, or merge.
+This execution does not authorize capability binding, Registry evidence updates, capability verification, Ready-for-review, auto-merge, or merge.
