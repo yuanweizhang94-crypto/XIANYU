@@ -1,4 +1,4 @@
-﻿"""Public surface for the local Xianyu account boundary."""
+"""Public surface for the local Xianyu account boundary."""
 
 from __future__ import annotations
 

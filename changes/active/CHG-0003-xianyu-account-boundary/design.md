@@ -960,6 +960,21 @@ Complete verification exposed and resolved an account package import-boundary is
 - T7 remains complete.
 - T8 remains not started.
 
+## T7 BOM correction outcome
+
+The final T7 import-boundary review identified a UTF-8 byte-order mark in the account package initializer.
+
+- The initializer is now encoded as UTF-8 without BOM.
+- Exactly the leading EF BB BF bytes were removed.
+- The AccountService lazy-import implementation is byte-for-byte unchanged after the removed BOM.
+- Permanent Import Safety now checks the raw file bytes.
+- Active-change acceptance now checks the raw file bytes.
+- The previous utf-8-sig-based assertion was replaced because that decoder strips the BOM before inspection.
+- Import isolation, Contract child-process isolation, and runtime behavior remain unchanged.
+- Test counts remain unchanged.
+- T7 remains complete.
+- T8 remains not started.
+
 ## T7 test evidence state
 
 T7 added permanent account-boundary tests only.

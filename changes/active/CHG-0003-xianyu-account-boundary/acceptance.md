@@ -157,6 +157,26 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 76. No proxy module or test-only Service type is added.
 
+81. The account package initializer is encoded as UTF-8 without a byte-order mark.
+
+82. The account package initializer does not begin with the byte sequence EF BB BF.
+
+83. Permanent Import Safety checks the raw account initializer bytes.
+
+84. Active-change acceptance checks the raw account initializer bytes.
+
+85. BOM verification does not use utf-8-sig before testing for the BOM.
+
+86. Removing the BOM changes no account initializer byte after the first three bytes.
+
+87. AccountService lazy-loading behavior remains unchanged.
+
+88. Permanent test counts remain unchanged.
+
+89. Full test collection remains 280.
+
+90. Tasks remain 7/9 and next_task remains T8.
+
 ## Current authorization
 
 T1 through T7 are complete.

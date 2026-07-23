@@ -304,6 +304,15 @@ The T7 import-boundary correction is complete.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 
+The final T7 encoding correction is complete.
+
+- The account package initializer is UTF-8 without BOM.
+- Only the leading BOM bytes were removed.
+- AccountService lazy-loading behavior is unchanged.
+- Permanent Import Safety and active-change acceptance verify the raw file bytes.
+- Test counts remain unchanged.
+- T8 remains the next executable task.
+
 ## Permanent test layers
 
 CHG-0002 now has permanent test coverage across these layers:

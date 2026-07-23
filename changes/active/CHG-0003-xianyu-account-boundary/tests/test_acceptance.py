@@ -117,11 +117,16 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     assert (account_root / "persistence.py").is_file()
     assert (account_root / "service.py").is_file()
     assert (ROOT / "migrations" / "versions" / "0002_xianyu_account_boundary.py").is_file()
-    account_init_source = (account_root / "__init__.py").read_text(
-        encoding="utf-8-sig"
+    account_init_path = account_root / "__init__.py"
+    account_init_bytes = account_init_path.read_bytes()
+
+    assert not account_init_bytes.startswith(b"\xef\xbb\xbf")
+    assert account_init_bytes.startswith(
+        b'"""Public surface for the local Xianyu account boundary.'
     )
+
+    account_init_source = account_init_bytes.decode("utf-8")
     account_init_tree = ast.parse(account_init_source)
-    assert not account_init_source.startswith("\ufeff")
     assert "TYPE_CHECKING" in account_init_source
     assert "def __getattr__" in account_init_source
     assert '"AccountService"' in account_init_source
@@ -134,7 +139,7 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
 
     import_safety_source = (
         ROOT / "tests" / "unit" / "test_import_safety.py"
-    ).read_text(encoding="utf-8-sig")
+    ).read_text(encoding="utf-8")
     assert '"xianyu_system.worker.account"' in import_safety_source
     assert '"xianyu_system.worker.account.domain"' in import_safety_source
     assert '"xianyu_system.worker.account.service"' not in import_safety_source.split(
@@ -151,7 +156,7 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     }
     total_t7_tests = 0
     for test_path, expected_count in permanent_tests.items():
-        tree = ast.parse(test_path.read_text(encoding="utf-8-sig"))
+        tree = ast.parse(test_path.read_text(encoding="utf-8"))
         tests = [
             node.name
             for node in tree.body
@@ -167,10 +172,10 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     assert total_t7_tests == 28
     persistence_contract_source = (
         ROOT / "tests" / "contract" / "test_account_persistence.py"
-    ).read_text(encoding="utf-8-sig")
+    ).read_text(encoding="utf-8")
     security_contract_source = (
         ROOT / "tests" / "contract" / "test_account_security.py"
-    ).read_text(encoding="utf-8-sig")
+    ).read_text(encoding="utf-8")
     for forbidden_cleanup in [
         "install_account_package_collection_proxy",
         "install_core_metadata_empty_view",
@@ -199,7 +204,7 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
         ROOT / "tests" / "contract" / "test_account_persistence.py",
         ROOT / "tests" / "contract" / "test_account_security.py",
     ]:
-        tree = ast.parse(contract_path.read_text(encoding="utf-8-sig"))
+        tree = ast.parse(contract_path.read_text(encoding="utf-8"))
         for node in tree.body:
             if isinstance(node, ast.Import):
                 roots = {alias.name.split(".", 1)[0] for alias in node.names}
@@ -209,7 +214,7 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
                     node.module.split(".", 1)[0]
                     not in forbidden_contract_import_roots
                 )
-        contract_source = contract_path.read_text(encoding="utf-8-sig")
+        contract_source = contract_path.read_text(encoding="utf-8")
         assert "run_isolated_account_python" in contract_source
         assert "subprocess.run" in contract_source
         assert "sys.executable" in contract_source

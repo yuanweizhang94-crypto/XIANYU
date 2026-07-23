@@ -121,6 +121,22 @@ print(json.dumps({"before": before, "after": after}, sort_keys=True))
 
 
 def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> None:
+    account_init_path = (
+        ROOT
+        / "app"
+        / "xianyu_system"
+        / "worker"
+        / "account"
+        / "__init__.py"
+    )
+    account_init_bytes = account_init_path.read_bytes()
+
+    assert not account_init_bytes.startswith(b"\xef\xbb\xbf")
+    assert account_init_bytes.startswith(
+        b'"""Public surface for the local Xianyu account boundary.'
+    )
+    account_init_bytes.decode("utf-8")
+
     report = run_import_probe(tmp_path, IMPORT_MODULES)
 
     assert report["after"]["imported"] == IMPORT_MODULES

@@ -75,6 +75,20 @@ No T8 capability evidence work, capability binding, Ready-for-review, auto-merge
 - T8/T9 are not started.
 - PR #3 remains Draft, open, and unmerged.
 
+## T7 BOM correction
+
+- The account package initializer is now UTF-8 without BOM.
+- Only the leading BOM bytes were removed.
+- AccountService lazy loading and the public package surface are unchanged.
+- Permanent Import Safety and active-change acceptance now inspect raw bytes.
+- BOM verification no longer relies on utf-8-sig decoding.
+- Test counts remain unchanged.
+- T8 remains the next executable task.
+- T1-T7 remain complete.
+- T8 has not started.
+- T9 has not started.
+- PR #3 remains Draft, open, and unmerged.
+
 ## T7 permanent test outcome
 
 Permanent account-boundary coverage is complete.
