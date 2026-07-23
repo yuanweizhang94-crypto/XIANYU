@@ -18,6 +18,8 @@ IMPORT_MODULES = [
     "xianyu_system.api.router",
     "xianyu_system.api.health",
     "xianyu_system.web.router",
+    "xianyu_system.worker.account",
+    "xianyu_system.worker.account.domain",
 ]
 FORBIDDEN_ARTIFACT_GLOBS = [
     "*.db",
@@ -76,6 +78,22 @@ from xianyu_system.core.database import Base
 from xianyu_system.main import app
 
 after = {
+    "account_modules": sorted(
+        name
+        for name in sys.modules
+        if name.startswith("xianyu_system.worker.account")
+    ),
+    "account_service_loaded": (
+        "xianyu_system.worker.account.service" in sys.modules
+    ),
+    "account_persistence_loaded": (
+        "xianyu_system.worker.account.persistence" in sys.modules
+    ),
+    "account_service_public": (
+        "xianyu_system.worker.account" in sys.modules
+        and "AccountService"
+        in sys.modules["xianyu_system.worker.account"].__all__
+    ),
     "cwd_files": sorted(path.name for path in cwd.iterdir()),
     "root_level": root_logger.level,
     "root_handlers": [id(handler) for handler in root_logger.handlers],
@@ -103,6 +121,22 @@ print(json.dumps({"before": before, "after": after}, sort_keys=True))
 
 
 def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> None:
+    account_init_path = (
+        ROOT
+        / "app"
+        / "xianyu_system"
+        / "worker"
+        / "account"
+        / "__init__.py"
+    )
+    account_init_bytes = account_init_path.read_bytes()
+
+    assert not account_init_bytes.startswith(b"\xef\xbb\xbf")
+    assert account_init_bytes.startswith(
+        b'"""Public surface for the local Xianyu account boundary.'
+    )
+    account_init_bytes.decode("utf-8")
+
     report = run_import_probe(tmp_path, IMPORT_MODULES)
 
     assert report["after"]["imported"] == IMPORT_MODULES
@@ -112,6 +146,22 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
     assert report["after"]["thread_names"] == report["before"]["thread_names"]
     assert report["after"]["connect_attempts"] == []
     assert report["after"]["metadata_tables"] == []
+    assert report["after"]["account_service_loaded"] is False
+    assert report["after"]["account_persistence_loaded"] is False
+    assert report["after"]["account_service_public"] is True
+    assert "xianyu_system.worker.account" in report["after"]["account_modules"]
+    assert (
+        "xianyu_system.worker.account.domain"
+        in report["after"]["account_modules"]
+    )
+    assert (
+        "xianyu_system.worker.account.service"
+        not in report["after"]["account_modules"]
+    )
+    assert (
+        "xianyu_system.worker.account.persistence"
+        not in report["after"]["account_modules"]
+    )
     assert report["after"]["has_database_state"] is False
     assert report["after"]["has_scheduler_state"] is False
     assert report["after"]["has_logger_state"] is False

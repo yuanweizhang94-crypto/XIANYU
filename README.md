@@ -170,21 +170,156 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 
 ## Core verification status
 
+- CHG-0002 was merged through PR #2.
+- Merge commit: `e2d41e0cc392ae0298688c01147e983317c7e1df`.
+- CHG-0002 is archived.
+- CHG-0003-xianyu-account-boundary is the only active change.
+- CHG-0003 status is `APPROVED`.
+- T1 project-owner approval is complete.
+- T2 account and Profile isolation terminology is complete.
+- T3 security and credential-handling boundaries is complete.
+- T4 persistence and migration principles is complete.
+- T5 runtime module and ownership boundaries is complete.
+- T6 minimal local account boundary implementation is complete.
+- T7 dedicated permanent account tests are complete.
+- T8 capability evidence and complete verification is the next executable task.
+- No CHG-0003 external account integration has started.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
-- T1 through T15 are complete.
-- CHG-0002 remains `VERIFYING`.
-- PR #2 is Ready for review, open, and unmerged.
-- The final branch is pushed.
-- No unfinished task remains in the current change.
+- T1 through T15 are complete for archived CHG-0002.
 - `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR` are `verified`.
 - Each verified Core capability records `d11f1afc4564298e8c2709fdb80a41a491dbb1ea` in `last_verified_commit`.
 - Verified Core capabilities have cleared their registry `active_change` field.
 - The seven non-Core capabilities remain `planned`.
+- `CAP-XY-ACCOUNT` remains planned and unbound.
 - `CAP-XY-SCHEDULE` remains `planned`.
-- CHG-0003 has not started.
-- The Ready-for-review transition was explicitly authorized and completed; merge remains unauthorized.
+- No Xianyu account runtime, Cookie import, browser Profile loading, login, or external platform access is implemented.
+- Approval and T5 completion of CHG-0003 do not mean that runtime implementation, real account access, Cookie or Token handling, browser Profile loading, Ready-for-review, auto-merge, or merge has been approved.
+
+Within CHG-0003:
+
+- Platform Account means the real external Xianyu account.
+- Account Reference means the repository-owned non-secret logical reference.
+- Profile means the local isolation boundary and does not mean a browser profile.
+- Profile Identifier is the canonical local identity.
+- Credential Reference is an opaque reference and never contains secret material.
+- Session Material remains sensitive and outside the approved implementation boundary.
+
+
+Within the approved CHG-0003 security boundary:
+
+- Secret Material is prohibited from repository and ordinary application persistence.
+- Credential References are opaque, Profile-owned, and never contain secret values.
+- A future Secure Storage Boundary must enforce encryption at rest and least-privilege access.
+- A future operation may proceed only with exact Profile ownership, successful resolution, explicit authorization, and a non-blocked risk decision.
+- Unknown, unavailable, invalid, expired, revoked, denied, verification-required, or risk-blocked states fail closed.
+- Secret Material and full Credential References must not appear in logs or diagnostics.
+- Only Synthetic Fixtures are permitted in tests.
+
+
+Within the approved CHG-0003 persistence boundary:
+
+- The existing CAP-CORE-DATABASE SQLite, SQLAlchemy, and Alembic infrastructure remains the only approved persistence boundary.
+- Only minimal non-secret Profile and Account Reference metadata may be persisted.
+- Credential References remain opaque, non-secret, and Profile-owned.
+- Secret Material, browser state, and generic JSON, BLOB, payload, properties, extras, metadata, context, or arbitrary key-value fields are prohibited.
+- Persistence mutations require explicit Profile ownership, transactions, uniqueness protection, and concurrency-conflict protection.
+- Future migrations remain explicit and application startup must not auto-migrate.
+- Exact physical schema and Alembic implementation remain deferred to T6.
+- T4 creates no Migration file, ORM model, table, Repository, API, or Worker.
+
+Within the approved CHG-0003 runtime ownership boundary:
+
+- CAP-XY-ACCOUNT is owned by the `worker.account` capability namespace.
+- The future package is `xianyu_system.worker.account`.
+- The minimal modules are `domain.py`, `persistence.py`, and `service.py`.
+- Domain code remains independent of SQLAlchemy and FastAPI.
+- Persistence uses the existing Core Engine and Session boundary.
+- Account Service owns logical transaction coordination.
+- Profile Identifier generation uses UUID version 4.
+- Local lifecycle states are PENDING, ENABLED, and DISABLED.
+- CHG-0003 owns opaque Credential References but does not resolve Secret Material.
+- No API, browser integration, background process, Scheduler Job, or Provider is included.
+- T5 created no implementation files.
+
+Within the approved CHG-0003 T6 implementation:
+
+The T6 implementation correction is complete.
+
+- `Profile` and `AccountReference` are distinct immutable domain concepts.
+- Their one-to-one ownership is enforced locally.
+- They remain flattened into one non-secret relational projection.
+- ORM and Migration constraints reject blank or padded reference metadata.
+- Existing Core unit-test edits made during T6 were compatibility updates only.
+- Dedicated permanent account testing remains T7.
+
+- The local package `xianyu_system.worker.account` exists.
+- A local SQLite table and Migration `0002_xianyu_account_boundary` exist.
+- One SQLAlchemy relational projection, one Repository, and one Service exist.
+- Profile Identifier generation, local lifecycle transitions, and optimistic concurrency are implemented.
+- There is still no external account access, HTTP API, browser integration, Provider, or Secret Material handling.
+
+Completion of T6 does not authorize starting T7 in the same execution, Ready-for-review, auto-merge, or merge.
+
+CHG-0003 permanent account coverage now verifies:
+
+- immutable Profile and AccountReference ownership;
+- input normalization and lifecycle invariants;
+- Account Service transactions and optimistic concurrency;
+- Profile-scoped uniqueness and rollback;
+- Repository and Migration behavior;
+- guarded non-empty downgrade;
+- database-level trim constraints;
+- sanitized errors;
+- absence of external account, browser, API, Provider, Secure Storage, network, Scheduler, and background-process behavior.
+
+Completion of T7 does not authorize T8 in the same execution, Ready-for-review, auto-merge, or merge.
+
+The T7 permanent evidence hardening is complete.
+
+- Local account operations are tested with network, subprocess, and user-Home access blocked.
+- Account Contract tests no longer clear mappers, remove the account table from shared metadata, or evict account modules.
+- Persistence and security Contract tests pass in either execution order.
+- Database constraints explicitly reject whitespace-only external and credential references.
+- Test counts remain unchanged.
+- T8 capability evidence remains the next executable task.
+
+The T7 Contract evidence is now isolated from the parent pytest process.
+
+- No replacement account package is inserted into `sys.modules`.
+- No SQLAlchemy metadata type or equality behavior is patched.
+- Account ORM, Repository, Service, and Migration checks run in isolated Python processes.
+- Importing the Contract test modules leaves account runtime modules and Core metadata unchanged.
+- Runtime external-resource blocking and database-constraint evidence remain intact.
+- Test counts remain unchanged.
+- T8 remains the next executable task.
+
+The T7 import-boundary correction is complete.
+
+- Importing the account package or account Domain no longer eagerly imports Account Service.
+- Account Domain imports no longer load account Persistence or register ORM metadata.
+- `AccountService` remains part of the public package surface and loads lazily as the real Service class.
+- Permanent Import Safety evidence covers the account package and Domain module.
+- Core runtime metadata remains empty during Domain-only test collection.
+- No Migration, Core runtime, Registry, capability, dependency, CI, API, browser, Provider, Secure Storage, Scheduler, background-process, external-network, real-account, or Secret Material behavior was added.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
+
+The final T7 encoding correction is complete.
+
+- The account package initializer is UTF-8 without BOM.
+- Only the leading BOM bytes were removed.
+- AccountService lazy-loading behavior is unchanged.
+- Permanent Import Safety and active-change acceptance verify the raw file bytes.
+- Test counts remain unchanged.
+- T8 remains the next executable task.
+
+CAP-XY-ACCOUNT capability evidence is verified.
+
+- Evidence Candidate SHA: `2aab941cb7f713d7e46675789c47971a2c79c564`.
+- The exact implementation and verification paths are registered.
+- CAP-XY-ACCOUNT status is `verified`.
+- T9 is the next executable task.
+- PR #3 remains Draft, open, and unmerged.
 
 ## Permanent test layers
 
@@ -194,7 +329,7 @@ CHG-0002 now has permanent test coverage across these layers:
 - Contract tests for Core runtime lifecycle, health, database, scheduler, web, distribution, and security boundaries.
 - Distribution tests for offline wheel build, package-data inclusion, vendored HTMX integrity, and installed-package smoke behavior.
 - Security-boundary tests for synthetic secret non-exposure, blocked external sockets, read-only HTTP behavior, and absence of external business integrations.
-- Active-change acceptance tests mapping executable evidence to all 25 CHG-0002 final acceptance criteria.
+- Archived CHG-0002 acceptance tests mapping executable evidence to all 25 CHG-0002 final acceptance criteria, plus the active CHG-0003 draft acceptance tests.
 
 The permanent tests specifically verify:
 
@@ -234,3 +369,13 @@ mypy scripts app
 ## Current capability statement
 
 This repository currently contains no real business capability. It cannot log in to Xianyu, publish listings, receive messages, send messages, call WeCom, call AI, run business FastAPI routes, create business database tables, install browsers, or access real accounts.
+
+
+CHG-0003 final PR administration is complete.
+
+- CHG-0003 status is `VERIFYING`.
+- All nine tasks are complete.
+- CAP-XY-ACCOUNT remains verified.
+- PR #3 is Ready for review, open, and unmerged.
+- Merge and auto-merge remain unauthorized.
+- CHG-0003 remains under `changes/active/` until the PR is merged.

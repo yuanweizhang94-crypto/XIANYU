@@ -2,73 +2,49 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0002-core-application",
+    "id": "CHG-0003-xianyu-account-boundary",
     "status": "VERIFYING",
-    "path": "changes/active/CHG-0002-core-application"
+    "path": "changes/active/CHG-0003-xianyu-account-boundary"
   },
   "tasks": {
-    "total": 15,
-    "completed": 15,
+    "total": 9,
+    "completed": 9,
     "next_task": null,
     "items": [
       {
-        "text": "T1 Archive CHG-0001 and establish CHG-0002 active change",
+        "text": "T1 Obtain explicit project-owner approval for CHG-0003",
         "completed": true
       },
       {
-        "text": "T2 Approve CHG-0002 architecture and dependency boundary",
+        "text": "T2 Finalize account and Profile isolation terminology",
         "completed": true
       },
       {
-        "text": "T3 Add approved core application dependencies",
+        "text": "T3 Approve security and credential-handling boundaries",
         "completed": true
       },
       {
-        "text": "T4 Implement application factory and lifespan",
+        "text": "T4 Approve persistence and migration boundaries",
         "completed": true
       },
       {
-        "text": "T5 Implement typed configuration",
+        "text": "T5 Approve runtime module and ownership boundaries",
         "completed": true
       },
       {
-        "text": "T6 Implement structured redacted logging",
+        "text": "T6 Implement only the approved account boundary",
         "completed": true
       },
       {
-        "text": "T7 Implement SQLite WAL and SQLAlchemy infrastructure",
+        "text": "T7 Add unit, contract, security, and active-change acceptance tests",
         "completed": true
       },
       {
-        "text": "T8 Establish Alembic migration baseline",
+        "text": "T8 Update capability evidence and run complete verification",
         "completed": true
       },
       {
-        "text": "T9 Implement scheduler lifecycle skeleton",
-        "completed": true
-      },
-      {
-        "text": "T10 Implement health API contract and route",
-        "completed": true
-      },
-      {
-        "text": "T11 Implement Jinja2 and HTMX web skeleton",
-        "completed": true
-      },
-      {
-        "text": "T12 Add unit, contract and active-change acceptance tests",
-        "completed": true
-      },
-      {
-        "text": "T13 Update capability registry implementation and verification paths",
-        "completed": true
-      },
-      {
-        "text": "T14 Run complete local verification",
-        "completed": true
-      },
-      {
-        "text": "T15 Push branch and open Draft PR",
+        "text": "T9 Complete final PR administration",
         "completed": true
       }
     ]
@@ -76,8 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 7,
-      "verified": 3
+      "planned": 6,
+      "verified": 4
     },
     "items": [
       {
@@ -97,7 +73,7 @@
           "tests/contract/test_core_runtime.py",
           "tests/contract/test_distribution.py",
           "tests/contract/test_security_boundary.py",
-          "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+          "changes/archive/CHG-0002-core-application/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
@@ -124,7 +100,7 @@
           "tests/contract/test_core_runtime.py",
           "tests/contract/test_distribution.py",
           "tests/contract/test_security_boundary.py",
-          "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+          "changes/archive/CHG-0002-core-application/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
@@ -132,13 +108,29 @@
       {
         "id": "CAP-XY-ACCOUNT",
         "name": "Xianyu account boundary",
-        "status": "planned",
+        "status": "verified",
         "owner_module": "worker.account",
         "specification": "specs/capabilities/CAP-XY-ACCOUNT.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/worker/account/__init__.py",
+          "app/xianyu_system/worker/account/domain.py",
+          "app/xianyu_system/worker/account/service.py",
+          "app/xianyu_system/worker/account/persistence.py",
+          "migrations/versions/0002_xianyu_account_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_account_domain.py",
+          "tests/unit/test_account_service.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_account_persistence.py",
+          "tests/contract/test_account_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py"
+        ],
         "active_change": null,
-        "last_verified_commit": null
+        "last_verified_commit": "2aab941cb7f713d7e46675789c47971a2c79c564"
       },
       {
         "id": "CAP-XY-MESSAGE",
@@ -226,7 +218,7 @@
           "tests/contract/test_core_runtime.py",
           "tests/contract/test_distribution.py",
           "tests/contract/test_security_boundary.py",
-          "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
+          "changes/archive/CHG-0002-core-application/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"

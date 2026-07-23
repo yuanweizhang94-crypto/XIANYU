@@ -17,7 +17,6 @@ from sqlalchemy import inspect, text
 from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
 from xianyu_system.core.database import (
-    BASELINE_REVISION,
     DatabaseResources,
     get_current_revision,
     open_session,
@@ -783,10 +782,10 @@ def test_custom_lifespan_can_explicitly_run_alembic_upgrade(tmp_path: Path) -> N
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         assert get_current_revision(app.state.database) is None
         upgrade_database(app.state.database)
-        assert get_current_revision(app.state.database) == BASELINE_REVISION
+        assert get_current_revision(app.state.database) == "0002_xianyu_account_boundary"
         events.append("explicit-migration")
         yield
-        assert get_current_revision(app.state.database) == BASELINE_REVISION
+        assert get_current_revision(app.state.database) == "0002_xianyu_account_boundary"
 
     app = create_application(
         lifespan=lifespan,

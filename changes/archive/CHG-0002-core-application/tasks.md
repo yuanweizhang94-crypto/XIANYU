@@ -1,6 +1,6 @@
 # CHG-0002 Tasks
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0002-core-application
 
 - [x] T1 Archive CHG-0001 and establish CHG-0002 active change

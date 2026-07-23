@@ -20,7 +20,6 @@ from xianyu_system.core.database import (
     ALEMBIC_CONFIG_PATH,
     BASELINE_REVISION,
     MIGRATIONS_PATH,
-    Base,
     build_alembic_config,
     dispose_database,
     downgrade_database,
@@ -31,6 +30,8 @@ from xianyu_system.core.database import (
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE_PATH = ROOT / "migrations" / "versions" / "0001_core_baseline.py"
+ACCOUNT_REVISION = "0002_xianyu_account_boundary"
+ACCOUNT_TABLE = "xianyu_account_profiles"
 
 
 def table_names(resources) -> set[str]:
@@ -41,6 +42,10 @@ def assert_no_business_tables(resources) -> None:
     assert table_names(resources) <= {"alembic_version"}
 
 
+def assert_account_tables(resources) -> None:
+    assert table_names(resources) == {"alembic_version", ACCOUNT_TABLE}
+
+
 def test_migration_files_exist() -> None:
     for relative in [
         "alembic.ini",
@@ -48,6 +53,7 @@ def test_migration_files_exist() -> None:
         "migrations/script.py.mako",
         "migrations/versions/__init__.py",
         "migrations/versions/0001_core_baseline.py",
+        "migrations/versions/0002_xianyu_account_boundary.py",
     ]:
         assert (ROOT / relative).is_file()
 
@@ -67,19 +73,24 @@ def test_alembic_config_parses_without_database_side_effects(tmp_path: Path) -> 
 def test_script_directory_has_single_baseline_head() -> None:
     script = ScriptDirectory.from_config(build_alembic_config())
 
-    assert script.get_current_head() == BASELINE_REVISION
-    assert script.get_heads() == [BASELINE_REVISION]
+    assert script.get_current_head() == ACCOUNT_REVISION
+    assert script.get_heads() == [ACCOUNT_REVISION]
 
 
 def test_revision_relationship_is_empty_baseline() -> None:
     script = ScriptDirectory.from_config(build_alembic_config())
     revision = script.get_revision(BASELINE_REVISION)
+    account_revision = script.get_revision(ACCOUNT_REVISION)
 
     assert revision is not None
     assert revision.revision == BASELINE_REVISION
     assert revision.down_revision is None
     assert revision.branch_labels in (None, set())
     assert revision.dependencies in (None, ())
+    assert account_revision is not None
+    assert account_revision.down_revision == BASELINE_REVISION
+    assert account_revision.branch_labels in (None, set())
+    assert account_revision.dependencies in (None, ())
 
 
 def test_baseline_revision_is_static_empty_operation() -> None:
@@ -109,8 +120,8 @@ def test_env_uses_base_metadata_and_no_file_config() -> None:
     source = (ROOT / "migrations" / "env.py").read_text(encoding="utf-8")
 
     assert "target_metadata = Base.metadata" in source
+    assert "account_profiles_table" in source
     assert "MetaData(" not in source
-    assert Base.metadata.tables == {}
     assert "fileConfig(" not in source
     assert "logging.config" not in source
 
@@ -131,8 +142,8 @@ def test_fresh_database_upgrade_creates_only_alembic_version(tmp_path: Path) -> 
     try:
         assert get_current_revision(resources) is None
         upgrade_database(resources)
-        assert get_current_revision(resources) == BASELINE_REVISION
-        assert_no_business_tables(resources)
+        assert get_current_revision(resources) == ACCOUNT_REVISION
+        assert_account_tables(resources)
     finally:
         dispose_database(resources)
 
@@ -142,8 +153,8 @@ def test_upgrade_is_repeatable(tmp_path: Path) -> None:
     try:
         upgrade_database(resources)
         upgrade_database(resources)
-        assert get_current_revision(resources) == BASELINE_REVISION
-        assert_no_business_tables(resources)
+        assert get_current_revision(resources) == ACCOUNT_REVISION
+        assert_account_tables(resources)
     finally:
         dispose_database(resources)
 
@@ -156,7 +167,8 @@ def test_downgrade_to_base_then_upgrade_again(tmp_path: Path) -> None:
         assert get_current_revision(resources) is None
         assert_no_business_tables(resources)
         upgrade_database(resources)
-        assert get_current_revision(resources) == BASELINE_REVISION
+        assert get_current_revision(resources) == ACCOUNT_REVISION
+        assert_account_tables(resources)
     finally:
         dispose_database(resources)
 
@@ -195,8 +207,8 @@ def test_cli_upgrade_requires_explicit_path_and_creates_no_default_database(tmp_
     assert database_path.exists()
     resources = initialize_database(database_path)
     try:
-        assert get_current_revision(resources) == BASELINE_REVISION
-        assert_no_business_tables(resources)
+        assert get_current_revision(resources) == ACCOUNT_REVISION
+        assert_account_tables(resources)
     finally:
         dispose_database(resources)
     assert not (ROOT / "data" / "xianyu.db").exists()
@@ -241,7 +253,9 @@ def test_offline_sql_does_not_create_database_file(tmp_path: Path) -> None:
     assert not database_path.exists()
     assert "alembic_version" in result.stdout
     assert "CREATE TABLE" in result.stdout.upper()
-    for forbidden in ["product", "account", "reply", "schedule"]:
+    assert ACCOUNT_TABLE in result.stdout
+    assert ACCOUNT_TABLE in result.stdout
+    for forbidden in ["cookie", "token", "password", "browser", "customer", "reply", "schedule"]:
         assert forbidden not in result.stdout.lower()
 
 
@@ -321,7 +335,11 @@ def test_scheduler_adds_no_migration_revision_or_scheduler_table_names() -> None
     revision_files = sorted((ROOT / "migrations" / "versions").glob("*.py"))
     scheduler_source = (ROOT / "app/xianyu_system/core/scheduler.py").read_text(encoding="utf-8")
 
-    assert [path.name for path in revision_files] == ["0001_core_baseline.py", "__init__.py"]
+    assert [path.name for path in revision_files] == [
+        "0001_core_baseline.py",
+        "0002_xianyu_account_boundary.py",
+        "__init__.py",
+    ]
     assert "SQLAlchemyJobStore" not in scheduler_source
     assert "apscheduler_jobs" not in scheduler_source
     assert "op.create_table" not in scheduler_source
@@ -340,7 +358,11 @@ def test_health_api_does_not_run_migrations_or_add_revisions(tmp_path: Path) -> 
         assert set(inspect(resources.engine).get_table_names()) == set()
 
     revision_files = sorted(path.name for path in (ROOT / "migrations" / "versions").glob("*.py"))
-    assert revision_files == ["0001_core_baseline.py", "__init__.py"]
+    assert revision_files == [
+        "0001_core_baseline.py",
+        "0002_xianyu_account_boundary.py",
+        "__init__.py",
+    ]
     source = (ROOT / "app/xianyu_system/api/health.py").read_text(encoding="utf-8")
     for forbidden in ["upgrade_database", "downgrade_database", "command.upgrade", "alembic", "op.create_table"]:
         assert forbidden not in source

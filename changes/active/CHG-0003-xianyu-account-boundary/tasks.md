@@ -1,0 +1,14 @@
+# CHG-0003 Tasks
+
+Status: VERIFYING
+Change ID: CHG-0003-xianyu-account-boundary
+
+- [x] T1 Obtain explicit project-owner approval for CHG-0003
+- [x] T2 Finalize account and Profile isolation terminology
+- [x] T3 Approve security and credential-handling boundaries
+- [x] T4 Approve persistence and migration boundaries
+- [x] T5 Approve runtime module and ownership boundaries
+- [x] T6 Implement only the approved account boundary
+- [x] T7 Add unit, contract, security, and active-change acceptance tests
+- [x] T8 Update capability evidence and run complete verification
+- [x] T9 Complete final PR administration

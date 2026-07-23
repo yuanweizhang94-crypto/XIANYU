@@ -14,7 +14,7 @@ capabilities:
   - tests/contract/test_core_runtime.py
   - tests/contract/test_distribution.py
   - tests/contract/test_security_boundary.py
-  - changes/active/CHG-0002-core-application/tests/test_acceptance.py
+  - changes/archive/CHG-0002-core-application/tests/test_acceptance.py
   active_change: null
   last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea
 - id: CAP-CORE-DATABASE
@@ -37,18 +37,32 @@ capabilities:
   - tests/contract/test_core_runtime.py
   - tests/contract/test_distribution.py
   - tests/contract/test_security_boundary.py
-  - changes/active/CHG-0002-core-application/tests/test_acceptance.py
+  - changes/archive/CHG-0002-core-application/tests/test_acceptance.py
   active_change: null
   last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea
 - id: CAP-XY-ACCOUNT
   name: Xianyu account boundary
-  status: planned
+  status: verified
   owner_module: worker.account
   specification: specs/capabilities/CAP-XY-ACCOUNT.md
-  implementation_paths: []
-  test_paths: []
+  implementation_paths:
+  - app/xianyu_system/worker/account/__init__.py
+  - app/xianyu_system/worker/account/domain.py
+  - app/xianyu_system/worker/account/service.py
+  - app/xianyu_system/worker/account/persistence.py
+  - migrations/versions/0002_xianyu_account_boundary.py
+  test_paths:
+  - tests/unit/test_account_domain.py
+  - tests/unit/test_account_service.py
+  - tests/unit/test_import_safety.py
+  - tests/contract/test_account_persistence.py
+  - tests/contract/test_account_security.py
+  - tests/contract/test_migrations.py
+  - tests/contract/test_core_runtime.py
+  - tests/contract/test_capability_registry.py
+  - changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py
   active_change: null
-  last_verified_commit: null
+  last_verified_commit: 2aab941cb7f713d7e46675789c47971a2c79c564
 - id: CAP-XY-MESSAGE
   name: Xianyu message receive
   status: planned
@@ -121,6 +135,6 @@ capabilities:
   - tests/contract/test_core_runtime.py
   - tests/contract/test_distribution.py
   - tests/contract/test_security_boundary.py
-  - changes/active/CHG-0002-core-application/tests/test_acceptance.py
+  - changes/archive/CHG-0002-core-application/tests/test_acceptance.py
   active_change: null
   last_verified_commit: d11f1afc4564298e8c2709fdb80a41a491dbb1ea

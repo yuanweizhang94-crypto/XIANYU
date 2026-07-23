@@ -1,6 +1,6 @@
 # CHG-0002 Acceptance
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0002-core-application
 
 ## Final acceptance criteria
@@ -31,20 +31,32 @@ Change ID: CHG-0002-core-application
 24. All permanent tests and CHG-0002 active-change acceptance tests pass.
 25. Ruff, Mypy, repository verification, and all required GitHub Actions pass.
 
-## Current review-stage status
+## Archived status
 
-The change is VERIFYING.
+CHG-0002 is ARCHIVED.
 
-T1 through T15 are complete.
+PR #2 is merged.
 
-The final branch is pushed and PR #2 is Ready for review, open, targets main, and remains unmerged.
+The archived change exists only under changes/archive/.
 
-No unfinished task remains in CHG-0002.
+Its dedicated tests are preserved for audit and are not collected by default.
 
-CAP-CORE-CONFIG, CAP-CORE-DATABASE, and CAP-HEALTH-MONITOR remain verified and continue to record d11f1afc4564298e8c2709fdb80a41a491dbb1ea as their last verified commit.
+## Merge and archive record
 
-The seven non-Core capabilities remain planned and unbound.
+PR #2 was merged into main.
 
-The active change remains under changes/active until an explicitly authorized merge and later archive transition.
+Merge commit: `e2d41e0cc392ae0298688c01147e983317c7e1df`.
 
-The project owner explicitly authorized and completed the Ready-for-review transition after T15. This authorization does not enable auto-merge and does not authorize merging the pull request, deleting the branch, archiving CHG-0002, or starting CHG-0003.
+Merged feature head: `8180d67788c304548c1ad541011317ca41ab95cb`.
+
+CHG-0002 is archived after successful merge.
+
+The three Core capabilities remain verified.
+
+Their `last_verified_commit` remains `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+
+Archiving CHG-0002 does not change runtime behavior.
+
+Archiving does not reverify capabilities.
+
+Archiving does not authorize CHG-0003 implementation.

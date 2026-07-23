@@ -1,6 +1,6 @@
 # CHG-0002 Core Application Design
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0002-core-application
 
 ## Design goal
@@ -297,3 +297,23 @@ Importing any Core module must not:
 * No `/health` implementation before T10.
 * No HTML template implementation before T11.
 * No external platform or AI integration.
+
+## Merge and archive record
+
+PR #2 was merged into main.
+
+Merge commit: `e2d41e0cc392ae0298688c01147e983317c7e1df`.
+
+Merged feature head: `8180d67788c304548c1ad541011317ca41ab95cb`.
+
+CHG-0002 is archived after successful merge.
+
+The three Core capabilities remain verified.
+
+Their `last_verified_commit` remains `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
+
+Archiving CHG-0002 does not change runtime behavior.
+
+Archiving does not reverify capabilities.
+
+Archiving does not authorize CHG-0003 implementation.
