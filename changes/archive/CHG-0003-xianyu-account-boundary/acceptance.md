@@ -1,6 +1,6 @@
 # CHG-0003 Acceptance
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0003-xianyu-account-boundary
 
 ## T7 acceptance criteria
@@ -304,3 +304,27 @@ No further CHG-0003 task is authorized.
 Merge requires separate explicit authorization against the exact current PR head.
 
 Auto-merge, admin bypass, close, source-branch deletion, archive, and creation of the next active change are not authorized.
+
+## Archived status
+
+CHG-0003 is `ARCHIVED`.
+
+PR #3 was merged into `main`.
+
+Merge commit: `51b8cff1c483d8b807b5186a14fe90fbaf45c8f9`.
+
+Merged feature head: `3b8162de5f24a0f57a86d23cf3263ccb400f98a4`.
+
+The archived change exists only under `changes/archive/`.
+
+All nine tasks remain complete.
+
+Its historical acceptance test remains preserved.
+
+`CAP-XY-ACCOUNT` remains verified.
+
+Its `active_change` remains `null`.
+
+Its `last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
+
+Archiving does not authorize CHG-0004 implementation.

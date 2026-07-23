@@ -1,6 +1,6 @@
 # CHG-0003 Tasks
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0003-xianyu-account-boundary
 
 - [x] T1 Obtain explicit project-owner approval for CHG-0003

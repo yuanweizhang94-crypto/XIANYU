@@ -2,6 +2,20 @@
 
 XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository state contains governance, specifications, validation scripts, tests, CI, and the initial Core application boundary. It does not provide real Xianyu publishing, message receiving, message sending, automated reply, WeCom, AI Provider, business API routes, database business logic, WebSocket, Playwright, or scheduled publishing capability.
 
+## Current change state
+
+- PR #3 was merged into `main`.
+- PR #3 merge commit: `51b8cff1c483d8b807b5186a14fe90fbaf45c8f9`.
+- CHG-0003-xianyu-account-boundary is archived.
+- `CAP-XY-ACCOUNT` remains verified.
+- Its `last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
+- CHG-0004-xianyu-message-boundary is the only active change.
+- CHG-0004 status is `DRAFT`.
+- No CHG-0004 task is complete.
+- `CAP-XY-MESSAGE` remains planned and unbound.
+- No real WebSocket, message worker, message persistence, message API, external network, browser, credential, or customer-message behavior is implemented.
+- Moving CHG-0004 beyond DRAFT requires separate explicit project-owner authorization.
+
 ## Project goal
 
 The final intended business path is:

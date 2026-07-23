@@ -1,6 +1,6 @@
 # CHG-0003 Proposal
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0003-xianyu-account-boundary
 
 ## Purpose
@@ -227,3 +227,27 @@ Capability evidence is registered, Candidate SHA `2aab941cb7f713d7e46675789c4797
 - CHG-0003 remains under `changes/active/` and is not archived.
 - No next Active Change was created.
 - Merge, source-branch deletion, archive, and next-change creation require separate explicit authorization.
+
+## Merge and archive record
+
+PR #3 was merged into `main`.
+
+Merge commit: `51b8cff1c483d8b807b5186a14fe90fbaf45c8f9`.
+
+Merged feature head: `3b8162de5f24a0f57a86d23cf3263ccb400f98a4`.
+
+CHG-0003 is archived after successful merge.
+
+All nine CHG-0003 tasks remain complete.
+
+`CAP-XY-ACCOUNT` remains `verified`.
+
+Its `active_change` remains `null`.
+
+Its `last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
+
+Archiving CHG-0003 does not change runtime behavior.
+
+Archiving does not reverify `CAP-XY-ACCOUNT`.
+
+Archiving does not authorize CHG-0004 implementation.

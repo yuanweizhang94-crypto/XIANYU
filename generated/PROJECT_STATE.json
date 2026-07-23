@@ -2,50 +2,50 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0003-xianyu-account-boundary",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0003-xianyu-account-boundary"
+    "id": "CHG-0004-xianyu-message-boundary",
+    "status": "DRAFT",
+    "path": "changes/active/CHG-0004-xianyu-message-boundary"
   },
   "tasks": {
     "total": 9,
-    "completed": 9,
+    "completed": 0,
     "next_task": null,
     "items": [
       {
-        "text": "T1 Obtain explicit project-owner approval for CHG-0003",
-        "completed": true
+        "text": "T1 Obtain explicit project-owner approval for CHG-0004",
+        "completed": false
       },
       {
-        "text": "T2 Finalize account and Profile isolation terminology",
-        "completed": true
+        "text": "T2 Finalize message, conversation, and delivery terminology",
+        "completed": false
       },
       {
-        "text": "T3 Approve security and credential-handling boundaries",
-        "completed": true
+        "text": "T3 Approve transport, authentication, and risk-control boundaries",
+        "completed": false
       },
       {
-        "text": "T4 Approve persistence and migration boundaries",
-        "completed": true
+        "text": "T4 Approve ordering, deduplication, and persistence boundaries",
+        "completed": false
       },
       {
-        "text": "T5 Approve runtime module and ownership boundaries",
-        "completed": true
+        "text": "T5 Approve worker ownership, lifecycle, and failure boundaries",
+        "completed": false
       },
       {
-        "text": "T6 Implement only the approved account boundary",
-        "completed": true
+        "text": "T6 Implement only the approved local message-receiving boundary",
+        "completed": false
       },
       {
         "text": "T7 Add unit, contract, security, and active-change acceptance tests",
-        "completed": true
+        "completed": false
       },
       {
         "text": "T8 Update capability evidence and run complete verification",
-        "completed": true
+        "completed": false
       },
       {
         "text": "T9 Complete final PR administration",
-        "completed": true
+        "completed": false
       }
     ]
   },
@@ -127,7 +127,7 @@
           "tests/contract/test_migrations.py",
           "tests/contract/test_core_runtime.py",
           "tests/contract/test_capability_registry.py",
-          "changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py"
+          "changes/archive/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "2aab941cb7f713d7e46675789c47971a2c79c564"

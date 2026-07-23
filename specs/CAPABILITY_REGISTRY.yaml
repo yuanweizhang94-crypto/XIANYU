@@ -60,7 +60,7 @@ capabilities:
   - tests/contract/test_migrations.py
   - tests/contract/test_core_runtime.py
   - tests/contract/test_capability_registry.py
-  - changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py
+  - changes/archive/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py
   active_change: null
   last_verified_commit: 2aab941cb7f713d7e46675789c47971a2c79c564
 - id: CAP-XY-MESSAGE
