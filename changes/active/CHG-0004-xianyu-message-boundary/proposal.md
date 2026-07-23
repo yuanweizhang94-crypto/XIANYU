@@ -13,14 +13,33 @@ Prepare a formally reviewable boundary for receiving Xianyu customer-inquiry mes
 
 ## Current authorization
 
-The project owner explicitly approved CHG-0004 for controlled, task-by-task execution.
+The project owner approved CHG-0004 for controlled, one-task-at-a-time execution.
 
-T1 is complete.
+T1 and T2 are complete.
 
-T2 is the next executable task, but T2 must be performed in a later, separate execution.
+The message, conversation, participant, and delivery terminology is finalized.
 
-This approval does not authorize final message terminology, runtime implementation, a real WebSocket, external network access, real account access, Cookie or Token handling, customer-message processing, capability binding, Ready-for-review, auto-merge, or merge.
+T3 is the next executable task and must be performed separately.
 
+No transport protocol, authentication, Credential handling, risk-control behavior, ordering guarantee, deduplication algorithm, persistence model, runtime implementation, real WebSocket, external network access, real account access, customer-message processing, capability binding, Ready-for-review, auto-merge, or merge is authorized.
+
+## T2 terminology outcome
+
+- Platform Message means the real message object that exists on the external platform.
+- Message Event means the repository-boundary concept representing one observed inbound message occurrence.
+- Message Content means customer-provided text, media, attachment, or equivalent payload data.
+- Platform Message Identifier means an optional opaque identifier supplied by the external platform.
+- Conversation means a logical grouping of related Message Events scoped to exactly one Profile.
+- Conversation Reference means the repository-owned non-secret logical reference to one Conversation within one Profile.
+- Platform Conversation Identifier means optional untrusted external reference metadata.
+- Participant Reference means an opaque non-secret reference to a conversation participant.
+- Delivery Attempt means one transport attempt to deliver a Message Event to the receiving boundary.
+- Delivery Cursor means an opaque transport position whose ordering and durability semantics remain undecided.
+- Acknowledgement means a transport-level receipt signal and does not mean business processing, persistence, reply, or completion.
+- Duplicate Delivery means more than one Delivery Attempt representing the same underlying Platform Message.
+- Replay means redelivery of an already observed Message Event during recovery or reconnection.
+- Ordering Boundary means the scope within which relative event ordering may later be defined.
+- Synthetic Message Fixture means artificial test-only data that represents no real account, participant, conversation, message, credential, or customer.
 
 ## Goals
 
@@ -47,8 +66,12 @@ This approval does not authorize final message terminology, runtime implementati
 - No dependency addition.
 - No capability binding.
 - No implementation before explicit approval.
-- No runtime implementation during the T1 approval transition.
-- No runtime implementation before T2-T5 have been completed and their decisions have been formally recorded.
+- No transport implementation during T2.
+- No authentication or Credential resolution decision during T2.
+- No ordering guarantee during T2.
+- No deduplication key or algorithm during T2.
+- No persistence or retention decision during T2.
+- No runtime implementation before T3-T5 are completed.
 
 ## Security boundary
 
@@ -62,8 +85,12 @@ This approval does not authorize final message terminology, runtime implementati
 
 Only one unfinished task may be executed at a time.
 
-This approval transition completes T1 only.
+T1 and T2 are complete.
 
-T2 must not begin in the same execution.
+T3 is the next executable task.
 
-Runtime implementation remains prohibited until T2-T5 have finalized and approved the terminology, transport, security, ordering, persistence, worker ownership, lifecycle, failure, and testing boundaries.
+T3 must not begin in the same execution.
+
+T2 finalizes terminology only.
+
+Transport, authentication, risk control, ordering, deduplication, persistence, worker ownership, lifecycle, failure, testing, and runtime implementation remain deferred.

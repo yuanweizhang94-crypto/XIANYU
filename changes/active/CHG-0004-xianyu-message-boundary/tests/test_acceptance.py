@@ -79,7 +79,7 @@ def test_chg_0004_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0004 / name) == "APPROVED"
 
 
-def test_chg_0004_approval_completes_only_t1() -> None:
+def test_chg_0004_t2_completes_terminology_only() -> None:
     task_lines = [
         line
         for line in (CHG_0004 / "tasks.md").read_text(
@@ -90,7 +90,8 @@ def test_chg_0004_approval_completes_only_t1() -> None:
 
     assert len(task_lines) == 9
     assert task_lines[0].startswith("- [x]")
-    assert all(line.startswith("- [ ]") for line in task_lines[1:])
+    assert task_lines[1].startswith("- [x]")
+    assert all(line.startswith("- [ ]") for line in task_lines[2:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(
@@ -98,21 +99,24 @@ def test_chg_0004_approval_completes_only_t1() -> None:
         )
     )
 
-    assert state["active_change"]["id"] == "CHG-0004-xianyu-message-boundary"
+    assert state["active_change"]["id"] == (
+        "CHG-0004-xianyu-message-boundary"
+    )
     assert state["active_change"]["status"] == "APPROVED"
+
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 1
-    assert state["tasks"]["items"][0]["text"] == (
-        "T1 Obtain explicit project-owner approval for CHG-0004"
-    )
+    assert state["tasks"]["completed"] == 2
+
     assert state["tasks"]["items"][0]["completed"] is True
-    assert state["tasks"]["items"][1]["text"] == (
-        "T2 Finalize message, conversation, and delivery terminology"
+    assert state["tasks"]["items"][1]["completed"] is True
+
+    assert all(
+        item["completed"] is False
+        for item in state["tasks"]["items"][2:]
     )
-    assert state["tasks"]["items"][1]["completed"] is False
-    assert all(item["completed"] is False for item in state["tasks"]["items"][1:])
+
     assert state["tasks"]["next_task"] == (
-        "T2 Finalize message, conversation, and delivery terminology"
+        "T3 Approve transport, authentication, and risk-control boundaries"
     )
 
     assert state["capabilities"]["by_status"] == {
@@ -178,17 +182,61 @@ def test_message_capability_remains_planned_and_unimplemented() -> None:
     design = (CHG_0004 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0004 / "acceptance.md").read_text(encoding="utf-8")
 
-    assert "This approval transition completes T1 only." in proposal
-    assert "T2 must not begin in the same execution." in proposal
-    assert "No real Xianyu WebSocket connection." in proposal
+    assert "T1 and T2 are complete." in proposal
     assert (
-        "No runtime message design or implementation "
-        "has been approved yet."
+        "The message, conversation, participant, and delivery "
+        "terminology is finalized."
+        in proposal
+    )
+    assert "T3 is the next executable task" in proposal
+
+    required_terms = [
+        "### Platform Message",
+        "### Message Event",
+        "### Message Content",
+        "### Platform Message Identifier",
+        "### Conversation",
+        "### Conversation Reference",
+        "### Platform Conversation Identifier",
+        "### Participant Reference",
+        "### Delivery Attempt",
+        "### Delivery Cursor",
+        "### Acknowledgement",
+        "### Duplicate Delivery",
+        "### Replay",
+        "### Ordering Boundary",
+        "### Synthetic Message Fixture",
+        "## Terminology invariants",
+        "## Decisions deferred after T2",
+    ]
+
+    for marker in required_terms:
+        assert marker in design
+
+    assert (
+        "Every Message Event belongs to exactly one Profile."
         in design
     )
-    assert "T2 is the next executable task." in design
-    assert "T2 must be performed in a separate execution." in design
-    assert "No `worker.message` runtime package is approved." in design
-    assert "This approval transition completes T1 only." in acceptance
-    assert "No final terminology decision" in acceptance
+    assert (
+        "A Conversation must not span multiple Profiles."
+        in design
+    )
+    assert (
+        "Acknowledgement does not mean:"
+        in design
+    )
+    assert (
+        "T2 assigns no ordering, monotonicity, uniqueness, "
+        "durability, replay, persistence, or recovery guarantee "
+        "to a Delivery Cursor."
+        in design
+    )
+    assert (
+        "Missing, ambiguous, conflicting, or cross-Profile "
+        "ownership information must fail closed."
+        in design
+    )
+
+    assert "T1 and T2 are complete." in acceptance
+    assert "T3 is the next executable task" in acceptance
     assert "PR #4 remains Draft" in acceptance

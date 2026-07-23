@@ -12,11 +12,12 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - CHG-0004-xianyu-message-boundary is the only active change.
 - CHG-0004 status is `APPROVED`.
 - T1 project-owner approval is complete.
-- T2 message, conversation, and delivery terminology is the next executable task.
-- No CHG-0004 runtime implementation has started.
+- T2 message, conversation, and delivery terminology is complete.
+- T3 transport, authentication, and risk-control boundaries is the next executable task.
+- The canonical Message Event, Conversation, Conversation Reference, Participant Reference, Delivery Attempt, Delivery Cursor, Acknowledgement, Duplicate Delivery, Replay, Ordering Boundary, and Synthetic Message Fixture terms are recorded.
 - `CAP-XY-MESSAGE` remains planned and unbound.
-- No real WebSocket, message worker, message persistence, message API, external network, browser, credential, or customer-message behavior is implemented.
-- Approval of CHG-0004 does not authorize final terminology decisions, real WebSocket access, network access, message runtime implementation, real account access, customer-message processing, Ready-for-review, auto-merge, or merge.
+- No CHG-0004 runtime implementation has started.
+- Completion of T2 does not authorize transport implementation, authentication, Credential resolution, real WebSocket access, network access, ordering guarantees, deduplication, persistence, customer-message processing, Ready-for-review, auto-merge, or merge.
 
 ## Project goal
 

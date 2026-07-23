@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 1,
-    "next_task": "T2 Finalize message, conversation, and delivery terminology",
+    "completed": 2,
+    "next_task": "T3 Approve transport, authentication, and risk-control boundaries",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0004",
@@ -17,7 +17,7 @@
       },
       {
         "text": "T2 Finalize message, conversation, and delivery terminology",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T3 Approve transport, authentication, and risk-control boundaries",
