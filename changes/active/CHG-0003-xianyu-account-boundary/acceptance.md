@@ -19,73 +19,77 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 7. All approved T2 terminology and T3 security rules remain intact.
 
-8. The approved persistence target is the existing CAP-CORE-DATABASE SQLite database.
+8. CAP-XY-ACCOUNT future persistence uses the existing CAP-CORE-DATABASE SQLite, SQLAlchemy, and Alembic infrastructure boundary.
 
-9. Exactly one future business table is approved: xianyu_account_profiles.
+9. A second database, second Engine, or alternate persistence stack is not approved.
 
-10. The approved future fields and their security semantics are defined.
+10. Ordinary database persistence is limited to approved non-secret Profile and Account Reference metadata categories.
 
-11. Secret Material, browser state, payload blobs, and generic JSON or metadata columns are prohibited.
+11. Credential Reference persistence is allowed only as an opaque, non-secret, Profile-owned reference.
 
-12. Profile Identifier is the primary key and canonical local identity.
+12. Secret Material, Cookies, Tokens, passwords, authorization headers, browser state, browser directories, Local Storage, Session Storage, customer data, and provider secret values are prohibited from ordinary database persistence.
 
-13. External Account Identifier and Credential Reference are unique when non-null.
+13. Generic JSON, BLOB, payload, properties, extras, metadata, context, or arbitrary key-value fields are prohibited.
 
-14. Credential Reference remains opaque, non-secret, and Profile-owned.
+14. Credential Resolution Status and Operation Authorization Status must not be persisted as reusable proof of authorization.
 
-15. Lifecycle states are PENDING, ENABLED, DISABLED, and ARCHIVED.
+15. Database records must not prove that a real Platform Account exists, is logged in, is authorized, or is safe to operate.
 
-16. ENABLED does not imply authentication or authorization.
+16. Every future record must have explicit Profile ownership.
 
-17. ARCHIVED is terminal and requires clearing Credential Reference.
+17. Cross-Profile mutable-state and Credential Reference reuse are prohibited.
 
-18. Optimistic row_version concurrency is approved.
+18. Future mutations must be transactional and partial writes are prohibited.
 
-19. Stale writes and uniqueness conflicts fail closed.
+19. Uniqueness and stale-concurrency conflicts must fail closed.
 
-20. Mutation operations are transactional and partial writes are prohibited.
+20. No implicit current Profile or fallback Profile is approved.
 
-21. No bulk update, bulk delete, implicit Profile, credential fallback, automatic discovery, import, or backfill is approved.
+21. Future migration execution remains explicit and application startup must not automatically run Alembic migrations.
 
-22. Operation-scoped credential, authorization, risk, and provider state is not persisted as authoritative state.
+22. Future upgrade may create only the minimum approved account-boundary schema and must not perform seed, import, discovery, browser scan, credential access, or network access.
 
-23. No persistent audit-event table is approved.
+23. Downgrade must never silently destroy non-empty business data.
 
-24. No automatic purge or hard-delete runtime is approved.
+24. T4 creates no Migration file and modifies no existing Migration.
 
-25. The approved future Revision is 0002_xianyu_account_boundary.
+25. T4 creates no ORM model, database table, Repository, DAO, API, Worker, Credential Provider, Secure Storage, or runtime behavior.
 
-26. Its down_revision is 0001_core_baseline.
+26. The current migration directory still contains only 0001_core_baseline.py and __init__.py.
 
-27. The future upgrade creates only the approved empty table, constraints, and index.
+27. Exact table count and names remain deferred to T5 and T6.
 
-28. The future downgrade fails closed when the table contains rows.
+28. Exact column names, storage types, nullability, field lengths, constraints, and indexes remain deferred to T5 or T6.
 
-29. Application startup remains prohibited from automatically running migrations.
+29. Profile Identifier generation strategy remains deferred to T5.
 
-30. T4 creates no Migration file and modifies no existing Migration.
+30. Lifecycle state names, transitions, retirement, restoration, and Credential Reference cleanup remain deferred to T5.
 
-31. The current migration directory still contains only 0001_core_baseline.py and __init__.py.
+31. Retention, archive, restoration, purge, and hard-delete behavior remain deferred to a later approved decision.
 
-32. T5 ownership decisions remain deferred.
+32. Exact downgrade strategy and operational approval process remain deferred to T5 and T6.
 
-33. T6 runtime and Migration implementation remains deferred.
+33. Final Alembic revision identifier remains deferred to T6, while down_revision must reference 0001_core_baseline and Alembic must retain one linear head.
 
-34. T7 permanent implementation tests remain deferred.
+34. T5 ownership decisions remain deferred.
 
-35. CAP-XY-ACCOUNT remains planned and unbound.
+35. T6 runtime and Migration implementation remains deferred.
 
-36. CAP-XY-ACCOUNT retains no implementation or test evidence paths.
+36. T7 permanent implementation tests remain deferred.
 
-37. No runtime, ORM, API, contract, migration, dependency, CI, registry, capability specification, archived change, or permanent test file is modified.
+37. CAP-XY-ACCOUNT remains planned and unbound.
 
-38. No real account, credential, Cookie, Token, password, browser directory, customer data, or Secret Material is added.
+38. CAP-XY-ACCOUNT retains no implementation or test evidence paths.
 
-39. PR #3 remains Draft, open, and unmerged.
+39. No runtime, ORM, API, contract, migration, dependency, CI, registry, capability specification, archived change, or permanent test file is modified.
 
-40. Auto-merge remains disabled.
+40. No real account, credential, Cookie, Token, password, browser directory, customer data, or Secret Material is added.
 
-41. Repository verification, security scan, Ruff, Mypy, and the complete test suite pass.
+41. PR #3 remains Draft, open, and unmerged.
+
+42. Auto-merge remains disabled.
+
+43. Repository verification, security scan, Ruff, Mypy, and the complete test suite pass.
 
 ## Current authorization
 

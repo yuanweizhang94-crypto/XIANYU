@@ -17,7 +17,7 @@ The project owner approved CHG-0003 for controlled, one-task-at-a-time execution
 
 T1, T2, T3, and T4 are complete.
 
-The terminology, security, credential-handling, persistence, and migration boundaries are finalized.
+The terminology, security, credential-handling, and principle-level persistence and migration boundaries are finalized.
 
 T5 is the next executable task and must be performed separately.
 
@@ -61,20 +61,14 @@ No runtime ownership implementation, ORM code, Migration file, database mutation
 
 ## T4 persistence outcome
 
-- The approved first-version persistence target is the existing SQLite database.
-- One future table, xianyu_account_profiles, is approved.
-- The row represents one Profile and its one Account Reference.
-- Only approved non-secret fields may be persisted.
-- Secret Material, browser state, payload blobs, and generic JSON or metadata columns are prohibited.
-- Credential References may be stored only as unique opaque non-secret values.
-- Lifecycle values are PENDING, ENABLED, DISABLED, and ARCHIVED.
-- ARCHIVED is terminal and requires clearing Credential Reference.
-- Mutations use optimistic row_version checks and fail closed on stale writes.
-- No automatic purge or hard-delete runtime is approved.
-- The future Alembic revision is 0002_xianyu_account_boundary with down_revision 0001_core_baseline.
-- Upgrade creates only the approved empty table and constraints.
-- Downgrade fails closed when the table contains rows.
-- Application startup must not automatically run migrations.
+- The existing CAP-CORE-DATABASE SQLite, SQLAlchemy, and Alembic infrastructure remains the only approved persistence boundary.
+- Only minimal non-secret Profile and Account Reference metadata may be persisted.
+- Credential References remain opaque, non-secret, and Profile-owned.
+- Secret Material, browser state, and generic payload fields are prohibited.
+- Persistence mutations require explicit Profile ownership, transactions, uniqueness protection, and concurrency-conflict protection.
+- Future migrations remain explicit and application startup must not auto-migrate.
+- Exact schema, ORM, lifecycle, indexes, retention, and downgrade implementation remain deferred to T5 and T6.
+- T4 creates no Migration file, ORM model, table, Repository, API, or Worker.
 
 ## Non-goals
 

@@ -168,52 +168,59 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
     assert "### Deferred to T8" in design
 
     required_t4_sections = [
-        "## Persistence scope",
-        "## Approved relational projection",
-        "## Approved future columns",
-        "## Approved future constraints and indexes",
-        "## Persisted lifecycle transitions",
-        "## Future persistence operation boundary",
-        "## Operation-scoped state that must not be persisted",
-        "## Audit persistence decision",
-        "## Retention and deletion boundary",
-        "## Database infrastructure ownership",
-        "## Approved future Alembic revision",
-        "## Approved future upgrade behavior",
-        "## Approved future downgrade behavior",
-        "## Future migration verification boundary",
+        "## Persistence principles",
+        "## Allowed persisted data categories",
+        "## Prohibited persisted data",
+        "## Ownership, consistency, and concurrency requirements",
+        "## Migration principles",
         "## Decisions deferred after T4",
     ]
     for section in required_t4_sections:
         assert section in design
 
-    required_persistence_rules = [
+    required_persistence_principles = [
+        "Use the existing CAP-CORE-DATABASE SQLite boundary.",
+        "Use the existing unified SQLAlchemy Engine and Session factory.",
+        "Do not create a second database or Engine.",
+        "canonical local Profile identity",
+        "optional opaque non-secret Credential Reference",
+        "Secret Material",
+        "Cookies or Tokens",
+        "browser Profile or user-data paths",
+        "generic JSON, BLOB, payload, properties, extras, metadata, context, or arbitrary key-value fields",
+        "Every record belongs to one explicit Profile.",
+        "Cross-Profile mutable state or Credential Reference reuse is prohibited.",
+        "Mutations must be transactional.",
+        "Partial writes are prohibited.",
+        "Uniqueness conflicts fail closed.",
+        "Stale concurrent writes fail closed.",
+        "Application startup does not auto-migrate.",
+        "Downgrade must never silently destroy non-empty business data.",
+        "Exact table count and names",
+        "Exact column names and types",
+        "Exact constraints and indexes",
+        "Lifecycle state names and transitions",
+        "ORM implementation",
+        "Migration implementation",
+    ]
+    for principle in required_persistence_principles:
+        assert principle in design
+
+    forbidden_t4_details = [
+        "0002_xianyu_account_boundary",
         "xianyu_account_profiles",
-        "profile_id",
-        "account_alias",
-        "external_account_identifier",
-        "credential_reference",
-        "lifecycle_status",
-        "created_at_utc",
-        "updated_at_utc",
-        "archived_at_utc",
-        "row_version",
         "PENDING",
         "ENABLED",
         "DISABLED",
         "ARCHIVED",
-        "0002_xianyu_account_boundary",
-        "0001_core_baseline",
-        "Generic or opaque payload columns are prohibited",
-        "ENABLED does not mean authenticated.",
-        "ARCHIVED is terminal",
-        "Silent last-write-wins behavior is prohibited.",
-        "No automatic purge is approved.",
-        "Application startup must not automatically execute the revision.",
+        "128 characters",
+        "120 characters",
+        "256 characters",
+        "512 characters",
         "If any row exists, abort and fail closed without dropping the table.",
     ]
-    for rule in required_persistence_rules:
-        assert rule in design
+    for detail in forbidden_t4_details:
+        assert detail not in design
 
     revision_files = sorted(
         path.name for path in (ROOT / "migrations" / "versions").glob("*.py")
@@ -222,9 +229,7 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
         "0001_core_baseline.py",
         "__init__.py",
     ]
-    assert not (
-        ROOT / "migrations" / "versions" / "0002_xianyu_account_boundary.py"
-    ).exists()
+    assert len(revision_files) == 2
 
     database_source = (
         ROOT / "app" / "xianyu_system" / "core" / "database.py"
@@ -232,9 +237,8 @@ def test_account_capability_and_security_boundary_remain_unimplemented() -> None
     baseline_source = (
         ROOT / "migrations" / "versions" / "0001_core_baseline.py"
     ).read_text(encoding="utf-8")
-    assert "xianyu_account_profiles" not in database_source
-    assert "xianyu_account_profiles" not in baseline_source
     assert "op.create_table" not in baseline_source
+    assert "__tablename__" not in database_source
 
     assert "T1, T2, T3, and T4 are complete." in proposal
     assert "T5 is the next executable task" in proposal

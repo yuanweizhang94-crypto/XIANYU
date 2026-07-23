@@ -178,7 +178,7 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - T1 project-owner approval is complete.
 - T2 account and Profile isolation terminology is complete.
 - T3 security and credential-handling boundaries is complete.
-- T4 persistence and migration boundaries is complete.
+- T4 persistence and migration boundaries is complete at the principle level.
 - T5 runtime module and ownership boundaries is the next executable task.
 - No CHG-0003 runtime or database implementation has started.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
@@ -215,17 +215,14 @@ Within the approved CHG-0003 security boundary:
 
 Within the approved CHG-0003 persistence boundary:
 
-- The existing local SQLite database remains the only approved persistence target.
-- One future table, `xianyu_account_profiles`, is approved.
-- Only non-secret Profile and Account Reference metadata may be persisted.
-- Secret Material, browser state, generic JSON, BLOB, payload, or arbitrary metadata columns are prohibited.
-- Credential References are nullable, unique when present, Profile-owned, opaque, and non-secret.
-- Lifecycle values are PENDING, ENABLED, DISABLED, and ARCHIVED.
-- ENABLED does not imply authentication or authorization.
-- ARCHIVED is terminal and clears Credential Reference.
-- Mutations require optimistic row-version checks.
-- The future Alembic Revision is `0002_xianyu_account_boundary`.
-- T4 creates no table and no Migration file.
+- The existing CAP-CORE-DATABASE SQLite, SQLAlchemy, and Alembic infrastructure remains the only approved persistence boundary.
+- Only minimal non-secret Profile and Account Reference metadata may be persisted.
+- Credential References remain opaque, non-secret, and Profile-owned.
+- Secret Material, browser state, and generic JSON, BLOB, payload, properties, extras, metadata, context, or arbitrary key-value fields are prohibited.
+- Persistence mutations require explicit Profile ownership, transactions, uniqueness protection, and concurrency-conflict protection.
+- Future migrations remain explicit and application startup must not auto-migrate.
+- Exact table names, complete column schema, field lengths, lifecycle state machine, index set, retention policy, downgrade algorithm, and Alembic revision identifier remain deferred to T5 and T6.
+- T4 creates no Migration file, ORM model, table, Repository, API, or Worker.
 
 Completion of T4 does not authorize T5, ORM code, Migration files, database mutation, provider integration, browser integration, Ready-for-review, auto-merge, or merge.
 - The next state transition requires explicit project-owner authorization.

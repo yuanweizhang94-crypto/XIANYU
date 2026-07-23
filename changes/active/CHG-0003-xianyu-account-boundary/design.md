@@ -9,7 +9,7 @@ CHG-0003 is approved for controlled, task-by-task execution.
 
 T1, T2, T3, and T4 are complete.
 
-The terminology, security, credential-handling, persistence, and migration boundaries are finalized.
+The terminology, security, credential-handling, and principle-level persistence and migration boundaries are finalized.
 
 T5 is the next executable task.
 
@@ -474,508 +474,131 @@ T3 does not approve or implement a Secret Material import channel.
 
 9. T3 tests do not constitute implementation evidence for CAP-XY-ACCOUNT.
 
-## Persistence scope
+## Persistence principles
 
-The future CHG-0003 persistence boundary stores only approved non-secret Profile and Account Reference metadata.
+- Use the existing CAP-CORE-DATABASE SQLite boundary.
+- Use the existing unified SQLAlchemy Engine and Session factory.
+- Do not create a second database or Engine.
+- Do not introduce MySQL, PostgreSQL, Redis, or another persistence stack for CAP-XY-ACCOUNT.
+- Persist only minimal non-secret Profile and Account Reference metadata.
+- Persistence does not authorize platform operations, account access, credential resolution, provider integration, browser integration, or runtime implementation.
+- A minimal future relational projection is approved in principle.
+- The exact table name and final table count remain deferred to T5 and T6.
+- Unnecessary multi-table designs, Secret tables, Session tables, Cookie tables, and generic Payload tables are prohibited.
 
-It does not store Secret Material.
+## Allowed persisted data categories
 
-It does not store browser state, browser paths, Cookies, Tokens, passwords, authorization headers, QR-code material, SMS verification data, local storage, session storage, customer data, request payloads, response payloads, or provider secret values.
+The future ordinary database boundary may persist only approved non-secret metadata categories:
 
-The approved first-version persistence target is the existing local SQLite database managed by CAP-CORE-DATABASE.
-
-Persistence does not authorize account access, credential resolution, provider integration, browser integration, or runtime implementation.
-
-Secret Material remains outside SQLite.
+- canonical local Profile identity;
+- non-secret display metadata;
+- optional untrusted external reference metadata;
+- optional opaque non-secret Credential Reference;
+- minimal lifecycle metadata;
+- minimal timestamps and concurrency metadata when justified.
 
 Credential References may be persisted only as opaque non-secret references.
 
-No encrypted Secret Material column is approved.
+Exact table names, column names, storage types, nullability, constraints, and field lengths remain deferred to T5 or T6.
 
-No generic JSON, BLOB, metadata, payload, context, properties, extras, or arbitrary key-value column is approved.
+Reasonable bounded lengths must be defined during implementation design and enforced consistently.
+
+Exact limits are deferred to T5 or T6.
+
+The Profile Identifier generation algorithm remains deferred to T5. T4 does not choose UUID, ULID, auto-increment identifiers, hash identifiers, or any other generation algorithm.
+
+## Prohibited persisted data
+
+The ordinary database boundary must not persist:
+
+- Secret Material;
+- Cookies or Tokens;
+- passwords or authorization headers;
+- browser Profile or user-data paths;
+- browser state;
+- local storage or session storage;
+- QR-code or SMS verification material;
+- provider secret values;
+- customer data;
+- raw request or response payloads;
+- Credential Resolution Status as reusable proof of authorization;
+- Operation Authorization Status as reusable proof of authorization;
+- generic JSON, BLOB, payload, properties, extras, metadata, context, or arbitrary key-value fields.
 
 Generic or opaque payload columns are prohibited because they could bypass the approved field-level security boundary and conceal Secret Material.
 
-## Approved relational projection
-
-The only approved future first-version business table is:
-
-```text
-xianyu_account_profiles
-```
-
-One row represents the relational projection of exactly one Profile and its exactly one Account Reference.
-
-Using one relational row does not collapse or redefine the domain terminology.
-
-Profile and Account Reference remain distinct domain concepts.
-
-No second business table is approved during T4.
-
-No Audit table, Credential table, Session table, Cookie table, Token table, Browser table, or generic Metadata table is approved.
-
-## Approved future columns
-
-The approved future columns are limited to the following fields.
-
-## profile_id
-
-```text
-Storage type: TEXT
-Nullability: NOT NULL
-Key: PRIMARY KEY
-Semantic: immutable canonical Profile Identifier
-Length boundary: 1 to 128 characters
-```
-
-profile_id must be opaque.
-
-profile_id must not be a username, phone number, external account identifier, directory name, Cookie, Token, or Credential Reference.
-
-The identifier-generation algorithm remains deferred to T5.
-
-## account_alias
-
-```text
-Storage type: TEXT
-Nullability: NOT NULL
-Length boundary: 1 to 120 characters after trimming
-Uniqueness: not unique
-```
-
-Account Alias is human-readable display metadata only.
-
-Duplicate aliases are allowed.
-
-Alias must not be used for authorization, lookup ownership, or canonical identity.
-
-## external_account_identifier
-
-```text
-Storage type: TEXT
-Nullability: NULL allowed
-Length boundary: 1 to 256 characters when present
-Uniqueness: unique when non-null
-```
-
-It remains untrusted reference metadata.
-
-It must not prove ownership, authorization, account validity, or authentication.
-
-Duplicate non-null values must fail closed.
-
-No platform-specific normalization rule is approved in T4.
-
-## credential_reference
-
-```text
-Storage type: TEXT
-Nullability: NULL allowed
-Length boundary: 1 to 512 characters when present
-Uniqueness: unique when non-null
-```
-
-It is an opaque non-secret reference only.
-
-It must never contain Secret Material.
-
-A non-null Credential Reference belongs to exactly one Profile.
-
-Duplicate non-null Credential References must fail closed.
-
-The provider-specific format remains deferred to T5.
-
-## lifecycle_status
-
-```text
-Storage type: TEXT
-Nullability: NOT NULL
-Allowed values:
-PENDING
-ENABLED
-DISABLED
-ARCHIVED
-```
-
-- PENDING: The local Profile record exists but is not enabled for operations.
-- ENABLED: The Profile is locally enabled, but every operation still requires the T3 resolution, authorization, ownership, and risk gates.
-- DISABLED: All account operations are denied.
-- ARCHIVED: The Profile is retained as historical non-secret metadata and all account operations are denied.
-
-ENABLED does not mean authenticated.
-
-ENABLED does not mean authorized.
-
-ENABLED does not mean the Platform Account exists or is safe to operate.
-
-## created_at_utc
-
-```text
-Storage type: TEXT
-Nullability: NOT NULL
-Semantic: creation timestamp in normalized UTC RFC3339 form
-```
-
-## updated_at_utc
-
-```text
-Storage type: TEXT
-Nullability: NOT NULL
-Semantic: most recent successful row mutation in normalized UTC RFC3339 form
-```
-
-## archived_at_utc
-
-```text
-Storage type: TEXT
-Nullability: NULL allowed
-Semantic: archive timestamp in normalized UTC RFC3339 form
-```
-
-ARCHIVED requires archived_at_utc to be non-null.
-
-Non-ARCHIVED requires archived_at_utc to be null.
-
-## row_version
-
-```text
-Storage type: INTEGER
-Nullability: NOT NULL
-Default: 1
-Constraint: row_version >= 1
-Semantic: optimistic-concurrency version
-```
-
-Every successful mutation increments row_version exactly once.
-
-Stale row_version writes fail closed.
-
-Silent last-write-wins behavior is prohibited.
-
-## Approved future constraints and indexes
-
-1. PRIMARY KEY on profile_id.
-
-2. UNIQUE constraint on external_account_identifier when non-null.
-
-3. UNIQUE constraint on credential_reference when non-null.
-
-4. CHECK constraint limiting lifecycle_status to PENDING, ENABLED, DISABLED, or ARCHIVED.
-
-5. CHECK constraint requiring non-empty profile_id.
-
-6. CHECK constraint requiring non-empty trimmed account_alias.
-
-7. CHECK constraint enforcing the approved maximum lengths.
-
-8. CHECK constraint requiring archived_at_utc only for ARCHIVED rows.
-
-9. CHECK constraint requiring credential_reference to be null for ARCHIVED rows.
-
-10. CHECK constraint requiring row_version to be at least 1.
-
-11. Non-unique index on lifecycle_status.
-
-12. No index on account_alias is approved for the first version.
-
-SQLite NULL behavior allows multiple rows without External Account Identifier or Credential Reference.
-
-Once a non-null value exists, uniqueness prevents ambiguous cross-Profile ownership.
-
-No full-text index, JSON index, or provider-specific index is approved.
-
-## Persisted lifecycle transitions
-
-Approved future transitions:
-
-```text
-PENDING -> ENABLED
-PENDING -> DISABLED
-PENDING -> ARCHIVED
-
-ENABLED -> DISABLED
-ENABLED -> ARCHIVED
-
-DISABLED -> ENABLED
-DISABLED -> ARCHIVED
-
-ARCHIVED -> no automatic transition
-```
-
-1. ARCHIVED is terminal for the first approved boundary.
-
-2. Unarchive is not approved.
-
-3. Hard deletion through normal runtime behavior is not approved.
-
-4. Archiving must atomically:
-   - set lifecycle_status to ARCHIVED;
-   - set archived_at_utc;
-   - clear credential_reference;
-   - increment row_version.
-
-5. A failed archive mutation must leave the previous row unchanged.
-
-6. DISABLED and ARCHIVED deny account operations regardless of credential state.
-
-7. Lifecycle status never replaces T3 authorization or risk evaluation.
-
-## Future persistence operation boundary
-
-Future conceptual operations are limited to:
-
-```text
-create Profile projection
-read Profile projection by Profile Identifier
-update Account Alias
-update External Account Identifier
-attach or replace Credential Reference
-clear Credential Reference
-change lifecycle status through an approved transition
-archive Profile
-```
-
-1. Every mutation requires an explicit Profile Identifier.
-
-2. No operation may select an implicit current Profile.
-
-3. No operation may fall back to another Profile.
-
-4. No operation may search across Profiles for a usable Credential Reference.
-
-5. All mutations require the expected row_version.
-
-6. Create, update, lifecycle transition, and archive operations are transactional.
-
-7. Uniqueness, ownership, validation, or row-version conflicts fail closed.
-
-8. Partial writes are prohibited.
-
-9. No bulk update or bulk delete operation is approved.
-
-10. No raw SQL supplied by an operator or external input is approved.
-
-11. No automatic import, discovery, synchronization, or backfill is approved.
-
-T4 does not design Python classes, function names, Repository interfaces, or API paths; those remain deferred to T5.
-
-## Operation-scoped state that must not be persisted
-
-The following T3 states must not be persisted as authoritative first-version business-table state:
-
-```text
-Credential Resolution Status
-Operation Authorization Status
-resolved Secret Material
-authorization decision payload
-risk decision payload
-provider response
-provider error payload
-verification challenge
-browser state
-current session state
-current-account global state
-```
-
-A future operation must evaluate these values for the exact operation.
-
-A previously successful result must not be persisted and reused as proof of current authorization or credential validity.
-
-## Audit persistence decision
-
-CHG-0003 does not approve a persistent audit-event table.
-
-Only created_at_utc, updated_at_utc, archived_at_utc, lifecycle_status, and row_version are approved as persisted operational metadata.
-
-Persistent event history, actor identity, reason history, correlation history, and audit retention require a separate approved change.
-
-T3 security logging rules remain effective, but T4 does not design a log-storage table.
-
-## Retention and deletion boundary
-
-1. Active, pending, and disabled Profile rows remain until explicitly archived.
-
-2. Archived rows are retained by default.
-
-3. No automatic purge is approved.
-
-4. No retention timer is approved.
-
-5. Hard deletion is outside the first runtime boundary.
-
-6. A future hard-delete or purge feature requires a separate approved change with explicit dependency, audit, backup, and secure-storage cleanup rules.
-
-7. Credential Reference must be cleared during archive.
-
-8. Secret Material deletion remains the responsibility of the separately approved Secure Storage Boundary and is not implemented or orchestrated by T4.
-
-## Database infrastructure ownership
-
-1. The future table uses the existing CAP-CORE-DATABASE SQLite database.
-
-2. The future implementation must use the existing unified SQLAlchemy Engine and Session factory.
-
-3. It must not create a second SQLite database.
-
-4. It must not create a second SQLAlchemy Engine for the account boundary.
-
-5. It must not introduce MySQL, PostgreSQL, Redis, or another persistence system.
-
-6. It must preserve SQLite WAL, foreign-key, busy-timeout, explicit-path, and import-side-effect boundaries.
-
-7. Database module and ORM ownership remain deferred to T5.
-
-8. Runtime implementation remains deferred to T6.
-
-## Approved future Alembic revision
-
-Approved future revision identity:
-
-```text
-revision = 0002_xianyu_account_boundary
-down_revision = 0001_core_baseline
-```
-
-1. This is the approved future revision identity.
-
-2. T4 does not create the revision file.
-
-3. The repository must continue to contain only 0001_core_baseline.py and __init__.py after T4.
-
-4. The future revision must preserve one linear Alembic head.
-
-5. The future revision must use the existing Base.metadata and migration environment.
-
-6. It must use the existing shared Connection for programmatic migration.
-
-7. Standalone CLI execution must continue to require explicit -x database_path=<path>.
-
-8. Application startup must not automatically execute the revision.
-
-9. No default production database URL may be introduced.
-
-10. No external network access is permitted during migration.
-
-## Approved future upgrade behavior
-
-Future upgrade() may only:
-
-1. Create xianyu_account_profiles.
-
-2. Create the approved constraints.
-
-3. Create the approved lifecycle_status index.
-
-4. Create no seed rows.
-
-5. Perform no data import.
-
-6. Perform no data discovery.
-
-7. Perform no browser or filesystem scan.
-
-8. Access no Secure Storage Boundary.
-
-9. Access no external platform.
-
-10. Store no Secret Material.
-
-11. Create no other business table.
-
-The 0001 baseline contains no legacy account data.
-
-No backfill or legacy-data transformation is approved.
-
-## Approved future downgrade behavior
-
-Future downgrade from 0002_xianyu_account_boundary to 0001_core_baseline must:
-
-1. Check whether xianyu_account_profiles contains any rows.
-
-2. If any row exists, abort and fail closed without dropping the table.
-
-3. Never silently destroy Profile metadata.
-
-4. Never automatically export data.
-
-5. Never automatically delete Secret Material from a provider.
-
-6. If the table is empty, drop the lifecycle_status index and then drop the table.
-
-7. Leave the database at 0001_core_baseline.
-
-8. Provide no force flag in the first approved boundary.
-
-T4 does not run this logic.
-
-## Future migration verification boundary
-
-Future T6/T7 verification must cover at least:
-
-- 0002 has down_revision 0001_core_baseline.
-- Alembic still has one head.
-- Fresh upgrade creates exactly the approved table plus alembic_version.
-- Upgrade creates no Secret Material column.
-- Upgrade creates no generic JSON, BLOB, payload, properties, extras, or metadata column.
-- Approved constraints and indexes exist.
-- Repeated upgrade is safe.
-- Empty-table downgrade succeeds.
-- Non-empty-table downgrade fails closed.
+Database records must not prove that a real Platform Account exists, is logged in, is authorized, or is safe to operate.
+
+## Ownership, consistency, and concurrency requirements
+
+- Every record belongs to one explicit Profile.
+- Cross-Profile mutable state or Credential Reference reuse is prohibited.
+- Mutations must be transactional.
+- Partial writes are prohibited.
+- Uniqueness conflicts fail closed.
+- Stale concurrent writes fail closed.
+- No implicit current Profile exists.
+- No fallback Profile exists.
+- No operation may search across Profiles for a usable Credential Reference.
+- A local lifecycle state never proves authentication, authorization, platform validity, or safe operation.
+- A minimal lifecycle model is required.
+- The lifecycle model must distinguish an operationally allowed local record from a locally blocked or retired record.
+- Exact lifecycle state names and transitions remain deferred to T5.
+- Retirement, restoration, and Credential Reference cleanup behavior require explicit lifecycle and Secure Storage ownership decisions in T5.
+- No automatic restoration or implicit credential reuse is permitted.
+- Automatic destructive deletion is not approved.
+- Final retention, archive, restoration, purge, and hard-delete behavior remains deferred to a later approved decision.
+- Indexes must support approved identity and uniqueness invariants without exposing or indexing Secret Material.
+- Exact indexes are deferred to implementation design.
+
+## Migration principles
+
+- Future migration follows 0001_core_baseline in one linear Alembic history.
+- down_revision must reference 0001_core_baseline.
+- Alembic must retain one linear head.
+- Migration execution remains explicit.
+- Migration must continue to use the existing CAP-CORE-DATABASE connection and configuration boundary.
 - Application startup does not auto-migrate.
-- CLI still requires explicit database_path.
-- Offline SQL creates no database file.
-- Migration imports create no files.
-- No real data, credentials, browser paths, or external requests are used.
-
-These are future implementation tests.
-
-T4 adds no permanent migration test and no Migration file.
+- Upgrade creates only the minimum approved account-boundary schema.
+- Upgrade performs no seed, import, discovery, browser scan, credential access, Secure Storage access, external platform access, or network access.
+- Downgrade must never silently destroy non-empty business data.
+- The exact downgrade strategy and operational approval process remain deferred to T5 and T6.
+- A single linear Alembic revision after 0001_core_baseline is expected for the first implementation.
+- The final revision identifier is selected when T6 creates the migration.
+- T4 creates no migration file.
+- T4 creates no ORM model, database table, Repository, DAO, API, Worker, Credential Provider, or Secure Storage implementation.
 
 ## Decisions deferred after T4
 
 ### Deferred to T5
 
-- Python package and module ownership.
-- SQLAlchemy ORM model ownership.
-- Repository or persistence-port ownership.
-- Transaction coordinator ownership.
-- Profile Identifier generation algorithm.
-- UTC timestamp generation ownership.
-- Credential Reference provider format.
-- Secure Storage provider selection.
-- Secure Storage integration ownership.
-- API ownership.
-- Worker ownership.
-- Process and concurrency ownership.
-- Secure ingress ownership.
-- Error type ownership.
-- Runtime lifecycle wiring.
-- Exact method and class names.
+- Module ownership.
+- ORM and Repository ownership.
+- Exact table count and names.
+- Exact column names and types.
+- Exact constraints and indexes.
+- Identifier-generation strategy.
+- Lifecycle state names and transitions.
+- Retention, archive, restore, purge, and delete policies.
+- Provider and Secure Storage ownership.
+- Error ownership and runtime transaction coordination.
 
 ### Deferred to T6
 
-- Creating the SQLAlchemy model.
-- Adding the model to Base.metadata.
-- Creating 0002_xianyu_account_boundary.py.
-- Implementing persistence operations.
-- Implementing optimistic concurrency.
-- Implementing lifecycle transitions.
-- Implementing the downgrade guard.
-- Implementing provider or credential integration.
-- Implementing any runtime account behavior.
+- ORM implementation.
+- Migration implementation.
+- Persistence operations.
+- Optimistic concurrency implementation.
+- Lifecycle implementation.
+- Downgrade guard implementation.
 
 ### Deferred to T7
 
-- Permanent unit tests.
-- Permanent migration contract tests.
-- Permanent security tests.
-- Final active-change implementation acceptance tests.
+- Permanent unit, migration, security, and integration tests.
 
 ### Deferred to T8
 
-- Capability registry binding and evidence.
-- Capability status transition.
-- Complete implementation verification.
+- Capability binding, evidence, status transition, and complete verification.
 
 ## Current implementation
 
