@@ -5,6 +5,7 @@ from __future__ import annotations
 from xianyu_system.worker.account.domain import (
     AccountBoundaryError,
     AccountPersistenceError,
+    AccountReference,
     DuplicateAccountOwnership,
     InvalidAccountInput,
     InvalidLifecycleTransition,
@@ -18,6 +19,7 @@ from xianyu_system.worker.account.service import AccountService
 __all__ = [
     "AccountBoundaryError",
     "AccountPersistenceError",
+    "AccountReference",
     "AccountService",
     "DuplicateAccountOwnership",
     "InvalidAccountInput",

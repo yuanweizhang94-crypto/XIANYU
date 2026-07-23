@@ -31,18 +31,21 @@ def upgrade() -> None:
             name="ck_xianyu_account_profile_id_length",
         ),
         sa.CheckConstraint(
+            "account_alias = trim(account_alias) AND "
             "length(account_alias) >= 1 AND length(account_alias) <= 120",
             name="ck_xianyu_account_alias_length",
         ),
         sa.CheckConstraint(
             "external_account_identifier IS NULL OR "
-            "(length(external_account_identifier) >= 1 AND "
+            "(external_account_identifier = trim(external_account_identifier) AND "
+            "length(external_account_identifier) >= 1 AND "
             "length(external_account_identifier) <= 256)",
             name="ck_xianyu_account_external_identifier_length",
         ),
         sa.CheckConstraint(
             "credential_reference IS NULL OR "
-            "(length(credential_reference) >= 1 AND length(credential_reference) <= 512)",
+            "(credential_reference = trim(credential_reference) AND "
+            "length(credential_reference) >= 1 AND length(credential_reference) <= 512)",
             name="ck_xianyu_account_credential_reference_length",
         ),
         sa.CheckConstraint(

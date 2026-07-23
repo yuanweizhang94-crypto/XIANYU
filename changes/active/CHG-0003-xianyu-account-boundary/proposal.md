@@ -23,6 +23,19 @@ T7 is the next executable task and must be performed separately.
 
 No T7 permanent account test work, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
 
+## T6 correction
+
+- The distinct Account Reference domain concept is now implemented.
+- Profile-to-Account-Reference ownership is explicit and fail-closed.
+- The one-table persistence projection remains unchanged.
+- Database-level trim constraints now match the domain normalization boundary.
+- Three existing Core unit-test files changed during T6 only to remove obsolete metadata and Migration assumptions.
+- No permanent account test function was added.
+- T7 remains the next executable task.
+- T1-T6 are complete.
+- T8/T9 are not started.
+- PR #3 remains Draft, open, and unmerged.
+
 ## Goals
 
 - Define account and Profile isolation terminology.

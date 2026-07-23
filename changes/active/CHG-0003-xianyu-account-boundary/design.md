@@ -920,19 +920,27 @@ T6 explicitly excludes:
 
 xianyu_system.worker.account is implemented.
 
-- `domain.py` owns the pure local Profile domain model, validation, lifecycle states, and account-owned non-sensitive errors.
+- `domain.py` owns distinct immutable `Profile` and `AccountReference` domain objects, validation, lifecycle states, and account-owned non-sensitive errors.
+- Each `Profile` owns exactly one `AccountReference`, and the Account Reference records the matching owning Profile Identifier.
+- Ownership conflicts fail closed in the domain model.
 - `persistence.py` owns one SQLAlchemy relational projection and one concrete Repository.
+- The one table is only a flattened persistence projection; it does not merge the two domain concepts into one concept.
 - `service.py` owns account use cases and transaction coordination.
 - Revision `0002_xianyu_account_boundary` creates the minimum local account Profile table.
+- ORM and Migration trim constraints reject blank, whitespace-only, and padded Account Alias, External Account Identifier, and Credential Reference values.
 - `migrations/env.py` only registers account metadata for Alembic.
 - There is no external integration.
+- The three Core Unit-test files modified during T6 were pre-existing assertion compatibility updates for the new metadata, Migration head, and table state. They are classified as necessary T6 implementation compatibility updates.
+- Dedicated permanent account testing remains T7.
 
 ## Execution boundary
 
 T1 through T6 are complete.
 
+The T6 implementation and T6 correction are complete.
+
 T7 is the next executable task.
 
 T7 must be performed in a separate execution.
 
-This T6 execution did not execute T7, T8, or T9 and does not authorize API changes, Worker processes, provider integration, browser integration, account access, Secret Material handling, capability binding, Ready-for-review, auto-merge, merge, or external platform behavior.
+This T6 correction did not execute T7, T8, or T9 and does not authorize API changes, Worker processes, provider integration, browser integration, account access, Secret Material handling, capability binding, Ready-for-review, auto-merge, merge, or external platform behavior.

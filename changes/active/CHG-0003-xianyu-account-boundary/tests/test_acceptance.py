@@ -6,7 +6,8 @@ from uuid import UUID
 
 import pytest
 import yaml
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import IntegrityError
 
 from xianyu_system.core.database import (
     dispose_database,
@@ -86,8 +87,10 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     tmp_path: Path,
 ) -> None:
     from xianyu_system.worker.account import (
+        AccountReference,
         AccountService,
         DuplicateAccountOwnership,
+        InvalidAccountInput,
         InvalidLifecycleTransition,
         Profile,
         ProfileLifecycleStatus,
@@ -157,6 +160,14 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
         assert first.lifecycle_status is ProfileLifecycleStatus.PENDING
         assert first.row_version == 1
         assert second.profile_id != first.profile_id
+        assert isinstance(first.account_reference, AccountReference)
+        assert first.account_reference.profile_id == first.profile_id
+        assert first.account_reference.account_alias == first.account_alias
+        assert (
+            first.account_reference.external_account_identifier
+            == first.external_account_identifier
+        )
+        assert first.account_reference.credential_reference == first.credential_reference
 
         assert service.get_profile(first.profile_id) == first
         assert [profile.profile_id for profile in service.list_profiles()] == sorted(
@@ -165,16 +176,22 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
 
         renamed = service.rename_profile(
             first.profile_id,
-            account_alias="synthetic-profile-renamed",
+            account_alias=" synthetic-profile-renamed ",
             expected_version=first.row_version,
         )
         assert renamed.account_alias == "synthetic-profile-renamed"
+        assert renamed.account_reference is not first.account_reference
+        assert renamed.account_reference.profile_id == renamed.profile_id
         assert renamed.row_version == 2
 
         with_external = service.set_external_account_identifier(
             renamed.profile_id,
-            external_account_identifier="synthetic-external-reference-002",
+            external_account_identifier=" synthetic-external-reference-002 ",
             expected_version=renamed.row_version,
+        )
+        assert (
+            with_external.account_reference.external_account_identifier
+            == "synthetic-external-reference-002"
         )
         cleared_external = service.set_external_account_identifier(
             renamed.profile_id,
@@ -185,8 +202,12 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
 
         with_credential = service.set_credential_reference(
             renamed.profile_id,
-            credential_reference="synthetic-credential-reference-001",
+            credential_reference=" synthetic-credential-reference-001 ",
             expected_version=cleared_external.row_version,
+        )
+        assert (
+            with_credential.account_reference.credential_reference
+            == "synthetic-credential-reference-001"
         )
         cleared_credential = service.set_credential_reference(
             renamed.profile_id,
@@ -211,6 +232,20 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
             expected_version=disabled.row_version,
         )
         assert reenabled.lifecycle_status is ProfileLifecycleStatus.ENABLED
+
+        detached_reference = first.account_reference.with_account_alias(
+            "synthetic-detached-alias"
+        )
+        assert detached_reference is not first.account_reference
+        assert detached_reference.profile_id == first.profile_id
+        assert detached_reference.account_alias == "synthetic-detached-alias"
+        with pytest.raises(InvalidAccountInput):
+            Profile(
+                profile_id="22222222-2222-4222-8222-222222222222",
+                account_reference=first.account_reference,
+                lifecycle_status=ProfileLifecycleStatus.PENDING,
+                row_version=1,
+            )
 
         with pytest.raises(InvalidLifecycleTransition):
             service.set_lifecycle_status(
@@ -263,6 +298,56 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
             session.close()
         with pytest.raises(ProfileNotFound):
             service.get_profile(manual.profile_id)
+
+        invalid_rows = [
+            {
+                "profile_id": "22222222-2222-4222-8222-222222222222",
+                "account_alias": "   ",
+                "external_account_identifier": None,
+                "credential_reference": None,
+            },
+            {
+                "profile_id": "33333333-3333-4333-8333-333333333333",
+                "account_alias": " padded-alias ",
+                "external_account_identifier": None,
+                "credential_reference": None,
+            },
+            {
+                "profile_id": "44444444-4444-4444-8444-444444444444",
+                "account_alias": "valid-alias",
+                "external_account_identifier": " padded-external ",
+                "credential_reference": None,
+            },
+            {
+                "profile_id": "55555555-5555-4555-8555-555555555555",
+                "account_alias": "valid-alias",
+                "external_account_identifier": None,
+                "credential_reference": " padded-credential ",
+            },
+        ]
+        insert_statement = text(
+            """
+            INSERT INTO xianyu_account_profiles (
+                profile_id,
+                account_alias,
+                external_account_identifier,
+                credential_reference,
+                lifecycle_status,
+                row_version
+            )
+            VALUES (
+                :profile_id,
+                :account_alias,
+                :external_account_identifier,
+                :credential_reference,
+                'PENDING',
+                1
+            )
+            """
+        )
+        for invalid_row in invalid_rows:
+            with pytest.raises(IntegrityError), resources.engine.begin() as connection:
+                connection.execute(insert_statement, invalid_row)
     finally:
         dispose_database(resources)
 

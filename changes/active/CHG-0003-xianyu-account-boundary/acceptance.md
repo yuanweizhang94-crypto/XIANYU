@@ -47,6 +47,34 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 21. Repository verification, security scan, Ruff, Mypy, and the complete test suite pass.
 
+22. AccountReference exists as an explicit immutable domain type.
+
+23. Each Profile owns exactly one AccountReference.
+
+24. AccountReference contains the matching owning Profile Identifier.
+
+25. Conflicting Profile-to-Account-Reference ownership fails closed.
+
+26. The database projection remains one table and one row per Profile.
+
+27. No Account Reference table, foreign key, provider, or second identifier is added.
+
+28. Domain normalization strips supported reference metadata.
+
+29. ORM constraints reject blank, whitespace-only, and padded Account Alias values.
+
+30. ORM constraints reject blank, whitespace-only, and padded External Account Identifier values.
+
+31. ORM constraints reject blank, whitespace-only, and padded Credential Reference values.
+
+32. Migration constraints match ORM constraints.
+
+33. The three T6 Unit-test compatibility edits added and removed no test functions.
+
+34. Dedicated permanent account tests remain deferred to T7.
+
+35. Tasks remain 6/9 and next_task remains T7.
+
 ## Current authorization
 
 T1 through T6 are complete.

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from xianyu_system.core.database import Base
 from xianyu_system.worker.account.domain import (
+    AccountReference,
     Profile,
     ProfileLifecycleStatus,
     StaleProfileUpdate,
@@ -26,18 +27,21 @@ account_profiles_table = Table(
     Column("row_version", Integer, nullable=False),
     CheckConstraint("length(profile_id) = 36", name="ck_xianyu_account_profile_id_length"),
     CheckConstraint(
+        "account_alias = trim(account_alias) AND "
         "length(account_alias) >= 1 AND length(account_alias) <= 120",
         name="ck_xianyu_account_alias_length",
     ),
     CheckConstraint(
         "external_account_identifier IS NULL OR "
-        "(length(external_account_identifier) >= 1 AND "
+        "(external_account_identifier = trim(external_account_identifier) AND "
+        "length(external_account_identifier) >= 1 AND "
         "length(external_account_identifier) <= 256)",
         name="ck_xianyu_account_external_identifier_length",
     ),
     CheckConstraint(
         "credential_reference IS NULL OR "
-        "(length(credential_reference) >= 1 AND length(credential_reference) <= 512)",
+        "(credential_reference = trim(credential_reference) AND "
+        "length(credential_reference) >= 1 AND length(credential_reference) <= 512)",
         name="ck_xianyu_account_credential_reference_length",
     ),
     CheckConstraint(
@@ -64,9 +68,12 @@ Base.registry.map_imperatively(_AccountProfileRecord, account_profiles_table)
 def _record_to_profile(record: _AccountProfileRecord) -> Profile:
     return Profile(
         profile_id=record.profile_id,
-        account_alias=record.account_alias,
-        external_account_identifier=record.external_account_identifier,
-        credential_reference=record.credential_reference,
+        account_reference=AccountReference(
+            profile_id=record.profile_id,
+            account_alias=record.account_alias,
+            external_account_identifier=record.external_account_identifier,
+            credential_reference=record.credential_reference,
+        ),
         lifecycle_status=ProfileLifecycleStatus(record.lifecycle_status),
         row_version=record.row_version,
     )
@@ -139,9 +146,7 @@ class AccountProfileRepository:
         self._session.flush()
         return Profile(
             profile_id=profile.profile_id,
-            account_alias=profile.account_alias,
-            external_account_identifier=profile.external_account_identifier,
-            credential_reference=profile.credential_reference,
+            account_reference=profile.account_reference,
             lifecycle_status=profile.lifecycle_status,
             row_version=next_version,
         )

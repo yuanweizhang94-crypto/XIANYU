@@ -242,6 +242,15 @@ Within the approved CHG-0003 runtime ownership boundary:
 
 Within the approved CHG-0003 T6 implementation:
 
+The T6 implementation correction is complete.
+
+- `Profile` and `AccountReference` are distinct immutable domain concepts.
+- Their one-to-one ownership is enforced locally.
+- They remain flattened into one non-secret relational projection.
+- ORM and Migration constraints reject blank or padded reference metadata.
+- Existing Core unit-test edits made during T6 were compatibility updates only.
+- Dedicated permanent account testing remains T7.
+
 - The local package `xianyu_system.worker.account` exists.
 - A local SQLite table and Migration `0002_xianyu_account_boundary` exist.
 - One SQLAlchemy relational projection, one Repository, and one Service exist.
