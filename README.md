@@ -181,7 +181,8 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - T4 persistence and migration principles is complete.
 - T5 runtime module and ownership boundaries is complete.
 - T6 minimal local account boundary implementation is complete.
-- T7 dedicated account tests is the next executable task.
+- T7 dedicated permanent account tests are complete.
+- T8 capability evidence and complete verification is the next executable task.
 - No CHG-0003 external account integration has started.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 - T1 through T15 are complete for archived CHG-0002.
@@ -258,6 +259,20 @@ The T6 implementation correction is complete.
 - There is still no external account access, HTTP API, browser integration, Provider, or Secret Material handling.
 
 Completion of T6 does not authorize starting T7 in the same execution, Ready-for-review, auto-merge, or merge.
+
+CHG-0003 permanent account coverage now verifies:
+
+- immutable Profile and AccountReference ownership;
+- input normalization and lifecycle invariants;
+- Account Service transactions and optimistic concurrency;
+- Profile-scoped uniqueness and rollback;
+- Repository and Migration behavior;
+- guarded non-empty downgrade;
+- database-level trim constraints;
+- sanitized errors;
+- absence of external account, browser, API, Provider, Secure Storage, network, Scheduler, and background-process behavior.
+
+Completion of T7 does not authorize T8 in the same execution, Ready-for-review, auto-merge, or merge.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 

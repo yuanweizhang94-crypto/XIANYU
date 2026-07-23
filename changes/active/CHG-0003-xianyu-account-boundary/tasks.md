@@ -9,6 +9,6 @@ Change ID: CHG-0003-xianyu-account-boundary
 - [x] T4 Approve persistence and migration boundaries
 - [x] T5 Approve runtime module and ownership boundaries
 - [x] T6 Implement only the approved account boundary
-- [ ] T7 Add unit, contract, security, and active-change acceptance tests
+- [x] T7 Add unit, contract, security, and active-change acceptance tests
 - [ ] T8 Update capability evidence and run complete verification
 - [ ] T9 Complete final PR administration

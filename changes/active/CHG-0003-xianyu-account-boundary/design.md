@@ -7,11 +7,11 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 CHG-0003 is approved for controlled, task-by-task execution.
 
-T1 through T6 are complete.
+T1 through T7 are complete.
 
 The terminology, security, credential-handling, persistence, migration, runtime ownership, and module boundaries are finalized.
 
-T7 is the next executable task.
+T8 is the next executable task.
 
 The minimal local account boundary has been implemented. No API route, browser integration, Provider integration, background process, or external account behavior has been implemented.
 
@@ -914,6 +914,17 @@ T6 explicitly excludes:
 - secure storage provider or resolver
 - external platform login and account validation
 
+## T7 test evidence state
+
+T7 added permanent account-boundary tests only.
+
+- Domain Unit coverage verifies immutable `AccountReference`, `Profile` ownership, text normalization, field boundaries, row-version validation, and lifecycle transitions.
+- Service Unit coverage verifies UUID version 4 Profile creation, reads, sorted listing, metadata mutations, lifecycle mutations, stale-write handling, uniqueness rollback, and sanitized persistence failures.
+- Persistence Contract coverage verifies the single flattened table schema, one linear Migration head, upgrade and empty downgrade, guarded non-empty downgrade, Repository flush-without-commit behavior, relational round trips, database uniqueness, concurrency, lifecycle, version, and trim constraints.
+- Security Contract coverage verifies public package restrictions, absence of external integration or secret-boundary behavior, sanitized diagnostics, and Synthetic Fixture-only account evidence.
+- T7 did not modify account runtime files, Migration files, Core files, API, web, scheduler, browser, provider, Secure Storage, dependencies, CI, Registry, capability specs, or archived changes.
+- CAP-XY-ACCOUNT remains planned and unbound until T8.
+
 ## Current implementation
 
 `xianyu_system.worker.account` is implemented.
@@ -935,12 +946,12 @@ xianyu_system.worker.account is implemented.
 
 ## Execution boundary
 
-T1 through T6 are complete.
+T1 through T7 are complete.
 
-The T6 implementation and T6 correction are complete.
+The T6 implementation, T6 correction, and T7 permanent test coverage are complete.
 
-T7 is the next executable task.
+T8 is the next executable task.
 
-T7 must be performed in a separate execution.
+T8 must be performed in a separate execution.
 
-This T6 correction did not execute T7, T8, or T9 and does not authorize API changes, Worker processes, provider integration, browser integration, account access, Secret Material handling, capability binding, Ready-for-review, auto-merge, merge, or external platform behavior.
+This T7 execution did not execute T8 or T9 and does not authorize API changes, Worker processes, provider integration, browser integration, account access, Secret Material handling, capability binding, Ready-for-review, auto-merge, merge, or external platform behavior.

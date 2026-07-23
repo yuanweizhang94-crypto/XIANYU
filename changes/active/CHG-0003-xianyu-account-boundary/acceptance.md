@@ -3,82 +3,96 @@
 Status: APPROVED
 Change ID: CHG-0003-xianyu-account-boundary
 
-## T6 acceptance criteria
+## T7 acceptance criteria
 
 1. CHG-0003 remains the only active change.
 
-2. CHG-0003 remains APPROVED in proposal, design, tasks, and acceptance.
+2. CHG-0003 remains APPROVED.
 
-3. T1 through T6 are complete.
+3. T1-T7 are complete.
 
-4. T7-T9 remain incomplete.
+4. T8-T9 remain incomplete.
 
-5. generated/PROJECT_STATE.json reports six completed tasks.
+5. PROJECT_STATE reports 7 completed tasks.
 
-6. generated/PROJECT_STATE.json reports T7 as next_task.
+6. PROJECT_STATE reports T8 as next_task.
 
-7. The local package, ORM mapping, Repository, Service, and Migration exist.
+7. Four dedicated permanent account test files exist.
 
-8. Only one account business table is created by the account Migration.
+8. Account domain tests contain exactly 10 test functions.
 
-9. No Secret Material field is added.
+9. Account Service tests contain exactly 7 test functions.
 
-10. No JSON, BLOB, payload, metadata, context, properties, extras, Cookie, Token, password, browser path, or customer-data field is added.
+10. Account persistence Contract tests contain exactly 7 test functions.
 
-11. Profile Identifiers use UUID version 4.
+11. Account security Contract tests contain exactly 4 test functions.
 
-12. The local lifecycle states are PENDING, ENABLED, and DISABLED.
+12. No parameterized test cases artificially change the collection count.
 
-13. Service owns transaction coordination.
+13. AccountReference immutability and Profile ownership are covered.
 
-14. Repository does not independently commit.
+14. Input normalization and field boundaries are covered.
 
-15. Uniqueness and stale-concurrency conflicts fail closed.
+15. UUID version 4 Profile creation is covered.
 
-16. Application startup does not automatically run Migration.
+16. All approved and prohibited lifecycle transitions are covered.
 
-17. No API, web UI, Scheduler Job, background Worker process, browser integration, Provider, or external platform behavior is approved or implemented.
+17. Service mutation and transaction behavior are covered.
 
-18. CAP-XY-ACCOUNT remains planned, unbound, and without Registry evidence paths.
+18. Missing Profile behavior is covered.
 
-19. PR #3 remains Draft, open, and unmerged.
+19. Optimistic-concurrency conflicts are covered.
 
-20. Auto-merge remains disabled.
+20. External Identifier uniqueness is covered.
 
-21. Repository verification, security scan, Ruff, Mypy, and the complete test suite pass.
+21. Credential Reference uniqueness is covered.
 
-22. AccountReference exists as an explicit immutable domain type.
+22. Repository flush-without-commit behavior is covered.
 
-23. Each Profile owns exactly one AccountReference.
+23. Relational round-trip ownership is covered.
 
-24. AccountReference contains the matching owning Profile Identifier.
+24. Migration upgrade and empty downgrade are covered.
 
-25. Conflicting Profile-to-Account-Reference ownership fails closed.
+25. Non-empty downgrade failure and data preservation are covered.
 
-26. The database projection remains one table and one row per Profile.
+26. Database trim, lifecycle, version, and uniqueness constraints are covered.
 
-27. No Account Reference table, foreign key, provider, or second identifier is added.
+27. Public package restrictions are covered.
 
-28. Domain normalization strips supported reference metadata.
+28. Sanitized error behavior is covered.
 
-29. ORM constraints reject blank, whitespace-only, and padded Account Alias values.
+29. Absence of network, browser, Provider, Secure Storage, API, Scheduler, and background-process behavior is covered.
 
-30. ORM constraints reject blank, whitespace-only, and padded External Account Identifier values.
+30. Only Synthetic Fixtures are used.
 
-31. ORM constraints reject blank, whitespace-only, and padded Credential Reference values.
+31. No real Secret Material or customer data is added.
 
-32. Migration constraints match ORM constraints.
+32. No runtime, Migration, dependency, CI, Registry, capability specification, or archived-change file is modified.
 
-33. The three T6 Unit-test compatibility edits added and removed no test functions.
+33. CAP-XY-ACCOUNT remains planned and unbound.
 
-34. Dedicated permanent account tests remain deferred to T7.
+34. CAP-XY-ACCOUNT evidence paths remain empty.
 
-35. Tasks remain 6/9 and next_task remains T7.
+35. Full collection equals 280.
+
+36. Unit tests equal 196 passed.
+
+37. Contract tests equal 65 passed.
+
+38. Permanent acceptance tests equal 15 passed.
+
+39. Active CHG-0003 acceptance tests equal 4 passed.
+
+40. PR #3 remains Draft, open, and unmerged.
+
+41. Auto-merge remains disabled.
+
+42. Repository verification, security scan, Ruff, Mypy, Pip Check, warning mode, and offline gates pass.
 
 ## Current authorization
 
-T1 through T6 are complete.
+T1 through T7 are complete.
 
-T7 is the next executable task and must be performed separately.
+T8 is the next executable task and must be performed separately.
 
-This execution does not authorize T7 permanent tests, capability binding, Ready-for-review, auto-merge, or merge.
+This execution does not authorize capability binding, Registry evidence updates, verification status, Ready-for-review, auto-merge, or merge.

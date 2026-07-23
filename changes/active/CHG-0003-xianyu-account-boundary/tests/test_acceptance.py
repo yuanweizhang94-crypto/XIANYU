@@ -1,5 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 from uuid import UUID
@@ -55,7 +56,7 @@ def test_chg_0003_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0003 / name) == "APPROVED"
 
 
-def test_chg_0003_t6_completion_advances_only_to_t7() -> None:
+def test_chg_0003_t7_completion_advances_only_to_t8() -> None:
     task_lines = [
         line
         for line in (CHG_0003 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -63,8 +64,8 @@ def test_chg_0003_t6_completion_advances_only_to_t7() -> None:
     ]
 
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:6])
-    assert all(line.startswith("- [ ]") for line in task_lines[6:])
+    assert all(line.startswith("- [x]") for line in task_lines[:7])
+    assert all(line.startswith("- [ ]") for line in task_lines[7:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8")
@@ -73,13 +74,13 @@ def test_chg_0003_t6_completion_advances_only_to_t7() -> None:
     assert state["active_change"]["id"] == "CHG-0003-xianyu-account-boundary"
     assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 6
+    assert state["tasks"]["completed"] == 7
     assert all(
-        state["tasks"]["items"][index]["completed"] is True for index in range(6)
+        state["tasks"]["items"][index]["completed"] is True for index in range(7)
     )
-    assert state["tasks"]["items"][6]["completed"] is False
+    assert state["tasks"]["items"][7]["completed"] is False
     assert state["tasks"]["next_task"] == (
-        "T7 Add unit, contract, security, and active-change acceptance tests"
+        "T8 Update capability evidence and run complete verification"
     )
 
 
@@ -116,6 +117,28 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     assert (account_root / "persistence.py").is_file()
     assert (account_root / "service.py").is_file()
     assert (ROOT / "migrations" / "versions" / "0002_xianyu_account_boundary.py").is_file()
+    permanent_tests = {
+        ROOT / "tests" / "unit" / "test_account_domain.py": 10,
+        ROOT / "tests" / "unit" / "test_account_service.py": 7,
+        ROOT / "tests" / "contract" / "test_account_persistence.py": 7,
+        ROOT / "tests" / "contract" / "test_account_security.py": 4,
+    }
+    total_t7_tests = 0
+    for test_path, expected_count in permanent_tests.items():
+        tree = ast.parse(test_path.read_text(encoding="utf-8-sig"))
+        tests = [
+            node.name
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name.startswith("test_")
+        ]
+        assert len(tests) == expected_count
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for decorator in node.decorator_list:
+                    assert "parametrize" not in ast.unparse(decorator)
+        total_t7_tests += len(tests)
+    assert total_t7_tests == 28
 
     for capability_id in CORE_IDS:
         capability = registry[capability_id]
@@ -132,9 +155,9 @@ def test_account_boundary_is_implemented_locally_but_not_externally(
     proposal = (CHG_0003 / "proposal.md").read_text(encoding="utf-8")
     design = (CHG_0003 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0003 / "acceptance.md").read_text(encoding="utf-8")
-    assert "T1 through T6 are complete." in proposal
-    assert "T7 is the next executable task" in proposal
-    assert "T1 through T6 are complete." in acceptance
+    assert "T1 through T7 are complete." in proposal
+    assert "T8 is the next executable task" in proposal
+    assert "T1 through T7 are complete." in acceptance
     assert "PR #3 remains Draft" in acceptance
     assert "## Current implementation" in design
     assert "xianyu_system.worker.account is implemented" in design

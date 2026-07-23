@@ -15,13 +15,13 @@ Prepare a formally reviewable boundary for Xianyu account and Profile isolation.
 
 The project owner approved CHG-0003 for controlled, one-task-at-a-time execution.
 
-T1 through T6 are complete.
+T1 through T7 are complete.
 
 The terminology, security, credential-handling, persistence, migration, runtime ownership, and module boundaries are finalized.
 
-T7 is the next executable task and must be performed separately.
+T8 is the next executable task and must be performed separately.
 
-No T7 permanent account test work, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
+No T8 capability evidence work, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
 
 ## T6 correction
 
@@ -35,6 +35,20 @@ No T7 permanent account test work, capability binding, Ready-for-review, auto-me
 - T1-T6 are complete.
 - T8/T9 are not started.
 - PR #3 remains Draft, open, and unmerged.
+
+## T7 permanent test outcome
+
+Permanent account-boundary coverage is complete.
+
+- `tests/unit/test_account_domain.py` contains exactly 10 account domain tests.
+- `tests/unit/test_account_service.py` contains exactly 7 account service tests.
+- `tests/contract/test_account_persistence.py` contains exactly 7 account persistence and Migration contract tests.
+- `tests/contract/test_account_security.py` contains exactly 4 account security-boundary contract tests.
+- Total new permanent account tests: 28.
+- The coverage verifies domain ownership, normalization, lifecycle rules, Account Service transactions, optimistic concurrency, Profile-scoped uniqueness, Repository behavior, Migration behavior, guarded downgrade, database constraints, sanitized errors, and absence of external integrations.
+- No runtime, Migration, API, browser, Provider, Secure Storage, Scheduler, background-process, dependency, CI, Registry, or capability-specification change was made during T7.
+- CAP-XY-ACCOUNT remains planned and unbound.
+- T8 remains the next executable task.
 
 ## Goals
 
