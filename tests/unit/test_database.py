@@ -193,7 +193,7 @@ def test_open_session_does_not_auto_commit() -> None:
 
 
 def test_base_metadata_is_empty_and_database_has_no_business_tables(tmp_path: Path) -> None:
-    assert Base.metadata.tables == {}
+    assert set(Base.metadata.tables) <= {"xianyu_account_profiles"}
     resources = initialize_database(tmp_path / "empty.db")
     try:
         with resources.engine.connect() as connection:
@@ -310,7 +310,7 @@ def test_get_current_revision_returns_none_before_migration(tmp_path: Path) -> N
     resources = initialize_database(tmp_path / "unmigrated.db")
     try:
         assert get_current_revision(resources) is None
-        assert Base.metadata.tables == {}
+        assert set(Base.metadata.tables) <= {"xianyu_account_profiles"}
     finally:
         dispose_database(resources)
 
@@ -318,7 +318,7 @@ def test_get_current_revision_returns_none_before_migration(tmp_path: Path) -> N
 def test_upgrade_and_downgrade_database_manage_empty_baseline(tmp_path: Path) -> None:
     resources = initialize_database(tmp_path / "baseline.db")
     try:
-        upgrade_database(resources)
+        upgrade_database(resources, revision=BASELINE_REVISION)
         assert get_current_revision(resources) == BASELINE_REVISION
         assert set(inspect(resources.engine).get_table_names()) <= {"alembic_version"}
 

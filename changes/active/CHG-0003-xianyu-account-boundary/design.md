@@ -7,13 +7,13 @@ Change ID: CHG-0003-xianyu-account-boundary
 
 CHG-0003 is approved for controlled, task-by-task execution.
 
-T1, T2, T3, T4, and T5 are complete.
+T1 through T6 are complete.
 
 The terminology, security, credential-handling, persistence, migration, runtime ownership, and module boundaries are finalized.
 
-T6 is the next executable task.
+T7 is the next executable task.
 
-No runtime implementation, ORM code, Migration file, database table, API route, Worker process, Provider integration, browser integration, or external account behavior has been implemented.
+The minimal local account boundary has been implemented. No API route, browser integration, Provider integration, background process, or external account behavior has been implemented.
 
 ## Canonical terminology
 
@@ -852,10 +852,14 @@ app/xianyu_system/worker/account/domain.py
 app/xianyu_system/worker/account/persistence.py
 app/xianyu_system/worker/account/service.py
 migrations/versions/<one revision after 0001_core_baseline>.py
+migrations/env.py
+tests/contract/test_migrations.py
 changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py
 generated/PROJECT_STATE.json
 README.md
 ```
+
+migrations/env.py modification is limited to account metadata registration. tests/contract/test_migrations.py modification is limited to removing obsolete 0001-only assumptions. Dedicated permanent account tests remain deferred to T7.
 
 T6 explicitly excludes:
 
@@ -912,14 +916,23 @@ T6 explicitly excludes:
 
 ## Current implementation
 
-None.
+`xianyu_system.worker.account` is implemented.
+
+xianyu_system.worker.account is implemented.
+
+- `domain.py` owns the pure local Profile domain model, validation, lifecycle states, and account-owned non-sensitive errors.
+- `persistence.py` owns one SQLAlchemy relational projection and one concrete Repository.
+- `service.py` owns account use cases and transaction coordination.
+- Revision `0002_xianyu_account_boundary` creates the minimum local account Profile table.
+- `migrations/env.py` only registers account metadata for Alembic.
+- There is no external integration.
 
 ## Execution boundary
 
-T1, T2, T3, T4, and T5 are complete.
+T1 through T6 are complete.
 
-T6 is the next executable task.
+T7 is the next executable task.
 
-T6 must be performed in a separate execution.
+T7 must be performed in a separate execution.
 
-This T5 execution does not authorize runtime code, ORM code, Migration files, database mutation, API changes, Worker processes, provider integration, browser integration, account access, Secret Material handling, or external platform behavior.
+This T6 execution did not execute T7, T8, or T9 and does not authorize API changes, Worker processes, provider integration, browser integration, account access, Secret Material handling, capability binding, Ready-for-review, auto-merge, merge, or external platform behavior.

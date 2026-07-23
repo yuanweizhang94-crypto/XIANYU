@@ -180,8 +180,9 @@ The three Core capabilities are now `verified`, are no longer bound through regi
 - T3 security and credential-handling boundaries is complete.
 - T4 persistence and migration principles is complete.
 - T5 runtime module and ownership boundaries is complete.
-- T6 implementation is the next executable task.
-- No CHG-0003 runtime or database implementation has started.
+- T6 minimal local account boundary implementation is complete.
+- T7 dedicated account tests is the next executable task.
+- No CHG-0003 external account integration has started.
 - Complete local verification candidate SHA: `d11f1afc4564298e8c2709fdb80a41a491dbb1ea`.
 - T1 through T15 are complete for archived CHG-0002.
 - `CAP-CORE-CONFIG`, `CAP-CORE-DATABASE`, and `CAP-HEALTH-MONITOR` are `verified`.
@@ -237,9 +238,17 @@ Within the approved CHG-0003 runtime ownership boundary:
 - Local lifecycle states are PENDING, ENABLED, and DISABLED.
 - CHG-0003 owns opaque Credential References but does not resolve Secret Material.
 - No API, browser integration, background process, Scheduler Job, or Provider is included.
-- T5 creates no implementation files.
+- T5 created no implementation files.
 
-Completion of T5 does not authorize starting T6 in the same execution, Ready-for-review, auto-merge, or merge.
+Within the approved CHG-0003 T6 implementation:
+
+- The local package `xianyu_system.worker.account` exists.
+- A local SQLite table and Migration `0002_xianyu_account_boundary` exist.
+- One SQLAlchemy relational projection, one Repository, and one Service exist.
+- Profile Identifier generation, local lifecycle transitions, and optimistic concurrency are implemented.
+- There is still no external account access, HTTP API, browser integration, Provider, or Secret Material handling.
+
+Completion of T6 does not authorize starting T7 in the same execution, Ready-for-review, auto-merge, or merge.
 - The next state transition requires explicit project-owner authorization.
 - Verification does not implement any Xianyu, WeCom, AI, browser automation, business route, business page, or business table capability.
 

@@ -15,13 +15,13 @@ Prepare a formally reviewable boundary for Xianyu account and Profile isolation.
 
 The project owner approved CHG-0003 for controlled, one-task-at-a-time execution.
 
-T1, T2, T3, T4, and T5 are complete.
+T1 through T6 are complete.
 
 The terminology, security, credential-handling, persistence, migration, runtime ownership, and module boundaries are finalized.
 
-T6 is the next executable task and must be performed separately.
+T7 is the next executable task and must be performed separately.
 
-No runtime code, ORM code, Migration file, database mutation, API route, Worker process, provider integration, browser integration, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
+No T7 permanent account test work, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
 
 ## Goals
 
@@ -86,6 +86,19 @@ No runtime code, ORM code, Migration file, database mutation, API route, Worker 
 - No API, web UI, Scheduler Job, background Worker process, browser integration, Secure Storage Provider, Credential Provider, login, or external account validation is approved.
 - T5 creates no runtime file, ORM model, Migration, database table, Repository, Service, API, or Worker.
 
+## T6 implementation outcome
+
+- The local domain model is implemented.
+- A single SQLAlchemy relational projection is implemented.
+- One concrete Repository and Account Service are implemented.
+- UUID version 4 Profile Identifier generation is implemented.
+- PENDING, ENABLED, and DISABLED local lifecycle states are implemented.
+- Optimistic concurrency is implemented.
+- The linear Alembic Revision `0002_xianyu_account_boundary` is implemented.
+- No API, Worker process, browser integration, or Provider is implemented.
+- No real Secret Material is added, accessed, persisted, or resolved.
+- T7 has not started.
+
 ## Non-goals
 
 - No real Xianyu login.
@@ -98,14 +111,14 @@ No runtime code, ORM code, Migration file, database mutation, API route, Worker 
 - No external network request.
 - No registry capability binding.
 - No runtime implementation during the T5 runtime ownership boundary transition.
-- No runtime implementation before T6 is separately authorized and executed.
+- No permanent T7 account coverage or capability binding before separate authorization and execution.
 
 ## Execution boundary
 
 Only one unfinished task may be executed at a time.
 
-This execution completes T5 only.
+This execution completes T6 only.
 
-T6 must not begin in the same execution.
+T7 must not begin in the same execution.
 
-T6 may begin only in a separate execution after this commit is complete and pushed.
+T7 may begin only in a separate execution after this commit is complete and pushed.

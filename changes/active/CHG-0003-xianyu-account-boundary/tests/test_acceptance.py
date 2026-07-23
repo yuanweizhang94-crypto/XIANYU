@@ -1,9 +1,19 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
+from uuid import UUID
 
+import pytest
 import yaml
+from sqlalchemy import inspect
+
+from xianyu_system.core.database import (
+    dispose_database,
+    get_current_revision,
+    initialize_database,
+    upgrade_database,
+)
 
 ROOT = Path(__file__).resolve().parents[4]
 ACTIVE = ROOT / "changes" / "active"
@@ -11,6 +21,8 @@ ARCHIVE = ROOT / "changes" / "archive"
 CHG_0002 = ARCHIVE / "CHG-0002-core-application"
 CHG_0003 = ACTIVE / "CHG-0003-xianyu-account-boundary"
 CORE_IDS = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
+ACCOUNT_REVISION = "0002_xianyu_account_boundary"
+ACCOUNT_TABLE = "xianyu_account_profiles"
 
 
 def status_of(path: Path) -> str:
@@ -42,7 +54,7 @@ def test_chg_0003_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0003 / name) == "APPROVED"
 
 
-def test_chg_0003_t5_completion_advances_only_to_t6() -> None:
+def test_chg_0003_t6_completion_advances_only_to_t7() -> None:
     task_lines = [
         line
         for line in (CHG_0003 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -50,8 +62,8 @@ def test_chg_0003_t5_completion_advances_only_to_t6() -> None:
     ]
 
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:5])
-    assert all(line.startswith("- [ ]") for line in task_lines[5:])
+    assert all(line.startswith("- [x]") for line in task_lines[:6])
+    assert all(line.startswith("- [ ]") for line in task_lines[6:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8")
@@ -60,19 +72,30 @@ def test_chg_0003_t5_completion_advances_only_to_t6() -> None:
     assert state["active_change"]["id"] == "CHG-0003-xianyu-account-boundary"
     assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 5
-
+    assert state["tasks"]["completed"] == 6
     assert all(
-        state["tasks"]["items"][index]["completed"] is True for index in range(5)
+        state["tasks"]["items"][index]["completed"] is True for index in range(6)
     )
-    assert state["tasks"]["items"][5]["completed"] is False
-
+    assert state["tasks"]["items"][6]["completed"] is False
     assert state["tasks"]["next_task"] == (
-        "T6 Implement only the approved account boundary"
+        "T7 Add unit, contract, security, and active-change acceptance tests"
     )
 
 
-def test_account_runtime_ownership_is_approved_but_unimplemented() -> None:
+def test_account_boundary_is_implemented_locally_but_not_externally(
+    tmp_path: Path,
+) -> None:
+    from xianyu_system.worker.account import (
+        AccountService,
+        DuplicateAccountOwnership,
+        InvalidLifecycleTransition,
+        Profile,
+        ProfileLifecycleStatus,
+        ProfileNotFound,
+        StaleProfileUpdate,
+    )
+    from xianyu_system.worker.account.persistence import AccountProfileRepository
+
     registry = registry_by_id()
     account = registry["CAP-XY-ACCOUNT"]
     assert account["status"] == "planned"
@@ -82,6 +105,15 @@ def test_account_runtime_ownership_is_approved_but_unimplemented() -> None:
     assert account["test_paths"] == []
     assert account["last_verified_commit"] is None
 
+    worker_root = ROOT / "app" / "xianyu_system" / "worker"
+    account_root = worker_root / "account"
+    assert (worker_root / "__init__.py").is_file()
+    assert (account_root / "__init__.py").is_file()
+    assert (account_root / "domain.py").is_file()
+    assert (account_root / "persistence.py").is_file()
+    assert (account_root / "service.py").is_file()
+    assert (ROOT / "migrations" / "versions" / "0002_xianyu_account_boundary.py").is_file()
+
     for capability_id in CORE_IDS:
         capability = registry[capability_id]
         assert capability["status"] == "verified"
@@ -89,192 +121,171 @@ def test_account_runtime_ownership_is_approved_but_unimplemented() -> None:
             "changes/archive/CHG-0002-core-application/tests/test_acceptance.py"
             in capability["test_paths"]
         )
-        assert (
-            "changes/active/CHG-0002-core-application/tests/test_acceptance.py"
-            not in capability["test_paths"]
-        )
-
-    forbidden_paths = [
-        ROOT / "app" / "xianyu_system" / "account.py",
-        ROOT / "app" / "xianyu_system" / "account",
-        ROOT / "app" / "xianyu_system" / "workers" / "account.py",
-        ROOT / "app" / "xianyu_system" / "worker" / "account.py",
-    ]
-    assert not any(path.exists() for path in forbidden_paths)
-
-    forbidden_runtime_paths = [
-        ROOT / "app" / "xianyu_system" / "worker",
-        ROOT / "app" / "xianyu_system" / "worker" / "account",
-    ]
-    assert not any(path.exists() for path in forbidden_runtime_paths)
 
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
-    assert "Cookie=" not in env_example
-    assert "Token=" not in env_example
-    assert "Secret=" not in env_example
-    assert "Password=" not in env_example
+    for forbidden in ["Cookie=", "Token=", "Secret=", "Password="]:
+        assert forbidden not in env_example
 
     proposal = (CHG_0003 / "proposal.md").read_text(encoding="utf-8")
     design = (CHG_0003 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0003 / "acceptance.md").read_text(encoding="utf-8")
-
-    required_terms = [
-        "Platform Account",
-        "Account Reference",
-        "Profile",
-        "Profile Identifier",
-        "Account Alias",
-        "External Account Identifier",
-        "Credential Reference",
-        "Session Material",
-        "Profile-scoped State",
-        "Isolation Boundary",
-        "Synthetic Fixture",
-    ]
-    for term in required_terms:
-        assert term in design
-
-    assert "A Profile is not a browser profile" in design
-    assert "Each Profile owns exactly one Account Reference." in design
-    assert "Each Account Reference belongs to exactly one Profile." in design
-    assert "A Credential Reference must never contain a secret value." in design
-    assert "Profile-scoped State must not be shared as mutable state across Profiles." in design
-    assert (
-        "Missing, ambiguous, conflicting, or cross-Profile ownership information "
-        "must fail closed."
-    ) in design
-
-    required_security_sections = [
-        "## Security data classification",
-        "## Secure Storage Boundary",
-        "## Credential Reference security rules",
-        "## Future credential resolution boundary",
-        "## Credential resolution and authorization states",
-        "## Permission and risk boundary",
-        "## Logging, errors, and redaction",
-        "## Prohibited Secret Material ingress",
-        "## Credential lifecycle boundary",
-        "## Security testing boundary",
-    ]
-    for section in required_security_sections:
-        assert section in design
-
-    required_security_rules = [
-        "Secret Material must never be committed to the repository.",
-        "Each Credential Reference belongs to exactly one Profile.",
-        "A Credential Reference must not be shared across Profiles.",
-        "There must be no implicit default Credential Reference.",
-        "There must be no global current-account credential state.",
-        "Do not cache resolved Secret Material across operations.",
-        "Do not silently fall back to another Credential Reference.",
-        "Credential Resolution Status is RESOLVED",
-        "Operation Authorization Status is AUTHORIZED",
-        "UNKNOWN must never be treated as AUTHORIZED.",
-        "VERIFICATION_REQUIRED must never be bypassed",
-        "Secret Material must never appear in logs",
-        "Full Credential References must not be logged.",
-        "Rotation must not create cross-Profile credential reuse.",
-        "Only Synthetic Fixtures may be used.",
-    ]
-    for rule in required_security_rules:
-        assert rule in design
-
-    required_t4_sections = [
-        "## Persistence principles",
-        "## Allowed persisted data categories",
-        "## Prohibited persisted data",
-        "## Ownership, consistency, and concurrency requirements",
-        "## Migration principles",
-    ]
-    for section in required_t4_sections:
-        assert section in design
-
-    required_persistence_principles = [
-        "Use the existing CAP-CORE-DATABASE SQLite boundary.",
-        "Use the existing unified SQLAlchemy Engine and Session factory.",
-        "Do not create a second database or Engine.",
-        "canonical local Profile identity",
-        "optional opaque non-secret Credential Reference",
-        "Secret Material",
-        "Cookies or Tokens",
-        "browser Profile or user-data paths",
-        "generic JSON, BLOB, payload, properties, extras, metadata, context, or "
-        "arbitrary key-value fields",
-        "Every record belongs to one explicit Profile.",
-        "Cross-Profile mutable state or Credential Reference reuse is prohibited.",
-        "Mutations must be transactional.",
-        "Partial writes are prohibited.",
-        "Uniqueness conflicts fail closed.",
-        "Stale concurrent writes fail closed.",
-        "Application startup does not auto-migrate.",
-        "Downgrade must never silently destroy non-empty business data.",
-        "Exact table count and names",
-        "Exact column names and types",
-        "Exact constraints and indexes",
-        "ORM implementation",
-        "Migration implementation",
-    ]
-    for principle in required_persistence_principles:
-        assert principle in design
-
-    required_t5_sections = [
-        "## Runtime ownership summary",
-        "## Approved module boundary",
-        "## Dependency direction",
-        "## Profile Identifier ownership",
-        "## Local lifecycle ownership",
-        "## Domain and persistence ownership",
-        "## Transaction and concurrency ownership",
-        "## Error and diagnostic ownership",
-        "## Credential and Secure Storage ownership",
-        "## API, worker, and process boundary",
-        "## Approved T6 implementation surface",
-        "## Decisions deferred after T5",
-    ]
-    for section in required_t5_sections:
-        assert section in design
-
-    required_t5_rules = [
-        "app/xianyu_system/worker/account/",
-        "xianyu_system.worker.account",
-        "domain.py",
-        "persistence.py",
-        "service.py",
-        "UUID version 4",
-        "PENDING",
-        "ENABLED",
-        "DISABLED",
-        "Repository may flush when required but must not commit independently.",
-        "No Secure Storage provider interface",
-        "The `worker` name identifies capability ownership.",
-        "T6 must be performed in a separate execution.",
-    ]
-    for rule in required_t5_rules:
-        assert rule in design
-
-    revision_files = sorted(
-        path.name for path in (ROOT / "migrations" / "versions").glob("*.py")
-    )
-    assert revision_files == [
-        "0001_core_baseline.py",
-        "__init__.py",
-    ]
-    assert len(revision_files) == 2
-
-    database_source = (
-        ROOT / "app" / "xianyu_system" / "core" / "database.py"
-    ).read_text(encoding="utf-8")
-    baseline_source = (
-        ROOT / "migrations" / "versions" / "0001_core_baseline.py"
-    ).read_text(encoding="utf-8")
-    assert "op.create_table" not in baseline_source
-    assert "__tablename__" not in database_source
-
-    assert "T1, T2, T3, T4, and T5 are complete." in proposal
-    assert "T6 is the next executable task" in proposal
-    assert "This execution completes T5 only." in proposal
-    assert "T6 must not begin in the same execution." in proposal
-
-    assert "T1, T2, T3, T4, and T5 are complete." in acceptance
-    assert "T6 is the next executable task" in acceptance
+    assert "T1 through T6 are complete." in proposal
+    assert "T7 is the next executable task" in proposal
+    assert "T1 through T6 are complete." in acceptance
     assert "PR #3 remains Draft" in acceptance
+    assert "## Current implementation" in design
+    assert "xianyu_system.worker.account is implemented" in design
+
+    resources = initialize_database(tmp_path / "account-boundary.db")
+    try:
+        upgrade_database(resources)
+        assert get_current_revision(resources) == ACCOUNT_REVISION
+        assert set(inspect(resources.engine).get_table_names()) == {
+            "alembic_version",
+            ACCOUNT_TABLE,
+        }
+
+        service = AccountService(resources.session_factory)
+        first = service.create_profile(
+            account_alias="synthetic-profile-one",
+            external_account_identifier="synthetic-external-reference-001",
+        )
+        second = service.create_profile(account_alias="synthetic-profile-two")
+
+        assert UUID(first.profile_id).version == 4
+        assert first.profile_id == first.profile_id.lower()
+        assert first.lifecycle_status is ProfileLifecycleStatus.PENDING
+        assert first.row_version == 1
+        assert second.profile_id != first.profile_id
+
+        assert service.get_profile(first.profile_id) == first
+        assert [profile.profile_id for profile in service.list_profiles()] == sorted(
+            [first.profile_id, second.profile_id]
+        )
+
+        renamed = service.rename_profile(
+            first.profile_id,
+            account_alias="synthetic-profile-renamed",
+            expected_version=first.row_version,
+        )
+        assert renamed.account_alias == "synthetic-profile-renamed"
+        assert renamed.row_version == 2
+
+        with_external = service.set_external_account_identifier(
+            renamed.profile_id,
+            external_account_identifier="synthetic-external-reference-002",
+            expected_version=renamed.row_version,
+        )
+        cleared_external = service.set_external_account_identifier(
+            renamed.profile_id,
+            external_account_identifier=None,
+            expected_version=with_external.row_version,
+        )
+        assert cleared_external.external_account_identifier is None
+
+        with_credential = service.set_credential_reference(
+            renamed.profile_id,
+            credential_reference="synthetic-credential-reference-001",
+            expected_version=cleared_external.row_version,
+        )
+        cleared_credential = service.set_credential_reference(
+            renamed.profile_id,
+            credential_reference=None,
+            expected_version=with_credential.row_version,
+        )
+        assert cleared_credential.credential_reference is None
+
+        enabled = service.set_lifecycle_status(
+            renamed.profile_id,
+            lifecycle_status=ProfileLifecycleStatus.ENABLED,
+            expected_version=cleared_credential.row_version,
+        )
+        disabled = service.set_lifecycle_status(
+            renamed.profile_id,
+            lifecycle_status=ProfileLifecycleStatus.DISABLED,
+            expected_version=enabled.row_version,
+        )
+        reenabled = service.set_lifecycle_status(
+            renamed.profile_id,
+            lifecycle_status="ENABLED",
+            expected_version=disabled.row_version,
+        )
+        assert reenabled.lifecycle_status is ProfileLifecycleStatus.ENABLED
+
+        with pytest.raises(InvalidLifecycleTransition):
+            service.set_lifecycle_status(
+                renamed.profile_id,
+                lifecycle_status=ProfileLifecycleStatus.PENDING,
+                expected_version=reenabled.row_version,
+            )
+
+        with pytest.raises(StaleProfileUpdate):
+            service.rename_profile(
+                renamed.profile_id,
+                account_alias="synthetic-stale-alias",
+                expected_version=1,
+            )
+
+        service.set_external_account_identifier(
+            second.profile_id,
+            external_account_identifier="synthetic-external-reference-003",
+            expected_version=second.row_version,
+        )
+        with pytest.raises(DuplicateAccountOwnership):
+            service.set_external_account_identifier(
+                reenabled.profile_id,
+                external_account_identifier="synthetic-external-reference-003",
+                expected_version=reenabled.row_version,
+            )
+
+        second_after_external = service.get_profile(second.profile_id)
+        service.set_credential_reference(
+            second.profile_id,
+            credential_reference="synthetic-credential-reference-002",
+            expected_version=second_after_external.row_version,
+        )
+        with pytest.raises(DuplicateAccountOwnership) as duplicate_error:
+            service.set_credential_reference(
+                reenabled.profile_id,
+                credential_reference="synthetic-credential-reference-002",
+                expected_version=reenabled.row_version,
+            )
+        assert "synthetic-credential-reference-002" not in str(duplicate_error.value)
+
+        manual = Profile.create(
+            profile_id="11111111-1111-4111-8111-111111111111",
+            account_alias="synthetic-uncommitted-profile",
+        )
+        session = resources.session_factory()
+        try:
+            AccountProfileRepository(session).add(manual)
+        finally:
+            session.close()
+        with pytest.raises(ProfileNotFound):
+            service.get_profile(manual.profile_id)
+    finally:
+        dispose_database(resources)
+
+    domain_source = (account_root / "domain.py").read_text(encoding="utf-8").lower()
+    for forbidden in ["sqlalchemy", "fastapi", "alembic", "httpx", "requests", "browser"]:
+        assert forbidden not in domain_source
+
+    service_source = (account_root / "service.py").read_text(encoding="utf-8")
+    for forbidden in ["FastAPI", "Router", "requests.", "httpx.", "Provider"]:
+        assert forbidden not in service_source
+
+    persistence_source = (account_root / "persistence.py").read_text(encoding="utf-8")
+    for forbidden in ["create_engine", "sessionmaker", ".commit("]:
+        assert forbidden not in persistence_source
+    assert "__tablename__" not in persistence_source
+    assert "mapped_column" not in persistence_source
+
+    public_source = (account_root / "__init__.py").read_text(encoding="utf-8")
+    for forbidden in ["_AccountProfileRecord", "Table", "Repository", "Session"]:
+        assert forbidden not in public_source
+
+    migration_source = (
+        ROOT / "migrations" / "versions" / "0002_xianyu_account_boundary.py"
+    ).read_text(encoding="utf-8").lower()
+    for forbidden in ["insert", "bulk_insert", "network", "browser", "cookie", "token"]:
+        assert forbidden not in migration_source

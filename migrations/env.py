@@ -6,6 +6,8 @@ from typing import Any
 from alembic import context
 from sqlalchemy.engine import Connection
 
+from xianyu_system.worker.account.persistence import account_profiles_table
+
 from xianyu_system.core.database import (
     Base,
     build_sqlite_url,
@@ -15,6 +17,7 @@ from xianyu_system.core.database import (
 
 config = context.config
 target_metadata = Base.metadata
+assert account_profiles_table.metadata is Base.metadata
 
 
 def get_explicit_database_path() -> Path:
