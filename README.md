@@ -10,11 +10,13 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - `CAP-XY-ACCOUNT` remains verified.
 - Its `last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
 - CHG-0004-xianyu-message-boundary is the only active change.
-- CHG-0004 status is `DRAFT`.
-- No CHG-0004 task is complete.
+- CHG-0004 status is `APPROVED`.
+- T1 project-owner approval is complete.
+- T2 message, conversation, and delivery terminology is the next executable task.
+- No CHG-0004 runtime implementation has started.
 - `CAP-XY-MESSAGE` remains planned and unbound.
 - No real WebSocket, message worker, message persistence, message API, external network, browser, credential, or customer-message behavior is implemented.
-- Moving CHG-0004 beyond DRAFT requires separate explicit project-owner authorization.
+- Approval of CHG-0004 does not authorize final terminology decisions, real WebSocket access, network access, message runtime implementation, real account access, customer-message processing, Ready-for-review, auto-merge, or merge.
 
 ## Project goal
 

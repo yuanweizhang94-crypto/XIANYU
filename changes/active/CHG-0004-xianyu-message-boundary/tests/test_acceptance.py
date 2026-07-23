@@ -65,7 +65,7 @@ def test_completed_changes_are_archived_with_history_preserved() -> None:
         assert (change_dir / "tests" / "test_acceptance.py").is_file()
 
 
-def test_chg_0004_is_the_only_draft_active_change() -> None:
+def test_chg_0004_is_the_only_approved_active_change() -> None:
     active_dirs = sorted(path.name for path in ACTIVE.iterdir() if path.is_dir())
 
     assert active_dirs == ["CHG-0004-xianyu-message-boundary"]
@@ -76,10 +76,10 @@ def test_chg_0004_is_the_only_draft_active_change() -> None:
         "tasks.md",
         "acceptance.md",
     ]:
-        assert status_of(CHG_0004 / name) == "DRAFT"
+        assert status_of(CHG_0004 / name) == "APPROVED"
 
 
-def test_chg_0004_tasks_and_generated_state_are_draft_only() -> None:
+def test_chg_0004_approval_completes_only_t1() -> None:
     task_lines = [
         line
         for line in (CHG_0004 / "tasks.md").read_text(
@@ -89,7 +89,8 @@ def test_chg_0004_tasks_and_generated_state_are_draft_only() -> None:
     ]
 
     assert len(task_lines) == 9
-    assert all(line.startswith("- [ ]") for line in task_lines)
+    assert task_lines[0].startswith("- [x]")
+    assert all(line.startswith("- [ ]") for line in task_lines[1:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(
@@ -98,11 +99,21 @@ def test_chg_0004_tasks_and_generated_state_are_draft_only() -> None:
     )
 
     assert state["active_change"]["id"] == "CHG-0004-xianyu-message-boundary"
-    assert state["active_change"]["status"] == "DRAFT"
+    assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 0
-    assert all(item["completed"] is False for item in state["tasks"]["items"])
-    assert state["tasks"]["next_task"] is None
+    assert state["tasks"]["completed"] == 1
+    assert state["tasks"]["items"][0]["text"] == (
+        "T1 Obtain explicit project-owner approval for CHG-0004"
+    )
+    assert state["tasks"]["items"][0]["completed"] is True
+    assert state["tasks"]["items"][1]["text"] == (
+        "T2 Finalize message, conversation, and delivery terminology"
+    )
+    assert state["tasks"]["items"][1]["completed"] is False
+    assert all(item["completed"] is False for item in state["tasks"]["items"][1:])
+    assert state["tasks"]["next_task"] == (
+        "T2 Finalize message, conversation, and delivery terminology"
+    )
 
     assert state["capabilities"]["by_status"] == {
         "planned": 6,
@@ -167,10 +178,17 @@ def test_message_capability_remains_planned_and_unimplemented() -> None:
     design = (CHG_0004 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0004 / "acceptance.md").read_text(encoding="utf-8")
 
-    assert "This change is DRAFT only." in proposal
+    assert "This approval transition completes T1 only." in proposal
+    assert "T2 must not begin in the same execution." in proposal
     assert "No real Xianyu WebSocket connection." in proposal
-    assert "No runtime design is approved." in design
+    assert (
+        "No runtime message design or implementation "
+        "has been approved yet."
+        in design
+    )
+    assert "T2 is the next executable task." in design
+    assert "T2 must be performed in a separate execution." in design
     assert "No `worker.message` runtime package is approved." in design
-    assert "Draft preparation only." in acceptance
-    assert "Implementation" in acceptance
-    assert "not authorized" in acceptance
+    assert "This approval transition completes T1 only." in acceptance
+    assert "No final terminology decision" in acceptance
+    assert "PR #4 remains Draft" in acceptance

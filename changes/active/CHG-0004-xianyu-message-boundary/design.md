@@ -1,13 +1,16 @@
 # CHG-0004 Design
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0004-xianyu-message-boundary
 
 ## Design state
 
-No runtime design is approved.
+CHG-0004 is approved for controlled, task-by-task execution.
 
-This document records questions, constraints, and candidate boundaries for later review.
+No runtime message design or implementation has been approved yet.
+
+T2-T5 must finalize the terminology, transport, authentication, risk-control, ordering, deduplication, persistence, worker ownership, lifecycle, failure, and testing boundaries before T6 may begin.
+
 
 ## Architecture context
 
@@ -38,7 +41,7 @@ Future review may define:
 
 No term is final until an approved task records the decision.
 
-## Required decisions before approval
+## Required decisions before runtime implementation
 
 - Exact terminology.
 - Profile and account ownership.
@@ -75,6 +78,12 @@ No `worker.message` runtime package is approved.
 
 No transport, WebSocket, message model, persistence model, Migration, background worker, API, or scheduler behavior is added.
 
-## Approval boundary
+## Execution boundary
 
-No implementation task may begin until CHG-0004 receives explicit project-owner approval.
+The project-owner approval completes T1 only.
+
+T2 is the next executable task.
+
+T2 must be performed in a separate execution.
+
+No runtime implementation may begin before T2-T5 are completed and all approved decisions are recorded in this document.

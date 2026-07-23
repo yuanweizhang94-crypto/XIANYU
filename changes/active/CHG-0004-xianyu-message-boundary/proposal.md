@@ -1,6 +1,6 @@
 # CHG-0004 Proposal
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0004-xianyu-message-boundary
 
 ## Purpose
@@ -13,11 +13,14 @@ Prepare a formally reviewable boundary for receiving Xianyu customer-inquiry mes
 
 ## Current authorization
 
-This change is DRAFT only.
+The project owner explicitly approved CHG-0004 for controlled, task-by-task execution.
 
-The project owner has authorized creation of the change proposal but has not approved implementation.
+T1 is complete.
 
-No CHG-0004 task may execute while the change remains DRAFT.
+T2 is the next executable task, but T2 must be performed in a later, separate execution.
+
+This approval does not authorize final message terminology, runtime implementation, a real WebSocket, external network access, real account access, Cookie or Token handling, customer-message processing, capability binding, Ready-for-review, auto-merge, or merge.
+
 
 ## Goals
 
@@ -44,6 +47,8 @@ No CHG-0004 task may execute while the change remains DRAFT.
 - No dependency addition.
 - No capability binding.
 - No implementation before explicit approval.
+- No runtime implementation during the T1 approval transition.
+- No runtime implementation before T2-T5 have been completed and their decisions have been formally recorded.
 
 ## Security boundary
 
@@ -53,8 +58,12 @@ No CHG-0004 task may execute while the change remains DRAFT.
 - Use Synthetic Fixtures only.
 - Stop when authorization, protocol, ownership, credential, or risk state is uncertain.
 
-## Approval boundary
+## Execution boundary
 
-Moving this change beyond DRAFT requires separate explicit project-owner authorization.
+Only one unfinished task may be executed at a time.
 
-Draft preparation does not authorize T1, runtime implementation, Ready for review, auto-merge, or merge.
+This approval transition completes T1 only.
+
+T2 must not begin in the same execution.
+
+Runtime implementation remains prohibited until T2-T5 have finalized and approved the terminology, transport, security, ordering, persistence, worker ownership, lifecycle, failure, and testing boundaries.

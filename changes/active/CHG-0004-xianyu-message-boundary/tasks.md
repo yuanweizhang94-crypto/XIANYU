@@ -1,9 +1,9 @@
 # CHG-0004 Tasks
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0004-xianyu-message-boundary
 
-- [ ] T1 Obtain explicit project-owner approval for CHG-0004
+- [x] T1 Obtain explicit project-owner approval for CHG-0004
 - [ ] T2 Finalize message, conversation, and delivery terminology
 - [ ] T3 Approve transport, authentication, and risk-control boundaries
 - [ ] T4 Approve ordering, deduplication, and persistence boundaries
