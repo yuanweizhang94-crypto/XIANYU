@@ -169,7 +169,12 @@ def test_chg_0004_t6_implements_only_local_synthetic_message_boundary(
 
     before_tables = set(Base.metadata.tables)
     importlib.import_module("xianyu_system.worker.message.domain")
-    importlib.import_module("xianyu_system.worker.message")
+    message_package = importlib.import_module("xianyu_system.worker.message")
+    from xianyu_system.worker.message import Conversation
+    from xianyu_system.worker.message.domain import Conversation as DomainConversation
+
+    assert Conversation is DomainConversation
+    assert message_package.Conversation is DomainConversation
     assert set(Base.metadata.tables) == before_tables
 
     resources = initialize_database(tmp_path / "synthetic-message.db")
@@ -181,6 +186,12 @@ def test_chg_0004_t6_implements_only_local_synthetic_message_boundary(
             DeduplicationConflict,
             DeduplicationDecision,
             InvalidMessageInput,
+            InvalidWorkerTransition,
+            MessageAuthorizationViolation,
+            MessageInternalError,
+            MessagePersistenceError,
+            MessageProtocolViolation,
+            MessageRiskViolation,
             ProfileOwnershipViolation,
             WorkerLifecycleState,
         )
@@ -248,6 +259,7 @@ def test_chg_0004_t6_implements_only_local_synthetic_message_boundary(
         )
         result = worker.receive(delivery)
         assert result.deduplication_decision is DeduplicationDecision.NEW
+        assert service.count_conversations() == 1
         assert service.count_messages() == 1
         assert service.count_delivery_attempts() == 1
 
@@ -263,10 +275,33 @@ def test_chg_0004_t6_implements_only_local_synthetic_message_boundary(
         )
         duplicate_result = worker.receive(duplicate)
         assert duplicate_result.deduplication_decision is DeduplicationDecision.DUPLICATE
+        assert service.count_conversations() == 1
         assert service.count_messages() == 1
         assert service.count_delivery_attempts() == 2
 
-        conflict = SyntheticMessageDelivery(
+        conversation_conflict = SyntheticMessageDelivery(
+            profile_id=profile.profile_id,
+            account_reference=account_reference,
+            participant_reference="synthetic-participant",
+            message_content="synthetic local text",
+            received_at=now(),
+            platform_conversation_identifier="synthetic-other-conversation",
+            platform_message_identifier="synthetic-message",
+            delivery_identity="synthetic-delivery",
+        )
+        with pytest.raises(DeduplicationConflict):
+            worker.receive(conversation_conflict)
+        assert worker.state is WorkerLifecycleState.BLOCKED
+        assert service.count_conversations() == 1
+        assert service.count_messages() == 1
+        assert service.count_delivery_attempts() == 2
+        with pytest.raises(InvalidWorkerTransition):
+            worker.stop()
+        assert worker.state is WorkerLifecycleState.BLOCKED
+
+        worker.reset()
+        worker.start()
+        content_conflict = SyntheticMessageDelivery(
             profile_id=profile.profile_id,
             account_reference=account_reference,
             participant_reference="synthetic-participant",
@@ -277,10 +312,14 @@ def test_chg_0004_t6_implements_only_local_synthetic_message_boundary(
             delivery_identity="synthetic-delivery",
         )
         with pytest.raises(DeduplicationConflict):
-            worker.receive(conflict)
+            worker.receive(content_conflict)
         assert worker.state is WorkerLifecycleState.BLOCKED
+        assert service.count_conversations() == 1
         assert service.count_messages() == 1
         assert service.count_delivery_attempts() == 2
+        with pytest.raises(InvalidWorkerTransition):
+            worker.stop()
+        assert worker.state is WorkerLifecycleState.BLOCKED
 
         worker.reset()
         worker.start()
@@ -321,6 +360,9 @@ def test_chg_0004_t6_implements_only_local_synthetic_message_boundary(
         assert worker.state is WorkerLifecycleState.BLOCKED
         assert service.count_messages() == 2
         assert service.count_delivery_attempts() == 3
+        with pytest.raises(InvalidWorkerTransition):
+            worker.stop()
+        assert worker.state is WorkerLifecycleState.BLOCKED
 
         worker.reset()
         worker.start()
@@ -328,6 +370,92 @@ def test_chg_0004_t6_implements_only_local_synthetic_message_boundary(
         assert worker.state is WorkerLifecycleState.STOPPED
         assert AUTOMATIC_RECONNECT_ATTEMPTS == 0
         assert AUTOMATIC_PROCESSING_RETRIES == 0
+
+        class FakeService:
+            def __init__(self, failure: Exception) -> None:
+                self.failure = failure
+
+            def receive(
+                self,
+                _delivery: SyntheticMessageDelivery,
+            ):
+                raise self.failure
+
+        valid_fake_delivery = SyntheticMessageDelivery(
+            profile_id=profile.profile_id,
+            account_reference=account_reference,
+            participant_reference="synthetic-participant",
+            message_content="synthetic fake service",
+            received_at=now(),
+        )
+        invalid_input_worker = MessageWorker(
+            profile_id=profile.profile_id,
+            account_reference=account_reference,
+            service=FakeService(InvalidMessageInput()),
+        )
+        invalid_input_worker.start()
+        with pytest.raises(InvalidMessageInput):
+            invalid_input_worker.receive(valid_fake_delivery)
+        assert invalid_input_worker.state is WorkerLifecycleState.RUNNING
+        invalid_input_worker.stop()
+        assert invalid_input_worker.state is WorkerLifecycleState.STOPPED
+
+        blocked_failures = [
+            MessageAuthorizationViolation(),
+            MessageRiskViolation(),
+            MessageProtocolViolation(),
+            DeduplicationConflict(),
+        ]
+        for failure in blocked_failures:
+            blocked_worker = MessageWorker(
+                profile_id=profile.profile_id,
+                account_reference=account_reference,
+                service=FakeService(failure),
+            )
+            blocked_worker.start()
+            with pytest.raises(type(failure)):
+                blocked_worker.receive(valid_fake_delivery)
+            assert blocked_worker.state is WorkerLifecycleState.BLOCKED
+            with pytest.raises(InvalidWorkerTransition):
+                blocked_worker.stop()
+            assert blocked_worker.state is WorkerLifecycleState.BLOCKED
+            blocked_worker.reset()
+            assert blocked_worker.state is WorkerLifecycleState.STOPPED
+
+        failed_failures = [
+            MessagePersistenceError(),
+            MessageInternalError(),
+        ]
+        for failure in failed_failures:
+            failed_worker = MessageWorker(
+                profile_id=profile.profile_id,
+                account_reference=account_reference,
+                service=FakeService(failure),
+            )
+            failed_worker.start()
+            with pytest.raises(type(failure)):
+                failed_worker.receive(valid_fake_delivery)
+            assert failed_worker.state is WorkerLifecycleState.FAILED
+            with pytest.raises(InvalidWorkerTransition):
+                failed_worker.stop()
+            assert failed_worker.state is WorkerLifecycleState.FAILED
+            failed_worker.reset()
+            assert failed_worker.state is WorkerLifecycleState.STOPPED
+
+        unexpected_worker = MessageWorker(
+            profile_id=profile.profile_id,
+            account_reference=account_reference,
+            service=FakeService(RuntimeError("synthetic unexpected failure")),
+        )
+        unexpected_worker.start()
+        with pytest.raises(MessageInternalError):
+            unexpected_worker.receive(valid_fake_delivery)
+        assert unexpected_worker.state is WorkerLifecycleState.FAILED
+        with pytest.raises(InvalidWorkerTransition):
+            unexpected_worker.stop()
+        assert unexpected_worker.state is WorkerLifecycleState.FAILED
+        unexpected_worker.reset()
+        assert unexpected_worker.state is WorkerLifecycleState.STOPPED
     finally:
         dispose_database(resources)
 

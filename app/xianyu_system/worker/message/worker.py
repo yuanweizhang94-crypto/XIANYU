@@ -6,10 +6,15 @@ from threading import Lock
 
 from xianyu_system.worker.message.domain import (
     DeduplicationConflict,
+    InvalidMessageInput,
     InvalidWorkerTransition,
+    MessageAuthorizationViolation,
+    MessageBoundaryError,
     MessageInternalError,
     MessagePersistenceError,
     MessageProcessingResult,
+    MessageProtocolViolation,
+    MessageRiskViolation,
     ProfileOwnershipViolation,
     WorkerBlocked,
     WorkerBusy,
@@ -64,17 +69,12 @@ class MessageWorker:
     def stop(self) -> None:
         if self._state is WorkerLifecycleState.STOPPED:
             return
-        if self._state not in {
-            WorkerLifecycleState.RUNNING,
-            WorkerLifecycleState.BLOCKED,
-            WorkerLifecycleState.FAILED,
-        }:
+        if self._state is not WorkerLifecycleState.RUNNING:
             raise InvalidWorkerTransition()
-        if self._state is WorkerLifecycleState.RUNNING:
-            self._state = WorkerLifecycleState.STOPPING
-            acquired = self._inflight.acquire(blocking=True)
-            if acquired:
-                self._inflight.release()
+        self._state = WorkerLifecycleState.STOPPING
+        acquired = self._inflight.acquire(blocking=True)
+        if acquired:
+            self._inflight.release()
         self._state = WorkerLifecycleState.STOPPED
 
     def reset(self) -> None:
@@ -103,15 +103,32 @@ class MessageWorker:
             raise WorkerBusy()
         try:
             return self._service.receive(delivery)
-        except DeduplicationConflict:
-            self._state = WorkerLifecycleState.BLOCKED
+        except InvalidMessageInput:
             raise
         except ProfileOwnershipViolation:
+            self._state = WorkerLifecycleState.BLOCKED
+            raise
+        except MessageAuthorizationViolation:
+            self._state = WorkerLifecycleState.BLOCKED
+            raise
+        except MessageRiskViolation:
+            self._state = WorkerLifecycleState.BLOCKED
+            raise
+        except MessageProtocolViolation:
+            self._state = WorkerLifecycleState.BLOCKED
+            raise
+        except DeduplicationConflict:
             self._state = WorkerLifecycleState.BLOCKED
             raise
         except MessagePersistenceError:
             self._state = WorkerLifecycleState.FAILED
             raise
+        except MessageInternalError:
+            self._state = WorkerLifecycleState.FAILED
+            raise
+        except MessageBoundaryError:
+            self._state = WorkerLifecycleState.FAILED
+            raise MessageInternalError() from None
         except Exception:
             self._state = WorkerLifecycleState.FAILED
             raise MessageInternalError() from None

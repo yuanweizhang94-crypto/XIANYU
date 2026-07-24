@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 __all__ = [
+    "Conversation",
     "DeduplicationDecision",
     "DeduplicationConflict",
     "DeliveryAttempt",
@@ -33,6 +34,7 @@ __all__ = [
 ]
 
 _DOMAIN_EXPORTS = {
+    "Conversation",
     "DeduplicationDecision",
     "DeduplicationConflict",
     "DeliveryAttempt",

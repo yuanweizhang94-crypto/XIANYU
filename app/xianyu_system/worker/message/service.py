@@ -87,7 +87,7 @@ class MessageService:
                 delivery_identity=delivery.delivery_identity,
             )
             if existing is not None:
-                self._ensure_compatible(existing, delivery)
+                self._ensure_compatible(repository, existing, delivery)
                 attempt = self._create_attempt(
                     repository,
                     message_id=existing.message_id,
@@ -193,6 +193,7 @@ class MessageService:
 
     def _ensure_compatible(
         self,
+        repository: MessageRepository,
         existing: MessageRecord,
         delivery: SyntheticMessageDelivery,
     ) -> None:
@@ -201,6 +202,18 @@ class MessageService:
         if existing.account_reference != delivery.account_reference:
             raise DeduplicationConflict()
         if existing.delivery_identity != delivery.delivery_identity:
+            raise DeduplicationConflict()
+        conversation = repository.get_conversation_by_id(
+            conversation_id=existing.conversation_id,
+            profile_id=existing.profile_id,
+            account_reference=existing.account_reference,
+        )
+        if conversation is None:
+            raise MessagePersistenceError()
+        if (
+            conversation.platform_conversation_identifier
+            != delivery.platform_conversation_identifier
+        ):
             raise DeduplicationConflict()
         if existing.platform_message_identifier != delivery.platform_message_identifier:
             raise DeduplicationConflict()

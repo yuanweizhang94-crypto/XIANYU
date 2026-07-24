@@ -158,6 +158,32 @@ No real WebSocket, Endpoint, DNS, HTTP, external network access, Credential Prov
 - T6 creates no real WebSocket, Endpoint, DNS, HTTP, external network access, Credential Provider, Cookie handling, Token handling, browser integration, background thread, subprocess, Scheduler Job, automatic retry, automatic reconnect, message sending, reply generation, API, Web UI, real account access, or real customer-data behavior.
 - T6 does not modify the Capability Registry or capability specification.
 
+## T6 corrective authorization and outcome
+
+The project owner authorized one corrective T6 commit before T7.
+
+The correction:
+
+- adds Platform Conversation Identifier to Delivery Identity compatibility checks;
+- restores the approved Worker failure-state mapping;
+- requires explicit reset from BLOCKED and FAILED states;
+- exposes Conversation through the import-safe public package surface;
+- adds no new runtime module, table, Migration, dependency, network behavior, Credential behavior, or capability binding.
+
+The project owner also approved retaining the existing generic Migration-head compatibility adjustments in:
+
+- tests/contract/test_account_persistence.py;
+- tests/contract/test_migrations.py;
+- tests/unit/test_application_factory.py;
+- tests/unit/test_database.py;
+- tests/unit/test_health.py.
+
+Those compatibility adjustments added no test functions and do not constitute T7 dedicated Message testing.
+
+Tasks remain 6 / 9.
+
+T7 remains the next executable task and was not started.
+
 ## Goals
 
 - Define canonical terminology for message events, conversations, delivery cursors, acknowledgements, and duplicate delivery.

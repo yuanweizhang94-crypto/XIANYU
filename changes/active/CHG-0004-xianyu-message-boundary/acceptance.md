@@ -59,6 +59,25 @@ Change ID: CHG-0004-xianyu-message-boundary
 52. PR remains Draft/open/unmerged.
 53. Auto-merge remains disabled.
 54. Complete verification passes.
+55. Conversation is exposed through the import-safe package surface.
+56. Package import still does not register Message ORM metadata.
+57. Delivery Identity compatibility includes Platform Conversation Identifier.
+58. A Platform Conversation Identifier mismatch causes Deduplication Conflict.
+59. Conversation conflict writes no additional Conversation, Message, or Delivery Attempt.
+60. Invalid Message input may leave a valid Worker RUNNING.
+61. Authorization violations block the Worker.
+62. Risk violations block the Worker.
+63. Protocol violations block the Worker.
+64. Deduplication Conflict blocks the Worker.
+65. Persistence failures fail the Worker.
+66. Internal failures fail the Worker.
+67. Unexpected exceptions are converted to sanitized MessageInternalError.
+68. stop() cannot transition BLOCKED directly to STOPPED.
+69. stop() cannot transition FAILED directly to STOPPED.
+70. BLOCKED and FAILED require explicit reset.
+71. The five retained permanent-test edits are Migration-head compatibility changes only.
+72. Those compatibility changes added no test functions.
+73. Tasks remain 6 / 9 and T7 remains incomplete.
 
 ## Current authorization
 

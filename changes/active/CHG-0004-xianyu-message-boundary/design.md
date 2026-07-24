@@ -1597,6 +1597,26 @@ The implementation provides:
 
 No real WebSocket, Endpoint, DNS, HTTP, network access, Credential Provider, Cookie, Token, browser integration, background thread, subprocess, Scheduler Job, message sending, reply generation, API, Web UI, real account access, or real customer-data behavior is implemented.
 
+## T6 corrective implementation record
+
+A repeated Delivery Identity is compatible only when the associated persisted Conversation has the same Platform Conversation Identifier as the incoming delivery.
+
+A Platform Conversation Identifier mismatch is a Deduplication Conflict.
+
+Invalid Message input is event-local and may leave a valid Worker RUNNING.
+
+Profile ownership, authorization, risk, protocol, and Deduplication Conflict failures place the Worker in BLOCKED.
+
+Persistence and internal failures place the Worker in FAILED.
+
+BLOCKED and FAILED Workers cannot be stopped directly to bypass recovery.
+
+Only explicit reset changes BLOCKED or FAILED to STOPPED.
+
+Conversation is part of the import-safe public Message package surface.
+
+The correction changes no database schema, Migration, retry count, reconnect count, transport, network, Credential, or capability evidence boundary.
+
 ## Execution boundary
 
 T1 through T6 are complete.

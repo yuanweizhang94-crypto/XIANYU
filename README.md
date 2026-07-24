@@ -32,6 +32,14 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - No real WebSocket, network access, Credential Provider, real account access, customer-message access, message sending, API, Web UI, background thread, subprocess, or Scheduler is implemented.
 - `CAP-XY-MESSAGE` remains planned and unbound pending T8.
 - Completion of T6 does not authorize T7 in the same execution, Ready-for-review, auto-merge, or merge.
+- A T6 corrective hardening commit closes the Conversation deduplication, Worker failure-state, reset, and public-surface gaps.
+- Delivery Identity compatibility now includes Platform Conversation Identifier.
+- BLOCKED and FAILED Workers require explicit reset and cannot use stop() to bypass recovery.
+- Authorization, risk, protocol, ownership, and deduplication conflicts block the Worker.
+- Persistence and internal failures fail the Worker.
+- The existing permanent-test changes are limited to generic `0003` Migration-head compatibility and added no test functions.
+- Tasks remain 6 / 9.
+- T7 remains the next separately authorized task.
 
 ## Project goal
 

@@ -338,6 +338,21 @@ class MessageRepository:
         ).one_or_none()
         return None if record is None else _record_to_conversation(record)
 
+    def get_conversation_by_id(
+        self,
+        *,
+        conversation_id: str,
+        profile_id: str,
+        account_reference: str,
+    ) -> Conversation | None:
+        record = self._session.scalars(
+            select(_ConversationRecord)
+            .where(conversation_table.c.conversation_id == conversation_id)
+            .where(conversation_table.c.profile_id == profile_id)
+            .where(conversation_table.c.account_reference == account_reference)
+        ).one_or_none()
+        return None if record is None else _record_to_conversation(record)
+
     def add_conversation(self, conversation: Conversation) -> None:
         record = _ConversationRecord()
         for key, value in _conversation_values(conversation).items():
