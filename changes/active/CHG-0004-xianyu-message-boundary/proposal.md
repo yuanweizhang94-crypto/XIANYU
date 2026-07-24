@@ -15,13 +15,13 @@ Prepare a formally reviewable boundary for receiving Xianyu customer-inquiry mes
 
 The project owner approved CHG-0004 for controlled, one-task-at-a-time execution.
 
-T1 and T2 are complete.
+T1 through T3 are complete.
 
-The message, conversation, participant, and delivery terminology is finalized.
+The canonical terminology and the transport, authentication, Credential-resolution, authorization, permission, risk-control, TLS, reconnect, acknowledgement, and redaction boundaries are approved.
 
-T3 is the next executable task and must be performed separately.
+T4 is the next executable task and must be performed separately.
 
-No transport protocol, authentication, Credential handling, risk-control behavior, ordering guarantee, deduplication algorithm, persistence model, runtime implementation, real WebSocket, external network access, real account access, customer-message processing, capability binding, Ready-for-review, auto-merge, or merge is authorized.
+No ordering guarantee, deduplication identity, idempotency algorithm, replay-retention policy, persistence model, database schema, Migration, runtime ownership model, runtime implementation, real WebSocket, external network access, real account access, customer-message processing, capability binding, Ready-for-review, auto-merge, or merge is authorized.
 
 ## T2 terminology outcome
 
@@ -40,6 +40,26 @@ No transport protocol, authentication, Credential handling, risk-control behavio
 - Replay means redelivery of an already observed Message Event during recovery or reconnection.
 - Ordering Boundary means the scope within which relative event ordering may later be defined.
 - Synthetic Message Fixture means artificial test-only data that represents no real account, participant, conversation, message, credential, or customer.
+
+## T3 security and transport outcome
+
+- A future message transport may use WebSocket only through a separately implemented secure transport adapter.
+- A future external WebSocket connection must use `wss://`.
+- TLS certificate and hostname verification must remain enabled.
+- Plaintext `ws://`, disabled certificate verification, insecure fallback, and guessed protocol behavior are prohibited.
+- The transport endpoint must come from trusted, approved configuration and must not come from customer content, Platform Message data, external identifiers, URLs received from the platform, or arbitrary operator input.
+- Authentication remains owned by the account and future Secure Storage boundaries, not by the message domain.
+- CAP-XY-MESSAGE may consume only operation-scoped authentication material resolved for an exact Profile and explicit message-receiving purpose.
+- Authentication material must not be persisted, cached across operations, serialized, logged, returned, or shared across Profiles.
+- A future connection may proceed only when Credential Resolution is `RESOLVED`, Operation Authorization is `AUTHORIZED`, and Risk Decision is `ALLOWED`.
+- Every other credential, permission, authorization, verification, and risk state fails closed.
+- Platform verification, CAPTCHA, device verification, face verification, SMS verification, and risk controls must never be bypassed.
+- Reconnect must preserve exact Profile and Credential ownership and must never switch Profiles or Credentials.
+- Reconnect is prohibited for invalid, expired, revoked, denied, verification-required, or risk-blocked states.
+- Acknowledgement remains a transport receipt concept and does not imply business processing, persistence, reply, uniqueness, or completion.
+- No acknowledgement may be guessed when protocol semantics are unknown.
+- Message Content, Secret Material, authentication headers, full external identifiers, and raw transport payloads are prohibited from logs and diagnostics.
+- Only Synthetic Message Fixtures may be used in tests.
 
 ## Goals
 
@@ -66,12 +86,12 @@ No transport protocol, authentication, Credential handling, risk-control behavio
 - No dependency addition.
 - No capability binding.
 - No implementation before explicit approval.
-- No transport implementation during T2.
-- No authentication or Credential resolution decision during T2.
-- No ordering guarantee during T2.
-- No deduplication key or algorithm during T2.
-- No persistence or retention decision during T2.
-- No runtime implementation before T3-T5 are completed.
+- No real WebSocket connection during T3.
+- No DNS, HTTP, WebSocket, browser, subprocess, or external network access during T3.
+- No real Endpoint, Cookie, Token, Header, Subprotocol, Payload schema, heartbeat frame, or acknowledgement frame is selected during T3.
+- No ordering guarantee during T3.
+- No deduplication or persistence decision during T3.
+- No runtime implementation before T4 and T5 are complete.
 
 ## Security boundary
 
@@ -85,12 +105,12 @@ No transport protocol, authentication, Credential handling, risk-control behavio
 
 Only one unfinished task may be executed at a time.
 
-T1 and T2 are complete.
+T1 through T3 are complete.
 
-T3 is the next executable task.
+T4 is the next executable task.
 
-T3 must not begin in the same execution.
+T4 must not begin in the same execution.
 
-T2 finalizes terminology only.
+T3 approves security and transport boundaries only.
 
-Transport, authentication, risk control, ordering, deduplication, persistence, worker ownership, lifecycle, failure, testing, and runtime implementation remain deferred.
+Ordering, deduplication, idempotency, replay retention, persistence, local identifiers, database schema, Migration, Worker ownership, lifecycle, failure handling, testing ownership, and runtime implementation remain deferred.

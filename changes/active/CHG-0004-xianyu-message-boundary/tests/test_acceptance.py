@@ -79,7 +79,7 @@ def test_chg_0004_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0004 / name) == "APPROVED"
 
 
-def test_chg_0004_t2_completes_terminology_only() -> None:
+def test_chg_0004_t3_approves_transport_authentication_and_risk_boundaries() -> None:
     task_lines = [
         line
         for line in (CHG_0004 / "tasks.md").read_text(
@@ -91,7 +91,8 @@ def test_chg_0004_t2_completes_terminology_only() -> None:
     assert len(task_lines) == 9
     assert task_lines[0].startswith("- [x]")
     assert task_lines[1].startswith("- [x]")
-    assert all(line.startswith("- [ ]") for line in task_lines[2:])
+    assert task_lines[2].startswith("- [x]")
+    assert all(line.startswith("- [ ]") for line in task_lines[3:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(
@@ -105,18 +106,20 @@ def test_chg_0004_t2_completes_terminology_only() -> None:
     assert state["active_change"]["status"] == "APPROVED"
 
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 2
+    assert state["tasks"]["completed"] == 3
 
-    assert state["tasks"]["items"][0]["completed"] is True
-    assert state["tasks"]["items"][1]["completed"] is True
+    assert all(
+        item["completed"] is True
+        for item in state["tasks"]["items"][:3]
+    )
 
     assert all(
         item["completed"] is False
-        for item in state["tasks"]["items"][2:]
+        for item in state["tasks"]["items"][3:]
     )
 
     assert state["tasks"]["next_task"] == (
-        "T3 Approve transport, authentication, and risk-control boundaries"
+        "T4 Approve ordering, deduplication, and persistence boundaries"
     )
 
     assert state["capabilities"]["by_status"] == {
@@ -182,61 +185,70 @@ def test_message_capability_remains_planned_and_unimplemented() -> None:
     design = (CHG_0004 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0004 / "acceptance.md").read_text(encoding="utf-8")
 
-    assert "T1 and T2 are complete." in proposal
+    assert "T1 through T3 are complete." in proposal
     assert (
-        "The message, conversation, participant, and delivery "
-        "terminology is finalized."
+        "The canonical terminology and the transport, "
+        "authentication, Credential-resolution"
         in proposal
     )
-    assert "T3 is the next executable task" in proposal
+    assert "T4 is the next executable task" in proposal
 
-    required_terms = [
-        "### Platform Message",
-        "### Message Event",
-        "### Message Content",
-        "### Platform Message Identifier",
-        "### Conversation",
-        "### Conversation Reference",
-        "### Platform Conversation Identifier",
-        "### Participant Reference",
-        "### Delivery Attempt",
-        "### Delivery Cursor",
-        "### Acknowledgement",
-        "### Duplicate Delivery",
-        "### Replay",
-        "### Ordering Boundary",
-        "### Synthetic Message Fixture",
-        "## Terminology invariants",
-        "## Decisions deferred after T2",
+    required_sections = [
+        "## Approved transport boundary",
+        "## Authentication and Credential boundary",
+        "## Credential Resolution Status",
+        "## Operation Authorization Status",
+        "## Risk Decision",
+        "## Connection authorization invariant",
+        "## Platform verification and risk-control boundary",
+        "## Reconnect and retry safety",
+        "## Acknowledgement safety boundary",
+        "## Logging, errors, and redaction",
+        "## Approved non-secret reason-code classes",
+        "## Security testing boundary",
+        "## Decisions deferred after T3",
     ]
 
-    for marker in required_terms:
+    for marker in required_sections:
         assert marker in design
 
+    assert "The connection uses `wss://`." in design
+    assert "Plaintext `ws://` is prohibited." in design
+    assert "TLS certificate verification remains enabled." in design
+    assert "TLS hostname verification remains enabled." in design
+
     assert (
-        "Every Message Event belongs to exactly one Profile."
+        "Credential Resolution Status = RESOLVED"
         in design
     )
     assert (
-        "A Conversation must not span multiple Profiles."
+        "Operation Authorization Status = AUTHORIZED"
+        in design
+    )
+    assert "Risk Decision = ALLOWED" in design
+
+    assert (
+        "`VERIFICATION_REQUIRED` must stop the operation."
         in design
     )
     assert (
-        "Acknowledgement does not mean:"
+        "Reconnect must not be treated as permission to change "
+        "Profile, Account Reference, Credential Reference"
         in design
     )
     assert (
-        "T2 assigns no ordering, monotonicity, uniqueness, "
-        "durability, replay, persistence, or recovery guarantee "
-        "to a Delivery Cursor."
+        "Acknowledgement remains a transport-level receipt concept."
         in design
     )
     assert (
-        "Missing, ambiguous, conflicting, or cross-Profile "
-        "ownership information must fail closed."
+        "Message Content must never appear in logs or diagnostics."
+        in design
+    )
+    assert (
+        "Tests must not perform HTTP or WebSocket requests."
         in design
     )
 
-    assert "T1 and T2 are complete." in acceptance
-    assert "T3 is the next executable task" in acceptance
+    assert "T1 through T3 are complete." in acceptance
+    assert "T4 is the next executable task" in acceptance
     assert "PR #4 remains Draft" in acceptance

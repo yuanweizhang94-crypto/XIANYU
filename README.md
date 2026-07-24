@@ -13,11 +13,16 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - CHG-0004 status is `APPROVED`.
 - T1 project-owner approval is complete.
 - T2 message, conversation, and delivery terminology is complete.
-- T3 transport, authentication, and risk-control boundaries is the next executable task.
-- The canonical Message Event, Conversation, Conversation Reference, Participant Reference, Delivery Attempt, Delivery Cursor, Acknowledgement, Duplicate Delivery, Replay, Ordering Boundary, and Synthetic Message Fixture terms are recorded.
+- T3 transport, authentication, and risk-control boundaries is complete.
+- T4 ordering, deduplication, and persistence boundaries is the next executable task.
+- Future external message transport requires `wss://`, verified TLS, a trusted Endpoint, exact Profile ownership, resolved operation-scoped authentication, explicit authorization, and an allowed risk decision.
+- Unknown, invalid, expired, revoked, denied, verification-required, blocked, protocol-unspecified, TLS-invalid, or ownership-conflicting states fail closed.
+- Reconnect must preserve Profile and Credential ownership and must not bypass permission or risk decisions.
+- Acknowledgement remains transport-level only and does not mean persistence, business success, reply, uniqueness, or completion.
+- Message Content, Secret Material, raw authentication data, full Credential References, full external identifiers, and raw transport frames are prohibited from logs.
 - `CAP-XY-MESSAGE` remains planned and unbound.
 - No CHG-0004 runtime implementation has started.
-- Completion of T2 does not authorize transport implementation, authentication, Credential resolution, real WebSocket access, network access, ordering guarantees, deduplication, persistence, customer-message processing, Ready-for-review, auto-merge, or merge.
+- Completion of T3 does not authorize ordering guarantees, deduplication, persistence, real WebSocket access, network access, customer-message processing, Ready-for-review, auto-merge, or merge.
 
 ## Project goal
 
