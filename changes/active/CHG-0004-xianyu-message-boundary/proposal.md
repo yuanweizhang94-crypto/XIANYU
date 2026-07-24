@@ -15,13 +15,13 @@ Prepare a formally reviewable boundary for receiving Xianyu customer-inquiry mes
 
 The project owner approved CHG-0004 for controlled, one-task-at-a-time execution.
 
-T1 through T3 are complete.
+T1 through T4 are complete.
 
-The canonical terminology and the transport, authentication, Credential-resolution, authorization, permission, risk-control, TLS, reconnect, acknowledgement, and redaction boundaries are approved.
+The canonical terminology and the transport, authentication, risk-control, ordering, deduplication, idempotency, replay, persistence, transaction, concurrency, retention, and Migration boundaries are approved.
 
-T4 is the next executable task and must be performed separately.
+T5 is the next executable task and must be performed separately.
 
-No ordering guarantee, deduplication identity, idempotency algorithm, replay-retention policy, persistence model, database schema, Migration, runtime ownership model, runtime implementation, real WebSocket, external network access, real account access, customer-message processing, capability binding, Ready-for-review, auto-merge, or merge is authorized.
+No Worker, Adapter, Repository, Service, connection lifecycle, reconnect scheduler, runtime failure model, runtime implementation, real WebSocket, external network access, real account access, real customer-message processing, database table, ORM model, Migration file, capability binding, Ready-for-review, auto-merge, or merge is authorized.
 
 ## T2 terminology outcome
 
@@ -61,6 +61,39 @@ No ordering guarantee, deduplication identity, idempotency algorithm, replay-ret
 - Message Content, Secret Material, authentication headers, full external identifiers, and raw transport payloads are prohibited from logs and diagnostics.
 - Only Synthetic Message Fixtures may be used in tests.
 
+## T4 ordering, deduplication, and persistence outcome
+
+- No global Platform Message ordering guarantee is approved.
+- No cross-Profile or cross-Conversation ordering guarantee is approved.
+- Transport arrival order, local receipt timestamps, Platform timestamps, external identifiers, and Delivery Cursors are not authoritative Platform ordering.
+- Out-of-order and late Message Events must not be silently discarded.
+- T4 does not approve automatic event reordering.
+- A future deterministic display order may use local receipt time followed by Local Message Identifier, but this order is presentation-only.
+- Local Conversation Identifier uses UUID version 4.
+- Local Message Identifier uses UUID version 4.
+- Deduplication is always scoped to one exact Profile.
+- A future approved Transport Adapter may provide an opaque Profile-scoped Delivery Identity.
+- Delivery Identity must not contain Message Content, Secret Material, raw Transport Frames, or cross-Profile state.
+- Deduplication Decision values are `NEW`, `DUPLICATE`, `INDETERMINATE`, and `CONFLICT`.
+- `NEW` creates one local Message Record and one Delivery Attempt Record.
+- `DUPLICATE` does not create another Message Record but may record another Delivery Attempt.
+- `INDETERMINATE` must not discard the event or falsely collapse it into another Message Record.
+- `CONFLICT` must fail closed and must not overwrite existing data.
+- Platform Message Identifier alone is not an approved global deduplication key.
+- Message Content must not be hashed or compared to invent a deduplication identity.
+- The existing Core SQLite, SQLAlchemy, and Alembic infrastructure remains the only approved local persistence boundary.
+- A future minimal persistence projection may contain Profile-scoped Conversation, Message, and Delivery Attempt records.
+- Message Content is restricted to normalized UTF-8 plain text with a maximum approved length of 4096 characters.
+- HTML execution, attachment storage, media bytes, arbitrary JSON, BLOB, raw payload, raw frame, generic metadata, properties, extras, or unrestricted key-value storage are prohibited.
+- All persistent Conversation, Message, Delivery Attempt, and external-reference data remains Profile-scoped.
+- Persistence mutations require an explicit transaction.
+- Duplicate and conflict checks must occur inside the same logical transaction as persistence.
+- Messages and Delivery Attempts are append-only records except for separately approved lifecycle metadata.
+- Application startup must not auto-migrate.
+- Migration must remain explicit.
+- A non-empty downgrade must fail closed unless a separately approved data-preserving downgrade exists.
+- T4 creates no table, ORM model, Migration, Repository, Service, Worker, Adapter, API, or runtime file.
+
 ## Goals
 
 - Define canonical terminology for message events, conversations, delivery cursors, acknowledgements, and duplicate delivery.
@@ -86,12 +119,16 @@ No ordering guarantee, deduplication identity, idempotency algorithm, replay-ret
 - No dependency addition.
 - No capability binding.
 - No implementation before explicit approval.
-- No real WebSocket connection during T3.
-- No DNS, HTTP, WebSocket, browser, subprocess, or external network access during T3.
-- No real Endpoint, Cookie, Token, Header, Subprotocol, Payload schema, heartbeat frame, or acknowledgement frame is selected during T3.
-- No ordering guarantee during T3.
-- No deduplication or persistence decision during T3.
-- No runtime implementation before T4 and T5 are complete.
+- No runtime implementation during T4.
+- No database table or Migration during T4.
+- No ORM, Repository, or Service during T4.
+- No real Message Content during T4.
+- No attachment, media, binary, HTML, JSON payload, or raw Transport Frame persistence.
+- No global ordering guarantee.
+- No content-hash deduplication.
+- No cross-Profile deduplication.
+- No automatic data-retention or purge job.
+- No runtime implementation before T5 is complete.
 
 ## Security boundary
 
@@ -105,12 +142,12 @@ No ordering guarantee, deduplication identity, idempotency algorithm, replay-ret
 
 Only one unfinished task may be executed at a time.
 
-T1 through T3 are complete.
+T1 through T4 are complete.
 
-T4 is the next executable task.
+T5 is the next executable task.
 
-T4 must not begin in the same execution.
+T5 must not begin in the same execution.
 
-T3 approves security and transport boundaries only.
+T4 approves ordering, deduplication, idempotency, replay, persistence, transaction, concurrency, retention, and Migration principles only.
 
-Ordering, deduplication, idempotency, replay retention, persistence, local identifiers, database schema, Migration, Worker ownership, lifecycle, failure handling, testing ownership, and runtime implementation remain deferred.
+Worker, Adapter, Repository, Service, process ownership, connection lifecycle, reconnect scheduling, failure ownership, observability ownership, testing ownership, concrete physical schema, Migration file, and runtime implementation remain deferred.

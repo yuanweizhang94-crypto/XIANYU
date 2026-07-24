@@ -7,13 +7,13 @@ Change ID: CHG-0004-xianyu-message-boundary
 
 CHG-0004 remains approved for controlled, task-by-task execution.
 
-T1 through T3 are complete.
+T1 through T4 are complete.
 
-The canonical message terminology and the transport, authentication, Credential-resolution, authorization, permission, risk-control, TLS, reconnect, acknowledgement, and redaction boundaries are approved.
+The canonical terminology and the transport, authentication, risk-control, ordering, deduplication, idempotency, replay, persistence, transaction, concurrency, retention, and Migration boundaries are approved.
 
-T4 is the next executable task.
+T5 is the next executable task.
 
-No ordering guarantee, deduplication algorithm, idempotency model, replay-retention model, persistence model, runtime ownership model, or runtime implementation has been approved.
+No Worker ownership model, Adapter ownership model, Repository or Service ownership model, connection lifecycle model, failure model, observability model, physical database schema, Migration file, or runtime implementation has been approved.
 
 ## Architecture context
 
@@ -617,57 +617,528 @@ T3 does not create an Enum, Exception class, response schema, API contract, log 
 
 12. T3 does not add permanent runtime tests.
 
-## Decisions deferred after T3
+## Approved ordering boundary
 
-### Deferred to T4
+No global Platform Message ordering guarantee is approved.
 
-- Ordering scope and guarantees.
-- Out-of-order handling.
-- Deduplication identity.
-- Deduplication algorithm.
-- Idempotency keys.
-- Replay detection.
-- Replay retention window.
-- Persistence requirements.
-- Database schema.
-- Migration requirements.
-- Local Message Identifier format.
-- Local Conversation Identifier format.
-- Storage of external identifiers.
-- Delivery Cursor durability.
-- Message Content retention and deletion.
-- Transaction and concurrency behavior.
+No ordering relationship may be inferred across Profiles.
+
+No ordering relationship may be inferred across Conversations.
+
+Within one Profile and one Conversation:
+
+1. Transport arrival order is observational only.
+
+2. Local receipt timestamp is observational only.
+
+3. Platform timestamp is untrusted external metadata.
+
+4. Platform Message Identifier is not an ordering value.
+
+5. Platform Conversation Identifier is not an ordering value.
+
+6. Delivery Cursor is not an ordering guarantee unless a later verified protocol explicitly defines that semantic.
+
+7. Acknowledgement order is not Message Event order.
+
+8. Database insertion order is not Platform Message order.
+
+9. Reconnect or Replay may deliver an older Message Event after a newer Message Event.
+
+10. Out-of-order and late Message Events must not be silently discarded.
+
+11. T4 does not approve automatic reordering.
+
+12. Business processing must not assume that the most recently received event is the newest Platform Message.
+
+13. Missing or conflicting ordering metadata must not prevent safe local receipt unless another approved security boundary rejects the event.
+
+14. A future deterministic presentation order may use local receipt time followed by Local Message Identifier.
+
+15. Presentation order does not establish Platform order, causal order, customer intent order, or reply order.
+
+## Approved local identifiers
+
+### Local Conversation Identifier
+
+A repository-local UUID version 4 identifier for exactly one persisted Conversation within exactly one Profile.
+
+It is not an external Platform Conversation Identifier.
+
+It is not authentication, authorization, ordering, or deduplication evidence.
+
+### Local Message Identifier
+
+A repository-local UUID version 4 identifier for exactly one persisted Message Record within exactly one Profile.
+
+It is not a Platform Message Identifier.
+
+It is not a Delivery Identity.
+
+It is not proof that the Message Event is unique, authorized, ordered, or acknowledged.
+
+### Local Delivery Attempt Identifier
+
+A repository-local UUID version 4 identifier for one persisted Delivery Attempt Record.
+
+It represents local evidence of an observed Delivery Attempt.
+
+It does not prove that the external platform created a distinct delivery.
+
+All local identifiers must be generated without external network access and must remain Profile-scoped through their ownership relationships.
+
+## Delivery Identity boundary
+
+Delivery Identity is an opaque, non-secret, Profile-scoped value that a future approved Transport Adapter may provide when verified protocol semantics support stable redelivery identification.
+
+Delivery Identity rules:
+
+1. It belongs to exactly one Profile.
+
+2. It may identify repeated deliveries of the same approved transport item.
+
+3. It must not be shared across Profiles.
+
+4. It must not contain Message Content.
+
+5. It must not contain Secret Material.
+
+6. It must not contain raw Cookie or Token values.
+
+7. It must not contain a raw Transport Frame.
+
+8. It must not contain a browser path or Session Material.
+
+9. It must not be derived solely from Message Content.
+
+10. It must not be derived solely from a timestamp.
+
+11. It must not be derived solely from Participant Reference.
+
+12. It must not be assumed globally unique.
+
+13. It must not be used unless its stability semantics are known and approved.
+
+14. If a verified protocol later establishes that Platform Message Identifier is stable for redelivery within one Profile, a Transport Adapter may map that identifier into Delivery Identity.
+
+15. T4 does not approve any concrete Delivery Identity format or extraction algorithm.
+
+## Deduplication Decision
+
+The approved conceptual Deduplication Decision values are:
+
+```text
+NEW
+DUPLICATE
+INDETERMINATE
+CONFLICT
+```
+
+### NEW
+
+No existing Profile-scoped Message Record has the same approved Delivery Identity.
+
+A future operation may create:
+
+- one Message Record;
+- one Delivery Attempt Record;
+- the required Profile and Conversation ownership references.
+
+### DUPLICATE
+
+An existing Profile-scoped Message Record has the same approved Delivery Identity and compatible immutable event metadata.
+
+A duplicate delivery:
+
+- must not create another Message Record;
+- may create another Delivery Attempt Record;
+- must return or reference the existing Local Message Identifier;
+- must not trigger a second business action solely because delivery repeated;
+- must not overwrite the original Message Record.
+
+### INDETERMINATE
+
+No reliable approved Delivery Identity exists.
+
+An indeterminate event:
+
+- must not be silently discarded;
+- must not be collapsed using Message Content;
+- must not be collapsed using timestamp proximity;
+- must not be collapsed using Participant Reference alone;
+- must not be collapsed using Platform Conversation Identifier alone;
+- may create a separate Message Record;
+- must record that deduplication identity was unavailable.
+
+The approved bias is against false-positive collapse and silent message loss.
+
+### CONFLICT
+
+The same approved Delivery Identity is presented with incompatible immutable Profile, Conversation, sender, Message Content, or external-reference data.
+
+A conflict:
+
+- must fail closed;
+- must not overwrite the existing Message Record;
+- must not create a second Message Record using the conflicting identity;
+- must roll back the current persistence transaction;
+- must return only a sanitized non-secret reason;
+- must not acknowledge success.
+
+## Deduplication scope and idempotency
+
+Deduplication is scoped by:
+
+```text
+exact Profile Identifier
+approved Delivery Identity
+```
+
+A Delivery Identity from one Profile must never deduplicate a Message Event from another Profile.
+
+Platform Message Identifier alone is not an approved global deduplication key.
+
+Platform Conversation Identifier alone is not an approved deduplication key.
+
+Participant Reference alone is not an approved deduplication key.
+
+Message Content or a Message Content hash is not an approved deduplication key.
+
+Timestamp proximity is not an approved deduplication key.
+
+A future message-persistence operation is idempotent with respect to Message Record creation when the same Profile-scoped approved Delivery Identity and compatible immutable event metadata are submitted repeatedly.
+
+Idempotency means:
+
+- at most one Message Record for that approved Profile-scoped Delivery Identity;
+- repeated delivery may add Delivery Attempt evidence;
+- repeated operation returns the existing Local Message Identifier;
+- existing immutable Message data is not overwritten;
+- a conflicting retry fails closed.
+
+T4 does not approve idempotency for message sending, reply generation, acknowledgement transmission, or external side effects.
+
+## Replay boundary
+
+Replay is not automatically a new business message.
+
+Replay is not automatically a duplicate.
+
+Replay classification depends on an approved Profile-scoped Delivery Identity.
+
+If replay has the same approved Delivery Identity and compatible immutable metadata, the Deduplication Decision is `DUPLICATE`.
+
+If replay has no approved Delivery Identity, the Deduplication Decision is `INDETERMINATE`.
+
+If replay reuses an approved Delivery Identity with conflicting immutable metadata, the Deduplication Decision is `CONFLICT`.
+
+No replay-retention time window is approved.
+
+No time-based assumption may automatically convert a previous Message Event into a new Message Event.
+
+No Replay record may cross Profile ownership.
+
+Delivery Cursor must not be used as replay identity unless a verified protocol later explicitly approves that semantic.
+
+## Conceptual persistence boundary
+
+The existing `CAP-CORE-DATABASE` SQLite, SQLAlchemy, and Alembic infrastructure remains the only approved local persistence boundary.
+
+T4 approves conceptual persistence for:
+
+### Conversation Record
+
+Minimal Profile-scoped projection of one Conversation.
+
+It may contain:
+
+- Local Conversation Identifier;
+- Profile Identifier ownership;
+- Account Reference ownership;
+- optional untrusted Platform Conversation Identifier;
+- created timestamp;
+- separately approved lifecycle metadata.
+
+### Message Record
+
+Minimal Profile-scoped projection of one accepted Message Event.
+
+It may contain:
+
+- Local Message Identifier;
+- Local Conversation Identifier;
+- Profile Identifier ownership;
+- optional Platform Message Identifier;
+- optional approved Delivery Identity;
+- Participant Reference;
+- normalized text Message Content;
+- local receipt timestamp;
+- optional untrusted Platform timestamp;
+- Deduplication Decision evidence required for the stored record;
+- separately approved lifecycle metadata.
+
+### Delivery Attempt Record
+
+Append-only local evidence of one observed Delivery Attempt.
+
+It may contain:
+
+- Local Delivery Attempt Identifier;
+- Local Message Identifier;
+- Profile Identifier ownership;
+- local attempt timestamp;
+- sanitized transport outcome class;
+- sanitized non-secret reason code;
+- optional attempt number;
+- separately approved non-secret correlation identifier.
+
+The exact table names, column names, SQLAlchemy classes, indexes, constraints, foreign-key names, and Alembic Revision remain deferred to T5 and T6.
+
+## Message Content persistence boundary
+
+Message Content is customer data.
+
+The minimal approved local projection supports normalized UTF-8 plain text only.
+
+Rules:
+
+1. Text must be valid Unicode.
+
+2. The maximum approved normalized length is 4096 characters.
+
+3. Empty or whitespace-only content is invalid.
+
+4. Internal whitespace may be preserved.
+
+5. Line endings may be normalized to `\n`.
+
+6. Content is treated as inert text.
+
+7. Content must not be executed as HTML, Markdown, script, template, SQL, shell input, or command input.
+
+8. HTML rendering is not approved.
+
+9. Attachment storage is not approved.
+
+10. Media download is not approved.
+
+11. Binary storage is not approved.
+
+12. BLOB storage is not approved.
+
+13. Arbitrary JSON payload storage is not approved.
+
+14. Raw Transport Frame storage is not approved.
+
+15. Generic `payload`, `metadata`, `properties`, `extras`, `context`, or unrestricted key-value columns are prohibited.
+
+16. Message Content must not appear in logs, metrics, traces, audit events, exception text, PR text, or test snapshots.
+
+17. Only Synthetic Message Fixtures may supply content during CHG-0004 implementation and testing.
+
+18. Real customer-message access remains unauthorized.
+
+## Persistence ownership and relational integrity
+
+1. Every Conversation Record belongs to exactly one Profile.
+
+2. Every Message Record belongs to exactly one Profile.
+
+3. Every Message Record belongs to exactly one Conversation Record owned by the same Profile.
+
+4. Every Delivery Attempt Record belongs to exactly one Message Record owned by the same Profile.
+
+5. Cross-Profile foreign-key relationships are prohibited.
+
+6. A Platform Conversation Identifier must not establish Profile ownership.
+
+7. A Platform Message Identifier must not establish Profile ownership.
+
+8. Delivery Identity must not establish Profile ownership by itself.
+
+9. Profile ownership must be explicit on every persistence mutation.
+
+10. Missing, ambiguous, conflicting, or cross-Profile ownership fails closed.
+
+11. Deleting or changing one Profile must not mutate another Profile's Conversation, Message, or Delivery Attempt records.
+
+12. No global current Profile or global current Conversation is allowed.
+
+## Transaction and concurrency boundary
+
+A future accepted-message persistence operation must use one explicit logical transaction covering:
+
+1. exact Profile ownership validation;
+
+2. Conversation lookup or creation;
+
+3. Deduplication Decision;
+
+4. Message Record creation or existing-record selection;
+
+5. Delivery Attempt Record creation;
+
+6. approved state updates;
+
+7. commit or complete rollback.
+
+Rules:
+
+- Deduplication checks and Message Record creation must occur in the same transaction.
+- Duplicate and conflict checks must occur inside the same logical transaction as persistence.
+- A conflict must roll back the complete operation.
+- Partial Conversation, Message, or Delivery Attempt writes are prohibited.
+- Repository methods must not independently commit.
+- Logical transaction ownership is deferred to T5.
+- Profile-scoped uniqueness must be protected by database constraints where applicable.
+- Concurrent duplicate creation must resolve to one Message Record or a sanitized conflict.
+- Lost-update protection is required for mutable lifecycle metadata.
+- Message and Delivery Attempt immutable fields must not be overwritten by concurrent operations.
+- T4 does not select an optimistic-lock field, isolation level, locking primitive, retry count, or Repository API.
+
+## Retention and deletion boundary
+
+CHG-0004 approves no automatic retention duration.
+
+CHG-0004 approves no automatic purge job.
+
+CHG-0004 approves no Scheduler-based deletion.
+
+CHG-0004 approves no background cleanup Worker.
+
+During the local synthetic boundary:
+
+- records may remain until explicitly deleted through a future approved operation;
+- no real customer data is accessed;
+- no production retention claim is made.
+
+Before real customer-message access is authorized, a separate reviewed change must approve:
+
+- retention duration;
+- deletion rights;
+- operator deletion workflow;
+- Profile deletion behavior;
+- legal and business retention requirements;
+- backup behavior;
+- export behavior;
+- audit requirements;
+- secure deletion limitations.
+
+T6 must not implement automatic deletion or retention scheduling.
+
+## Delivery Cursor persistence boundary
+
+Delivery Cursor remains opaque.
+
+Because no verified real transport protocol is approved:
+
+- T4 does not approve Delivery Cursor as ordering evidence;
+- T4 does not approve Delivery Cursor as deduplication identity;
+- T4 does not approve Delivery Cursor as acknowledgement evidence;
+- T4 does not approve durable recovery semantics;
+- T4 does not approve persistence of a real external Delivery Cursor.
+
+A future local model may accept an optional Synthetic Message Fixture cursor for boundary testing, but it must remain non-authoritative and must not control ordering, deduplication, authorization, or Profile ownership.
+
+## Migration boundary
+
+Future message persistence must use the existing Core Alembic infrastructure.
+
+Rules:
+
+1. Migration must be explicit.
+
+2. Application startup must not automatically migrate.
+
+3. Migration history must remain linear.
+
+4. No table may be created with `create_all`.
+
+5. Migration fixtures must contain no real customer data.
+
+6. Migration fixtures must contain no Secret Material.
+
+7. Migration fixtures must contain no raw Transport Frames.
+
+8. Upgrade must create only the separately approved minimal schema.
+
+9. Empty downgrade may remove the message schema.
+
+10. Non-empty downgrade must fail closed unless a separately approved data-preserving downgrade exists.
+
+11. Downgrade failure must preserve existing records.
+
+12. Exact Revision identifier and physical Migration remain deferred to T6.
+
+13. T4 creates no Migration file.
+
+## Persistence prohibitions
+
+The following must not be persisted by the CHG-0004 minimal boundary:
+
+- Cookie;
+- Token;
+- Secret Material;
+- Session Material;
+- authorization Header;
+- browser state;
+- browser user-data paths;
+- raw handshake request;
+- raw handshake response;
+- raw Transport Frame;
+- arbitrary JSON payload;
+- attachments;
+- media bytes;
+- executable HTML;
+- shell commands;
+- SQL fragments;
+- full network error payloads;
+- raw provider errors;
+- unrestricted metadata or property bags;
+- data belonging to another Profile.
+
+## Decisions deferred after T4
 
 ### Deferred to T5
 
-- Module ownership.
-- Transport adapter ownership.
-- Worker ownership.
+- Package and module ownership.
+- Domain module ownership.
+- Persistence module ownership.
+- Repository ownership.
+- Service ownership.
+- Transport Adapter ownership.
 - Credential-resolution interface ownership.
+- Worker ownership.
 - Connection lifecycle ownership.
 - Reconnect scheduling ownership.
-- Process and concurrency isolation.
+- Transaction coordinator ownership.
 - Failure and restart ownership.
 - Observability ownership.
 - Testing ownership.
-- Timeout values.
-- Retry counts.
-- Backoff and jitter values.
+- Concrete lifecycle states.
+- Concrete exception hierarchy.
+- Concrete timeout, retry, backoff, and jitter values.
+- Concrete public package surface.
+- Import-safety boundary.
 - Graceful shutdown behavior.
 
 ### Deferred to T6
 
 - All runtime code.
-- Concrete WebSocket client.
-- Concrete Endpoint.
-- Concrete Header and authentication injection.
-- Concrete Subprotocol.
-- Concrete handshake.
-- Concrete heartbeat frames.
-- Concrete acknowledgement frames.
-- Concrete payload parsing.
-- Concrete error types.
-- Concrete reconnect implementation.
+- Exact table names.
+- Exact column names.
+- Exact indexes and constraints.
+- SQLAlchemy models.
+- Alembic Revision.
+- Repository implementation.
+- Service implementation.
+- Domain classes and Enums.
+- UUID generation implementation.
+- Text normalization implementation.
+- Deduplication implementation.
+- Transaction implementation.
+- Concurrency implementation.
+- Synthetic local transport boundary implementation.
 
 ## Required decisions before runtime implementation
 
@@ -708,12 +1179,12 @@ No transport, WebSocket, message model, persistence model, Migration, background
 
 ## Execution boundary
 
-T1 through T3 are complete.
+T1 through T4 are complete.
 
-T4 is the next executable task.
+T5 is the next executable task.
 
-T4 must be performed in a separate execution.
+T5 must be performed in a separate execution.
 
-T3 approves security, transport, authentication, Credential-resolution, permission, risk-control, reconnect, acknowledgement, and redaction boundaries only.
+T4 approves ordering, deduplication, idempotency, replay, persistence, transaction, concurrency, retention, and Migration boundaries only.
 
-This execution does not authorize ordering guarantees, deduplication, idempotency, replay retention, persistence, database changes, Worker or Adapter implementation, network access, real message access, or runtime implementation.
+This execution does not authorize Worker, Adapter, Repository, Service, database schema, Migration file, WebSocket, network access, real message access, or runtime implementation.

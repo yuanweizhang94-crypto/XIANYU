@@ -79,7 +79,7 @@ def test_chg_0004_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0004 / name) == "APPROVED"
 
 
-def test_chg_0004_t3_approves_transport_authentication_and_risk_boundaries() -> None:
+def test_chg_0004_t4_approves_ordering_deduplication_and_persistence_boundaries() -> None:
     task_lines = [
         line
         for line in (CHG_0004 / "tasks.md").read_text(
@@ -89,10 +89,8 @@ def test_chg_0004_t3_approves_transport_authentication_and_risk_boundaries() -> 
     ]
 
     assert len(task_lines) == 9
-    assert task_lines[0].startswith("- [x]")
-    assert task_lines[1].startswith("- [x]")
-    assert task_lines[2].startswith("- [x]")
-    assert all(line.startswith("- [ ]") for line in task_lines[3:])
+    assert all(line.startswith("- [x]") for line in task_lines[:4])
+    assert all(line.startswith("- [ ]") for line in task_lines[4:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(
@@ -106,26 +104,102 @@ def test_chg_0004_t3_approves_transport_authentication_and_risk_boundaries() -> 
     assert state["active_change"]["status"] == "APPROVED"
 
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 3
+    assert state["tasks"]["completed"] == 4
 
     assert all(
         item["completed"] is True
-        for item in state["tasks"]["items"][:3]
+        for item in state["tasks"]["items"][:4]
     )
 
     assert all(
         item["completed"] is False
-        for item in state["tasks"]["items"][3:]
+        for item in state["tasks"]["items"][4:]
     )
 
     assert state["tasks"]["next_task"] == (
-        "T4 Approve ordering, deduplication, and persistence boundaries"
+        "T5 Approve worker ownership, lifecycle, and failure boundaries"
     )
 
     assert state["capabilities"]["by_status"] == {
         "planned": 6,
         "verified": 4,
     }
+
+    proposal = (CHG_0004 / "proposal.md").read_text(encoding="utf-8")
+    design = (CHG_0004 / "design.md").read_text(encoding="utf-8")
+    acceptance = (CHG_0004 / "acceptance.md").read_text(encoding="utf-8")
+
+    assert "T1 through T4 are complete." in proposal
+    assert (
+        "The canonical terminology and the transport, authentication, "
+        "risk-control, ordering, deduplication"
+        in proposal
+    )
+    assert "T5 is the next executable task" in proposal
+
+    required_sections = [
+        "## Approved ordering boundary",
+        "## Approved local identifiers",
+        "## Delivery Identity boundary",
+        "## Deduplication Decision",
+        "## Deduplication scope and idempotency",
+        "## Replay boundary",
+        "## Conceptual persistence boundary",
+        "## Message Content persistence boundary",
+        "## Persistence ownership and relational integrity",
+        "## Transaction and concurrency boundary",
+        "## Retention and deletion boundary",
+        "## Delivery Cursor persistence boundary",
+        "## Migration boundary",
+        "## Persistence prohibitions",
+        "## Decisions deferred after T4",
+    ]
+
+    for marker in required_sections:
+        assert marker in design
+
+    for marker in [
+        "### Local Conversation Identifier",
+        "### Local Message Identifier",
+        "### Local Delivery Attempt Identifier",
+        "### NEW",
+        "### DUPLICATE",
+        "### INDETERMINATE",
+        "### CONFLICT",
+        "### Conversation Record",
+        "### Message Record",
+        "### Delivery Attempt Record",
+    ]:
+        assert marker in design
+
+    assert "No global Platform Message ordering guarantee is approved." in design
+    assert (
+        "Out-of-order and late Message Events must not be silently discarded."
+        in design
+    )
+    assert "A repository-local UUID version 4 identifier" in design
+    assert (
+        "Message Content or a Message Content hash is not an approved "
+        "deduplication key."
+        in design
+    )
+    assert (
+        "The approved bias is against false-positive collapse and silent "
+        "message loss."
+        in design
+    )
+    assert (
+        "Duplicate and conflict checks must occur inside the same logical "
+        "transaction"
+        in design
+    )
+    assert "The maximum approved normalized length is 4096 characters." in design
+    assert "Application startup must not automatically migrate." in design
+    assert "T4 creates no Migration file." in design
+
+    assert "T1 through T4 are complete." in acceptance
+    assert "T5 is the next executable task" in acceptance
+    assert "PR #4 remains Draft" in acceptance
 
 
 def test_message_capability_remains_planned_and_unimplemented() -> None:
@@ -180,75 +254,3 @@ def test_message_capability_remains_planned_and_unimplemented() -> None:
         "Session=",
     ]:
         assert forbidden not in env_example
-
-    proposal = (CHG_0004 / "proposal.md").read_text(encoding="utf-8")
-    design = (CHG_0004 / "design.md").read_text(encoding="utf-8")
-    acceptance = (CHG_0004 / "acceptance.md").read_text(encoding="utf-8")
-
-    assert "T1 through T3 are complete." in proposal
-    assert (
-        "The canonical terminology and the transport, "
-        "authentication, Credential-resolution"
-        in proposal
-    )
-    assert "T4 is the next executable task" in proposal
-
-    required_sections = [
-        "## Approved transport boundary",
-        "## Authentication and Credential boundary",
-        "## Credential Resolution Status",
-        "## Operation Authorization Status",
-        "## Risk Decision",
-        "## Connection authorization invariant",
-        "## Platform verification and risk-control boundary",
-        "## Reconnect and retry safety",
-        "## Acknowledgement safety boundary",
-        "## Logging, errors, and redaction",
-        "## Approved non-secret reason-code classes",
-        "## Security testing boundary",
-        "## Decisions deferred after T3",
-    ]
-
-    for marker in required_sections:
-        assert marker in design
-
-    assert "The connection uses `wss://`." in design
-    assert "Plaintext `ws://` is prohibited." in design
-    assert "TLS certificate verification remains enabled." in design
-    assert "TLS hostname verification remains enabled." in design
-
-    assert (
-        "Credential Resolution Status = RESOLVED"
-        in design
-    )
-    assert (
-        "Operation Authorization Status = AUTHORIZED"
-        in design
-    )
-    assert "Risk Decision = ALLOWED" in design
-
-    assert (
-        "`VERIFICATION_REQUIRED` must stop the operation."
-        in design
-    )
-    assert (
-        "Reconnect must not be treated as permission to change "
-        "Profile, Account Reference, Credential Reference"
-        in design
-    )
-    assert (
-        "Acknowledgement remains a transport-level receipt concept."
-        in design
-    )
-    assert (
-        "Message Content must never appear in logs or diagnostics."
-        in design
-    )
-    assert (
-        "Tests must not perform HTTP or WebSocket requests."
-        in design
-    )
-
-    assert "T1 through T3 are complete." in acceptance
-    assert "T4 is the next executable task" in acceptance
-    assert "PR #4 remains Draft" in acceptance

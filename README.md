@@ -14,15 +14,24 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - T1 project-owner approval is complete.
 - T2 message, conversation, and delivery terminology is complete.
 - T3 transport, authentication, and risk-control boundaries is complete.
-- T4 ordering, deduplication, and persistence boundaries is the next executable task.
-- Future external message transport requires `wss://`, verified TLS, a trusted Endpoint, exact Profile ownership, resolved operation-scoped authentication, explicit authorization, and an allowed risk decision.
-- Unknown, invalid, expired, revoked, denied, verification-required, blocked, protocol-unspecified, TLS-invalid, or ownership-conflicting states fail closed.
-- Reconnect must preserve Profile and Credential ownership and must not bypass permission or risk decisions.
-- Acknowledgement remains transport-level only and does not mean persistence, business success, reply, uniqueness, or completion.
-- Message Content, Secret Material, raw authentication data, full Credential References, full external identifiers, and raw transport frames are prohibited from logs.
+- T4 ordering, deduplication, and persistence boundaries is complete.
+- T5 worker ownership, lifecycle, and failure boundaries is the next executable task.
+- No global, cross-Profile, or cross-Conversation Platform ordering guarantee is approved.
+- Out-of-order and late Message Events must not be silently discarded.
+- Local Conversation, Message, and Delivery Attempt identifiers use UUID version 4.
+- Deduplication is Profile-scoped and uses an approved Delivery Identity when available.
+- Deduplication Decisions are `NEW`, `DUPLICATE`, `INDETERMINATE`, and `CONFLICT`.
+- Duplicate delivery does not create a second Message Record.
+- Indeterminate delivery is not silently dropped.
+- Conflicting delivery identity fails closed and does not overwrite data.
+- The existing Core SQLite, SQLAlchemy, and Alembic infrastructure remains the only approved local persistence boundary.
+- The conceptual persistence boundary contains Profile-scoped Conversation, Message, and Delivery Attempt records.
+- Message Content is restricted to normalized UTF-8 plain text of at most 4096 characters.
+- Attachments, media, binary data, arbitrary JSON, raw payloads, raw Transport Frames, generic metadata, and Secret Material are prohibited from persistence.
+- Application startup must not auto-migrate.
 - `CAP-XY-MESSAGE` remains planned and unbound.
 - No CHG-0004 runtime implementation has started.
-- Completion of T3 does not authorize ordering guarantees, deduplication, persistence, real WebSocket access, network access, customer-message processing, Ready-for-review, auto-merge, or merge.
+- Completion of T4 does not authorize Worker, Adapter, Repository, Service, database schema, Migration, WebSocket, network access, Ready-for-review, auto-merge, or merge.
 
 ## Project goal
 
