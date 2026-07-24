@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import importlib
 import json
+import socket
+import subprocess
+import threading
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
+import pytest
 import yaml
+from alembic.script import ScriptDirectory
 
 ROOT = Path(__file__).resolve().parents[4]
 ACTIVE = ROOT / "changes" / "active"
@@ -24,6 +32,8 @@ ACCOUNT_ACTIVE_ACCEPTANCE = (
     "changes/active/CHG-0003-xianyu-account-boundary/"
     "tests/test_acceptance.py"
 )
+MESSAGE_PACKAGE = ROOT / "app" / "xianyu_system" / "worker" / "message"
+MESSAGE_MIGRATION = ROOT / "migrations" / "versions" / "0003_xianyu_message_boundary.py"
 
 
 def status_of(path: Path) -> str:
@@ -69,7 +79,10 @@ def test_chg_0004_is_the_only_approved_active_change() -> None:
         assert status_of(CHG_0004 / name) == "APPROVED"
 
 
-def test_chg_0004_t5_approves_worker_lifecycle_and_failure_boundaries() -> None:
+def test_chg_0004_t6_implements_only_local_synthetic_message_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     task_lines = [
         line
         for line in (CHG_0004 / "tasks.md").read_text(
@@ -78,91 +91,248 @@ def test_chg_0004_t5_approves_worker_lifecycle_and_failure_boundaries() -> None:
         if line.startswith("- [")
     ]
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:5])
-    assert all(line.startswith("- [ ]") for line in task_lines[5:])
+    assert all(line.startswith("- [x]") for line in task_lines[:6])
+    assert all(line.startswith("- [ ]") for line in task_lines[6:])
 
     state = json.loads(
         (ROOT / "generated" / "PROJECT_STATE.json").read_text(
             encoding="utf-8"
         )
     )
-    assert state["active_change"]["id"] == (
-        "CHG-0004-xianyu-message-boundary"
-    )
-    assert state["active_change"]["status"] == "APPROVED"
-    assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 5
-    assert all(
-        item["completed"] is True
-        for item in state["tasks"]["items"][:5]
-    )
-    assert all(
-        item["completed"] is False
-        for item in state["tasks"]["items"][5:]
-    )
+    assert state["tasks"]["completed"] == 6
     assert state["tasks"]["next_task"] == (
-        "T6 Implement only the approved local message-receiving boundary"
+        "T7 Add unit, contract, security, and active-change acceptance tests"
     )
-    assert state["capabilities"]["by_status"] == {
-        "planned": 6,
-        "verified": 4,
-    }
+
+    assert sorted(path.name for path in MESSAGE_PACKAGE.glob("*.py")) == [
+        "__init__.py",
+        "domain.py",
+        "persistence.py",
+        "service.py",
+        "transport.py",
+        "worker.py",
+    ]
+    for forbidden in [
+        "client.py",
+        "websocket.py",
+        "network.py",
+        "listener.py",
+        "consumer.py",
+        "daemon.py",
+        "scheduler.py",
+        "tasks.py",
+        "background.py",
+        "provider.py",
+        "credential.py",
+        "browser.py",
+        "api.py",
+        "router.py",
+        "schemas.py",
+        "handlers.py",
+        "plugins.py",
+        "events.py",
+        "event_bus.py",
+        "unit_of_work.py",
+        "base_repository.py",
+    ]:
+        assert not (MESSAGE_PACKAGE / forbidden).exists()
+
+    assert MESSAGE_MIGRATION.is_file()
+    migration_source = MESSAGE_MIGRATION.read_text(encoding="utf-8")
+    assert 'revision: str = "0003_xianyu_message_boundary"' in migration_source
+    assert 'down_revision: str | None = "0002_xianyu_account_boundary"' in migration_source
+    assert "create_all" not in migration_source
 
     proposal = (CHG_0004 / "proposal.md").read_text(encoding="utf-8")
     design = (CHG_0004 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0004 / "acceptance.md").read_text(encoding="utf-8")
+    assert "T1 through T6 are complete." in proposal
+    assert "T7 is the next executable task" in proposal
+    assert "## T6 acceptance criteria" in acceptance
+    assert "The local package `xianyu_system.worker.message` exists." in design
 
-    assert "T1 through T5 are complete." in proposal
-    assert (
-        "module ownership, Worker lifecycle, concurrency, "
-        "transaction ownership, failure"
-        in proposal
+    def fail_side_effect(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("external side effect is not approved")
+
+    monkeypatch.setattr(socket, "socket", fail_side_effect)
+    monkeypatch.setattr(socket, "create_connection", fail_side_effect)
+    monkeypatch.setattr(socket, "getaddrinfo", fail_side_effect)
+    monkeypatch.setattr(subprocess, "Popen", fail_side_effect)
+    monkeypatch.setattr(threading.Thread, "start", fail_side_effect)
+
+    from xianyu_system.core.database import (
+        Base,
+        dispose_database,
+        initialize_database,
+        upgrade_database,
     )
-    assert "T6 is the next executable task" in proposal
 
-    for marker in [
-        "## Runtime ownership summary",
-        "## Approved future package boundary",
-        "## domain.py ownership",
-        "## persistence.py ownership",
-        "## service.py ownership",
-        "## transport.py ownership",
-        "## worker.py ownership",
-        "## Approved dependency direction",
-        "## Public package and import-safety boundary",
-        "## Approved Worker Lifecycle States",
-        "## Approved Worker Lifecycle Transitions",
-        "## Worker ownership invariants",
-        "## Worker concurrency boundary",
-        "## Transaction coordinator ownership",
-        "## Transport and Credential ownership boundary",
-        "## Approved sanitized error hierarchy",
-        "## Approved failure disposition",
-        "## Retry and reconnect boundary",
-        "## Graceful shutdown boundary",
-        "## Observability boundary",
-        "## Testing ownership boundary",
-        "## Approved T6 implementation boundary",
-    ]:
-        assert marker in design, marker
+    before_tables = set(Base.metadata.tables)
+    importlib.import_module("xianyu_system.worker.message.domain")
+    importlib.import_module("xianyu_system.worker.message")
+    assert set(Base.metadata.tables) == before_tables
 
-    for required in [
-        "The T6 Message Worker is synchronous.",
-        "One Message Worker instance belongs to exactly one Profile Identifier.",
-        "One Worker instance may process at most one delivery at a time.",
-        "The Message Service owns the logical transaction.",
-        "automatic reconnect attempts = 0",
-        "automatic processing retries = 0",
-        "T6 must be separately authorized against the exact T5 HEAD.",
-    ]:
-        assert required in design, required
+    resources = initialize_database(tmp_path / "synthetic-message.db")
+    try:
+        upgrade_database(resources)
+        from sqlalchemy import inspect
+        from xianyu_system.worker.account.service import AccountService
+        from xianyu_system.worker.message.domain import (
+            DeduplicationConflict,
+            DeduplicationDecision,
+            InvalidMessageInput,
+            ProfileOwnershipViolation,
+            WorkerLifecycleState,
+        )
+        from xianyu_system.worker.message.service import MessageService
+        from xianyu_system.worker.message.transport import SyntheticMessageDelivery
+        from xianyu_system.worker.message.worker import (
+            AUTOMATIC_PROCESSING_RETRIES,
+            AUTOMATIC_RECONNECT_ATTEMPTS,
+            MessageWorker,
+        )
 
-    assert "T1 through T5 are complete." in acceptance
-    assert "T6 is the next executable task" in acceptance
-    assert "PR #4 remains Draft" in acceptance
+        table_names = set(inspect(resources.engine).get_table_names())
+        assert {
+            "xianyu_message_conversations",
+            "xianyu_message_records",
+            "xianyu_message_delivery_attempts",
+        } <= table_names
+
+        profile = AccountService(resources.session_factory).create_profile(
+            account_alias="synthetic-account"
+        )
+        account_reference = "synthetic-account-reference"
+        ids = iter(
+            [
+                UUID("00000000-0000-4000-8000-000000000101"),
+                UUID("00000000-0000-4000-8000-000000000102"),
+                UUID("00000000-0000-4000-8000-000000000103"),
+                UUID("00000000-0000-4000-8000-000000000104"),
+                UUID("00000000-0000-4000-8000-000000000105"),
+                UUID("00000000-0000-4000-8000-000000000106"),
+                UUID("00000000-0000-4000-8000-000000000107"),
+                UUID("00000000-0000-4000-8000-000000000108"),
+            ]
+        )
+
+        def next_id() -> UUID:
+            return next(ids)
+
+        def now() -> datetime:
+            return datetime(2026, 1, 1, tzinfo=UTC)
+
+        service = MessageService(
+            resources.session_factory,
+            identifier_factory=next_id,
+            clock=now,
+        )
+        worker = MessageWorker(
+            profile_id=profile.profile_id,
+            account_reference=account_reference,
+            service=service,
+        )
+        assert worker.state is WorkerLifecycleState.STOPPED
+        worker.start()
+        assert worker.state is WorkerLifecycleState.RUNNING
+
+        delivery = SyntheticMessageDelivery(
+            profile_id=profile.profile_id,
+            account_reference=account_reference,
+            participant_reference="synthetic-participant",
+            message_content="synthetic local text",
+            received_at=now(),
+            platform_conversation_identifier="synthetic-conversation",
+            platform_message_identifier="synthetic-message",
+            delivery_identity="synthetic-delivery",
+        )
+        result = worker.receive(delivery)
+        assert result.deduplication_decision is DeduplicationDecision.NEW
+        assert service.count_messages() == 1
+        assert service.count_delivery_attempts() == 1
+
+        duplicate = SyntheticMessageDelivery(
+            profile_id=profile.profile_id,
+            account_reference=account_reference,
+            participant_reference="synthetic-participant",
+            message_content="synthetic local text",
+            received_at=datetime(2026, 1, 1, 0, 1, tzinfo=UTC),
+            platform_conversation_identifier="synthetic-conversation",
+            platform_message_identifier="synthetic-message",
+            delivery_identity="synthetic-delivery",
+        )
+        duplicate_result = worker.receive(duplicate)
+        assert duplicate_result.deduplication_decision is DeduplicationDecision.DUPLICATE
+        assert service.count_messages() == 1
+        assert service.count_delivery_attempts() == 2
+
+        conflict = SyntheticMessageDelivery(
+            profile_id=profile.profile_id,
+            account_reference=account_reference,
+            participant_reference="synthetic-participant",
+            message_content="synthetic changed text",
+            received_at=now(),
+            platform_conversation_identifier="synthetic-conversation",
+            platform_message_identifier="synthetic-message",
+            delivery_identity="synthetic-delivery",
+        )
+        with pytest.raises(DeduplicationConflict):
+            worker.receive(conflict)
+        assert worker.state is WorkerLifecycleState.BLOCKED
+        assert service.count_messages() == 1
+        assert service.count_delivery_attempts() == 2
+
+        worker.reset()
+        worker.start()
+        indeterminate = SyntheticMessageDelivery(
+            profile_id=profile.profile_id,
+            account_reference=account_reference,
+            participant_reference="synthetic-participant",
+            message_content="synthetic no identity",
+            received_at=now(),
+        )
+        indeterminate_result = worker.receive(indeterminate)
+        assert (
+            indeterminate_result.deduplication_decision
+            is DeduplicationDecision.INDETERMINATE
+        )
+        assert service.count_messages() == 2
+        assert service.count_delivery_attempts() == 3
+
+        with pytest.raises(InvalidMessageInput):
+            SyntheticMessageDelivery(
+                profile_id=profile.profile_id,
+                account_reference=account_reference,
+                participant_reference="synthetic-participant",
+                message_content="   ",
+                received_at=now(),
+            )
+        assert worker.state is WorkerLifecycleState.RUNNING
+
+        cross_profile = SyntheticMessageDelivery(
+            profile_id="00000000-0000-4000-8000-999999999999",
+            account_reference=account_reference,
+            participant_reference="synthetic-participant",
+            message_content="synthetic cross profile",
+            received_at=now(),
+        )
+        with pytest.raises(ProfileOwnershipViolation):
+            worker.receive(cross_profile)
+        assert worker.state is WorkerLifecycleState.BLOCKED
+        assert service.count_messages() == 2
+        assert service.count_delivery_attempts() == 3
+
+        worker.reset()
+        worker.start()
+        worker.stop()
+        assert worker.state is WorkerLifecycleState.STOPPED
+        assert AUTOMATIC_RECONNECT_ATTEMPTS == 0
+        assert AUTOMATIC_PROCESSING_RETRIES == 0
+    finally:
+        dispose_database(resources)
 
 
-def test_message_capability_remains_planned_and_unimplemented() -> None:
+def test_message_capability_remains_planned_and_unbound_after_t6() -> None:
     registry = registry_by_id()
     account = registry[ACCOUNT_CAPABILITY]
     assert account["status"] == "verified"
@@ -180,7 +350,6 @@ def test_message_capability_remains_planned_and_unimplemented() -> None:
     message = registry[MESSAGE_CAPABILITY]
     assert message["status"] == "planned"
     assert message["owner_module"] == "worker.message"
-    assert message["specification"] == "specs/capabilities/CAP-XY-MESSAGE.md"
     assert message["implementation_paths"] == []
     assert message["test_paths"] == []
     assert message["active_change"] is None
@@ -191,22 +360,11 @@ def test_message_capability_remains_planned_and_unimplemented() -> None:
     ).read_text(encoding="utf-8")
     assert "without opening a real WebSocket" in message_spec
     assert "Status remains planned." in message_spec
+    assert MESSAGE_PACKAGE.is_dir()
+    assert MESSAGE_MIGRATION.is_file()
 
-    forbidden_message_paths = [
-        ROOT / "app" / "xianyu_system" / "worker" / "message.py",
-        ROOT / "app" / "xianyu_system" / "worker" / "message",
-        ROOT / "worker" / "message.py",
-        ROOT / "worker" / "message",
-    ]
-    assert not any(path.exists() for path in forbidden_message_paths)
-    assert not list((ROOT / "migrations" / "versions").glob("*message*"))
-
-    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
-    for forbidden in [
-        "Cookie=",
-        "Token=",
-        "Secret=",
-        "Password=",
-        "Session=",
-    ]:
-        assert forbidden not in env_example
+    script = ScriptDirectory.from_config(
+        __import__("xianyu_system.core.database", fromlist=["build_alembic_config"])
+        .build_alembic_config()
+    )
+    assert script.get_current_head() == "0003_xianyu_message_boundary"

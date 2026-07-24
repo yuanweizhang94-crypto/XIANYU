@@ -16,26 +16,22 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - T3 transport, authentication, and risk-control boundaries is complete.
 - T4 ordering, deduplication, and persistence boundaries is complete.
 - T5 worker ownership, lifecycle, and failure boundaries is complete.
-- T6 local synthetic message-receiving implementation is the next executable task.
-- `CAP-XY-MESSAGE` remains owned by `worker.message`.
-- The approved future package is `xianyu_system.worker.message`.
-- The approved future package path is `app/xianyu_system/worker/message/`.
-- The approved future modules are `domain.py`, `persistence.py`, `service.py`, `transport.py`, and `worker.py`.
-- The T6 Message Worker is local, synchronous, Profile-scoped, explicitly started, and explicitly stopped.
-- Worker Lifecycle States are `STOPPED`, `STARTING`, `RUNNING`, `STOPPING`, `BLOCKED`, and `FAILED`.
-- One Worker belongs to one exact Profile and Account Reference.
-- Only one delivery may be in flight per Worker.
-- The Message Service owns the logical transaction.
-- Repository methods may flush but must not independently commit.
-- Automatic reconnect attempts are zero.
-- Automatic processing retries are zero.
-- Package and Domain imports must perform no database, Worker, Credential, ORM-registration, Socket, or network side effect.
-- Security, ownership, authorization-boundary, risk-boundary, protocol-boundary, and Deduplication Conflict failures block the Worker.
-- Persistence and unexpected internal failures fail the Worker.
-- Stop is explicit and graceful.
-- `CAP-XY-MESSAGE` remains planned and unbound.
-- No CHG-0004 runtime implementation has started.
-- Completion of T5 does not authorize runtime code, ORM, database table, Migration, Repository, Service, Transport, Worker, WebSocket, network access, Ready-for-review, auto-merge, or merge.
+- T6 local synthetic message-receiving implementation is complete.
+- T7 dedicated unit, contract, security, and active-change acceptance tests is the next executable task.
+- The local package `xianyu_system.worker.message` now exists.
+- The implementation contains Domain, Persistence, Service, Transport-neutral delivery values, and a synchronous Message Worker.
+- Migration `0003_xianyu_message_boundary` creates Profile-scoped Conversation, Message, and Delivery Attempt tables.
+- NEW, DUPLICATE, INDETERMINATE, and CONFLICT boundaries are implemented.
+- Duplicate delivery creates no second Message Record.
+- Indeterminate delivery is not silently discarded.
+- Conflicting Delivery Identity fails closed and rolls back.
+- The Message Service owns transactions.
+- Repository methods do not independently commit.
+- The Worker remains local, synchronous, explicitly started, and explicitly stopped.
+- Automatic reconnect and processing retry counts remain zero.
+- No real WebSocket, network access, Credential Provider, real account access, customer-message access, message sending, API, Web UI, background thread, subprocess, or Scheduler is implemented.
+- `CAP-XY-MESSAGE` remains planned and unbound pending T8.
+- Completion of T6 does not authorize T7 in the same execution, Ready-for-review, auto-merge, or merge.
 
 ## Project goal
 

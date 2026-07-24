@@ -22,6 +22,12 @@ from xianyu_system.application import create_application
 from xianyu_system.core.config import ApplicationSettings
 from xianyu_system.core.database import get_current_revision, upgrade_database
 
+MESSAGE_TABLES = {
+    "xianyu_message_conversations",
+    "xianyu_message_records",
+    "xianyu_message_delivery_attempts",
+}
+
 EXPECTED_TOP_LEVEL = {"status", "service", "version", "environment", "database", "scheduler"}
 EXPECTED_DATABASE = {"status", "connected", "journal_mode"}
 EXPECTED_SCHEDULER = {"status", "running", "job_count", "timezone"}
@@ -230,8 +236,8 @@ def test_health_endpoint_does_not_run_migrations_or_write_database(tmp_path: Pat
         with resources.engine.connect() as connection:
             assert connection.execute(text("SELECT 1")).scalar_one() == 1
 
-    assert before_revision == after_revision == "0002_xianyu_account_boundary"
-    assert before_tables == after_tables == {"alembic_version", "xianyu_account_profiles"}
+    assert before_revision == after_revision == "0003_xianyu_message_boundary"
+    assert before_tables == after_tables == {"alembic_version", "xianyu_account_profiles", *MESSAGE_TABLES}
 
 
 def test_health_endpoint_does_not_modify_logger_handlers_or_scheduler_jobs(tmp_path: Path) -> None:

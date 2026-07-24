@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 5,
-    "next_task": "T6 Implement only the approved local message-receiving boundary",
+    "completed": 6,
+    "next_task": "T7 Add unit, contract, security, and active-change acceptance tests",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0004",
@@ -33,7 +33,7 @@
       },
       {
         "text": "T6 Implement only the approved local message-receiving boundary",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T7 Add unit, contract, security, and active-change acceptance tests",

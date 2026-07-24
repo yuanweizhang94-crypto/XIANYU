@@ -7,13 +7,15 @@ Change ID: CHG-0004-xianyu-message-boundary
 
 CHG-0004 remains approved for controlled, task-by-task execution.
 
-T1 through T5 are complete.
+T1 through T6 are complete.
 
-The canonical terminology and the transport, authentication, risk-control, ordering, deduplication, persistence, module ownership, Worker lifecycle, concurrency, transaction, failure, shutdown, observability, testing, and import-safety boundaries are approved.
+The local, synchronous, Profile-scoped, Synthetic Message receiving boundary is implemented.
 
-T6 is the next executable task.
+T7 is the next executable task.
 
-No runtime file, ORM model, database table, Migration file, Repository, Service, Transport implementation, Worker implementation, real WebSocket, network behavior, or capability binding has been created.
+CAP-XY-MESSAGE remains planned and unbound until T8.
+
+No real WebSocket, Endpoint, DNS, HTTP, external network behavior, Credential Provider, browser integration, background thread, subprocess, Scheduler Job, message sending, API, Web UI, capability binding, Ready-for-review, auto-merge, or merge has been created.
 
 ## Architecture context
 
@@ -1556,20 +1558,53 @@ T6 must be separately authorized against the exact T5 HEAD.
 
 ## Current implementation
 
-None.
+The local package `xianyu_system.worker.message` exists.
 
-No `worker.message` runtime package exists.
+The package contains exactly:
 
-No transport, WebSocket, message model, persistence model, Migration, background worker, API, or scheduler behavior is added.
+```text
+__init__.py
+domain.py
+persistence.py
+service.py
+transport.py
+worker.py
+```
+
+Migration `0003_xianyu_message_boundary` exists with parent `0002_xianyu_account_boundary`.
+
+The migration creates exactly these local Message tables:
+
+```text
+xianyu_message_conversations
+xianyu_message_records
+xianyu_message_delivery_attempts
+```
+
+The implementation provides:
+
+- pure Domain values and sanitized errors;
+- transport-neutral Synthetic Message Delivery values;
+- SQLAlchemy relational projection;
+- one concrete Message Repository;
+- Message Service transaction coordination;
+- a local, synchronous, explicitly started and stopped Message Worker;
+- NEW, DUPLICATE, INDETERMINATE, and CONFLICT handling;
+- complete rollback for conflicts and persistence failures;
+- one in-flight delivery per Worker;
+- zero automatic reconnect attempts;
+- zero automatic processing retries.
+
+No real WebSocket, Endpoint, DNS, HTTP, network access, Credential Provider, Cookie, Token, browser integration, background thread, subprocess, Scheduler Job, message sending, reply generation, API, Web UI, real account access, or real customer-data behavior is implemented.
 
 ## Execution boundary
 
-T1 through T5 are complete.
+T1 through T6 are complete.
 
-T6 is the next executable task.
+T7 is the next executable task.
 
-T6 must be performed in a separate execution.
+T7 must be performed in a separate execution.
 
-T5 approves Package, Module, Worker ownership, lifecycle, concurrency, transaction, failure, shutdown, observability, testing, and import-safety boundaries only.
+The local implementation exists, but CAP-XY-MESSAGE remains planned and unbound until T8.
 
-This execution does not authorize runtime code, ORM code, a database table, a Migration file, Repository, Service, Transport, Worker, WebSocket, network access, real message access, or capability binding.
+Real transport, external platform access, real Credential access, customer-message processing, message sending, Ready-for-review, auto-merge, and merge remain unauthorized.

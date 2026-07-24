@@ -15,13 +15,15 @@ Prepare a formally reviewable boundary for receiving Xianyu customer-inquiry mes
 
 The project owner approved CHG-0004 for controlled, one-task-at-a-time execution.
 
-T1 through T5 are complete.
+T1 through T6 are complete.
 
-The canonical terminology, transport, authentication, risk-control, ordering, deduplication, persistence, module ownership, Worker lifecycle, concurrency, transaction ownership, failure, shutdown, observability, and import-safety boundaries are approved.
+The local, synchronous, Profile-scoped, Synthetic Message receiving boundary is implemented.
 
-T6 is the next executable task and must be performed separately.
+T7 is the next executable task and must be performed separately.
 
-No runtime implementation, ORM model, database table, Migration file, Repository, Service, Transport implementation, Worker implementation, real WebSocket, external network access, real account access, real customer-message processing, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
+CAP-XY-MESSAGE remains planned and unbound until the separate capability evidence task.
+
+No real WebSocket, Endpoint, DNS, HTTP, external network access, Credential Provider, Cookie handling, Token handling, browser integration, background thread, subprocess, Scheduler Job, automatic retry, automatic reconnect, message sending, reply generation, API, Web UI, real account access, real customer-message processing, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
 
 ## T2 terminology outcome
 
@@ -133,6 +135,29 @@ No runtime implementation, ORM model, database table, Migration file, Repository
 - An in-flight transaction must complete successfully or fully roll back before the Worker becomes `STOPPED`.
 - T5 creates no runtime files.
 
+## T6 local implementation outcome
+
+- The local package `xianyu_system.worker.message` now exists at `app/xianyu_system/worker/message/`.
+- The package contains exactly `__init__.py`, `domain.py`, `persistence.py`, `service.py`, `transport.py`, and `worker.py`.
+- `domain.py` implements pure local Message domain values, sanitized errors, `DeduplicationDecision`, and `WorkerLifecycleState`.
+- `transport.py` implements transport-neutral `SyntheticMessageDelivery` only.
+- `persistence.py` implements SQLAlchemy table projections and one `MessageRepository`.
+- `service.py` implements `MessageService` and owns logical transaction commit and rollback.
+- `worker.py` implements a local, synchronous, Profile-scoped `MessageWorker` with explicit `start`, `stop`, and `reset`.
+- Migration `0003_xianyu_message_boundary` creates `xianyu_message_conversations`, `xianyu_message_records`, and `xianyu_message_delivery_attempts`.
+- NEW creates one Message Record and one Delivery Attempt.
+- DUPLICATE creates no second Message Record and records another Delivery Attempt.
+- INDETERMINATE creates a separate Message Record and is not silently discarded.
+- CONFLICT fails closed, rolls back, and overwrites nothing.
+- Platform Message Identifier alone is not a global deduplication key.
+- Message Content and content hashes are not deduplication keys.
+- The Message Worker allows one in-flight delivery per Worker.
+- Automatic reconnect attempts are zero.
+- Automatic processing retries are zero.
+- The implementation uses only Synthetic Message Fixtures and local SQLite/Alembic infrastructure.
+- T6 creates no real WebSocket, Endpoint, DNS, HTTP, external network access, Credential Provider, Cookie handling, Token handling, browser integration, background thread, subprocess, Scheduler Job, automatic retry, automatic reconnect, message sending, reply generation, API, Web UI, real account access, or real customer-data behavior.
+- T6 does not modify the Capability Registry or capability specification.
+
 ## Goals
 
 - Define canonical terminology for message events, conversations, delivery cursors, acknowledgements, and duplicate delivery.
@@ -190,14 +215,12 @@ No runtime implementation, ORM model, database table, Migration file, Repository
 
 ## Execution boundary
 
-Only one unfinished task may be executed at a time.
+T1 through T6 are complete.
 
-T1 through T5 are complete.
+T7 is the next executable task.
 
-T6 is the next executable task.
+T7 must be performed in a separate execution.
 
-T6 must not begin in the same execution.
+The local implementation exists, but CAP-XY-MESSAGE remains planned and unbound until T8.
 
-T5 approves Package, Module, Worker, lifecycle, concurrency, transaction, failure, shutdown, observability, testing, and import-safety boundaries only.
-
-This execution does not authorize runtime code, ORM code, a database table, a Migration file, Repository, Service, Transport, Worker, WebSocket, network access, real message access, or capability binding.
+Real transport, external platform access, real Credential access, customer-message processing, message sending, Ready-for-review, auto-merge, and merge remain unauthorized.

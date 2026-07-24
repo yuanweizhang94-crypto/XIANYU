@@ -37,6 +37,13 @@ from xianyu_system.core.database import (
     upgrade_database,
 )
 
+MESSAGE_TABLES = {
+    "xianyu_message_conversations",
+    "xianyu_message_records",
+    "xianyu_message_delivery_attempts",
+}
+BUSINESS_METADATA_TABLES = {"xianyu_account_profiles", *MESSAGE_TABLES}
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -193,7 +200,7 @@ def test_open_session_does_not_auto_commit() -> None:
 
 
 def test_base_metadata_is_empty_and_database_has_no_business_tables(tmp_path: Path) -> None:
-    assert set(Base.metadata.tables) <= {"xianyu_account_profiles"}
+    assert set(Base.metadata.tables) <= BUSINESS_METADATA_TABLES
     resources = initialize_database(tmp_path / "empty.db")
     try:
         with resources.engine.connect() as connection:
@@ -310,7 +317,7 @@ def test_get_current_revision_returns_none_before_migration(tmp_path: Path) -> N
     resources = initialize_database(tmp_path / "unmigrated.db")
     try:
         assert get_current_revision(resources) is None
-        assert set(Base.metadata.tables) <= {"xianyu_account_profiles"}
+        assert set(Base.metadata.tables) <= BUSINESS_METADATA_TABLES
     finally:
         dispose_database(resources)
 
