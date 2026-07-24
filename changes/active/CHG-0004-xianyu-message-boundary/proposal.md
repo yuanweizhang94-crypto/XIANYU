@@ -286,3 +286,7 @@ The follow-up completes remaining permanent evidence gates without changing test
 The follow-up adds complete Check Constraint name and SQL-semantics evidence, reflected Foreign Key referred-column and `RESTRICT` evidence, Migration source restrictions, Alembic CLI upgrade evidence, offline SQL evidence, remaining Profile/Account/Delivery Identity/Attempt constraint cases, actual lazy public package resolution, a complete isolated Worker security flow, and per-file UTF-8/Synthetic Fixture/sensitive-data/cleanup escape-hatch scans.
 
 No Runtime, Migration, Registry, Capability Specification, dependency, CI, `tasks.md`, or `generated/PROJECT_STATE.json` file was modified by this follow-up. `CAP-XY-MESSAGE` remains planned and unbound.
+
+## T7 exact contract evidence completion authorization and result
+
+The project owner authorized a final T7 corrective evidence completion before T8. This correction is limited to permanent test evidence and governance documentation. It closes direct database constraint evidence gaps, isolated Worker row-count evidence gaps, offline SQL sensitive-output scanning, and per-file sensitive-data scan coverage while keeping CHG-0004 APPROVED, tasks at 7 / 9, and T8 not started.

@@ -159,6 +159,12 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
     ).read_text(encoding="utf-8")
     for required in [
         "MessageRepository",
+        "def assert_integrity_failure(",
+        "synthetic-second-account-reference",
+        "offline_sql",
+        "http://",
+        "https://",
+        "customer data",
         "get_foreign_keys",
         "get_unique_constraints",
         "get_check_constraints",
@@ -212,6 +218,15 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
         "DeduplicationConflict",
         "worker.reset()",
         "worker.stop()",
+        "before_content_conflict",
+        "after_content_conflict",
+        "before_conversation_conflict",
+        "after_conversation_conflict",
+        '"attempts"',
+        "plus_phone",
+        "long_number",
+        "credential_patterns",
+        "forbidden_phrases",
         "read_bytes",
         'decode("utf-8")',
     ]:

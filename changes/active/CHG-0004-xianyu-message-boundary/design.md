@@ -1682,3 +1682,7 @@ Security evidence now verifies initially unloaded public package state and actua
 Dedicated Message test files and active acceptance evidence are now checked independently for UTF-8 decoding, absence of BOM, Synthetic Fixtures, sensitive value patterns, customer data, and cleanup escape hatches.
 
 No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified.
+
+## T7 exact contract evidence completion record
+
+The exact T7 evidence completion keeps the approved runtime, schema, migration, registry, capability specification, dependencies, and CI unchanged. Persistence contract evidence now isolates each expected IntegrityError in a fresh Connection and Transaction, directly covers empty, blank, padded, over-limit, unknown-enum, scoped Delivery Identity, duplicate Attempt Number, and nullable-value cases, and scans offline SQL for external URL, Credential, browser-profile, and customer-data text. Security contract evidence now records row counts before and after both isolated conflict paths and verifies final isolated counts of one Conversation, two Messages, and three Delivery Attempts. Dedicated Message evidence files are scanned for email-like, plus-phone, standalone long-number, Credential-like, customer-data, raw-frame, production-account, live-account, real-account, and cleanup escape-hatch patterns.

@@ -462,3 +462,17 @@ CHG-0003 final PR administration is complete.
 - Every dedicated Message test file and active acceptance test is independently checked for UTF-8 decoding, absence of BOM, Synthetic Fixtures, sensitive value patterns, customer data, and cleanup escape hatches.
 - No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified by the final T7 evidence follow-up.
 - Tasks remain 7 / 9, T8 was not started, and `CAP-XY-MESSAGE` remains planned and unbound.
+
+## CHG-0004 T7 exact evidence completion
+
+- The final T7 correction closes the remaining direct database and isolated security evidence gaps.
+- Every expected database failure is isolated in its own Connection and Transaction.
+- Empty, blank, padded, over-limit, unknown-enum, ownership, scoped-identity, and Attempt-number cases are directly enforced.
+- The same Delivery Identity is verified as valid for the same Profile under a different Account scope.
+- Offline SQL is scanned for external URL, Credential, browser, and customer-data text.
+- Both isolated conflict paths preserve Conversation, Message, and Delivery Attempt counts.
+- Per-file security scans include plus-phone, standalone long-number, Credential-like, customer-data, raw-frame, production-account, and live-account patterns.
+- Permanent test count remains 42.
+- Full collection remains 322.
+- Tasks remain 7 / 9.
+- T8 remains separately authorized and has not started.

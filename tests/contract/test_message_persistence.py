@@ -73,6 +73,32 @@ def count_rows(resources, table_name: str) -> int:
         return int(connection.execute(text(f"SELECT COUNT(*) FROM {table_name}")).scalar_one())
 
 
+def count_where(resources, table_name: str, where_sql: str, parameters: dict[str, object]) -> int:
+    with resources.engine.connect() as connection:
+        return int(
+            connection.execute(
+                text(f"SELECT COUNT(*) FROM {table_name} WHERE {where_sql}"),
+                parameters,
+            ).scalar_one()
+        )
+
+
+def assert_integrity_failure(
+    resources,
+    sql: str,
+    parameters: dict[str, object] | None = None,
+) -> None:
+    connection = resources.engine.connect()
+    transaction = connection.begin()
+    try:
+        with pytest.raises(IntegrityError):
+            connection.execute(text(sql), parameters or {})
+    finally:
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()
+
+
 def column_map(inspector, table_name: str) -> dict[str, dict[str, object]]:
     return {str(column["name"]): column for column in inspector.get_columns(table_name)}
 
@@ -487,6 +513,23 @@ def test_message_migration_is_single_linear_head_and_matches_projection(
     assert not offline_database_path.exists()
     offline_sql = offline_result.stdout.lower()
     assert "0003_xianyu_message_boundary" in offline_sql
+    message_offline_sql = offline_sql[offline_sql.index("0003_xianyu_message_boundary") :]
+    for forbidden in [
+        "http://",
+        "https://",
+        "ws://",
+        "wss://",
+        "cookie",
+        "token",
+        "secret",
+        "authorization",
+        "credential",
+        "browser profile",
+        "user-data-dir",
+        "customer message",
+        "customer data",
+    ]:
+        assert forbidden not in message_offline_sql
     for table_name in MESSAGE_TABLES:
         assert f"create table {table_name}".lower() in offline_sql
     unexpected = [
@@ -769,352 +812,322 @@ def test_database_constraints_enforce_scope_lengths_decisions_and_attempt_number
         )
         assert nullable_platform.deduplication_decision is DeduplicationDecision.NEW
         assert count_rows(resources, MESSAGE_TABLE) == 5
+
         with resources.engine.begin() as connection:
             conversation_id = connection.execute(
                 text(
                     "SELECT conversation_id FROM xianyu_message_conversations "
-                    "WHERE account_reference = 'synthetic-account-reference' LIMIT 1"
-                )
+                    "WHERE account_reference = :account_reference LIMIT 1"
+                ),
+                {"account_reference": "synthetic-account-reference"},
             ).scalar_one()
             message_id = connection.execute(
                 text(
                     "SELECT message_id FROM xianyu_message_records "
-                    "WHERE delivery_identity = 'synthetic-delivery' "
-                    "AND account_reference = 'synthetic-account-reference' LIMIT 1"
-                )
+                    "WHERE delivery_identity = :delivery_identity "
+                    "AND account_reference = :account_reference LIMIT 1"
+                ),
+                {
+                    "delivery_identity": "synthetic-delivery",
+                    "account_reference": "synthetic-account-reference",
+                },
             ).scalar_one()
-            assert (
-                connection.execute(
-                    text(
-                        "SELECT COUNT(*) FROM xianyu_message_records "
-                        "WHERE delivery_identity = 'synthetic-delivery'"
-                    )
-                ).scalar_one()
-                == 2
-            )
-            assert (
-                connection.execute(
-                    text(
-                        "SELECT COUNT(*) FROM xianyu_message_records "
-                        "WHERE platform_message_identifier IS NULL"
-                    )
-                ).scalar_one()
-                >= 1
-            )
             connection.execute(
                 text(
                     "INSERT INTO xianyu_message_delivery_attempts "
                     "(delivery_attempt_id, message_id, profile_id, "
                     "account_reference, attempted_at, outcome_class, "
                     "reason_code, attempt_number, correlation_identifier) VALUES "
-                    "('00000000-0000-4000-8000-000000009000', "
-                    f"'{message_id}', '{profile.profile_id}', "
-                    "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                    "'DUPLICATE', NULL, 2, NULL)"
-                )
+                    "(:delivery_attempt_id, :message_id, :profile_id, "
+                    ":account_reference, :attempted_at, :outcome_class, "
+                    ":reason_code, :attempt_number, :correlation_identifier)"
+                ),
+                {
+                    "delivery_attempt_id": "00000000-0000-4000-8000-000000009000",
+                    "message_id": message_id,
+                    "profile_id": profile.profile_id,
+                    "account_reference": "synthetic-account-reference",
+                    "attempted_at": "2026-01-01 00:00:00",
+                    "outcome_class": "DUPLICATE",
+                    "reason_code": None,
+                    "attempt_number": 2,
+                    "correlation_identifier": None,
+                },
             )
-            assert (
-                connection.execute(
-                    text(
-                        "SELECT COUNT(*) FROM xianyu_message_delivery_attempts "
-                        "WHERE reason_code IS NULL AND correlation_identifier IS NULL"
-                    )
-                ).scalar_one()
-                == 1
+            connection.execute(
+                text(
+                    "INSERT INTO xianyu_message_conversations "
+                    "(conversation_id, profile_id, account_reference, "
+                    "platform_conversation_identifier, created_at) VALUES "
+                    "(:conversation_id, :profile_id, :account_reference, "
+                    ":platform_conversation_identifier, :created_at)"
+                ),
+                {
+                    "conversation_id": "00000000-0000-4000-8000-000000008201",
+                    "profile_id": profile.profile_id,
+                    "account_reference": "synthetic-second-account-reference",
+                    "platform_conversation_identifier": "synthetic-second-account-conversation",
+                    "created_at": "2026-01-01 00:00:00",
+                },
             )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_conversations "
-                        "(conversation_id, profile_id, account_reference, created_at) "
-                        "VALUES ('00000000-0000-4000-8000-000000009101', "
-                        f"'{profile.profile_id}', "
-                        "'   ', '2026-01-01 00:00:00')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_conversations "
-                        "(conversation_id, profile_id, account_reference, "
-                        "platform_conversation_identifier, created_at) "
-                        "VALUES ('00000000-0000-4000-8000-000000009102', "
-                        f"'{profile.profile_id}', 'synthetic-account-reference', "
-                        "'   ', '2026-01-01 00:00:00')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_conversations "
-                        "(conversation_id, profile_id, account_reference, created_at) "
-                        "VALUES ('00000000-0000-4000-8000-000000009001', "
-                        "'00000000-0000-4000-8000-000000009999', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "participant_reference, message_content, received_at, "
-                        "deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009103', "
-                        f"'{conversation_id}', '{profile.profile_id}', "
-                        "'   ', 'synthetic-participant', "
-                        "'synthetic content', '2026-01-01 00:00:00', 'NEW')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "participant_reference, message_content, received_at, "
-                        "deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009002', "
-                        f"'{conversation_id}', '{profile.profile_id}', "
-                        "'synthetic-wrong-account', 'synthetic-participant', "
-                        "'synthetic content', '2026-01-01 00:00:00', 'NEW')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "participant_reference, message_content, received_at, "
-                        "deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009104', "
-                        f"'{conversation_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '   ', "
-                        "'synthetic content', '2026-01-01 00:00:00', 'NEW')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "participant_reference, message_content, received_at, "
-                        "deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009105', "
-                        f"'{conversation_id}', '{profile.profile_id}', "
-                        f"'synthetic-account-reference', '{('p' * 513)}', "
-                        "'synthetic content', '2026-01-01 00:00:00', 'NEW')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "participant_reference, message_content, received_at, "
-                        "deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009003', "
-                        f"'{conversation_id}', '{other_profile.profile_id}', "
-                        "'synthetic-account-reference', 'synthetic-participant', "
-                        "'synthetic content', '2026-01-01 00:00:00', 'NEW')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "platform_message_identifier, participant_reference, "
-                        "message_content, received_at, deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009106', "
-                        f"'{conversation_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '   ', "
-                        "'synthetic-participant', 'synthetic content', "
-                        "'2026-01-01 00:00:00', 'NEW')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "delivery_identity, participant_reference, message_content, "
-                        "received_at, deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009107', "
-                        f"'{conversation_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '   ', "
-                        "'synthetic-participant', 'synthetic content', "
-                        "'2026-01-01 00:00:00', 'NEW')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "participant_reference, message_content, received_at, "
-                        "deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009004', "
-                        f"'{conversation_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', 'synthetic-participant', "
-                        "'   ', '2026-01-01 00:00:00', 'NEW')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "participant_reference, message_content, received_at, "
-                        "deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009005', "
-                        f"'{conversation_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', 'synthetic-participant', "
-                        f"'{('x' * 4097)}', '2026-01-01 00:00:00', 'NEW')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_records "
-                        "(message_id, conversation_id, profile_id, account_reference, "
-                        "participant_reference, message_content, received_at, "
-                        "deduplication_decision) VALUES "
-                        "('00000000-0000-4000-8000-000000009006', "
-                        f"'{conversation_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', 'synthetic-participant', "
-                        "'synthetic content', '2026-01-01 00:00:00', 'DUPLICATE')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "attempt_number) VALUES "
-                        "('00000000-0000-4000-8000-000000009007', "
-                        f"'{message_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                        "'CONFLICT', 2)"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "attempt_number) VALUES "
-                        "('00000000-0000-4000-8000-000000009108', "
-                        f"'{message_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                        "'DUPLICATE', -1)"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "attempt_number) VALUES "
-                        "('00000000-0000-4000-8000-000000009008', "
-                        f"'{message_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                        "'DUPLICATE', 0)"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "attempt_number) VALUES "
-                        "('00000000-0000-4000-8000-000000009109', "
-                        f"'{message_id}', '{other_profile.profile_id}', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                        "'DUPLICATE', 3)"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "attempt_number) VALUES "
-                        "('00000000-0000-4000-8000-000000009110', "
-                        f"'{message_id}', '{profile.profile_id}', "
-                        "'synthetic-wrong-account', '2026-01-01 00:00:00', "
-                        "'DUPLICATE', 3)"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "reason_code, attempt_number) VALUES "
-                        "('00000000-0000-4000-8000-000000009111', "
-                        f"'{message_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                        f"'DUPLICATE', '{('r' * 65)}', 3)"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "reason_code, attempt_number) VALUES "
-                        "('00000000-0000-4000-8000-000000009112', "
-                        f"'{message_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                        "'DUPLICATE', '   ', 3)"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "attempt_number, correlation_identifier) VALUES "
-                        "('00000000-0000-4000-8000-000000009113', "
-                        f"'{message_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                        f"'DUPLICATE', 3, '{('c' * 129)}')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "attempt_number, correlation_identifier) VALUES "
-                        "('00000000-0000-4000-8000-000000009114', "
-                        f"'{message_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                        "'DUPLICATE', 3, '   ')"
-                    )
-                )
-            with pytest.raises(IntegrityError):
-                connection.execute(
-                    text(
-                        "INSERT INTO xianyu_message_delivery_attempts "
-                        "(delivery_attempt_id, message_id, profile_id, "
-                        "account_reference, attempted_at, outcome_class, "
-                        "attempt_number) VALUES "
-                        "('00000000-0000-4000-8000-000000009115', "
-                        f"'{message_id}', '{profile.profile_id}', "
-                        "'synthetic-account-reference', '2026-01-01 00:00:00', "
-                        "'DUPLICATE', 2)"
-                    )
-                )
+            connection.execute(
+                text(
+                    "INSERT INTO xianyu_message_records "
+                    "(message_id, conversation_id, profile_id, account_reference, "
+                    "platform_message_identifier, delivery_identity, "
+                    "participant_reference, message_content, received_at, "
+                    "platform_timestamp, deduplication_decision) VALUES "
+                    "(:message_id, :conversation_id, :profile_id, :account_reference, "
+                    ":platform_message_identifier, :delivery_identity, "
+                    ":participant_reference, :message_content, :received_at, "
+                    ":platform_timestamp, :deduplication_decision)"
+                ),
+                {
+                    "message_id": "00000000-0000-4000-8000-000000008202",
+                    "conversation_id": "00000000-0000-4000-8000-000000008201",
+                    "profile_id": profile.profile_id,
+                    "account_reference": "synthetic-second-account-reference",
+                    "platform_message_identifier": "synthetic-second-account-message",
+                    "delivery_identity": "synthetic-delivery",
+                    "participant_reference": "synthetic-second-account-participant",
+                    "message_content": "synthetic same profile different account content",
+                    "received_at": "2026-01-01 00:00:00",
+                    "platform_timestamp": "2026-01-01 00:00:00",
+                    "deduplication_decision": "NEW",
+                },
+            )
+
+        assert count_where(
+            resources,
+            MESSAGE_TABLE,
+            "profile_id = :profile_id AND delivery_identity = :delivery_identity",
+            {"profile_id": profile.profile_id, "delivery_identity": "synthetic-delivery"},
+        ) == 2
+        assert count_where(
+            resources,
+            MESSAGE_TABLE,
+            "profile_id = :profile_id AND account_reference = :account_reference "
+            "AND delivery_identity = :delivery_identity",
+            {
+                "profile_id": profile.profile_id,
+                "account_reference": "synthetic-account-reference",
+                "delivery_identity": "synthetic-delivery",
+            },
+        ) == 1
+        assert count_where(
+            resources,
+            MESSAGE_TABLE,
+            "profile_id = :profile_id AND account_reference = :account_reference "
+            "AND delivery_identity = :delivery_identity",
+            {
+                "profile_id": profile.profile_id,
+                "account_reference": "synthetic-second-account-reference",
+                "delivery_identity": "synthetic-delivery",
+            },
+        ) == 1
+        assert count_where(
+            resources,
+            MESSAGE_TABLE,
+            "delivery_identity = :delivery_identity",
+            {"delivery_identity": "synthetic-delivery"},
+        ) == 3
+        assert count_where(
+            resources,
+            MESSAGE_TABLE,
+            "platform_message_identifier IS NULL",
+            {},
+        ) >= 1
+        assert count_where(
+            resources,
+            ATTEMPT_TABLE,
+            "reason_code IS NULL AND correlation_identifier IS NULL",
+            {},
+        ) == 1
+
+        conversation_insert = (
+            "INSERT INTO xianyu_message_conversations "
+            "(conversation_id, profile_id, account_reference, "
+            "platform_conversation_identifier, created_at) VALUES "
+            "(:conversation_id, :profile_id, :account_reference, "
+            ":platform_conversation_identifier, :created_at)"
+        )
+        message_insert = (
+            "INSERT INTO xianyu_message_records "
+            "(message_id, conversation_id, profile_id, account_reference, "
+            "platform_message_identifier, delivery_identity, participant_reference, "
+            "message_content, received_at, platform_timestamp, "
+            "deduplication_decision) VALUES "
+            "(:message_id, :conversation_id, :profile_id, :account_reference, "
+            ":platform_message_identifier, :delivery_identity, :participant_reference, "
+            ":message_content, :received_at, :platform_timestamp, "
+            ":deduplication_decision)"
+        )
+        attempt_insert = (
+            "INSERT INTO xianyu_message_delivery_attempts "
+            "(delivery_attempt_id, message_id, profile_id, account_reference, "
+            "attempted_at, outcome_class, reason_code, attempt_number, "
+            "correlation_identifier) VALUES "
+            "(:delivery_attempt_id, :message_id, :profile_id, :account_reference, "
+            ":attempted_at, :outcome_class, :reason_code, :attempt_number, "
+            ":correlation_identifier)"
+        )
+
+        def conversation_params(
+            suffix: str,
+            *,
+            account_reference: str = "synthetic-account-reference",
+            platform_conversation_identifier: str | None = "synthetic-extra-conversation",
+            profile_id: str = profile.profile_id,
+        ) -> dict[str, object]:
+            return {
+                "conversation_id": f"00000000-0000-4000-8000-00000001{suffix}",
+                "profile_id": profile_id,
+                "account_reference": account_reference,
+                "platform_conversation_identifier": platform_conversation_identifier,
+                "created_at": "2026-01-01 00:00:00",
+            }
+
+        def message_params(
+            suffix: str,
+            *,
+            account_reference: str = "synthetic-account-reference",
+            profile_id: str = profile.profile_id,
+            conversation: str = str(conversation_id),
+            platform_message_identifier: str | None = "synthetic-extra-message",
+            delivery_identity: str | None = "synthetic-extra-delivery",
+            participant_reference: str = "synthetic-participant",
+            message_content: str = "synthetic content",
+            deduplication_decision: str = "NEW",
+        ) -> dict[str, object]:
+            return {
+                "message_id": f"00000000-0000-4000-8000-00000002{suffix}",
+                "conversation_id": conversation,
+                "profile_id": profile_id,
+                "account_reference": account_reference,
+                "platform_message_identifier": platform_message_identifier,
+                "delivery_identity": delivery_identity,
+                "participant_reference": participant_reference,
+                "message_content": message_content,
+                "received_at": "2026-01-01 00:00:00",
+                "platform_timestamp": "2026-01-01 00:00:00",
+                "deduplication_decision": deduplication_decision,
+            }
+
+        def attempt_params(
+            suffix: str,
+            *,
+            account_reference: str = "synthetic-account-reference",
+            profile_id: str = profile.profile_id,
+            message: str = str(message_id),
+            outcome_class: str = "DUPLICATE",
+            reason_code: str | None = "synthetic-reason",
+            attempt_number: int = 3,
+            correlation_identifier: str | None = "synthetic-correlation",
+        ) -> dict[str, object]:
+            return {
+                "delivery_attempt_id": f"00000000-0000-4000-8000-00000003{suffix}",
+                "message_id": message,
+                "profile_id": profile_id,
+                "account_reference": account_reference,
+                "attempted_at": "2026-01-01 00:00:00",
+                "outcome_class": outcome_class,
+                "reason_code": reason_code,
+                "attempt_number": attempt_number,
+                "correlation_identifier": correlation_identifier,
+            }
+
+        # Conversation Account Reference direct failures.
+        assert_integrity_failure(
+            resources,
+            conversation_insert,
+            conversation_params("0101", account_reference=""),
+        )
+        assert_integrity_failure(
+            resources,
+            conversation_insert,
+            conversation_params("0102", account_reference="   "),
+        )
+        assert_integrity_failure(
+            resources,
+            conversation_insert,
+            conversation_params("0103", account_reference=" padded "),
+        )
+        assert_integrity_failure(
+            resources,
+            conversation_insert,
+            conversation_params(
+                "0104",
+                platform_conversation_identifier="   ",
+            ),
+        )
+        assert_integrity_failure(
+            resources,
+            conversation_insert,
+            conversation_params("0105", profile_id="00000000-0000-4000-8000-000000009999"),
+        )
+
+        # Message Account, Participant, Content, and Decision direct failures.
+        assert_integrity_failure(resources, message_insert, message_params("0101", account_reference=""))
+        assert_integrity_failure(resources, message_insert, message_params("0102", account_reference="   "))
+        assert_integrity_failure(resources, message_insert, message_params("0103", account_reference=" padded "))
+        assert_integrity_failure(resources, message_insert, message_params("0104", account_reference="synthetic-wrong-account"))
+        assert_integrity_failure(resources, message_insert, message_params("0105", profile_id=other_profile.profile_id))
+        assert_integrity_failure(resources, message_insert, message_params("0106", participant_reference=""))
+        assert_integrity_failure(resources, message_insert, message_params("0107", participant_reference="   "))
+        assert_integrity_failure(resources, message_insert, message_params("0108", participant_reference=" padded "))
+        assert_integrity_failure(resources, message_insert, message_params("0109", participant_reference="p" * 513))
+        assert_integrity_failure(resources, message_insert, message_params("0110", platform_message_identifier="   "))
+        assert_integrity_failure(resources, message_insert, message_params("0111", delivery_identity="   "))
+        assert_integrity_failure(resources, message_insert, message_params("0112", message_content=""))
+        assert_integrity_failure(resources, message_insert, message_params("0113", message_content="   "))
+        assert_integrity_failure(resources, message_insert, message_params("0114", message_content="x" * 4097))
+        assert_integrity_failure(resources, message_insert, message_params("0115", deduplication_decision="DUPLICATE"))
+        assert_integrity_failure(resources, message_insert, message_params("0116", deduplication_decision="CONFLICT"))
+        assert_integrity_failure(resources, message_insert, message_params("0117", deduplication_decision="UNKNOWN"))
+
+        before_duplicate_identity = count_rows(resources, MESSAGE_TABLE)
+        assert_integrity_failure(
+            resources,
+            message_insert,
+            message_params(
+                "0118",
+                platform_message_identifier="synthetic-duplicate-scoped-message",
+                delivery_identity="synthetic-delivery",
+            ),
+        )
+        assert count_rows(resources, MESSAGE_TABLE) == before_duplicate_identity
+        assert count_where(
+            resources,
+            MESSAGE_TABLE,
+            "profile_id = :profile_id AND account_reference = :account_reference "
+            "AND delivery_identity = :delivery_identity",
+            {
+                "profile_id": profile.profile_id,
+                "account_reference": "synthetic-account-reference",
+                "delivery_identity": "synthetic-delivery",
+            },
+        ) == 1
+
+        # Attempt Account, Outcome, Number, Reason, Correlation, and scope failures.
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0101", account_reference=""))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0102", account_reference="   "))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0103", account_reference=" padded "))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0104", outcome_class="CONFLICT"))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0105", outcome_class="UNKNOWN"))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0106", attempt_number=0))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0107", attempt_number=-1))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0108", profile_id=other_profile.profile_id))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0109", account_reference="synthetic-wrong-account"))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0110", reason_code=" padded "))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0111", reason_code="   "))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0112", reason_code="r" * 65))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0113", correlation_identifier=" padded "))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0114", correlation_identifier="   "))
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0115", correlation_identifier="c" * 129))
+
+        before_duplicate_attempt = count_rows(resources, ATTEMPT_TABLE)
+        assert_integrity_failure(resources, attempt_insert, attempt_params("0116", attempt_number=2))
+        assert count_rows(resources, ATTEMPT_TABLE) == before_duplicate_attempt
     finally:
         dispose_database(resources)
 

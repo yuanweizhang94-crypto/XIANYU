@@ -167,6 +167,7 @@ import socket
 import subprocess
 import threading
 from datetime import UTC, datetime
+from sqlalchemy import text
 
 blocked_calls = []
 
@@ -212,6 +213,35 @@ try:
         service=service,
     )
 
+    def row_counts():
+        with resources.engine.connect() as connection:
+            return {{
+                "conversations": int(
+                    connection.execute(
+                        text(
+                            "SELECT COUNT(*) "
+                            "FROM xianyu_message_conversations"
+                        )
+                    ).scalar_one()
+                ),
+                "messages": int(
+                    connection.execute(
+                        text(
+                            "SELECT COUNT(*) "
+                            "FROM xianyu_message_records"
+                        )
+                    ).scalar_one()
+                ),
+                "attempts": int(
+                    connection.execute(
+                        text(
+                            "SELECT COUNT(*) "
+                            "FROM xianyu_message_delivery_attempts"
+                        )
+                    ).scalar_one()
+                ),
+            }}
+
     def synthetic_delivery(**overrides):
         values = dict(
             profile_id=profile.profile_id,
@@ -243,13 +273,16 @@ try:
         )
     )
     content_conflict_blocked = False
+    before_content_conflict = row_counts()
     try:
         worker.receive(synthetic_delivery(message_content="synthetic changed content"))
     except DeduplicationConflict:
         content_conflict_blocked = worker.state is WorkerLifecycleState.BLOCKED
+    after_content_conflict = row_counts()
     worker.reset()
     worker.start()
     conversation_conflict_blocked = False
+    before_conversation_conflict = row_counts()
     try:
         worker.receive(
             synthetic_delivery(
@@ -258,6 +291,7 @@ try:
         )
     except DeduplicationConflict:
         conversation_conflict_blocked = worker.state is WorkerLifecycleState.BLOCKED
+    after_conversation_conflict = row_counts()
     worker.reset()
     worker.start()
     worker.stop()
@@ -271,7 +305,13 @@ try:
         "indeterminate_created_message": indeterminate_result.created_message,
         "content_conflict_blocked": content_conflict_blocked,
         "conversation_conflict_blocked": conversation_conflict_blocked,
+        "before_content_conflict": before_content_conflict,
+        "after_content_conflict": after_content_conflict,
+        "before_conversation_conflict": before_conversation_conflict,
+        "after_conversation_conflict": after_conversation_conflict,
+        "conversations": row_counts()["conversations"],
         "messages": service.count_messages(),
+        "attempts": row_counts()["attempts"],
         "worker_state": worker.state.value,
     }}))
 finally:
@@ -288,7 +328,21 @@ finally:
     assert report["indeterminate_created_message"] is True
     assert report["content_conflict_blocked"] is True
     assert report["conversation_conflict_blocked"] is True
+    assert report["before_content_conflict"] == report["after_content_conflict"]
+    assert report["before_conversation_conflict"] == report["after_conversation_conflict"]
+    assert report["before_content_conflict"] == {
+        "conversations": 1,
+        "messages": 2,
+        "attempts": 3,
+    }
+    assert report["after_conversation_conflict"] == {
+        "conversations": 1,
+        "messages": 2,
+        "attempts": 3,
+    }
+    assert report["conversations"] == 1
     assert report["messages"] == 2
+    assert report["attempts"] == 3
     assert report["worker_state"] == "STOPPED"
     assert report["new_decision"] == DeduplicationDecision.NEW.value
     assert report["duplicate_decision"] == DeduplicationDecision.DUPLICATE.value
@@ -367,11 +421,44 @@ def test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_
         "Credential " + "Store",
     ]:
         assert forbidden not in combined
+    credential_patterns = [
+        r"(?i)(password|authorization|api[_-]?key)\s*[:=]",
+        r"(?i)(token|secret|credential)\s*[:=]",
+    ]
+    forbidden_phrases = [
+        "real " + "customer",
+        "customer " + "message",
+        "customer " + "data",
+        "raw" + "_frame",
+        "production" + "-account",
+        "production" + " account",
+        "live" + "-account",
+        "live" + " account",
+        "real" + "-account",
+        "real" + " account",
+    ]
     for path, source in decoded_by_path.items():
-        assert re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", source) is None, path
-        assert re.search(r"\b1[3-9]\d{9}\b", source) is None, path
-        assert re.search(
-            r"(?i)(password|authorization|api[_-]?key)\s*[:=]",
-            source,
-        ) is None, path
-        assert "real " + "customer data" not in source
+        scan_source = "\n".join(
+            line
+            for line in source.splitlines()
+            if '"customer data"' not in line
+            and '"customer message"' not in line
+            and '"raw_frame"' not in line
+            and '"production-account"' not in line
+            and '"live-account"' not in line
+            and '"real-account"' not in line
+        )
+        email_like = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", scan_source)
+        plus_phone = re.search(r"(?<!\w)\+\d{8,15}(?!\w)", scan_source)
+        long_number = re.search(r"(?<![-\w])\d{12,}(?![-\w])", scan_source)
+        assert email_like is None, path
+        assert plus_phone is None, path
+        assert long_number is None, path
+        assert re.search(r"\b1[3-9]\d{9}\b", scan_source) is None, path
+        for credential_pattern in credential_patterns:
+            assert re.search(credential_pattern, scan_source) is None, (
+                path,
+                credential_pattern,
+            )
+        for forbidden_phrase in forbidden_phrases:
+            assert forbidden_phrase not in scan_source, (path, forbidden_phrase)

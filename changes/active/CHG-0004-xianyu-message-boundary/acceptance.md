@@ -150,3 +150,29 @@ This execution does not authorize real WebSocket access, external network access
 103. Test counts remain unchanged: 42 permanent Message tests, three Import Safety tests, four active acceptance tests, and 322 full collection.
 104. No Runtime, Migration, Registry, Capability Specification, dependency, CI, task count, or generated project state file is modified.
 105. T8 remains the next executable task and is not started.
+
+## T7 exact contract evidence completion acceptance criteria
+
+106. Every expected database IntegrityError case is isolated in its own Connection and Transaction.
+107. Empty, blank, and padded Conversation Account References are rejected.
+108. Empty, blank, and padded Message Account References are rejected.
+109. Empty, blank, and padded Attempt Account References are rejected.
+110. Empty, blank, padded, and over-limit Participant References are rejected.
+111. Empty, blank, and over-limit Message Content is rejected.
+112. DUPLICATE, CONFLICT, and unknown persisted decisions are rejected.
+113. CONFLICT and unknown Attempt outcomes are rejected.
+114. Zero and negative Attempt numbers are rejected.
+115. Blank, padded, and over-limit Reason Codes are rejected.
+116. Blank, padded, and over-limit Correlation Identifiers are rejected.
+117. Duplicate Delivery Identity is directly rejected in the same Profile and Account.
+118. The same Delivery Identity is directly allowed for the same Profile in another Account.
+119. Duplicate Attempt Number is directly rejected.
+120. Offline SQL contains no external URL, Credential, browser-profile, or customer-data text.
+121. The isolated Content Conflict preserves Conversation, Message, and Attempt counts.
+122. The isolated Conversation Conflict preserves Conversation, Message, and Attempt counts.
+123. The isolated final row counts are one Conversation, two Messages, and three Attempts.
+124. Every dedicated Message evidence file is checked for plus-phone and standalone long-number values.
+125. Every dedicated Message evidence file is checked for Credential-like values.
+126. Every dedicated Message evidence file is checked for real-customer, customer-message, customer-data, raw-frame, production-account, live-account, and real-account text.
+127. Test counts remain 42 permanent Message tests and 322 total tests.
+128. Tasks remain 7 / 9 and T8 remains incomplete.
