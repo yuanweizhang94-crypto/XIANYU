@@ -3,77 +3,80 @@
 Status: APPROVED
 Change ID: CHG-0004-xianyu-message-boundary
 
-## T4 acceptance criteria
+## T5 acceptance criteria
 
 1. CHG-0002 and CHG-0003 remain archived.
 2. Their historical tests remain preserved.
 3. CHG-0004 remains the only active change.
 4. CHG-0004 remains APPROVED in proposal, design, tasks, and acceptance.
-5. T1 through T4 are complete.
-6. T5-T9 remain incomplete.
-7. generated/PROJECT_STATE.json reports four completed tasks.
-8. generated/PROJECT_STATE.json reports `T5 Approve worker ownership, lifecycle, and failure boundaries` as `next_task`.
+5. T1 through T5 are complete.
+6. T6-T9 remain incomplete.
+7. generated/PROJECT_STATE.json reports five completed tasks.
+8. generated/PROJECT_STATE.json reports `T6 Implement only the approved local message-receiving boundary` as `next_task`.
 9. All T2 terminology remains present.
 10. All thirteen T2 terminology invariants remain present.
 11. All T3 transport, authentication, risk-control, TLS, reconnect, acknowledgement, and redaction boundaries remain present.
-12. No global Platform Message ordering guarantee is approved.
-13. No cross-Profile ordering guarantee is approved.
-14. No cross-Conversation ordering guarantee is approved.
-15. Transport arrival order is not authoritative Platform order.
-16. Delivery Cursor is not automatically ordering evidence.
-17. Out-of-order and late Message Events are not silently discarded.
-18. Local Conversation Identifier uses UUID version 4.
-19. Local Message Identifier uses UUID version 4.
-20. Local Delivery Attempt Identifier uses UUID version 4.
-21. Delivery Identity is Profile-scoped.
-22. Delivery Identity contains no Message Content or Secret Material.
-23. Platform Message Identifier alone is not a global deduplication key.
-24. Message Content or a content hash is not a deduplication key.
-25. Deduplication Decision defines NEW.
-26. Deduplication Decision defines DUPLICATE.
-27. Deduplication Decision defines INDETERMINATE.
-28. Deduplication Decision defines CONFLICT.
-29. DUPLICATE does not create a second Message Record.
-30. INDETERMINATE is not silently discarded.
-31. CONFLICT fails closed and does not overwrite data.
-32. Message Record creation is idempotent for the same approved Profile-scoped Delivery Identity.
-33. Replay classification depends on approved Profile-scoped Delivery Identity.
-34. CAP-CORE-DATABASE remains the only approved persistence infrastructure.
-35. Conceptual Conversation, Message, and Delivery Attempt records are Profile-scoped.
-36. Message Content is plain UTF-8 text only.
-37. Message Content maximum normalized length is 4096 characters.
-38. Empty or whitespace-only content is invalid.
-39. HTML execution is prohibited.
-40. Attachment, media, binary, BLOB, arbitrary JSON, raw payload, and raw Transport Frame persistence are prohibited.
-41. Generic metadata or property bags are prohibited.
-42. Persistence mutations require one explicit logical transaction.
-43. Deduplication checks and Message creation occur in the same transaction.
-44. Partial writes are prohibited.
-45. Repository methods must not independently commit.
-46. Profile-scoped uniqueness protection is required.
-47. Concurrent duplicate creation must not create multiple Message Records.
-48. No automatic retention duration is approved.
-49. No purge Worker or Scheduler Job is approved.
-50. Delivery Cursor remains non-authoritative.
-51. Application startup must not auto-migrate.
-52. Migration must remain explicit.
-53. Non-empty downgrade fails closed unless a data-preserving downgrade is separately approved.
-54. T5 Worker, Adapter, Repository, Service, lifecycle, failure, observability, and testing ownership decisions remain deferred.
-55. CAP-XY-ACCOUNT remains verified and unchanged.
-56. CAP-XY-MESSAGE remains planned and unbound.
-57. CAP-XY-MESSAGE has no implementation or test paths.
-58. No runtime, ORM, table, Migration, Repository, Service, API, Worker, Adapter, WebSocket, Socket, network, message sending, Credential Provider, or real customer-data behavior is added.
-59. No dependency, CI, Contract, Capability Registry, capability specification, archived change, Core, account, or runtime file is modified.
-60. PR #4 remains Draft, open, and unmerged.
-61. Auto-merge remains disabled.
-62. Repository verification, security scan, duplicate capability validation, Ruff, Mypy, Pip Check, offline verification, and the complete test suite pass.
+12. All T4 ordering, deduplication, persistence, transaction, retention, and Migration boundaries remain present.
+13. CAP-XY-MESSAGE remains owned by `worker.message`.
+14. The approved future package path is `app/xianyu_system/worker/message/`.
+15. The approved future import namespace is `xianyu_system.worker.message`.
+16. The approved future modules are `domain.py`, `persistence.py`, `service.py`, `transport.py`, and `worker.py`.
+17. `domain.py` owns pure local Message domain concepts and sanitized domain errors.
+18. `domain.py` remains independent of SQLAlchemy, FastAPI, Transport, Worker, Core Database, and application state.
+19. `persistence.py` owns the SQLAlchemy projection and one concrete Message Repository.
+20. `service.py` owns accepted-message use cases and logical transaction coordination.
+21. `transport.py` owns transport-neutral delivery values and Protocol interfaces only.
+22. `worker.py` owns in-process, Profile-scoped Message Worker lifecycle and orchestration.
+23. The `worker` namespace does not mean a background thread, subprocess, Scheduler Job, daemon, browser Worker, or external platform connection.
+24. The T6 Message Worker is synchronous.
+25. The Worker is explicitly constructed, started, and stopped.
+26. No automatic start, reconnect, retry, polling, heartbeat, background loop, thread, subprocess, or Scheduler behavior is approved.
+27. One Message Worker instance belongs to exactly one Profile Identifier.
+28. One Message Worker instance belongs to exactly one Account Reference owned by that Profile.
+29. Worker ownership is immutable after construction.
+30. No global Worker, current Profile, current Account, current Credential, or current Conversation is approved.
+31. Worker state, Repository state, Service state, Transport state, Delivery Identity, Cursor state, and mutable lifecycle state are not shared across Profiles.
+32. Worker Lifecycle States are `STOPPED`, `STARTING`, `RUNNING`, `STOPPING`, `BLOCKED`, and `FAILED`.
+33. A Worker may accept delivery only while `RUNNING`.
+34. Worker lifecycle state is local process state.
+35. Worker lifecycle state is not persisted as durable authorization or recovery evidence.
+36. Process restart begins with the Worker in `STOPPED`.
+37. One Worker instance may process at most one delivery at a time.
+38. Concurrent or re-entrant delivery processing fails closed with a sanitized busy outcome.
+39. The Message Service owns the logical transaction.
+40. Repository methods may flush but must not independently commit.
+41. Transport code must not import Persistence.
+42. Package and Domain imports must not register ORM metadata, open a database, read credentials, start a Worker, create a Socket, or access the network.
+43. Automatic reconnect attempts equal zero.
+44. Automatic processing retries equal zero.
+45. Future real transport reconnect policy requires a separate reviewed change.
+46. Profile ownership, Credential, Authorization, Risk, protocol, TLS, and security violations place the Worker in `BLOCKED`.
+47. Deduplication Conflict failures place the Worker in `BLOCKED`.
+48. Persistence failures place the Worker in `FAILED`.
+49. Unexpected internal failures place the Worker in `FAILED`.
+50. Event-local invalid synthetic input may be rejected without stopping a valid Worker when Profile ownership and security invariants remain valid.
+51. No failure output exposes Message Content, Secret Material, full external identifiers, raw Transport Frames, raw provider errors, authentication data, Cookie, Token, Session Material, browser paths, or raw database errors.
+52. Stop is explicit and graceful.
+53. While `STOPPING`, no new delivery may begin.
+54. An in-flight transaction must commit completely or roll back completely before the Worker becomes `STOPPED`.
+55. T6 owns no operating-system signal handler and modifies no application startup or shutdown hook.
+56. T6 may implement only the local, synchronous, Profile-scoped, Synthetic Message receiving boundary.
+57. T6 must be separately authorized against the exact T5 HEAD.
+58. CAP-XY-ACCOUNT remains verified and unchanged.
+59. CAP-XY-MESSAGE remains planned and unbound.
+60. CAP-XY-MESSAGE has no implementation or test paths.
+61. No runtime package, Domain code, ORM, table, Migration, Repository, Service, Transport, Worker, API, WebSocket, Socket, DNS, HTTP, network, thread, subprocess, Scheduler, message sending, Credential Provider, or real customer-data behavior is added.
+62. No dependency, CI, Contract, Capability Registry, capability specification, archived change, Core, account, or runtime file is modified.
+63. PR #4 remains Draft, open, and unmerged.
+64. Auto-merge remains disabled.
+65. Repository verification, security scan, duplicate capability validation, Ruff, Mypy, Pip Check, offline verification, and the complete test suite pass.
 
 ## Current authorization
 
-T1 through T4 are complete.
+T1 through T5 are complete.
 
-The ordering, deduplication, idempotency, replay, persistence, transaction, concurrency, retention, and Migration boundaries are approved.
+The Package, Module, Worker ownership, lifecycle, concurrency, transaction, failure, shutdown, observability, testing, and import-safety boundaries are approved.
 
-T5 is the next executable task and must be performed separately.
+T6 is the next executable task and must be performed separately.
 
-This execution does not authorize Worker, Adapter, Repository, Service, lifecycle, failure, observability, physical schema, Migration file, runtime implementation, real WebSocket access, external network access, real account access, real customer-message processing, capability binding, Ready-for-review, reviewer requests, auto-merge, or merge.
+This execution does not authorize runtime code, ORM code, database table, Migration file, Repository, Service, Transport, Worker, WebSocket access, external network access, real account access, real customer-message processing, capability binding, Ready-for-review, reviewer requests, auto-merge, or merge.

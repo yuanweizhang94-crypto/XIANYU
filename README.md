@@ -15,23 +15,27 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - T2 message, conversation, and delivery terminology is complete.
 - T3 transport, authentication, and risk-control boundaries is complete.
 - T4 ordering, deduplication, and persistence boundaries is complete.
-- T5 worker ownership, lifecycle, and failure boundaries is the next executable task.
-- No global, cross-Profile, or cross-Conversation Platform ordering guarantee is approved.
-- Out-of-order and late Message Events must not be silently discarded.
-- Local Conversation, Message, and Delivery Attempt identifiers use UUID version 4.
-- Deduplication is Profile-scoped and uses an approved Delivery Identity when available.
-- Deduplication Decisions are `NEW`, `DUPLICATE`, `INDETERMINATE`, and `CONFLICT`.
-- Duplicate delivery does not create a second Message Record.
-- Indeterminate delivery is not silently dropped.
-- Conflicting delivery identity fails closed and does not overwrite data.
-- The existing Core SQLite, SQLAlchemy, and Alembic infrastructure remains the only approved local persistence boundary.
-- The conceptual persistence boundary contains Profile-scoped Conversation, Message, and Delivery Attempt records.
-- Message Content is restricted to normalized UTF-8 plain text of at most 4096 characters.
-- Attachments, media, binary data, arbitrary JSON, raw payloads, raw Transport Frames, generic metadata, and Secret Material are prohibited from persistence.
-- Application startup must not auto-migrate.
+- T5 worker ownership, lifecycle, and failure boundaries is complete.
+- T6 local synthetic message-receiving implementation is the next executable task.
+- `CAP-XY-MESSAGE` remains owned by `worker.message`.
+- The approved future package is `xianyu_system.worker.message`.
+- The approved future package path is `app/xianyu_system/worker/message/`.
+- The approved future modules are `domain.py`, `persistence.py`, `service.py`, `transport.py`, and `worker.py`.
+- The T6 Message Worker is local, synchronous, Profile-scoped, explicitly started, and explicitly stopped.
+- Worker Lifecycle States are `STOPPED`, `STARTING`, `RUNNING`, `STOPPING`, `BLOCKED`, and `FAILED`.
+- One Worker belongs to one exact Profile and Account Reference.
+- Only one delivery may be in flight per Worker.
+- The Message Service owns the logical transaction.
+- Repository methods may flush but must not independently commit.
+- Automatic reconnect attempts are zero.
+- Automatic processing retries are zero.
+- Package and Domain imports must perform no database, Worker, Credential, ORM-registration, Socket, or network side effect.
+- Security, ownership, authorization-boundary, risk-boundary, protocol-boundary, and Deduplication Conflict failures block the Worker.
+- Persistence and unexpected internal failures fail the Worker.
+- Stop is explicit and graceful.
 - `CAP-XY-MESSAGE` remains planned and unbound.
 - No CHG-0004 runtime implementation has started.
-- Completion of T4 does not authorize Worker, Adapter, Repository, Service, database schema, Migration, WebSocket, network access, Ready-for-review, auto-merge, or merge.
+- Completion of T5 does not authorize runtime code, ORM, database table, Migration, Repository, Service, Transport, Worker, WebSocket, network access, Ready-for-review, auto-merge, or merge.
 
 ## Project goal
 

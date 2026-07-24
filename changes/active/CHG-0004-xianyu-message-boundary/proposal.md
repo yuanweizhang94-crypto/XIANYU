@@ -15,13 +15,13 @@ Prepare a formally reviewable boundary for receiving Xianyu customer-inquiry mes
 
 The project owner approved CHG-0004 for controlled, one-task-at-a-time execution.
 
-T1 through T4 are complete.
+T1 through T5 are complete.
 
-The canonical terminology and the transport, authentication, risk-control, ordering, deduplication, idempotency, replay, persistence, transaction, concurrency, retention, and Migration boundaries are approved.
+The canonical terminology, transport, authentication, risk-control, ordering, deduplication, persistence, module ownership, Worker lifecycle, concurrency, transaction ownership, failure, shutdown, observability, and import-safety boundaries are approved.
 
-T5 is the next executable task and must be performed separately.
+T6 is the next executable task and must be performed separately.
 
-No Worker, Adapter, Repository, Service, connection lifecycle, reconnect scheduler, runtime failure model, runtime implementation, real WebSocket, external network access, real account access, real customer-message processing, database table, ORM model, Migration file, capability binding, Ready-for-review, auto-merge, or merge is authorized.
+No runtime implementation, ORM model, database table, Migration file, Repository, Service, Transport implementation, Worker implementation, real WebSocket, external network access, real account access, real customer-message processing, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
 
 ## T2 terminology outcome
 
@@ -94,6 +94,45 @@ No Worker, Adapter, Repository, Service, connection lifecycle, reconnect schedul
 - A non-empty downgrade must fail closed unless a separately approved data-preserving downgrade exists.
 - T4 creates no table, ORM model, Migration, Repository, Service, Worker, Adapter, API, or runtime file.
 
+## T5 worker ownership, lifecycle, and failure outcome
+
+- CAP-XY-MESSAGE remains owned by the `worker.message` capability namespace.
+- The approved future package path is `app/xianyu_system/worker/message/`.
+- The approved future import namespace is `xianyu_system.worker.message`.
+- The approved minimal future modules are `domain.py`, `persistence.py`, `service.py`, `transport.py`, and `worker.py`.
+- `domain.py` owns pure Message domain concepts, validation, immutable values, lifecycle states, and sanitized domain errors.
+- `persistence.py` owns the SQLAlchemy relational projection and one concrete Message Repository.
+- `service.py` owns accepted-message use cases and logical transaction coordination.
+- `transport.py` owns transport-neutral delivery values and Protocol interfaces only.
+- `worker.py` owns the in-process, Profile-scoped Message Worker lifecycle and orchestration.
+- The `worker` namespace does not mean a background thread, subprocess, Scheduler Job, daemon, browser Worker, or external platform connection.
+- The T6 Message Worker is synchronous and explicitly invoked by its caller.
+- T6 creates no automatic start, reconnect, retry, polling, heartbeat, background loop, thread, subprocess, or scheduler behavior.
+- One Message Worker instance belongs to exactly one Profile and one Account Reference.
+- Worker state, Repository state, Service state, Transport state, Delivery Identity, Cursor state, and mutable lifecycle state must not be shared across Profiles.
+- The approved Worker Lifecycle States are `STOPPED`, `STARTING`, `RUNNING`, `STOPPING`, `BLOCKED`, and `FAILED`.
+- A Worker may accept a delivery only while `RUNNING`.
+- Worker lifecycle state is local process state and is not persisted as durable authorization or recovery evidence.
+- Process restart begins with the Worker in `STOPPED`.
+- No implicit Worker, global current Profile, global current Account, global current Credential, or global current Conversation is approved.
+- Only one delivery may be in flight for one Worker instance.
+- Concurrent or re-entrant delivery processing on the same Worker must fail closed with a sanitized busy outcome.
+- Message Service owns the logical transaction.
+- Repository methods may flush but must not independently commit.
+- Transport code must not import Persistence.
+- Domain code must not import SQLAlchemy, FastAPI, Transport, Worker, Core Database, or application state.
+- Importing the package or Domain module must not register ORM metadata, open a database, read environment credentials, start a Worker, create a Socket, or access the network.
+- No automatic reconnect or retry is approved in T6.
+- A future real transport reconnect policy requires a separate reviewed change.
+- Profile ownership, Credential, Authorization, Risk, protocol, TLS, and security violations place the Worker in `BLOCKED`.
+- Unexpected internal or persistence failures place the Worker in `FAILED`.
+- Event-local invalid synthetic input may be rejected without stopping a valid Worker when Profile ownership and security invariants remain valid.
+- No failure may expose Message Content, Secret Material, full external identifiers, raw Transport Frames, raw provider errors, or authentication data.
+- Stop is explicit and graceful.
+- While `STOPPING`, no new delivery may begin.
+- An in-flight transaction must complete successfully or fully roll back before the Worker becomes `STOPPED`.
+- T5 creates no runtime files.
+
 ## Goals
 
 - Define canonical terminology for message events, conversations, delivery cursors, acknowledgements, and duplicate delivery.
@@ -129,6 +168,17 @@ No Worker, Adapter, Repository, Service, connection lifecycle, reconnect schedul
 - No cross-Profile deduplication.
 - No automatic data-retention or purge job.
 - No runtime implementation before T5 is complete.
+- No runtime implementation during T5.
+- No worker.message Package during T5.
+- No Domain, Persistence, Service, Transport, or Worker code during T5.
+- No ORM model, database table, Migration, Repository, or Service during T5.
+- No Socket, WebSocket, HTTP, DNS, browser, thread, subprocess, scheduler, or external network behavior.
+- No automatic Worker startup.
+- No automatic reconnect or retry.
+- No background delivery loop.
+- No real account, Credential, Message Content, or customer data.
+- No capability binding.
+- No runtime implementation before a separate T6 execution.
 
 ## Security boundary
 
@@ -142,12 +192,12 @@ No Worker, Adapter, Repository, Service, connection lifecycle, reconnect schedul
 
 Only one unfinished task may be executed at a time.
 
-T1 through T4 are complete.
+T1 through T5 are complete.
 
-T5 is the next executable task.
+T6 is the next executable task.
 
-T5 must not begin in the same execution.
+T6 must not begin in the same execution.
 
-T4 approves ordering, deduplication, idempotency, replay, persistence, transaction, concurrency, retention, and Migration principles only.
+T5 approves Package, Module, Worker, lifecycle, concurrency, transaction, failure, shutdown, observability, testing, and import-safety boundaries only.
 
-Worker, Adapter, Repository, Service, process ownership, connection lifecycle, reconnect scheduling, failure ownership, observability ownership, testing ownership, concrete physical schema, Migration file, and runtime implementation remain deferred.
+This execution does not authorize runtime code, ORM code, a database table, a Migration file, Repository, Service, Transport, Worker, WebSocket, network access, real message access, or capability binding.

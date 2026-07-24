@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 4,
-    "next_task": "T5 Approve worker ownership, lifecycle, and failure boundaries",
+    "completed": 5,
+    "next_task": "T6 Implement only the approved local message-receiving boundary",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0004",
@@ -29,7 +29,7 @@
       },
       {
         "text": "T5 Approve worker ownership, lifecycle, and failure boundaries",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T6 Implement only the approved local message-receiving boundary",

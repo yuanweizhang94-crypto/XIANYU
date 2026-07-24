@@ -7,13 +7,13 @@ Change ID: CHG-0004-xianyu-message-boundary
 
 CHG-0004 remains approved for controlled, task-by-task execution.
 
-T1 through T4 are complete.
+T1 through T5 are complete.
 
-The canonical terminology and the transport, authentication, risk-control, ordering, deduplication, idempotency, replay, persistence, transaction, concurrency, retention, and Migration boundaries are approved.
+The canonical terminology and the transport, authentication, risk-control, ordering, deduplication, persistence, module ownership, Worker lifecycle, concurrency, transaction, failure, shutdown, observability, testing, and import-safety boundaries are approved.
 
-T5 is the next executable task.
+T6 is the next executable task.
 
-No Worker ownership model, Adapter ownership model, Repository or Service ownership model, connection lifecycle model, failure model, observability model, physical database schema, Migration file, or runtime implementation has been approved.
+No runtime file, ORM model, database table, Migration file, Repository, Service, Transport implementation, Worker implementation, real WebSocket, network behavior, or capability binding has been created.
 
 ## Architecture context
 
@@ -1097,66 +1097,451 @@ The following must not be persisted by the CHG-0004 minimal boundary:
 - unrestricted metadata or property bags;
 - data belonging to another Profile.
 
-## Decisions deferred after T4
+## Runtime ownership summary
 
-### Deferred to T5
+CAP-XY-MESSAGE remains owned by the `worker.message` capability namespace recorded in the Capability Registry.
 
-- Package and module ownership.
-- Domain module ownership.
-- Persistence module ownership.
-- Repository ownership.
-- Service ownership.
-- Transport Adapter ownership.
-- Credential-resolution interface ownership.
-- Worker ownership.
-- Connection lifecycle ownership.
-- Reconnect scheduling ownership.
-- Transaction coordinator ownership.
-- Failure and restart ownership.
-- Observability ownership.
-- Testing ownership.
-- Concrete lifecycle states.
-- Concrete exception hierarchy.
-- Concrete timeout, retry, backoff, and jitter values.
-- Concrete public package surface.
-- Import-safety boundary.
-- Graceful shutdown behavior.
+The approved future Python package is:
 
-### Deferred to T6
+```text
+app/xianyu_system/worker/message/
+```
 
-- All runtime code.
-- Exact table names.
-- Exact column names.
-- Exact indexes and constraints.
-- SQLAlchemy models.
-- Alembic Revision.
-- Repository implementation.
-- Service implementation.
-- Domain classes and Enums.
-- UUID generation implementation.
-- Text normalization implementation.
-- Deduplication implementation.
-- Transaction implementation.
-- Concurrency implementation.
-- Synthetic local transport boundary implementation.
+The corresponding import namespace is:
+
+```text
+xianyu_system.worker.message
+```
+
+The `worker` name identifies capability and orchestration ownership.
+
+It does not mean that CHG-0004 creates or starts:
+
+- a background thread;
+- an asyncio event loop;
+- a subprocess;
+- a daemon;
+- a Scheduler Job;
+- a browser Worker;
+- an external-platform Worker;
+- a polling loop;
+- a real WebSocket;
+- a network connection.
+
+T5 approves only the future ownership and package boundary.
+
+T5 must not create the package or modify the Capability Registry.
+
+CAP-XY-MESSAGE remains `planned`, unbound, and without evidence paths.
+
+## Approved future package boundary
+
+T6 may create only the following minimal Message capability package:
+
+```text
+app/xianyu_system/worker/message/__init__.py
+app/xianyu_system/worker/message/domain.py
+app/xianyu_system/worker/message/persistence.py
+app/xianyu_system/worker/message/service.py
+app/xianyu_system/worker/message/transport.py
+app/xianyu_system/worker/message/worker.py
+```
+
+The existing file:
+
+```text
+app/xianyu_system/worker/__init__.py
+```
+
+must remain unchanged unless a separately verified technical requirement proves that a minimal compatibility edit is necessary.
+
+T6 must not create:
+
+```text
+client.py
+websocket.py
+network.py
+listener.py
+consumer.py
+daemon.py
+scheduler.py
+tasks.py
+background.py
+provider.py
+credential.py
+browser.py
+api.py
+router.py
+schemas.py
+handlers.py
+plugins.py
+events.py
+event_bus.py
+unit_of_work.py
+base_repository.py
+```
+
+T6 must not create a second package for the same Message capability.
+
+## domain.py ownership
+
+`domain.py` owns pure local Message domain concepts and invariants.
+
+It may own future implementations of:
+
+- Local Conversation Identifier;
+- Local Message Identifier;
+- Local Delivery Attempt Identifier;
+- Delivery Identity;
+- Participant Reference;
+- normalized Message Content;
+- local receipt timestamp;
+- untrusted Platform timestamp;
+- Deduplication Decision;
+- Worker Lifecycle State;
+- sanitized domain errors;
+- immutable domain values;
+- approved validation and normalization rules.
+
+`domain.py` may use only Python standard-library value types and local pure helpers.
+
+`domain.py` must not import SQLAlchemy, FastAPI, Transport, Worker, Core Database, application state, environment settings, Socket libraries, HTTP clients, WebSocket clients, browser libraries, Scheduler libraries, or Credential providers.
+
+Importing `domain.py` must not register ORM metadata, open a database, create a Socket, read credentials, start a Worker, create a thread, or access the network.
+
+## persistence.py ownership
+
+`persistence.py` owns the future SQLAlchemy relational projection and exactly one concrete Message Repository.
+
+It may own:
+
+- Conversation, Message, and Delivery Attempt ORM mappings;
+- table-level constraints and indexes approved in T6;
+- Profile-scoped uniqueness enforcement;
+- Repository methods that receive an explicit Session;
+- flush-only persistence operations;
+- sanitized persistence exceptions.
+
+`persistence.py` must use the existing Core Database Base, Engine, Session, and Alembic boundaries.
+
+Repository methods may flush but must not independently commit.
+
+`persistence.py` must not own Worker lifecycle, Transport behavior, Credential resolution, network access, WebSocket access, API routes, Scheduler Jobs, message sending, reply generation, or external acknowledgements.
+
+## service.py ownership
+
+`service.py` owns accepted-message use cases and logical transaction coordination.
+
+The Message Service owns the logical transaction.
+
+It may coordinate:
+
+- Profile ownership validation;
+- Conversation lookup or creation;
+- Deduplication Decision;
+- Message Record creation or duplicate selection;
+- Delivery Attempt recording;
+- conflict rollback;
+- sanitized use-case outcomes.
+
+Service code must not open a WebSocket, create a Socket, perform DNS, perform HTTP, access a browser, read Secret Material, resolve real Credentials, start a background Worker, register a Scheduler Job, send a message, or reply to a customer.
+
+## transport.py ownership
+
+`transport.py` owns transport-neutral values and Protocol interfaces only.
+
+It may define future local Protocol surfaces for caller-provided Synthetic Message Delivery values.
+
+It must not implement a real Adapter.
+
+It must not import Persistence.
+
+It must not open a Socket, WebSocket, HTTP client, browser, DNS resolver, Credential store, thread, subprocess, or Scheduler Job.
+
+It must not contain Endpoint constants, Cookie names, Token handling, provider URLs, handshake frames, heartbeat frames, acknowledgement frames, or retry loops.
+
+## worker.py ownership
+
+`worker.py` owns the in-process, Profile-scoped Message Worker lifecycle and orchestration.
+
+The T6 Message Worker is synchronous.
+
+The Worker is explicitly constructed by its caller.
+
+The Worker is explicitly started and explicitly stopped.
+
+The Worker may accept a caller-provided Synthetic Message Delivery only while `RUNNING`.
+
+The Worker does not own process startup, application startup, FastAPI lifespan, operating-system signals, Scheduler Jobs, background threads, subprocesses, asyncio task creation, browser control, real Transport Adapter startup, or network connection management.
+
+## Approved dependency direction
+
+Approved import direction for the future package:
+
+```text
+domain.py <- transport.py
+domain.py <- persistence.py
+domain.py <- service.py
+transport.py <- worker.py
+service.py <- worker.py
+persistence.py <- service.py
+```
+
+Rules:
+
+1. `domain.py` is the lowest-level module.
+2. `transport.py` may import Domain but must not import Persistence or Service.
+3. `persistence.py` may import Domain and Core Database only.
+4. `service.py` may import Domain and Persistence.
+5. `worker.py` may import Domain, Transport, and Service.
+6. Transport code must not import Persistence.
+7. Persistence code must not import Transport.
+8. Domain code must not import Transport, Persistence, Service, Worker, Core Database, FastAPI, or SQLAlchemy.
+9. No module may import from API or Web packages.
+10. No module may import browser, network, Credential Provider, Scheduler, or external platform integration modules in T6.
+
+## Public package and import-safety boundary
+
+Future package imports must be side-effect safe.
+
+Importing `xianyu_system.worker.message` or `xianyu_system.worker.message.domain` must not:
+
+- register ORM metadata;
+- create a database Engine;
+- open a database connection;
+- run Alembic;
+- read environment credentials;
+- read Cookie, Token, Secret, or Session Material;
+- instantiate a Worker;
+- start a Worker;
+- create a Socket;
+- perform DNS resolution;
+- perform HTTP;
+- open a WebSocket;
+- access a browser;
+- create a thread;
+- create a subprocess;
+- register a Scheduler Job;
+- start a background loop.
+
+## Approved Worker Lifecycle States
+
+The approved Worker Lifecycle States are:
+
+```text
+STOPPED
+STARTING
+RUNNING
+STOPPING
+BLOCKED
+FAILED
+```
+
+- `STOPPED`: no delivery may be processed.
+- `STARTING`: local preconditions are being checked.
+- `RUNNING`: one caller-provided Synthetic Message Delivery may be accepted.
+- `STOPPING`: shutdown is in progress and no new delivery may begin.
+- `BLOCKED`: a security, ownership, authorization, risk, protocol, TLS, or deduplication-conflict boundary stopped the Worker.
+- `FAILED`: an unexpected internal or persistence failure stopped the Worker.
+
+Worker lifecycle state is local process state only.
+
+Worker lifecycle state is not persisted.
+
+Worker lifecycle state is not authentication, authorization, Credential, ordering, deduplication, replay, acknowledgement, or durable recovery evidence.
+
+Process restart begins with the Worker in `STOPPED`.
+
+## Approved Worker Lifecycle Transitions
+
+Approved transitions:
+
+```text
+STOPPED -> STARTING
+STARTING -> RUNNING
+STARTING -> BLOCKED
+STARTING -> FAILED
+RUNNING -> STOPPING
+RUNNING -> BLOCKED
+RUNNING -> FAILED
+STOPPING -> STOPPED
+BLOCKED -> STOPPED
+FAILED -> STOPPED
+```
+
+No other transition is approved.
+
+A reset from `BLOCKED` or `FAILED` must be explicit and local.
+
+A reset must not automatically retry delivery, reconnect, resolve Credentials, bypass risk controls, or restore previous transport state.
+
+## Worker ownership invariants
+
+One Message Worker instance belongs to exactly one Profile Identifier.
+
+One Message Worker instance belongs to exactly one Account Reference owned by that Profile.
+
+Worker ownership is immutable after construction.
+
+There is no global Worker.
+
+There is no implicit Worker.
+
+There is no global current Profile.
+
+There is no global current Account.
+
+There is no global current Credential.
+
+There is no global current Conversation.
+
+Worker state, Repository state, Service state, Transport state, Delivery Identity, Cursor state, and mutable lifecycle state must not be shared across Profiles.
+
+## Worker concurrency boundary
+
+One Worker instance may process at most one delivery at a time.
+
+Only one delivery may be in flight for one Worker instance.
+
+Concurrent or re-entrant delivery processing on the same Worker must fail closed with a sanitized busy outcome.
+
+The busy outcome must not expose Message Content, Secret Material, full external identifiers, raw Transport Frames, raw provider errors, or raw database errors.
+
+T6 must not create threads, subprocesses, asyncio background tasks, Scheduler Jobs, polling loops, heartbeat loops, or automatic delivery loops.
+
+## Transaction coordinator ownership
+
+The Message Service owns the logical transaction.
+
+The logical transaction must include Profile ownership validation, deduplication, Message Record selection or creation, Delivery Attempt recording, and commit or complete rollback.
+
+Repository methods may flush but must not independently commit.
+
+Transport code does not own transactions.
+
+Worker code invokes Service use cases but must not bypass transaction coordination.
+
+A failed persistence operation must roll back completely.
+
+## Transport and Credential ownership boundary
+
+Transport owns transport-neutral values and Protocol interfaces only.
+
+Transport does not own Credential storage, Credential resolution, Authorization, Risk, TLS verification, Endpoint discovery, retry policy, reconnect policy, or real platform access.
+
+Credential Resolution remains outside CAP-XY-MESSAGE and must be provided only by a separately approved boundary.
+
+T6 may use only Synthetic Message Fixtures and caller-provided synthetic delivery values.
+
+T6 must not read Cookie, Token, Secret Material, Session Material, browser Profiles, operating-system Credential stores, ordinary environment credentials, or real account data.
+
+## Approved sanitized error hierarchy
+
+T5 approves these conceptual sanitized error classes only:
+
+```text
+MESSAGE_ERROR
+MESSAGE_VALIDATION_ERROR
+MESSAGE_OWNERSHIP_ERROR
+MESSAGE_AUTHORIZATION_ERROR
+MESSAGE_RISK_ERROR
+MESSAGE_PROTOCOL_ERROR
+MESSAGE_DEDUPLICATION_CONFLICT
+MESSAGE_BUSY
+MESSAGE_PERSISTENCE_ERROR
+MESSAGE_INTERNAL_ERROR
+```
+
+These are documentation concepts only until T6 is separately authorized.
+
+No error may expose Message Content, Secret Material, full external identifiers, raw Transport Frames, raw provider errors, authentication data, Cookie, Token, Session Material, browser paths, or raw database errors.
+
+## Approved failure disposition
+
+- Event-local invalid synthetic input may be rejected without stopping a valid Worker when Profile ownership and security invariants remain valid.
+- Profile ownership failures place the Worker in `BLOCKED`.
+- Credential-boundary failures place the Worker in `BLOCKED`.
+- Authorization-boundary failures place the Worker in `BLOCKED`.
+- Risk-boundary failures place the Worker in `BLOCKED`.
+- Protocol-boundary failures place the Worker in `BLOCKED`.
+- TLS-boundary failures place the Worker in `BLOCKED`.
+- Deduplication Conflict failures place the Worker in `BLOCKED`.
+- Persistence failures place the Worker in `FAILED`.
+- Unexpected internal failures place the Worker in `FAILED`.
+- Busy or re-entrant delivery attempts fail closed with a sanitized busy outcome.
+
+Blocked and Failed Workers do not automatically retry or restart.
+
+## Retry and reconnect boundary
+
+No automatic reconnect or retry is approved in T6.
+
+```text
+automatic reconnect attempts = 0
+automatic processing retries = 0
+```
+
+A future real transport reconnect policy requires a separate reviewed change.
+
+A reset from `BLOCKED` or `FAILED` is not retry, reconnect, or delivery replay authorization.
+
+## Graceful shutdown boundary
+
+Stop is explicit and graceful.
+
+While `STOPPING`, no new delivery may begin.
+
+An in-flight operation must commit completely or roll back completely before the Worker becomes `STOPPED`.
+
+T6 owns no operating-system signal handler.
+
+T6 must not modify FastAPI application startup, application shutdown, scheduler startup, scheduler shutdown, or global process lifecycle hooks.
+
+## Observability boundary
+
+Future observability may report only non-secret state classes, sanitized outcome classes, safe counters, timestamps, Profile-scoped non-secret correlation identifiers, and lifecycle state transitions.
+
+Message Content, Secret Material, raw Transport Frames, authentication data, Cookie, Token, Session Material, browser paths, full external identifiers, raw provider errors, and raw database errors must not appear in logs, metrics, traces, audit output, test snapshots, CI output, or PR text.
+
+Observability must not create external telemetry, network export, files, logs directories, or background exporters in T6.
+
+## Testing ownership boundary
+
+T6 tests may cover only local, synchronous, Profile-scoped, Synthetic Message receiving behavior.
+
+Tests must block or prove absence of Socket creation, DNS, HTTP, WebSocket, browser access, subprocesses, threads, Scheduler Jobs, automatic retry, automatic reconnect, real Credential access, real account access, and real customer data.
+
+Tests must verify import safety for the package and Domain module.
+
+Tests must verify that CAP-XY-MESSAGE remains unbound until a later capability-evidence task.
+
+## Approved T6 implementation boundary
+
+T6 may implement only the local, synchronous, Profile-scoped, Synthetic Message receiving boundary.
+
+T6 may create only the approved future package and minimal modules listed in T5.
+
+T6 may implement Domain, Persistence, Service, Transport Protocol interfaces, and Worker orchestration only within the approved local boundary.
+
+T6 must not implement real WebSocket, real Endpoint, DNS, HTTP, external network access, Credential Provider, Cookie or Token handling, browser integration, background Worker, threads, subprocesses, Scheduler Jobs, automatic retry, automatic reconnect, message sending, reply, API, Web UI, real customer data, attachment persistence, media persistence, arbitrary JSON persistence, raw Transport Frame persistence, automatic retention, purge, capability binding, Ready-for-review, auto-merge, or merge.
+
+T6 must be separately authorized against the exact T5 HEAD.
 
 ## Required decisions before runtime implementation
 
-- Exact terminology.
-- Profile and account ownership.
-- Transport ownership.
-- Authentication and credential-resolution ownership.
-- Reconnect and backoff.
-- Acknowledgement behavior.
-- Ordering guarantees.
-- Deduplication and idempotency.
-- Replay and recovery.
-- Persistence and retention.
-- Logging and observability.
-- Failure classification.
-- Testing strategy.
-- Migration requirements.
-- Import-safety requirements.
+- Exact physical database schema.
+- Exact table names.
+- Exact column names.
+- Exact indexes and constraints.
+- SQLAlchemy model names.
+- Alembic Revision identifier.
+- Repository method names.
+- Service method names.
+- Domain class and Enum names.
+- Exception class names.
+- Synthetic transport Protocol signatures.
+- Worker constructor and method signatures.
+- Test evidence layout.
 
 ## Security constraints
 
@@ -1173,18 +1558,18 @@ The following must not be persisted by the CHG-0004 minimal boundary:
 
 None.
 
-No `worker.message` runtime package is approved.
+No `worker.message` runtime package exists.
 
 No transport, WebSocket, message model, persistence model, Migration, background worker, API, or scheduler behavior is added.
 
 ## Execution boundary
 
-T1 through T4 are complete.
+T1 through T5 are complete.
 
-T5 is the next executable task.
+T6 is the next executable task.
 
-T5 must be performed in a separate execution.
+T6 must be performed in a separate execution.
 
-T4 approves ordering, deduplication, idempotency, replay, persistence, transaction, concurrency, retention, and Migration boundaries only.
+T5 approves Package, Module, Worker ownership, lifecycle, concurrency, transaction, failure, shutdown, observability, testing, and import-safety boundaries only.
 
-This execution does not authorize Worker, Adapter, Repository, Service, database schema, Migration file, WebSocket, network access, real message access, or runtime implementation.
+This execution does not authorize runtime code, ORM code, a database table, a Migration file, Repository, Service, Transport, Worker, WebSocket, network access, real message access, or capability binding.

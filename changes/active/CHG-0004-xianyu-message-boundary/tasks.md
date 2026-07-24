@@ -7,7 +7,7 @@ Change ID: CHG-0004-xianyu-message-boundary
 - [x] T2 Finalize message, conversation, and delivery terminology
 - [x] T3 Approve transport, authentication, and risk-control boundaries
 - [x] T4 Approve ordering, deduplication, and persistence boundaries
-- [ ] T5 Approve worker ownership, lifecycle, and failure boundaries
+- [x] T5 Approve worker ownership, lifecycle, and failure boundaries
 - [ ] T6 Implement only the approved local message-receiving boundary
 - [ ] T7 Add unit, contract, security, and active-change acceptance tests
 - [ ] T8 Update capability evidence and run complete verification
