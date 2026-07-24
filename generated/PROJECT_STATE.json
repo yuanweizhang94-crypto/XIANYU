@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 6,
-    "next_task": "T7 Add unit, contract, security, and active-change acceptance tests",
+    "completed": 7,
+    "next_task": "T8 Update capability evidence and run complete verification",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0004",
@@ -37,7 +37,7 @@
       },
       {
         "text": "T7 Add unit, contract, security, and active-change acceptance tests",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T8 Update capability evidence and run complete verification",

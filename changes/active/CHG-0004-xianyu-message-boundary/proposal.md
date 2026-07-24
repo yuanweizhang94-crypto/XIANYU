@@ -250,3 +250,15 @@ T7 must be performed in a separate execution.
 The local implementation exists, but CAP-XY-MESSAGE remains planned and unbound until T8.
 
 Real transport, external platform access, real Credential access, customer-message processing, message sending, Ready-for-review, auto-merge, and merge remain unauthorized.
+
+## T7 permanent coverage authorization and outcome
+
+The project owner authorized only T7: `T7 Add unit, contract, security, and active-change acceptance tests`.
+
+T1 through T7 are complete. Completed tasks are 7 / 9. T8 is the next executable task: `T8 Update capability evidence and run complete verification`. T8 was not started and requires separate authorization.
+
+T7 added permanent Message coverage only: 12 Domain unit tests, 9 Service unit tests, 8 Worker unit tests, 8 Persistence Contract tests, and 5 Security Contract tests, for exactly 42 new permanent Message tests. The existing Import Safety file remains at three test functions and now covers the Message Package import-safe boundary.
+
+The coverage records NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, UUID4 local identifier generation, transaction ownership, rollback, Profile scope, Account scope, Worker lifecycle, failure-state mapping, explicit reset, one in-flight delivery, re-entry protection, graceful stop, three-table schema, Migration lineage, Foreign Keys, database constraints, Repository no-commit behavior, empty downgrade, non-empty downgrade fail-closed behavior, import isolation, absence of external integrations, blocked network/subprocess/Home/thread entry points, sanitized errors, Synthetic Fixture-only evidence, and contract order independence.
+
+No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified. `CAP-XY-MESSAGE` remains planned and unbound; implementation_paths and test_paths remain empty until separately authorized T8 evidence work.

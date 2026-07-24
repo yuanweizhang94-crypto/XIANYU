@@ -418,3 +418,16 @@ CHG-0003 final PR administration is complete.
 - PR #3 is Ready for review, open, and unmerged.
 - Merge and auto-merge remain unauthorized.
 - CHG-0003 remains under `changes/active/` until the PR is merged.
+
+## CHG-0004 T7 permanent test coverage
+
+- T7 dedicated unit, contract, security, and active-change acceptance tests are complete.
+- T1 through T7 are complete; tasks are now 7 / 9.
+- T8 Update capability evidence and run complete verification is the next executable task.
+- T8 has not started and requires separate project-owner authorization.
+- The permanent Message test suite adds exactly 42 tests: 12 Domain, 9 Service, 8 Worker, 8 Persistence Contract, and 5 Security Contract tests.
+- Existing Import Safety coverage remains three test functions and now includes the Message Package import-safe boundary.
+- Coverage includes NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, UUID4 generation, transaction ownership, rollback, Profile scope, Account scope, Worker lifecycle, failure-state mapping, explicit reset, one in-flight delivery, re-entry protection, and graceful stop.
+- Coverage includes the three-table schema, Migration lineage, Foreign Keys, database constraints, Repository no-commit behavior, empty downgrade, non-empty downgrade fail-closed behavior, import isolation, absence of external integrations, blocked network/subprocess/Home/thread entry points, sanitized errors, Synthetic Fixture-only evidence, and contract order independence.
+- No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified for T7.
+- `CAP-XY-MESSAGE` remains planned and unbound with empty implementation paths, empty test paths, null active_change, and null last_verified_commit pending T8.

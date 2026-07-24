@@ -1628,3 +1628,21 @@ T7 must be performed in a separate execution.
 The local implementation exists, but CAP-XY-MESSAGE remains planned and unbound until T8.
 
 Real transport, external platform access, real Credential access, customer-message processing, message sending, Ready-for-review, auto-merge, and merge remain unauthorized.
+
+## T7 permanent coverage implementation record
+
+T7 permanent Message test coverage is complete.
+
+Added permanent tests:
+
+- `tests/unit/test_message_domain.py` with 12 explicit top-level tests.
+- `tests/unit/test_message_service.py` with 9 explicit top-level tests.
+- `tests/unit/test_message_worker.py` with 8 explicit top-level tests.
+- `tests/contract/test_message_persistence.py` with 8 explicit top-level tests.
+- `tests/contract/test_message_security.py` with 5 explicit top-level tests.
+
+Updated `tests/unit/test_import_safety.py` without changing its three-test function count so package import safety includes the Message Package, Message Domain, and transport-neutral synthetic delivery values while keeping persistence metadata out of package import.
+
+The tests cover Domain normalization and immutable values, UUID4 local identifier generation, NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, Profile/Account scope, Service transaction ownership, rollback, Worker lifecycle, failure-state mapping, explicit reset, one in-flight delivery, re-entry, graceful stop, the three-table schema, Migration lineage, Foreign Keys, database constraints, empty downgrade, non-empty downgrade fail-closed behavior, Repository no-commit behavior, public surface, import isolation, no external side effects, sanitized errors, and contract order independence.
+
+No Message Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified by T7. T8 remains the next task.

@@ -90,3 +90,25 @@ T7 is the next executable task and must be performed separately.
 CAP-XY-MESSAGE remains planned and unbound pending T8.
 
 This execution does not authorize real WebSocket access, external network access, real Credential access, real account access, real customer-message processing, message sending, API, Web UI, capability binding, Ready-for-review, reviewer requests, auto-merge, or merge.
+
+## T7 acceptance criteria
+
+55. T7 adds exactly 42 new permanent Message tests.
+56. `tests/unit/test_message_domain.py` contains exactly 12 explicit top-level tests.
+57. `tests/unit/test_message_service.py` contains exactly 9 explicit top-level tests.
+58. `tests/unit/test_message_worker.py` contains exactly 8 explicit top-level tests.
+59. `tests/contract/test_message_persistence.py` contains exactly 8 explicit top-level tests.
+60. `tests/contract/test_message_security.py` contains exactly 5 explicit top-level tests.
+61. Existing Import Safety coverage remains exactly three test functions and includes the Message Package import-safe boundary.
+62. NEW, DUPLICATE, INDETERMINATE, Content Conflict, and Conversation Conflict behavior are covered.
+63. UUID version 4 generation, transaction ownership, rollback, Profile scope, and Account scope are covered.
+64. Worker lifecycle, failure-state mapping, explicit reset, one in-flight delivery, re-entry protection, and graceful stop are covered.
+65. The three-table schema, Migration lineage, Foreign Keys, database constraints, Repository no-commit behavior, empty downgrade, and non-empty downgrade fail-closed behavior are covered.
+66. Import isolation, absence of external integrations, blocked network/subprocess/Home/thread entry points, sanitized errors, and Synthetic Fixture-only evidence are covered.
+67. Persistence and Security Contract tests pass in both orders.
+68. Account and Message Contract tests pass in both orders.
+69. No global SQLAlchemy mapper or metadata cleanup escape hatch is added.
+70. No Runtime, Migration, Registry, Capability Specification, dependency, or CI file is modified.
+71. `CAP-XY-MESSAGE` remains planned and unbound with empty implementation_paths and test_paths.
+72. CHG-0004 remains APPROVED, T1 through T7 are complete, and T8 is the next executable task.
+73. T8 is not started by T7.
