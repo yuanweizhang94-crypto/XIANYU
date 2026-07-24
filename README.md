@@ -448,3 +448,17 @@ CHG-0003 final PR administration is complete.
 - Synthetic Fixture and cleanup escape-hatch scans cover all dedicated Message tests and active acceptance evidence.
 - No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified by the T7 correction.
 - T8 was not started.
+
+## CHG-0004 T7 final evidence follow-up
+
+- T7 final evidence follow-up was completed before T8.
+- The permanent Message test count remains exactly 42 and full collection remains 322.
+- All approved Message Check Constraints are permanently verified by name and by normalized SQL semantics in both ORM projection and reflected SQLite schema.
+- Foreign Key evidence includes constrained columns, referred tables, referred columns, and `ON DELETE RESTRICT` for Conversation, Message, and Delivery Attempt ownership relationships.
+- Migration evidence covers source restrictions, Alembic CLI `upgrade head`, and Alembic offline SQL without creating the offline target database file.
+- Remaining database constraint evidence covers Profile and Account scope, Delivery Identity uniqueness scope, duplicate attempt numbers, nullable platform identifiers, nullable reason/correlation values, participant validation, persisted decisions, Attempt outcomes, Attempt numbers, reason limits, and correlation limits.
+- Public package evidence verifies initially unloaded Service, Persistence, and Worker modules, then actual lazy Domain, Transport, Service, Persistence, and Worker resolution.
+- Isolated Worker security evidence covers NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, reset, restart, and stop while network, DNS, subprocess, Home-directory, and production thread-start entry points are blocked.
+- Every dedicated Message test file and active acceptance test is independently checked for UTF-8 decoding, absence of BOM, Synthetic Fixtures, sensitive value patterns, customer data, and cleanup escape hatches.
+- No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified by the final T7 evidence follow-up.
+- Tasks remain 7 / 9, T8 was not started, and `CAP-XY-MESSAGE` remains planned and unbound.

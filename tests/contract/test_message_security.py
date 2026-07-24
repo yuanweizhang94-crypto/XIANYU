@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -15,7 +16,10 @@ from xianyu_system.core.database import (
     initialize_database,
     upgrade_database,
 )
-from xianyu_system.worker.message.domain import MessagePersistenceError
+from xianyu_system.worker.message.domain import (
+    DeduplicationDecision,
+    MessagePersistenceError,
+)
 from xianyu_system.worker.message.transport import SyntheticMessageDelivery
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -61,18 +65,32 @@ import json
 import sys
 
 import xianyu_system.worker.message as message_package
-from xianyu_system.worker.message import Conversation, SyntheticMessageDelivery
-from xianyu_system.worker.message.domain import Conversation as DomainConversation
 from xianyu_system.core.database import Base
 
 public = set(message_package.__all__)
+initial_service_loaded = "xianyu_system.worker.message.service" in sys.modules
+initial_persistence_loaded = "xianyu_system.worker.message.persistence" in sys.modules
+initial_worker_loaded = "xianyu_system.worker.message.worker" in sys.modules
+metadata_tables_initial = sorted(Base.metadata.tables)
+Conversation = message_package.Conversation
+from xianyu_system.worker.message.domain import Conversation as DomainConversation
+SyntheticMessageDelivery = message_package.SyntheticMessageDelivery
+MessageService = message_package.MessageService
+MessageWorker = message_package.MessageWorker
 print(json.dumps({
+    "initial_service_loaded": initial_service_loaded,
+    "initial_persistence_loaded": initial_persistence_loaded,
+    "initial_worker_loaded": initial_worker_loaded,
+    "metadata_tables_initial": metadata_tables_initial,
     "conversation_identity": Conversation is DomainConversation,
     "transport_name": SyntheticMessageDelivery.__name__,
-    "service_loaded": "xianyu_system.worker.message.service" in sys.modules,
-    "persistence_loaded": "xianyu_system.worker.message.persistence" in sys.modules,
-    "worker_loaded": "xianyu_system.worker.message.worker" in sys.modules,
-    "metadata_tables": sorted(Base.metadata.tables),
+    "service_name": MessageService.__name__,
+    "worker_name": MessageWorker.__name__,
+    "domain_loaded_after_domain_access": "xianyu_system.worker.message.domain" in sys.modules,
+    "transport_loaded_after_transport_access": "xianyu_system.worker.message.transport" in sys.modules,
+    "service_loaded_after_service_access": "xianyu_system.worker.message.service" in sys.modules,
+    "persistence_loaded_after_service_access": "xianyu_system.worker.message.persistence" in sys.modules,
+    "worker_loaded_after_worker_access": "xianyu_system.worker.message.worker" in sys.modules,
     "public": sorted(public),
     "forbidden_public": sorted(public & {
         "MessageRepository",
@@ -86,12 +104,19 @@ print(json.dumps({
 """,
         tmp_path,
     )
+    assert report["initial_service_loaded"] is False
+    assert report["initial_persistence_loaded"] is False
+    assert report["initial_worker_loaded"] is False
+    assert report["metadata_tables_initial"] == []
     assert report["conversation_identity"] is True
     assert report["transport_name"] == "SyntheticMessageDelivery"
-    assert report["service_loaded"] is False
-    assert report["persistence_loaded"] is False
-    assert report["worker_loaded"] is False
-    assert report["metadata_tables"] == []
+    assert report["service_name"] == "MessageService"
+    assert report["worker_name"] == "MessageWorker"
+    assert report["domain_loaded_after_domain_access"] is True
+    assert report["transport_loaded_after_transport_access"] is True
+    assert report["service_loaded_after_service_access"] is True
+    assert report["persistence_loaded_after_service_access"] is True
+    assert report["worker_loaded_after_worker_access"] is True
     assert report["forbidden_public"] == []
     for name in [
         "Conversation",
@@ -157,6 +182,11 @@ def blocked_home(cls):
 
 from xianyu_system.core.database import dispose_database, initialize_database, upgrade_database
 from xianyu_system.worker.account.service import AccountService
+from xianyu_system.worker.message.domain import (
+    DeduplicationConflict,
+    DeduplicationDecision,
+    WorkerLifecycleState,
+)
 from xianyu_system.worker.message.service import MessageService
 from xianyu_system.worker.message.transport import SyntheticMessageDelivery
 from xianyu_system.worker.message.worker import MessageWorker
@@ -181,21 +211,66 @@ try:
         account_reference="synthetic-account-reference",
         service=service,
     )
-    worker.start()
-    result = worker.receive(
-        SyntheticMessageDelivery(
+
+    def synthetic_delivery(**overrides):
+        values = dict(
             profile_id=profile.profile_id,
             account_reference="synthetic-account-reference",
             participant_reference="synthetic-participant",
             message_content="synthetic isolated content",
             received_at=datetime(2026, 1, 1, 12, 0, tzinfo=UTC),
+            platform_conversation_identifier="synthetic-conversation",
+            platform_message_identifier="synthetic-message",
             delivery_identity="synthetic-isolated-delivery",
+            platform_timestamp=datetime(2026, 1, 1, 12, 0, tzinfo=UTC),
+        )
+        values.update(overrides)
+        return SyntheticMessageDelivery(**values)
+
+    worker.start()
+    new_result = worker.receive(synthetic_delivery())
+    duplicate_result = worker.receive(
+        synthetic_delivery(
+            received_at=datetime(2026, 1, 1, 12, 1, tzinfo=UTC),
+            correlation_identifier="synthetic-duplicate-correlation",
         )
     )
+    indeterminate_result = worker.receive(
+        synthetic_delivery(
+            delivery_identity=None,
+            platform_message_identifier="synthetic-indeterminate-message",
+            message_content="synthetic isolated indeterminate content",
+        )
+    )
+    content_conflict_blocked = False
+    try:
+        worker.receive(synthetic_delivery(message_content="synthetic changed content"))
+    except DeduplicationConflict:
+        content_conflict_blocked = worker.state is WorkerLifecycleState.BLOCKED
+    worker.reset()
+    worker.start()
+    conversation_conflict_blocked = False
+    try:
+        worker.receive(
+            synthetic_delivery(
+                platform_conversation_identifier="synthetic-other-conversation"
+            )
+        )
+    except DeduplicationConflict:
+        conversation_conflict_blocked = worker.state is WorkerLifecycleState.BLOCKED
+    worker.reset()
+    worker.start()
     worker.stop()
     print(json.dumps({{
         "blocked_calls": blocked_calls,
-        "created_message": result.created_message,
+        "new_decision": new_result.deduplication_decision.value,
+        "duplicate_decision": duplicate_result.deduplication_decision.value,
+        "indeterminate_decision": indeterminate_result.deduplication_decision.value,
+        "created_message": new_result.created_message,
+        "duplicate_created_message": duplicate_result.created_message,
+        "indeterminate_created_message": indeterminate_result.created_message,
+        "content_conflict_blocked": content_conflict_blocked,
+        "conversation_conflict_blocked": conversation_conflict_blocked,
         "messages": service.count_messages(),
         "worker_state": worker.state.value,
     }}))
@@ -205,9 +280,19 @@ finally:
         tmp_path,
     )
     assert report["blocked_calls"] == []
+    assert report["new_decision"] == "NEW"
+    assert report["duplicate_decision"] == "DUPLICATE"
+    assert report["indeterminate_decision"] == "INDETERMINATE"
     assert report["created_message"] is True
-    assert report["messages"] == 1
+    assert report["duplicate_created_message"] is False
+    assert report["indeterminate_created_message"] is True
+    assert report["content_conflict_blocked"] is True
+    assert report["conversation_conflict_blocked"] is True
+    assert report["messages"] == 2
     assert report["worker_state"] == "STOPPED"
+    assert report["new_decision"] == DeduplicationDecision.NEW.value
+    assert report["duplicate_decision"] == DeduplicationDecision.DUPLICATE.value
+    assert report["indeterminate_decision"] == DeduplicationDecision.INDETERMINATE.value
 
 
 def test_message_errors_do_not_expose_content_identifiers_or_database_details(
@@ -253,7 +338,13 @@ def test_message_errors_do_not_expose_content_identifiers_or_database_details(
 
 
 def test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_hatches() -> None:
-    combined = "\n".join(path.read_text(encoding="utf-8") for path in MESSAGE_TEST_PATHS)
+    decoded_by_path = {}
+    for path in MESSAGE_TEST_PATHS:
+        raw = path.read_bytes()
+        assert not raw.startswith(b"\xef\xbb\xbf")
+        decoded_by_path[path] = raw.decode("utf-8")
+        assert "synthetic" in decoded_by_path[path]
+    combined = "\n".join(decoded_by_path.values())
     for required in [
         "synthetic",
         "SyntheticMessageDelivery",
@@ -276,3 +367,11 @@ def test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_
         "Credential " + "Store",
     ]:
         assert forbidden not in combined
+    for path, source in decoded_by_path.items():
+        assert re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", source) is None, path
+        assert re.search(r"\b1[3-9]\d{9}\b", source) is None, path
+        assert re.search(
+            r"(?i)(password|authorization|api[_-]?key)\s*[:=]",
+            source,
+        ) is None, path
+        assert "real " + "customer data" not in source

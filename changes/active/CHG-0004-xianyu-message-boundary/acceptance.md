@@ -136,3 +136,17 @@ This execution does not authorize real WebSocket access, external network access
 92. Test counts remain unchanged: 42 permanent Message tests, three Import Safety tests, four active acceptance tests, and 322 full collection.
 93. No Runtime, Migration, Registry, Capability Specification, dependency, CI, task count, or generated project state file is modified.
 94. T8 remains the next executable task and is not started.
+
+## T7 final evidence follow-up acceptance criteria
+
+95. All approved Message Check Constraint names are covered.
+96. UUID length, Account normalization, platform identifiers, Delivery Identity, participant, Message Content, persisted decisions, Attempt outcomes, Attempt numbers, reason codes, and correlation identifiers are covered by Check Constraint semantics.
+97. Foreign Key evidence covers constrained columns, referred tables, referred columns, and `ON DELETE RESTRICT`.
+98. Migration evidence covers source restrictions, Alembic CLI online upgrade, and offline SQL without creating the offline database file.
+99. Remaining Profile, Account, Delivery Identity, Attempt uniqueness, nullable-value, reason, correlation, and scope constraints are covered.
+100. Public package evidence verifies initially unloaded Service, Persistence, and Worker modules and actual lazy Domain, Transport, Service, Persistence, and Worker resolution.
+101. Security evidence runs a complete isolated Worker flow covering NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, reset, restart, and stop while network, DNS, subprocess, Home-directory, and production thread-start entry points are blocked.
+102. Every dedicated Message test file and active acceptance test is independently checked for UTF-8, BOM absence, Synthetic Fixtures, sensitive values, customer data, and cleanup escape hatches.
+103. Test counts remain unchanged: 42 permanent Message tests, three Import Safety tests, four active acceptance tests, and 322 full collection.
+104. No Runtime, Migration, Registry, Capability Specification, dependency, CI, task count, or generated project state file is modified.
+105. T8 remains the next executable task and is not started.

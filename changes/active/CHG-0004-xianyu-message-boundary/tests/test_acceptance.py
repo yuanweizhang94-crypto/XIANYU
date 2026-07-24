@@ -162,6 +162,18 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
         "get_foreign_keys",
         "get_unique_constraints",
         "get_check_constraints",
+        "ck_xianyu_message_conversation_account_len",
+        "ck_xianyu_message_record_delivery_len",
+        "ck_xianyu_message_record_content_len",
+        "ck_xianyu_message_attempt_outcome",
+        "ck_xianyu_message_attempt_reason_len",
+        "ck_xianyu_message_attempt_correlation_len",
+        "referred_columns",
+        "RESTRICT",
+        "--sql",
+        "4097",
+        "reason_code",
+        "correlation_identifier",
         "DeduplicationConflict",
         'revision="0002_xianyu_account_boundary"',
     ]:
@@ -189,6 +201,19 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
         "threading.Thread.start",
         "MessageWorker",
         "SyntheticMessageDelivery",
+        "initial_service_loaded",
+        "initial_persistence_loaded",
+        "initial_worker_loaded",
+        "service_loaded_after_service_access",
+        "worker_loaded_after_worker_access",
+        "DeduplicationDecision.NEW",
+        "DeduplicationDecision.DUPLICATE",
+        "DeduplicationDecision.INDETERMINATE",
+        "DeduplicationConflict",
+        "worker.reset()",
+        "worker.stop()",
+        "read_bytes",
+        'decode("utf-8")',
     ]:
         assert required in security_source
 
@@ -213,9 +238,13 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
     acceptance = (CHG_0004 / "acceptance.md").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "T1 through T7 are complete." in proposal
+    assert "T7 final evidence follow-up" in proposal
     assert "T7 permanent Message test coverage is complete." in design
+    assert "T7 final evidence follow-up" in design
     assert "## T7 acceptance criteria" in acceptance
+    assert "T7 final evidence follow-up acceptance criteria" in acceptance
     assert "T7 dedicated unit, contract, security, and active-change acceptance tests are complete." in readme
+    assert "CHG-0004 T7 final evidence follow-up" in readme
     assert MESSAGE_PACKAGE.is_dir()
     assert MESSAGE_MIGRATION.is_file()
 

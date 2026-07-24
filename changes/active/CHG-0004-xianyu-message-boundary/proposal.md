@@ -274,3 +274,15 @@ The correction strengthens existing T7 evidence without changing test counts. Th
 The correction adds true Worker re-entry coverage from inside an active Service operation, deterministic graceful-stop Event/thread coverage, direct Repository flush-without-commit evidence, real SQLite NEW/DUPLICATE/INDETERMINATE and conflict atomicity evidence, complete schema and database-constraint evidence, explicit Message-only downgrade to `0002_xianyu_account_boundary`, isolated Worker security runtime evidence, stronger package lazy-import evidence, and stronger Synthetic Fixture and cleanup escape-hatch scans.
 
 No Runtime, Migration, Registry, Capability Specification, dependency, CI, `tasks.md`, or `generated/PROJECT_STATE.json` file was modified by this correction. `CAP-XY-MESSAGE` remains planned and unbound.
+
+## T7 final evidence follow-up authorization and outcome
+
+The project owner authorized a second T7 corrective follow-up execution: `Complete the remaining T7 evidence gates before T8`.
+
+Tasks remain 7 / 9. T1 through T7 are complete. T8 remains the next executable task and was not started.
+
+The follow-up completes remaining permanent evidence gates without changing test counts. The permanent Message test suite remains exactly 42 tests, Import Safety remains three tests, active acceptance remains four tests, and full collection remains 322 tests.
+
+The follow-up adds complete Check Constraint name and SQL-semantics evidence, reflected Foreign Key referred-column and `RESTRICT` evidence, Migration source restrictions, Alembic CLI upgrade evidence, offline SQL evidence, remaining Profile/Account/Delivery Identity/Attempt constraint cases, actual lazy public package resolution, a complete isolated Worker security flow, and per-file UTF-8/Synthetic Fixture/sensitive-data/cleanup escape-hatch scans.
+
+No Runtime, Migration, Registry, Capability Specification, dependency, CI, `tasks.md`, or `generated/PROJECT_STATE.json` file was modified by this follow-up. `CAP-XY-MESSAGE` remains planned and unbound.

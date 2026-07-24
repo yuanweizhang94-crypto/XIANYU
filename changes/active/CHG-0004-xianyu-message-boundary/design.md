@@ -1664,3 +1664,21 @@ Message-only downgrade coverage now explicitly targets `0002_xianyu_account_boun
 Security coverage now runs Message Service and Message Worker in an isolated process while network, DNS, subprocess, Home-directory, and production thread-start entry points are blocked. Lazy package import evidence verifies Persistence, Service, and Worker are initially unloaded.
 
 No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified.
+
+## T7 final evidence follow-up record
+
+T7 final evidence follow-up closes the remaining evidence gates before T8 while preserving the T7 task state.
+
+Persistence Contract evidence now verifies every approved Message Check Constraint by name and normalized SQL semantics in both ORM projection and reflected SQLite schema. The evidence covers UUID text length, Account Reference trimming and length, nullable platform identifiers, nullable Delivery Identity, participant validation, Message Content length and trimmed non-empty semantics, persisted decision values, Attempt outcomes, positive Attempt numbers, nullable reason codes, and nullable correlation identifiers.
+
+Foreign Key evidence now verifies constrained columns, referred tables, referred columns, and `ON DELETE RESTRICT` for the Conversation-to-Profile, Message-to-Conversation owner, and Delivery Attempt-to-Message owner relationships in both projection and SQLite reflection.
+
+Migration evidence now covers source restrictions, exact revision/down-revision metadata, only three Message table create/drop operations, Alembic CLI `upgrade head` against a temporary SQLite database, and Alembic offline SQL generation without creating the offline database file.
+
+Database constraint evidence now covers the remaining ownership, content, decision, outcome, reason, correlation, uniqueness, nullable-value, and scope cases, including duplicate attempt numbers and different Account scope for the same Delivery Identity.
+
+Security evidence now verifies initially unloaded public package state and actual lazy Domain, Transport, Service, Persistence, and Worker resolution. The isolated Worker flow covers NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, reset, restart, and stop while external side-effect entry points remain blocked.
+
+Dedicated Message test files and active acceptance evidence are now checked independently for UTF-8 decoding, absence of BOM, Synthetic Fixtures, sensitive value patterns, customer data, and cleanup escape hatches.
+
+No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified.
