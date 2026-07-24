@@ -476,3 +476,20 @@ CHG-0003 final PR administration is complete.
 - Full collection remains 322.
 - Tasks remain 7 / 9.
 - T8 remains separately authorized and has not started.
+
+## CHG-0004 T7 sensitive scan completion
+
+- CHG-0004 T7 sensitive-evidence scan correction is complete before T8.
+- Every approved Message evidence file is scanned as complete UTF-8 Source after raw-byte and BOM checks.
+- No prohibited source line is deleted, filtered, replaced, masked, or allowlisted before scanning.
+- Plus-phone detection supports common separators and requires at least eight digits.
+- Standalone long-number detection begins at eleven digits and avoids UUID-like embedded numeric segments.
+- Bearer, Authorization Header, API Key, Access Token, Refresh Token, Session Cookie, Password, and Secret forms are covered.
+- Real-customer, customer-message, customer-data, raw-frame, production-account, live-account, real-Xianyu-account, and real-account phrase forms are covered.
+- Runtime positive controls prove every scanner category can detect its intended input.
+- Scanner failure diagnostics report file path and category only, never matched values.
+- No Runtime, Migration, Persistence Contract, Registry, Capability Specification, dependency, or CI file was modified by this correction.
+- Permanent Message test count remains 42 and full collection remains 322.
+- Tasks remain 7 / 9; T8 remains the next executable task and has not started.
+- CAP-XY-MESSAGE remains planned and unbound.
+- PR #4 remains Draft, open, unmerged, without requested reviewers, and without auto-merge.

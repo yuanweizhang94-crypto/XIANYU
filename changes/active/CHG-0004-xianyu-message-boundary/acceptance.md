@@ -176,3 +176,30 @@ This execution does not authorize real WebSocket access, external network access
 126. Every dedicated Message evidence file is checked for real-customer, customer-message, customer-data, raw-frame, production-account, live-account, and real-account text.
 127. Test counts remain 42 permanent Message tests and 322 total tests.
 128. Tasks remain 7 / 9 and T8 remains incomplete.
+
+## T7 sensitive-scan correction acceptance criteria
+
+129. Per-file sensitive checks scan complete Source without deleting or filtering lines.
+130. No target file or forbidden phrase is allowlisted.
+131. Plus-phone detection supports spaces, hyphens, periods, and parentheses.
+132. Plus-phone detection requires at least eight digits.
+133. Standalone long-number detection begins at eleven digits.
+134. UUID-like embedded numeric segments are not treated as standalone phone values.
+135. Bearer values are detected.
+136. Authorization Header values are detected without matching MessageAuthorizationViolation.
+137. API Key forms are detected.
+138. Access Token forms are detected.
+139. Refresh Token forms are detected.
+140. Session Cookie forms are detected.
+141. Password assignment forms are detected.
+142. Secret assignment forms are detected.
+143. Real-customer, customer-message, and customer-data phrases are detected.
+144. Raw-frame spaced and underscored forms are detected.
+145. Production-account and live-account spaced and hyphenated forms are detected.
+146. Real-Xianyu-account forms are detected.
+147. Positive controls prove every sensitive scanner category is active.
+148. Scanner failure messages do not expose matched sensitive values.
+149. Six approved Message evidence files remain the exact scan target.
+150. Permanent Message test count remains 42.
+151. Full collection remains 322.
+152. Tasks remain 7 / 9 and T8 remains incomplete.

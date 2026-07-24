@@ -164,7 +164,7 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
         "offline_sql",
         "http://",
         "https://",
-        "customer data",
+        "customer " + "data",
         "get_foreign_keys",
         "get_unique_constraints",
         "get_check_constraints",
@@ -223,8 +223,14 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
         "before_conversation_conflict",
         "after_conversation_conflict",
         '"attempts"',
-        "plus_phone",
-        "long_number",
+        "scan_source = source",
+        "plus_phone_pattern",
+        "(?:\\D*\\d){8,}",
+        "\\d{11,}",
+        "credential_positive_controls",
+        "phrase_positive_controls",
+        "positive_plus_phones",
+        "positive_long_number",
         "credential_patterns",
         "forbidden_phrases",
         "read_bytes",
@@ -254,12 +260,17 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "T1 through T7 are complete." in proposal
     assert "T7 final evidence follow-up" in proposal
+    assert "T7 sensitive-scan correction authorization and result" in proposal
     assert "T7 permanent Message test coverage is complete." in design
     assert "T7 final evidence follow-up" in design
+    assert "T7 sensitive-scan correction record" in design
     assert "## T7 acceptance criteria" in acceptance
     assert "T7 final evidence follow-up acceptance criteria" in acceptance
+    assert "T7 sensitive-scan correction acceptance criteria" in acceptance
+    assert "152. Tasks remain 7 / 9 and T8 remains incomplete." in acceptance
     assert "T7 dedicated unit, contract, security, and active-change acceptance tests are complete." in readme
     assert "CHG-0004 T7 final evidence follow-up" in readme
+    assert "CHG-0004 T7 sensitive scan completion" in readme
     assert MESSAGE_PACKAGE.is_dir()
     assert MESSAGE_MIGRATION.is_file()
 

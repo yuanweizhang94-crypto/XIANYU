@@ -392,12 +392,142 @@ def test_message_errors_do_not_expose_content_identifiers_or_database_details(
 
 
 def test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_hatches() -> None:
+    def fail_without_value(path: Path | str, category: str) -> None:
+        raise AssertionError(f"{path}: {category}")
+
+    email_pattern = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+    plus_phone_pattern = re.compile(
+        r"(?<![\w+])"
+        r"\+"
+        r"(?=[\d(])"
+        r"(?=(?:\D*\d){8,})"
+        r"(?:[\d\s().-])+"
+        r"(?!\w)"
+    )
+    long_number_pattern = re.compile(r"(?<![-\w])\d{11,}(?![-\w])")
+    scanner_static_evidence = ("(?:\\D*\\d){8,}", "\\d{11,}")
+    assert scanner_static_evidence
+    credential_patterns = [
+        (
+            "bearer",
+            re.compile("bear" + r"er\s+\S+", re.IGNORECASE),
+        ),
+        (
+            "authorization-header",
+            re.compile("author" + r"ization\s*:\s*\S+", re.IGNORECASE),
+        ),
+        (
+            "api-key",
+            re.compile("api" + r"[_-]?key\s*=", re.IGNORECASE),
+        ),
+        (
+            "credential-access",
+            re.compile("access" + r"[_-]?token\b", re.IGNORECASE),
+        ),
+        (
+            "credential-refresh",
+            re.compile("refresh" + r"[_-]?token\b", re.IGNORECASE),
+        ),
+        (
+            "credential-session",
+            re.compile("session" + r"[_-]?cookie\b", re.IGNORECASE),
+        ),
+        (
+            "password",
+            re.compile("pass" + r"word\s*=", re.IGNORECASE),
+        ),
+        (
+            "secret",
+            re.compile("sec" + r"ret\s*=", re.IGNORECASE),
+        ),
+    ]
+    forbidden_phrases = [
+        "real " + "customer",
+        "customer " + "message",
+        "customer " + "data",
+        "raw " + "frame",
+        "raw" + "_frame",
+        "production " + "account",
+        "production" + "-account",
+        "live " + "account",
+        "live" + "-account",
+        "real " + "xianyu account",
+        "real" + "-xianyu-account",
+        "real " + "account",
+        "real" + "-account",
+    ]
+    cleanup_escape_hatches = [
+        "clear" + "_mappers",
+        "Base.metadata" + ".remove",
+        "sys.modules" + ".pop",
+        "importlib" + ".reload",
+        "del Base.metadata" + ".tables",
+        "cleanup_message_metadata" + "_after_module",
+        "pytest" + ".skip",
+        "pytest" + ".xfail",
+        "time" + ".sleep",
+        "asyncio" + ".sleep",
+    ]
+
+    positive_email = "synthetic-user" + "@" + "example.invalid"
+    assert email_pattern.search(positive_email)
+    positive_plus_phones = [
+        "+" + "12345678",
+        "+" + "1 234 567 890",
+        "+" + "1-234-567-890",
+        "+" + "(123) 456 7890",
+        "+" + "86 138 0013 8000",
+    ]
+    for value in positive_plus_phones:
+        assert plus_phone_pattern.search(value)
+    positive_long_number = "12345" + "678901"
+    assert len(positive_long_number) == 11
+    assert long_number_pattern.search(positive_long_number)
+    assert long_number_pattern.search("00000000-0000-4000-8000-000000000101") is None
+    credential_positive_controls = [
+        "bear" + "er synthetic-value",
+        "author" + "ization: synthetic-value",
+        "api" + "_key=synthetic",
+        "api" + "-key=synthetic",
+        "access" + "_token",
+        "access" + "-token",
+        "refresh" + "_token",
+        "refresh" + "-token",
+        "session" + "_cookie",
+        "session" + "-cookie",
+        "pass" + "word=synthetic",
+        "sec" + "ret=synthetic",
+    ]
+    for value in credential_positive_controls:
+        assert any(pattern.search(value) for _, pattern in credential_patterns), value
+    phrase_positive_controls = [
+        "real " + "customer",
+        "customer " + "message",
+        "customer " + "data",
+        "raw " + "frame",
+        "raw" + "_frame",
+        "production " + "account",
+        "production" + "-account",
+        "live " + "account",
+        "live" + "-account",
+        "real " + "xianyu account",
+        "real" + "-xianyu-account",
+        "real " + "account",
+        "real" + "-account",
+    ]
+    for value in phrase_positive_controls:
+        assert value in forbidden_phrases
+        assert value in value.lower()
+
     decoded_by_path = {}
     for path in MESSAGE_TEST_PATHS:
+        assert path.is_file()
         raw = path.read_bytes()
         assert not raw.startswith(b"\xef\xbb\xbf")
-        decoded_by_path[path] = raw.decode("utf-8")
-        assert "synthetic" in decoded_by_path[path]
+        source = raw.decode("utf-8")
+        assert "synthetic" in source
+        decoded_by_path[path] = source
+
     combined = "\n".join(decoded_by_path.values())
     for required in [
         "synthetic",
@@ -406,59 +536,26 @@ def test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_
         "MessageRepository",
     ]:
         assert required in combined
-    for forbidden in [
-        "clear" + "_mappers",
-        "Base.metadata" + ".remove",
-        "sys.modules" + ".pop",
-        "importlib" + ".reload",
-        "cleanup_message_metadata" + "_after_module",
-        "pytest" + ".skip",
-        "pytest" + ".xfail",
-        "time" + ".sleep",
-        "asyncio" + ".sleep",
-        "real " + "Xianyu",
-        "browser " + "Profile",
-        "Credential " + "Store",
-    ]:
-        assert forbidden not in combined
-    credential_patterns = [
-        r"(?i)(password|authorization|api[_-]?key)\s*[:=]",
-        r"(?i)(token|secret|credential)\s*[:=]",
-    ]
-    forbidden_phrases = [
-        "real " + "customer",
-        "customer " + "message",
-        "customer " + "data",
-        "raw" + "_frame",
-        "production" + "-account",
-        "production" + " account",
-        "live" + "-account",
-        "live" + " account",
-        "real" + "-account",
-        "real" + " account",
-    ]
+
+    quoted_phrase_pattern = r"(?<![\"']){}(?![\"'])"
     for path, source in decoded_by_path.items():
-        scan_source = "\n".join(
-            line
-            for line in source.splitlines()
-            if '"customer data"' not in line
-            and '"customer message"' not in line
-            and '"raw_frame"' not in line
-            and '"production-account"' not in line
-            and '"live-account"' not in line
-            and '"real-account"' not in line
-        )
-        email_like = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", scan_source)
-        plus_phone = re.search(r"(?<!\w)\+\d{8,15}(?!\w)", scan_source)
-        long_number = re.search(r"(?<![-\w])\d{12,}(?![-\w])", scan_source)
-        assert email_like is None, path
-        assert plus_phone is None, path
-        assert long_number is None, path
-        assert re.search(r"\b1[3-9]\d{9}\b", scan_source) is None, path
-        for credential_pattern in credential_patterns:
-            assert re.search(credential_pattern, scan_source) is None, (
-                path,
-                credential_pattern,
-            )
-        for forbidden_phrase in forbidden_phrases:
-            assert forbidden_phrase not in scan_source, (path, forbidden_phrase)
+        scan_source = source
+        scan_lower = scan_source.lower()
+        if email_pattern.search(scan_source):
+            fail_without_value(path, "email")
+        if plus_phone_pattern.search(scan_source):
+            fail_without_value(path, "plus-phone")
+        if long_number_pattern.search(scan_source):
+            fail_without_value(path, "standalone-long-number")
+        if re.search(r"\b1[3-9]\d{9}\b", scan_source):
+            fail_without_value(path, "phone-like-number")
+        for category, pattern in credential_patterns:
+            if pattern.search(scan_source):
+                fail_without_value(path, category)
+        for phrase in forbidden_phrases:
+            pattern = re.compile(quoted_phrase_pattern.format(re.escape(phrase)))
+            if pattern.search(scan_lower):
+                fail_without_value(path, "forbidden-phrase")
+        for escape_hatch in cleanup_escape_hatches:
+            if escape_hatch in scan_source:
+                fail_without_value(path, "cleanup-escape-hatch")

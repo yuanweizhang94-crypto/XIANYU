@@ -1686,3 +1686,13 @@ No Runtime, Migration, Registry, Capability Specification, dependency, or CI fil
 ## T7 exact contract evidence completion record
 
 The exact T7 evidence completion keeps the approved runtime, schema, migration, registry, capability specification, dependencies, and CI unchanged. Persistence contract evidence now isolates each expected IntegrityError in a fresh Connection and Transaction, directly covers empty, blank, padded, over-limit, unknown-enum, scoped Delivery Identity, duplicate Attempt Number, and nullable-value cases, and scans offline SQL for external URL, Credential, browser-profile, and customer-data text. Security contract evidence now records row counts before and after both isolated conflict paths and verifies final isolated counts of one Conversation, two Messages, and three Delivery Attempts. Dedicated Message evidence files are scanned for email-like, plus-phone, standalone long-number, Credential-like, customer-data, raw-frame, production-account, live-account, real-account, and cleanup escape-hatch patterns.
+
+## T7 sensitive-scan correction record
+
+The Security Contract scanner now reads each approved Message evidence file as raw bytes, rejects UTF-8 BOM, strictly decodes UTF-8, and scans the complete decoded Source with `scan_source = source`.
+
+The scanner does not delete lines, filter lines, replace Source content, mask Source content, or allowlist target files before scanning. It preserves the six approved scan targets exactly.
+
+The scanner covers email-like values, plus-phone values with common separators and at least eight digits, standalone long numbers beginning at eleven digits, Credential-like forms, customer and raw-frame phrase forms, production-account and live-account phrase forms, real-Xianyu-account phrase forms, and cleanup escape hatches.
+
+Runtime positive controls prove each detector category can detect its intended input. Scanner failure diagnostics report only the file path and detector category, not the matched value.

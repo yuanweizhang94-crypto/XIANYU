@@ -290,3 +290,11 @@ No Runtime, Migration, Registry, Capability Specification, dependency, CI, `task
 ## T7 exact contract evidence completion authorization and result
 
 The project owner authorized a final T7 corrective evidence completion before T8. This correction is limited to permanent test evidence and governance documentation. It closes direct database constraint evidence gaps, isolated Worker row-count evidence gaps, offline SQL sensitive-output scanning, and per-file sensitive-data scan coverage while keeping CHG-0004 APPROVED, tasks at 7 / 9, and T8 not started.
+
+## T7 sensitive-scan correction authorization and result
+
+The project owner authorized the final T7 security-scan corrective execution before T8. The authorized scope is limited to the permanent Security Contract scanner implementation and governance documentation.
+
+The correction keeps CHG-0004 APPROVED, keeps tasks at 7 / 9, and keeps T8 as the next executable task. T8 was not started.
+
+CAP-XY-MESSAGE remains planned and unbound: implementation_paths and test_paths remain empty, active_change remains null, and last_verified_commit remains null.
