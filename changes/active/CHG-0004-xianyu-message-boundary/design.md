@@ -1646,3 +1646,21 @@ Updated `tests/unit/test_import_safety.py` without changing its three-test funct
 The tests cover Domain normalization and immutable values, UUID4 local identifier generation, NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, Profile/Account scope, Service transaction ownership, rollback, Worker lifecycle, failure-state mapping, explicit reset, one in-flight delivery, re-entry, graceful stop, the three-table schema, Migration lineage, Foreign Keys, database constraints, empty downgrade, non-empty downgrade fail-closed behavior, Repository no-commit behavior, public surface, import isolation, no external side effects, sanitized errors, and contract order independence.
 
 No Message Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified by T7. T8 remains the next task.
+
+## T7 corrective hardening record
+
+T7 corrective hardening closes coverage gaps before T8 while preserving the T7 task state.
+
+Worker coverage now proves real re-entry by causing the active fake Service operation to call the same Worker again. The nested call fails with `WorkerBusy` before a second Service operation begins, the outer operation completes, and the Worker remains `RUNNING`.
+
+Graceful-stop coverage now uses deterministic `threading.Event` and finite-timeout test threads. The test observes `STOPPING`, verifies new delivery is rejected during `STOPPING`, releases the in-flight operation, joins all test threads, and verifies final `STOPPED` state with no remaining thread.
+
+Persistence Contract coverage now directly exercises `MessageRepository` add methods inside an explicit Session, verifies flush visibility, verifies no Repository commit call, verifies rollback removes uncommitted Conversation, Message, and Delivery Attempt rows, and verifies ownership and UTC timestamp round-trip. Real SQLite Service coverage now verifies NEW, DUPLICATE, INDETERMINATE, Content Conflict, and Conversation Conflict atomicity.
+
+Schema and constraint coverage now includes approved column types, lengths, nullable flags, primary keys, foreign keys, unique constraints, check constraints, prohibited fields, ownership scope, nullable Delivery Identities, Platform Message Identifier reuse, Message Content constraints, decision constraints, and Attempt outcome/number constraints.
+
+Message-only downgrade coverage now explicitly targets `0002_xianyu_account_boundary`, preserving Account table/data on empty downgrade and failing closed with revision/table/row preservation on non-empty downgrade.
+
+Security coverage now runs Message Service and Message Worker in an isolated process while network, DNS, subprocess, Home-directory, and production thread-start entry points are blocked. Lazy package import evidence verifies Persistence, Service, and Worker are initially unloaded.
+
+No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified.

@@ -262,3 +262,15 @@ T7 added permanent Message coverage only: 12 Domain unit tests, 9 Service unit t
 The coverage records NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, UUID4 local identifier generation, transaction ownership, rollback, Profile scope, Account scope, Worker lifecycle, failure-state mapping, explicit reset, one in-flight delivery, re-entry protection, graceful stop, three-table schema, Migration lineage, Foreign Keys, database constraints, Repository no-commit behavior, empty downgrade, non-empty downgrade fail-closed behavior, import isolation, absence of external integrations, blocked network/subprocess/Home/thread entry points, sanitized errors, Synthetic Fixture-only evidence, and contract order independence.
 
 No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified. `CAP-XY-MESSAGE` remains planned and unbound; implementation_paths and test_paths remain empty until separately authorized T8 evidence work.
+
+## T7 corrective authorization and outcome
+
+The project owner authorized a T7 corrective execution: `Correct T7 permanent Message-boundary coverage before T8`.
+
+Tasks remain 7 / 9. T1 through T7 are complete. T8 remains the next executable task and was not started.
+
+The correction strengthens existing T7 evidence without changing test counts. The permanent Message test suite remains exactly 42 tests, Import Safety remains three tests, active acceptance remains four tests, and full collection remains 322 tests.
+
+The correction adds true Worker re-entry coverage from inside an active Service operation, deterministic graceful-stop Event/thread coverage, direct Repository flush-without-commit evidence, real SQLite NEW/DUPLICATE/INDETERMINATE and conflict atomicity evidence, complete schema and database-constraint evidence, explicit Message-only downgrade to `0002_xianyu_account_boundary`, isolated Worker security runtime evidence, stronger package lazy-import evidence, and stronger Synthetic Fixture and cleanup escape-hatch scans.
+
+No Runtime, Migration, Registry, Capability Specification, dependency, CI, `tasks.md`, or `generated/PROJECT_STATE.json` file was modified by this correction. `CAP-XY-MESSAGE` remains planned and unbound.

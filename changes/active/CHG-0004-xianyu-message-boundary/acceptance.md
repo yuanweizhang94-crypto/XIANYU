@@ -112,3 +112,27 @@ This execution does not authorize real WebSocket access, external network access
 71. `CAP-XY-MESSAGE` remains planned and unbound with empty implementation_paths and test_paths.
 72. CHG-0004 remains APPROVED, T1 through T7 are complete, and T8 is the next executable task.
 73. T8 is not started by T7.
+
+## T7 corrective acceptance criteria
+
+74. Worker re-entry is triggered from inside an active Service operation.
+75. Inner Worker re-entry fails with `WorkerBusy` before a second Service operation begins.
+76. The outer Worker operation completes successfully and leaves the Worker `RUNNING`.
+77. Graceful stop is covered with deterministic Events and finite-timeout test threads.
+78. The Worker enters `STOPPING`, rejects new delivery during `STOPPING`, waits for the in-flight operation, and reaches `STOPPED` only after completion.
+79. Repository add methods are tested directly and do not commit.
+80. Explicit rollback removes uncommitted Conversation, Message, and Delivery Attempt rows.
+81. Repository ownership and UTC timestamp round-trip are covered.
+82. Real SQLite evidence covers NEW, DUPLICATE, INDETERMINATE, Content Conflict, and Conversation Conflict.
+83. Conflict operations preserve row counts and existing Message Content.
+84. Schema evidence covers approved types, lengths, nullable rules, primary keys, foreign keys, unique constraints, check constraints, and prohibited fields.
+85. Database evidence covers Profile and Account ownership, Delivery Identity scope, nullable Delivery Identities, Platform Message Identifier reuse, Message Content constraints, decision constraints, Attempt outcomes, and Attempt numbers.
+86. Message-only downgrade explicitly targets `0002_xianyu_account_boundary`.
+87. Empty Message downgrade preserves Account table/data and supports re-upgrade.
+88. Non-empty Message downgrade fails closed and preserves revision, tables, and rows.
+89. Security evidence runs Message Service and Message Worker in an isolated process while network, DNS, subprocess, Home-directory, and production thread-start entry points are blocked.
+90. Package lazy-import evidence verifies Persistence, Service, and Worker are initially unloaded.
+91. Synthetic Fixture and cleanup escape-hatch scans cover all dedicated Message test files and active acceptance evidence.
+92. Test counts remain unchanged: 42 permanent Message tests, three Import Safety tests, four active acceptance tests, and 322 full collection.
+93. No Runtime, Migration, Registry, Capability Specification, dependency, CI, task count, or generated project state file is modified.
+94. T8 remains the next executable task and is not started.

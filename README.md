@@ -17,7 +17,8 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - T4 ordering, deduplication, and persistence boundaries is complete.
 - T5 worker ownership, lifecycle, and failure boundaries is complete.
 - T6 local synthetic message-receiving implementation is complete.
-- T7 dedicated unit, contract, security, and active-change acceptance tests is the next executable task.
+- T7 dedicated unit, contract, security, and active-change acceptance tests is complete.
+- T8 capability evidence and complete verification is the next executable task.
 - The local package `xianyu_system.worker.message` now exists.
 - The implementation contains Domain, Persistence, Service, Transport-neutral delivery values, and a synchronous Message Worker.
 - Migration `0003_xianyu_message_boundary` creates Profile-scoped Conversation, Message, and Delivery Attempt tables.
@@ -38,8 +39,8 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Authorization, risk, protocol, ownership, and deduplication conflicts block the Worker.
 - Persistence and internal failures fail the Worker.
 - The existing permanent-test changes are limited to generic `0003` Migration-head compatibility and added no test functions.
-- Tasks remain 6 / 9.
-- T7 remains the next separately authorized task.
+- Tasks remain 7 / 9.
+- T8 remains the next separately authorized task.
 
 ## Project goal
 
@@ -431,3 +432,19 @@ CHG-0003 final PR administration is complete.
 - Coverage includes the three-table schema, Migration lineage, Foreign Keys, database constraints, Repository no-commit behavior, empty downgrade, non-empty downgrade fail-closed behavior, import isolation, absence of external integrations, blocked network/subprocess/Home/thread entry points, sanitized errors, Synthetic Fixture-only evidence, and contract order independence.
 - No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified for T7.
 - `CAP-XY-MESSAGE` remains planned and unbound with empty implementation paths, empty test paths, null active_change, and null last_verified_commit pending T8.
+
+## CHG-0004 T7 corrective hardening
+
+- T7 corrective hardening was completed before T8.
+- The permanent Message test count remains exactly 42 and full collection remains 322.
+- Worker re-entry is now triggered from inside an active Service operation; the inner call fails with `WorkerBusy` before any second Service operation begins, while the outer operation completes and leaves the Worker `RUNNING`.
+- Graceful stop is now covered with deterministic Events and finite-timeout test threads; the Worker enters `STOPPING`, rejects new delivery, waits for the in-flight operation, and reaches `STOPPED` only after completion.
+- Repository flush-without-commit behavior is tested directly, including visible flush, no Repository commit call, explicit rollback removal, ownership round-trip, and UTC timestamp round-trip.
+- Real SQLite evidence covers NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, row-count preservation, and existing Message Content preservation.
+- Schema and constraint evidence covers approved types, lengths, nullable rules, primary keys, foreign keys, unique constraints, check constraints, prohibited columns, Delivery Identity scope, nullable Delivery Identities, Platform Message Identifier reuse, Message Content, decisions, Attempt outcomes, and Attempt numbers.
+- Message-only downgrade explicitly targets `0002_xianyu_account_boundary`; empty downgrade preserves Account table/data and re-upgrades, while non-empty downgrade fails closed and preserves revision, tables, and rows.
+- Security evidence runs Message Service and Message Worker in an isolated process with network, DNS, subprocess, Home-directory, and production thread-start entry points blocked.
+- Package lazy-import evidence verifies Persistence, Service, and Worker are initially unloaded.
+- Synthetic Fixture and cleanup escape-hatch scans cover all dedicated Message tests and active acceptance evidence.
+- No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified by the T7 correction.
+- T8 was not started.

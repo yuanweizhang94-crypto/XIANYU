@@ -111,15 +111,86 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
         assert len(top_level_test_names(path)) == expected_count
         source = path.read_text(encoding="utf-8")
         for forbidden in [
-            "pytest.mark.parametrize",
-            "pytest.param",
+            "pytest.mark" + ".parametrize",
+            "pytest" + ".param",
             "pytest_generate_tests",
-            "pytest.skip",
-            "pytest.xfail",
-            "time.sleep",
-            "asyncio.sleep",
+            "pytest" + ".skip",
+            "pytest" + ".xfail",
+            "time" + ".sleep",
+            "asyncio" + ".sleep",
         ]:
             assert forbidden not in source
+
+    worker_tests = top_level_test_names(ROOT / "tests" / "unit" / "test_message_worker.py")
+    assert worker_tests == [
+        "test_worker_start_stop_and_profile_account_scope_are_explicit",
+        "test_worker_rejects_receive_when_stopped_blocked_or_failed",
+        "test_worker_blocks_profile_and_account_mismatches_before_service_call",
+        "test_worker_failure_mapping_sets_blocked_failed_or_running",
+        "test_worker_sanitizes_unknown_boundary_and_unexpected_failures",
+        "test_worker_requires_explicit_reset_and_has_zero_automatic_recovery",
+        "test_worker_reentrant_delivery_is_busy_without_second_service_operation",
+        "test_worker_graceful_stop_waits_for_inflight_operation",
+    ]
+    worker_source = (ROOT / "tests" / "unit" / "test_message_worker.py").read_text(
+        encoding="utf-8"
+    )
+    assert "threading.Event" in worker_source
+    assert "threading.Thread" in worker_source
+    assert "WorkerBusy" in worker_source
+    assert "WorkerLifecycleState.STOPPING" in worker_source
+    assert "._inflight.acquire" not in worker_source
+
+    persistence_tests = top_level_test_names(
+        ROOT / "tests" / "contract" / "test_message_persistence.py"
+    )
+    assert persistence_tests == [
+        "test_message_projection_schema_matches_approved_columns_constraints_and_indexes",
+        "test_message_migration_is_single_linear_head_and_matches_projection",
+        "test_fresh_upgrade_creates_exact_message_tables_and_foreign_keys",
+        "test_repository_flushes_without_committing_and_round_trips_profile_ownership",
+        "test_service_persists_new_duplicate_indeterminate_and_conflict_atomically",
+        "test_database_constraints_enforce_scope_lengths_decisions_and_attempt_numbers",
+        "test_empty_message_downgrade_and_reupgrade_succeed",
+        "test_nonempty_message_downgrade_fails_closed_and_preserves_data_and_revision",
+    ]
+    persistence_source = (
+        ROOT / "tests" / "contract" / "test_message_persistence.py"
+    ).read_text(encoding="utf-8")
+    for required in [
+        "MessageRepository",
+        "get_foreign_keys",
+        "get_unique_constraints",
+        "get_check_constraints",
+        "DeduplicationConflict",
+        'revision="0002_xianyu_account_boundary"',
+    ]:
+        assert required in persistence_source
+
+    security_tests = top_level_test_names(
+        ROOT / "tests" / "contract" / "test_message_security.py"
+    )
+    assert security_tests == [
+        "test_message_public_surface_excludes_persistence_and_migration_internals",
+        "test_message_sources_have_no_external_integration_or_sensitive_storage",
+        "test_message_operations_make_no_network_subprocess_home_or_thread_calls",
+        "test_message_errors_do_not_expose_content_identifiers_or_database_details",
+        "test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_hatches",
+    ]
+    security_source = (
+        ROOT / "tests" / "contract" / "test_message_security.py"
+    ).read_text(encoding="utf-8")
+    for required in [
+        "run_isolated_message_python",
+        "socket.getaddrinfo",
+        "subprocess.run",
+        "subprocess.Popen",
+        "Path.home",
+        "threading.Thread.start",
+        "MessageWorker",
+        "SyntheticMessageDelivery",
+    ]:
+        assert required in security_source
 
     assert len(top_level_test_names(ROOT / "tests" / "unit" / "test_import_safety.py")) == 3
     import_safety_source = (ROOT / "tests" / "unit" / "test_import_safety.py").read_text(
@@ -128,6 +199,14 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
     assert '"xianyu_system.worker.message"' in import_safety_source
     assert '"xianyu_system.worker.message.domain"' in import_safety_source
     assert '"xianyu_system.worker.message.transport"' in import_safety_source
+    for required in [
+        "message_worker_loaded",
+        "message_conversation_public",
+        "message_service_public",
+        "message_worker_public",
+        "message_transport_public",
+    ]:
+        assert required in import_safety_source
 
     proposal = (CHG_0004 / "proposal.md").read_text(encoding="utf-8")
     design = (CHG_0004 / "design.md").read_text(encoding="utf-8")
