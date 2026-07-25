@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 import yaml
-from alembic.script import ScriptDirectory
 
 ROOT = Path(__file__).resolve().parents[4]
 ACTIVE = ROOT / "changes" / "active"
@@ -292,7 +291,17 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
     assert MESSAGE_MIGRATION.is_file()
 
 
-def test_message_capability_remains_planned_and_unbound_after_t7() -> None:
+def assert_safe_evidence_path(relative_path: str) -> None:
+    assert relative_path
+    assert not Path(relative_path).is_absolute()
+    assert "\\" not in relative_path
+    assert ".." not in relative_path.split("/")
+    assert "*" not in relative_path
+    assert "?" not in relative_path
+    assert (ROOT / relative_path).is_file()
+
+
+def test_message_capability_evidence_candidate_is_registered_for_t8() -> None:
     registry = registry_by_id()
     account = registry[ACCOUNT_CAPABILITY]
     assert account["status"] == "verified"
@@ -301,30 +310,59 @@ def test_message_capability_remains_planned_and_unbound_after_t7() -> None:
     assert ACCOUNT_ARCHIVED_ACCEPTANCE in account["test_paths"]
     assert ACCOUNT_ACTIVE_ACCEPTANCE not in account["test_paths"]
 
-    account_spec = (ROOT / "specs" / "capabilities" / "CAP-XY-ACCOUNT.md").read_text(
-        encoding="utf-8"
-    )
-    assert ACCOUNT_ARCHIVED_ACCEPTANCE in account_spec
-    assert ACCOUNT_ACTIVE_ACCEPTANCE not in account_spec
+    expected_implementation = [
+        "app/xianyu_system/worker/message/__init__.py",
+        "app/xianyu_system/worker/message/domain.py",
+        "app/xianyu_system/worker/message/transport.py",
+        "app/xianyu_system/worker/message/service.py",
+        "app/xianyu_system/worker/message/persistence.py",
+        "app/xianyu_system/worker/message/worker.py",
+        "migrations/versions/0003_xianyu_message_boundary.py",
+    ]
+    expected_tests = [
+        "tests/unit/test_message_domain.py",
+        "tests/unit/test_message_service.py",
+        "tests/unit/test_message_worker.py",
+        "tests/unit/test_import_safety.py",
+        "tests/contract/test_message_persistence.py",
+        "tests/contract/test_message_security.py",
+        "tests/contract/test_migrations.py",
+        "tests/contract/test_core_runtime.py",
+        "tests/contract/test_capability_registry.py",
+        "changes/active/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py",
+    ]
 
     message = registry[MESSAGE_CAPABILITY]
-    assert message["status"] == "planned"
-    assert message["owner_module"] == "worker.message"
-    assert message["implementation_paths"] == []
-    assert message["test_paths"] == []
-    assert message["active_change"] is None
+    assert message["status"] == "implementing"
+    assert message["active_change"] == "CHG-0004-xianyu-message-boundary"
     assert message["last_verified_commit"] is None
+    assert message["implementation_paths"] == expected_implementation
+    assert message["test_paths"] == expected_tests
+    assert len(message["implementation_paths"]) == 7
+    assert len(message["test_paths"]) == 10
+    assert len(message["implementation_paths"] + message["test_paths"]) == len(
+        set(message["implementation_paths"] + message["test_paths"])
+    )
+    for relative_path in message["implementation_paths"] + message["test_paths"]:
+        assert_safe_evidence_path(relative_path)
+
+    state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    assert state["tasks"]["completed"] == 7
+    assert state["tasks"]["next_task"] == "T8 Update capability evidence and run complete verification"
+    assert state["tasks"]["items"][7]["completed"] is False
+    assert state["tasks"]["items"][8]["completed"] is False
+    assert state["capabilities"]["by_status"] == {
+        "planned": 5,
+        "implementing": 1,
+        "verified": 4,
+    }
 
     message_spec = (ROOT / "specs" / "capabilities" / "CAP-XY-MESSAGE.md").read_text(
         encoding="utf-8"
     )
-    assert "without opening a real WebSocket" in message_spec
-    assert "Status remains planned." in message_spec
-
-    script = ScriptDirectory.from_config(
-        __import__(
-            "xianyu_system.core.database",
-            fromlist=["build_alembic_config"],
-        ).build_alembic_config()
-    )
-    assert script.get_current_head() == "0003_xianyu_message_boundary"
+    assert "Registry status: implementing" in message_spec
+    assert "Last verified commit: unset until T8 complete verification" in message_spec
+    for relative_path in expected_implementation + expected_tests:
+        assert f"`{relative_path}`" in message_spec
+    assert "PR #4 remains Draft" not in message_spec
+    assert "T9 Complete final PR administration" not in message_spec

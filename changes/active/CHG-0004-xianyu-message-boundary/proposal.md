@@ -318,3 +318,21 @@ No test function was added or removed.
 Tasks remain 7 / 9.
 
 T8 remains the next executable task and was not started.
+
+## T8 evidence candidate
+
+CAP-XY-MESSAGE registers the exact approved implementation and verification paths.
+
+The capability is temporarily implementing.
+
+active_change is CHG-0004-xianyu-message-boundary.
+
+last_verified_commit remains null until complete verification succeeds.
+
+Tasks remain 7 / 9.
+
+T8 is not complete in the Evidence Candidate state.
+
+T9 has not started.
+
+PR #4 remains Draft, open, and unmerged.

@@ -1714,3 +1714,15 @@ The same detector is exercised against:
 Detector failure output contains only the file path and category.
 
 Persistence Contract scanner definitions use runtime string composition to avoid embedding prohibited phrase samples as continuous repository literals.
+
+## T8 evidence candidate
+
+The registered evidence contains seven implementation paths and ten test paths.
+
+All paths are safe, repository-relative, concrete, duplicate-free files.
+
+The Evidence Candidate contains no Runtime or Migration behavior change.
+
+Complete verification must execute on the committed Candidate SHA.
+
+The Candidate SHA must become last_verified_commit only after verification succeeds.

@@ -52,7 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 6,
+      "implementing": 1,
+      "planned": 5,
       "verified": 4
     },
     "items": [
@@ -135,12 +136,31 @@
       {
         "id": "CAP-XY-MESSAGE",
         "name": "Xianyu message receive",
-        "status": "planned",
+        "status": "implementing",
         "owner_module": "worker.message",
         "specification": "specs/capabilities/CAP-XY-MESSAGE.md",
-        "implementation_paths": [],
-        "test_paths": [],
-        "active_change": null,
+        "implementation_paths": [
+          "app/xianyu_system/worker/message/__init__.py",
+          "app/xianyu_system/worker/message/domain.py",
+          "app/xianyu_system/worker/message/transport.py",
+          "app/xianyu_system/worker/message/service.py",
+          "app/xianyu_system/worker/message/persistence.py",
+          "app/xianyu_system/worker/message/worker.py",
+          "migrations/versions/0003_xianyu_message_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_message_domain.py",
+          "tests/unit/test_message_service.py",
+          "tests/unit/test_message_worker.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_message_persistence.py",
+          "tests/contract/test_message_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py"
+        ],
+        "active_change": "CHG-0004-xianyu-message-boundary",
         "last_verified_commit": null
       },
       {

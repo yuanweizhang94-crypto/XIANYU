@@ -220,3 +220,18 @@ This execution does not authorize real WebSocket access, external network access
 164. Permanent Message test count remains 42.
 165. Full collection remains 322.
 166. Tasks remain 7 / 9 and T8 remains incomplete.
+
+## T8 evidence candidate criteria
+
+1. Exact seven implementation paths registered.
+2. Exact ten test paths registered.
+3. All paths safe, relative, existing and duplicate-free.
+4. Status implementing.
+5. active_change CHG-0004-xianyu-message-boundary.
+6. last_verified_commit null.
+7. Counts planned 5, implementing 1, verified 4.
+8. Tasks remain 7/9.
+9. next_task remains T8.
+10. Full collection remains 322.
+11. PR remains Draft/open/unmerged.
+12. No Runtime, Migration, dependency or CI changes.
