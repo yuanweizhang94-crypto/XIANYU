@@ -10,5 +10,5 @@ Change ID: CHG-0004-xianyu-message-boundary
 - [x] T5 Approve worker ownership, lifecycle, and failure boundaries
 - [x] T6 Implement only the approved local message-receiving boundary
 - [x] T7 Add unit, contract, security, and active-change acceptance tests
-- [ ] T8 Update capability evidence and run complete verification
+- [x] T8 Update capability evidence and run complete verification
 - [ ] T9 Complete final PR administration

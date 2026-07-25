@@ -1726,3 +1726,17 @@ The Evidence Candidate contains no Runtime or Migration behavior change.
 Complete verification must execute on the committed Candidate SHA.
 
 The Candidate SHA must become last_verified_commit only after verification succeeds.
+
+## T8 verification outcome
+
+The exact CAP-XY-MESSAGE evidence paths were verified by Candidate SHA `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+
+Complete local verification and Candidate CI passed.
+
+The capability moved from implementing to verified.
+
+active_change was cleared.
+
+last_verified_commit records the Candidate SHA.
+
+T9 has not started.

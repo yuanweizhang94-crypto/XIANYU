@@ -506,3 +506,14 @@ CHG-0003 final PR administration is complete.
 - Full collection remains 322.
 - Tasks remain 7 / 9.
 - T8 remains separately authorized and has not started.
+
+## CHG-0004 T8 capability verification
+
+- CAP-XY-MESSAGE evidence paths are registered and verified.
+- Evidence Candidate SHA: `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- CAP-XY-MESSAGE status is verified.
+- active_change is null.
+- last_verified_commit records the Candidate SHA.
+- Tasks are 8 / 9.
+- T9 is the next executable task.
+- PR #4 remains Draft, open, and unmerged.

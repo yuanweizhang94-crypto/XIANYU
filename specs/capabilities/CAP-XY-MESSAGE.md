@@ -6,13 +6,15 @@ Define the local synthetic Xianyu message receiving boundary without opening a r
 
 ## Current implementation change
 
-Active change: CHG-0004-xianyu-message-boundary.
+Active change: none; verification recorded by CHG-0004 T8.
 
-Registry status: implementing.
+Registry status: verified.
 
-Last verified commit: unset until T8 complete verification.
+Last verified commit: 49498e6f30944883c1a0a5a504932bbd02fc86de.
 
-The local boundary has been implemented by CHG-0004 T6 and covered by CHG-0004 T7. T8 registers these exact evidence paths as the Evidence Candidate before complete verification.
+last_verified_commit: 49498e6f30944883c1a0a5a504932bbd02fc86de
+
+The local boundary was implemented by CHG-0004 T6, covered by CHG-0004 T7, and verified by CHG-0004 T8.
 
 ## Registered implementation paths
 
@@ -55,13 +57,21 @@ The local boundary has been implemented by CHG-0004 T6 and covered by CHG-0004 T
 
 ## T8 evidence candidate
 
-The capability remains implementing.
+The Candidate SHA is `49498e6f30944883c1a0a5a504932bbd02fc86de`.
 
-last_verified_commit remains unset.
+The Candidate SHA is the commit that registered these exact evidence paths.
 
-The Candidate SHA will be the commit that registers these exact evidence paths.
+A separate verification-record commit records that Candidate SHA after complete verification.
 
-A separate verification-record commit will record that Candidate SHA after complete verification.
+## T8 verification outcome
+
+- Complete local verification passed for Candidate SHA `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- GitHub Actions passed for the Candidate.
+- CAP-XY-MESSAGE moved from implementing to verified.
+- active_change is null.
+- last_verified_commit records the Evidence Candidate SHA.
+- Evidence paths remain unchanged.
+- No Runtime, Migration, dependency, CI, external integration, real-account, browser, WebSocket, Credential, or customer-data behavior was expanded.
 
 ## Requirements
 
@@ -74,8 +84,6 @@ A separate verification-record commit will record that Candidate SHA after compl
 ## Failure behavior
 
 - Stop when permission, credential, specification, verification, or risk state is uncertain.
-- Do not mark the capability verified until complete verification and Candidate CI pass.
-- Do not set last_verified_commit before the verification-record phase.
 - Do not guess missing business behavior.
 
 ## Security boundaries
@@ -103,8 +111,8 @@ A separate verification-record commit will record that Candidate SHA after compl
 
 ## Verification
 
-- Registry status is implementing in the Evidence Candidate.
-- active_change is `CHG-0004-xianyu-message-boundary` in the Evidence Candidate.
-- last_verified_commit remains unset until T8 complete verification succeeds.
-- Complete verification must run on the committed Candidate SHA.
-- GitHub Actions must pass for the Candidate before verification is recorded.
+- Registry status is verified.
+- active_change is null.
+- last_verified_commit records `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- Complete verification ran on the committed Candidate SHA.
+- GitHub Actions passed for the Candidate before verification was recorded.

@@ -336,3 +336,15 @@ T8 is not complete in the Evidence Candidate state.
 T9 has not started.
 
 PR #4 remains Draft, open, and unmerged.
+
+## T8 verification outcome
+
+T1 through T8 are complete.
+
+T9 is the next executable task.
+
+T8 verification outcome records Candidate SHA `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+
+PR remains Draft/open/unmerged.
+
+T9 has not started.

@@ -235,3 +235,30 @@ This execution does not authorize real WebSocket access, external network access
 10. Full collection remains 322.
 11. PR remains Draft/open/unmerged.
 12. No Runtime, Migration, dependency or CI changes.
+
+## T8 acceptance criteria
+
+1. T1-T8 complete.
+2. T9 incomplete.
+3. PROJECT_STATE completed = 8.
+4. PROJECT_STATE next_task = T9.
+5. CAP-XY-MESSAGE status verified.
+6. active_change null.
+7. last_verified_commit equals Candidate SHA.
+8. Candidate SHA exists and is HEAD ancestor.
+9. Exact seven implementation paths preserved.
+10. Exact ten test paths preserved.
+11. Paths exist, safe and duplicate-free.
+12. Specification lists every path.
+13. Specification records Candidate SHA.
+14. Counts planned 5 and verified 5.
+15. No implementing Capability.
+16. Unit 225.
+17. Contract 78.
+18. Permanent acceptance 15.
+19. Active acceptance 4.
+20. Full collection 322.
+21. Complete verification and offline gate pass.
+22. No Runtime, Migration, dependency or CI changes.
+23. PR remains Draft/open/unmerged.
+24. T9, Ready, Reviewer request, auto-merge and merge are not authorized.

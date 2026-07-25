@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 import json
+import re
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -86,15 +88,13 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
         if line.startswith("- [")
     ]
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:7])
-    assert all(line.startswith("- [ ]") for line in task_lines[7:])
+    assert all(line.startswith("- [x]") for line in task_lines[:8])
+    assert task_lines[8].startswith("- [ ]")
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"]["status"] == "APPROVED"
-    assert state["tasks"]["completed"] == 7
-    assert state["tasks"]["next_task"] == (
-        "T8 Update capability evidence and run complete verification"
-    )
+    assert state["tasks"]["completed"] == 8
+    assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
 
     expected_counts = {
         ROOT / "tests" / "unit" / "test_message_domain.py": 12,
@@ -301,14 +301,23 @@ def assert_safe_evidence_path(relative_path: str) -> None:
     assert (ROOT / relative_path).is_file()
 
 
-def test_message_capability_evidence_candidate_is_registered_for_t8() -> None:
+def test_message_capability_is_verified_after_t8() -> None:
+    candidate = "49498e6f30944883c1a0a5a504932bbd02fc86de"
+    assert re.fullmatch(r"[0-9a-f]{40}", candidate)
+    assert subprocess.run(
+        ["git", "cat-file", "-e", candidate + "^{commit}"],
+        cwd=ROOT,
+    ).returncode == 0
+    assert subprocess.run(
+        ["git", "merge-base", "--is-ancestor", candidate, "HEAD"],
+        cwd=ROOT,
+    ).returncode == 0
+
     registry = registry_by_id()
     account = registry[ACCOUNT_CAPABILITY]
     assert account["status"] == "verified"
     assert account["active_change"] is None
     assert account["last_verified_commit"] == ACCOUNT_VERIFIED_CANDIDATE_SHA
-    assert ACCOUNT_ARCHIVED_ACCEPTANCE in account["test_paths"]
-    assert ACCOUNT_ACTIVE_ACCEPTANCE not in account["test_paths"]
 
     expected_implementation = [
         "app/xianyu_system/worker/message/__init__.py",
@@ -333,9 +342,9 @@ def test_message_capability_evidence_candidate_is_registered_for_t8() -> None:
     ]
 
     message = registry[MESSAGE_CAPABILITY]
-    assert message["status"] == "implementing"
-    assert message["active_change"] == "CHG-0004-xianyu-message-boundary"
-    assert message["last_verified_commit"] is None
+    assert message["status"] == "verified"
+    assert message["active_change"] is None
+    assert message["last_verified_commit"] == candidate
     assert message["implementation_paths"] == expected_implementation
     assert message["test_paths"] == expected_tests
     assert len(message["implementation_paths"]) == 7
@@ -347,22 +356,17 @@ def test_message_capability_evidence_candidate_is_registered_for_t8() -> None:
         assert_safe_evidence_path(relative_path)
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["tasks"]["completed"] == 7
-    assert state["tasks"]["next_task"] == "T8 Update capability evidence and run complete verification"
-    assert state["tasks"]["items"][7]["completed"] is False
+    assert state["tasks"]["completed"] == 8
+    assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
+    assert state["tasks"]["items"][7]["completed"] is True
     assert state["tasks"]["items"][8]["completed"] is False
-    assert state["capabilities"]["by_status"] == {
-        "planned": 5,
-        "implementing": 1,
-        "verified": 4,
-    }
+    assert state["capabilities"]["by_status"] == {"planned": 5, "verified": 5}
 
     message_spec = (ROOT / "specs" / "capabilities" / "CAP-XY-MESSAGE.md").read_text(
         encoding="utf-8"
     )
-    assert "Registry status: implementing" in message_spec
-    assert "Last verified commit: unset until T8 complete verification" in message_spec
+    assert "Registry status: verified" in message_spec
+    assert candidate in message_spec
     for relative_path in expected_implementation + expected_tests:
         assert f"`{relative_path}`" in message_spec
-    assert "PR #4 remains Draft" not in message_spec
-    assert "T9 Complete final PR administration" not in message_spec
+    assert "T9 has not started" in (CHG_0004 / "proposal.md").read_text(encoding="utf-8")

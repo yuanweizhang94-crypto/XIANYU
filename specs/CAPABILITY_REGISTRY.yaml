@@ -65,7 +65,7 @@ capabilities:
   last_verified_commit: 2aab941cb7f713d7e46675789c47971a2c79c564
 - id: CAP-XY-MESSAGE
   name: Xianyu message receive
-  status: implementing
+  status: verified
   owner_module: worker.message
   specification: specs/capabilities/CAP-XY-MESSAGE.md
   implementation_paths:
@@ -87,8 +87,8 @@ capabilities:
   - tests/contract/test_core_runtime.py
   - tests/contract/test_capability_registry.py
   - changes/active/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py
-  active_change: CHG-0004-xianyu-message-boundary
-  last_verified_commit: null
+  active_change: null
+  last_verified_commit: 49498e6f30944883c1a0a5a504932bbd02fc86de
 - id: CAP-XY-REPLY
   name: Xianyu reply rules
   status: planned
