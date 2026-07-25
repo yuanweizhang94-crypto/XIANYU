@@ -203,3 +203,20 @@ This execution does not authorize real WebSocket access, external network access
 150. Permanent Message test count remains 42.
 151. Full collection remains 322.
 152. Tasks remain 7 / 9 and T8 remains incomplete.
+
+## T7 quoted-phrase bypass removal acceptance criteria
+
+153. The quoted forbidden-phrase bypass is removed.
+154. Forbidden phrases are detected inside single-quoted strings.
+155. Forbidden phrases are detected inside double-quoted strings.
+156. Forbidden phrases are detected when embedded in surrounding text.
+157. Forbidden phrases are detected through direct complete-Source matching.
+158. No quote-aware lookbehind or lookahead is used.
+159. No forbidden phrase is ignored because it is a Python string literal.
+160. Phrase positive controls use the same detector as real file scanning.
+161. Failure diagnostics expose no matched phrase.
+162. Persistence scanner definitions use runtime string composition.
+163. Persistence Offline SQL scanning semantics remain unchanged.
+164. Permanent Message test count remains 42.
+165. Full collection remains 322.
+166. Tasks remain 7 / 9 and T8 remains incomplete.

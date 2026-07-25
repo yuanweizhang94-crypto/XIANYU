@@ -395,6 +395,9 @@ def test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_
     def fail_without_value(path: Path | str, category: str) -> None:
         raise AssertionError(f"{path}: {category}")
 
+    def contains_forbidden_phrase(scan_lower: str, phrases: list[str]) -> bool:
+        return any(phrase in scan_lower for phrase in phrases)
+
     email_pattern = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
     plus_phone_pattern = re.compile(
         r"(?<![\w+])"
@@ -500,24 +503,18 @@ def test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_
     ]
     for value in credential_positive_controls:
         assert any(pattern.search(value) for _, pattern in credential_patterns), value
-    phrase_positive_controls = [
-        "real " + "customer",
-        "customer " + "message",
-        "customer " + "data",
-        "raw " + "frame",
-        "raw" + "_frame",
-        "production " + "account",
-        "production" + "-account",
-        "live " + "account",
-        "live" + "-account",
-        "real " + "xianyu account",
-        "real" + "-xianyu-account",
-        "real " + "account",
-        "real" + "-account",
-    ]
-    for value in phrase_positive_controls:
-        assert value in forbidden_phrases
-        assert value in value.lower()
+    phrase_positive_controls = []
+    for phrase in forbidden_phrases:
+        phrase_positive_controls.extend(
+            [
+                ("unquoted", phrase),
+                ("quoted_single", "'" + phrase + "'"),
+                ("quoted_double", '"' + phrase + '"'),
+                ("embedded", "synthetic-prefix " + phrase + " synthetic-suffix"),
+            ]
+        )
+    for _, value in phrase_positive_controls:
+        assert contains_forbidden_phrase(value.lower(), forbidden_phrases)
 
     decoded_by_path = {}
     for path in MESSAGE_TEST_PATHS:
@@ -537,7 +534,6 @@ def test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_
     ]:
         assert required in combined
 
-    quoted_phrase_pattern = r"(?<![\"']){}(?![\"'])"
     for path, source in decoded_by_path.items():
         scan_source = source
         scan_lower = scan_source.lower()
@@ -547,15 +543,13 @@ def test_message_tests_use_only_synthetic_fixtures_and_no_global_cleanup_escape_
             fail_without_value(path, "plus-phone")
         if long_number_pattern.search(scan_source):
             fail_without_value(path, "standalone-long-number")
-        if re.search(r"\b1[3-9]\d{9}\b", scan_source):
+        if re.search(r"1[3-9]\d{9}", scan_source):
             fail_without_value(path, "phone-like-number")
         for category, pattern in credential_patterns:
             if pattern.search(scan_source):
                 fail_without_value(path, category)
-        for phrase in forbidden_phrases:
-            pattern = re.compile(quoted_phrase_pattern.format(re.escape(phrase)))
-            if pattern.search(scan_lower):
-                fail_without_value(path, "forbidden-phrase")
+        if contains_forbidden_phrase(scan_lower, forbidden_phrases):
+            fail_without_value(path, "forbidden-phrase")
         for escape_hatch in cleanup_escape_hatches:
             if escape_hatch in scan_source:
                 fail_without_value(path, "cleanup-escape-hatch")

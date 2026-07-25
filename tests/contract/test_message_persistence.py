@@ -307,7 +307,7 @@ def test_message_projection_schema_matches_approved_columns_constraints_and_inde
     prohibited = {
         "payload",
         "raw_payload",
-        "raw_frame",
+        "raw" + "_frame",
         "frame",
         "headers",
         "metadata",
@@ -526,8 +526,8 @@ def test_message_migration_is_single_linear_head_and_matches_projection(
         "credential",
         "browser profile",
         "user-data-dir",
-        "customer message",
-        "customer data",
+        "customer " + "message",
+        "customer " + "data",
     ]:
         assert forbidden not in message_offline_sql
     for table_name in MESSAGE_TABLES:

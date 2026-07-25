@@ -493,3 +493,16 @@ CHG-0003 final PR administration is complete.
 - Tasks remain 7 / 9; T8 remains the next executable task and has not started.
 - CAP-XY-MESSAGE remains planned and unbound.
 - PR #4 remains Draft, open, unmerged, without requested reviewers, and without auto-merge.
+
+## CHG-0004 T7 quoted-phrase scan completion
+
+- The final quoted-string bypass was removed from forbidden-phrase scanning.
+- Complete Source is checked with direct phrase matching.
+- Single-quoted, double-quoted, embedded, commented, and assigned forbidden phrases are not exempt.
+- Phrase positive controls use the same detector as real evidence-file scanning.
+- Persistence scanner-rule literals are assembled at runtime without weakening Offline SQL checks.
+- Scanner failure diagnostics expose only the path and category.
+- Permanent Message test count remains 42.
+- Full collection remains 322.
+- Tasks remain 7 / 9.
+- T8 remains separately authorized and has not started.

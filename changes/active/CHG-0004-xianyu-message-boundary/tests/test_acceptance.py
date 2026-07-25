@@ -157,6 +157,12 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
     persistence_source = (
         ROOT / "tests" / "contract" / "test_message_persistence.py"
     ).read_text(encoding="utf-8")
+    assert '"customer " + "message"' in persistence_source
+    assert '"customer " + "data"' in persistence_source
+    assert ('"customer ' + 'message"') not in persistence_source
+    assert ('"customer ' + 'data"') not in persistence_source
+    assert '"raw" + "_frame"' in persistence_source
+
     for required in [
         "MessageRepository",
         "def assert_integrity_failure(",
@@ -164,7 +170,7 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
         "offline_sql",
         "http://",
         "https://",
-        "customer " + "data",
+        '"customer " + "data"',
         "get_foreign_keys",
         "get_unique_constraints",
         "get_check_constraints",
@@ -223,7 +229,13 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
         "before_conversation_conflict",
         "after_conversation_conflict",
         '"attempts"',
+        "contains_forbidden_phrase",
+        "quoted_single",
+        "quoted_double",
+        "embedded",
         "scan_source = source",
+        "phrase_positive_controls",
+        "fail_without_value",
         "plus_phone_pattern",
         "(?:\\D*\\d){8,}",
         "\\d{11,}",
@@ -261,16 +273,21 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
     assert "T1 through T7 are complete." in proposal
     assert "T7 final evidence follow-up" in proposal
     assert "T7 sensitive-scan correction authorization and result" in proposal
+    assert "T7 quoted-phrase bypass removal" in proposal
     assert "T7 permanent Message test coverage is complete." in design
     assert "T7 final evidence follow-up" in design
     assert "T7 sensitive-scan correction record" in design
+    assert "T7 quote-independent forbidden-phrase evidence" in design
     assert "## T7 acceptance criteria" in acceptance
     assert "T7 final evidence follow-up acceptance criteria" in acceptance
     assert "T7 sensitive-scan correction acceptance criteria" in acceptance
+    assert "T7 quoted-phrase bypass removal acceptance criteria" in acceptance
+    assert "166. Tasks remain 7 / 9 and T8 remains incomplete." in acceptance
     assert "152. Tasks remain 7 / 9 and T8 remains incomplete." in acceptance
     assert "T7 dedicated unit, contract, security, and active-change acceptance tests are complete." in readme
     assert "CHG-0004 T7 final evidence follow-up" in readme
     assert "CHG-0004 T7 sensitive scan completion" in readme
+    assert "CHG-0004 T7 quoted-phrase scan completion" in readme
     assert MESSAGE_PACKAGE.is_dir()
     assert MESSAGE_MIGRATION.is_file()
 

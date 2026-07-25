@@ -1696,3 +1696,21 @@ The scanner does not delete lines, filter lines, replace Source content, mask So
 The scanner covers email-like values, plus-phone values with common separators and at least eight digits, standalone long numbers beginning at eleven digits, Credential-like forms, customer and raw-frame phrase forms, production-account and live-account phrase forms, real-Xianyu-account phrase forms, and cleanup escape hatches.
 
 Runtime positive controls prove each detector category can detect its intended input. Scanner failure diagnostics report only the file path and detector category, not the matched value.
+
+## T7 quote-independent forbidden-phrase evidence
+
+Forbidden-phrase detection now uses direct lowercase substring matching against complete Source.
+
+No quote-aware regular expression, lookbehind, lookahead, line filter, replacement, masking rule, or file allowlist is used.
+
+The same detector is exercised against:
+
+- unquoted forbidden phrases;
+- single-quoted forbidden phrases;
+- double-quoted forbidden phrases;
+- forbidden phrases embedded in surrounding text;
+- every approved Message evidence file.
+
+Detector failure output contains only the file path and category.
+
+Persistence Contract scanner definitions use runtime string composition to avoid embedding prohibited phrase samples as continuous repository literals.

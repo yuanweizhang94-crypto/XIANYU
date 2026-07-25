@@ -298,3 +298,23 @@ The project owner authorized the final T7 security-scan corrective execution bef
 The correction keeps CHG-0004 APPROVED, keeps tasks at 7 / 9, and keeps T8 as the next executable task. T8 was not started.
 
 CAP-XY-MESSAGE remains planned and unbound: implementation_paths and test_paths remain empty, active_change remains null, and last_verified_commit remains null.
+
+## T7 quoted-phrase bypass removal
+
+The project owner authorized one final T7 scanner correction before T8.
+
+The previous forbidden-phrase detector excluded phrases immediately surrounded by quotation marks.
+
+That exclusion was removed.
+
+Forbidden phrases are now detected in complete Source regardless of whether they appear as ordinary text, single-quoted strings, double-quoted strings, assignments, comments, or embedded text.
+
+Phrase positive controls invoke the same detection function used for real evidence files.
+
+Scanner-rule literals in the Persistence Contract are assembled at runtime so the scanner can inspect complete Source without suppressing quoted content.
+
+No test function was added or removed.
+
+Tasks remain 7 / 9.
+
+T8 remains the next executable task and was not started.
