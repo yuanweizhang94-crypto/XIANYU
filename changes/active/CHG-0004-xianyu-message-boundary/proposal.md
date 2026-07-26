@@ -348,3 +348,19 @@ T8 verification outcome records Candidate SHA `49498e6f30944883c1a0a5a504932bbd0
 PR remains Draft/open/unmerged.
 
 T9 has not started.
+
+## T8 final-CI shallow-checkout correction
+
+The T8 Evidence Candidate and Verification Record were already committed and pushed.
+
+Final Verification Record CI failed only because the GitHub pull-request merge checkout used depth-one history and therefore did not contain the historical Evidence Candidate commit object.
+
+This corrective execution changes only the active acceptance commit-validation rule so it matches the permanent Capability Registry Contract offline semantics.
+
+Complete repositories still require the Candidate object to exist and require it to be an ancestor of HEAD.
+
+Missing Candidate history is accepted only when Git explicitly reports that the repository is shallow.
+
+No Workflow, Runtime, Migration, Registry, Capability Specification, Project State, task, dependency, evidence path, Reviewer, Ready, auto-merge, or merge state is changed.
+
+T8 remains complete, tasks remain 8 / 9, and T9 remains the next executable task.

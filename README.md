@@ -517,3 +517,15 @@ CHG-0003 final PR administration is complete.
 - Tasks are 8 / 9.
 - T9 is the next executable task.
 - PR #4 remains Draft, open, and unmerged.
+
+## CHG-0004 T8 final-CI compatibility
+
+- T8 final-CI shallow-checkout correction keeps evidence and verification state unchanged.
+- The final CI correction handles depth-one pull-request merge checkouts.
+- Complete repositories still require the Evidence Candidate object and strict ancestor verification.
+- Missing Candidate history is accepted only when Git identifies the checkout as shallow.
+- No Workflow, Runtime, Migration, Registry, Capability Specification, dependency, or evidence path was changed.
+- CAP-XY-MESSAGE remains verified.
+- Tasks remain 8 / 9.
+- T9 remains the next executable task and has not started.
+- PR #4 remains Draft, open, and unmerged.

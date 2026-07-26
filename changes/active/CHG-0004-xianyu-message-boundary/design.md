@@ -1740,3 +1740,25 @@ active_change was cleared.
 last_verified_commit records the Candidate SHA.
 
 T9 has not started.
+
+## T8 final-CI shallow-checkout correction design
+
+The active acceptance verification for the verified CAP-XY-MESSAGE Candidate now uses a single offline helper with the same semantics as the permanent Capability Registry Contract.
+
+The helper first validates that the Candidate SHA has the expected forty-character lowercase hexadecimal form.
+
+It then asks Git whether the Candidate commit object is present in the local object database.
+
+When the Candidate object is present, the helper requires strict `merge-base --is-ancestor` success against HEAD before the test can pass.
+
+When the Candidate object is absent, the helper asks Git whether the repository is shallow and allows continuation only if Git returns `true`; this covers depth-one pull-request merge checkouts.
+
+The helper captures Git output for these probes so an expected shallow missing-object case does not write fatal Git diagnostics into normal test logs.
+
+The correction does not use a provider environment-variable bypass, skip, xfail, network request, history fetch, file allowlist, or unconditional success path.
+
+Complete repositories still require the Evidence Candidate object and strict HEAD-ancestor verification.
+
+Missing Candidate history is accepted only when Git explicitly reports a shallow repository.
+
+No Workflow, Runtime, Migration, Registry, Capability Specification, Project State, task, dependency, or evidence path is modified.

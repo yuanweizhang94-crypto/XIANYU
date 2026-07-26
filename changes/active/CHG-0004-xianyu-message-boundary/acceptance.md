@@ -262,3 +262,29 @@ This execution does not authorize real WebSocket access, external network access
 22. No Runtime, Migration, dependency or CI changes.
 23. PR remains Draft/open/unmerged.
 24. T9, Ready, Reviewer request, auto-merge and merge are not authorized.
+
+## T8 final-CI shallow-checkout correction acceptance criteria
+
+1. The original final tests Workflow failure is limited to the historical Evidence Candidate object being absent from a depth-one PR merge checkout.
+2. The active acceptance Candidate check uses the same offline commit-validation semantics as the permanent Capability Registry Contract.
+3. Complete repositories still require the Evidence Candidate object to exist.
+4. Complete repositories still require the Evidence Candidate object to be an ancestor of HEAD.
+5. Missing Candidate history is accepted only when Git explicitly reports that the repository is shallow.
+6. Git object, ancestor, and shallow checks capture output.
+7. No provider environment-variable bypass is added.
+8. No skip or xfail is added.
+9. No network request or history fetch is added.
+10. No file allowlist or unconditional success path is added.
+11. No Workflow file is modified.
+12. No Runtime file is modified.
+13. No Migration file is modified.
+14. No Registry file is modified.
+15. No Capability Specification file is modified.
+16. No Project State file is modified.
+17. No task file is modified.
+18. No dependency or evidence path is modified.
+19. Local complete-repository verification passes.
+20. Local depth-one shallow clone run passes while the Candidate object is absent.
+21. Final quality, tests, and security Workflows pass.
+22. PR #4 remains Draft, open, and unmerged.
+23. Ready, Reviewer request, auto-merge, and merge remain unauthorized.

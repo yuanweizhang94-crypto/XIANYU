@@ -301,17 +301,47 @@ def assert_safe_evidence_path(relative_path: str) -> None:
     assert (ROOT / relative_path).is_file()
 
 
+def assert_commit_is_valid_offline(commit_sha: str) -> None:
+    assert re.fullmatch(r"[0-9a-f]{40}", commit_sha)
+
+    candidate_ref = f"{commit_sha}^{{commit}}"
+
+    candidate_exists = (
+        subprocess.run(
+            ["git", "cat-file", "-e", candidate_ref],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+
+    if candidate_exists:
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", commit_sha, "HEAD"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+        )
+        assert ancestor.returncode == 0
+        return
+
+    shallow = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+
+    assert (
+        shallow == "true"
+    ), "verified candidate commit is missing from a complete local repository"
+
+
 def test_message_capability_is_verified_after_t8() -> None:
     candidate = "49498e6f30944883c1a0a5a504932bbd02fc86de"
-    assert re.fullmatch(r"[0-9a-f]{40}", candidate)
-    assert subprocess.run(
-        ["git", "cat-file", "-e", candidate + "^{commit}"],
-        cwd=ROOT,
-    ).returncode == 0
-    assert subprocess.run(
-        ["git", "merge-base", "--is-ancestor", candidate, "HEAD"],
-        cwd=ROOT,
-    ).returncode == 0
+    assert_commit_is_valid_offline(candidate)
 
     registry = registry_by_id()
     account = registry[ACCOUNT_CAPABILITY]
@@ -361,6 +391,18 @@ def test_message_capability_is_verified_after_t8() -> None:
     assert state["tasks"]["items"][7]["completed"] is True
     assert state["tasks"]["items"][8]["completed"] is False
     assert state["capabilities"]["by_status"] == {"planned": 5, "verified": 5}
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    proposal = (CHG_0004 / "proposal.md").read_text(encoding="utf-8")
+    design = (CHG_0004 / "design.md").read_text(encoding="utf-8")
+    acceptance = (CHG_0004 / "acceptance.md").read_text(encoding="utf-8")
+    for document in [readme, proposal, design, acceptance]:
+        assert "T8 final-CI shallow-checkout correction" in document
+        assert "depth-one" in document
+        assert "Complete repositories still require" in document
+        assert "Missing Candidate history is accepted only when Git" in document
+        assert "No Workflow" in document
+        assert "T9" in document
 
     message_spec = (ROOT / "specs" / "capabilities" / "CAP-XY-MESSAGE.md").read_text(
         encoding="utf-8"
