@@ -1,6 +1,6 @@
 # CHG-0004 Acceptance
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0004-xianyu-message-boundary
 
 ## T6 acceptance criteria
@@ -288,3 +288,36 @@ This execution does not authorize real WebSocket access, external network access
 21. Final quality, tests, and security Workflows pass.
 22. PR #4 remains Draft, open, and unmerged.
 23. Ready, Reviewer request, auto-merge, and merge remain unauthorized.
+
+## T9 Ready candidate criteria
+
+1. CHG-0004 status is VERIFYING in proposal, design, tasks, and acceptance.
+2. T1-T8 are complete.
+3. T9 remains incomplete before the Ready transition.
+4. PROJECT_STATE completed = 8.
+5. PROJECT_STATE next_task remains T9.
+6. PROJECT_STATE active_change.status = VERIFYING.
+7. CAP-XY-MESSAGE remains verified.
+8. active_change remains null.
+9. last_verified_commit remains the Evidence Candidate SHA.
+10. Exact seven implementation paths remain unchanged.
+11. Exact ten test paths remain unchanged.
+12. No Runtime, Migration, Registry, dependency, CI, WebSocket, network, browser, Credential, real-account, sending, reply, Scheduler, API, Web UI, or background-process behavior changes.
+13. Unit remains 225.
+14. Contract remains 78.
+15. Permanent acceptance remains 15.
+16. Active acceptance remains 4.
+17. Full collection remains 322.
+18. Phase A GitHub Actions must pass before Ready transition.
+19. PR remains Draft, open, and unmerged before the Ready transition.
+20. Auto-merge remains disabled.
+21. No manual Reviewer request is authorized.
+22. Merge, archive, branch deletion, and next Change creation remain unauthorized.
+
+T1 through T8 are complete.
+
+T9 final PR administration is in progress.
+
+This phase authorizes preparation for Ready for review only.
+
+It does not authorize Reviewer requests, auto-merge, merge, close, branch deletion, archive, or creation of the next active Change.

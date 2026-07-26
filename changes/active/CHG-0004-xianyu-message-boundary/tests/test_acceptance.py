@@ -69,7 +69,7 @@ def test_completed_changes_are_archived_with_history_preserved() -> None:
         assert (change_dir / "tests" / "test_acceptance.py").is_file()
 
 
-def test_chg_0004_is_the_only_approved_active_change() -> None:
+def test_chg_0004_is_the_only_verifying_active_change() -> None:
     active_dirs = sorted(path.name for path in ACTIVE.iterdir() if path.is_dir())
     assert active_dirs == ["CHG-0004-xianyu-message-boundary"]
     for name in [
@@ -78,7 +78,7 @@ def test_chg_0004_is_the_only_approved_active_change() -> None:
         "tasks.md",
         "acceptance.md",
     ]:
-        assert status_of(CHG_0004 / name) == "APPROVED"
+        assert status_of(CHG_0004 / name) == "VERIFYING"
 
 
 def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
@@ -92,7 +92,7 @@ def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
     assert task_lines[8].startswith("- [ ]")
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["active_change"]["status"] == "APPROVED"
+    assert state["active_change"]["status"] == "VERIFYING"
     assert state["tasks"]["completed"] == 8
     assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
 
@@ -386,6 +386,14 @@ def test_message_capability_is_verified_after_t8() -> None:
         assert_safe_evidence_path(relative_path)
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    task_lines = [
+        line for line in (CHG_0004 / "tasks.md").read_text(encoding="utf-8").splitlines()
+        if line.startswith("- [")
+    ]
+    assert len(task_lines) == 9
+    assert all(line.startswith("- [x]") for line in task_lines[:8])
+    assert task_lines[8].startswith("- [ ]")
+    assert state["active_change"]["status"] == "VERIFYING"
     assert state["tasks"]["completed"] == 8
     assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
     assert state["tasks"]["items"][7]["completed"] is True
@@ -411,4 +419,9 @@ def test_message_capability_is_verified_after_t8() -> None:
     assert candidate in message_spec
     for relative_path in expected_implementation + expected_tests:
         assert f"`{relative_path}`" in message_spec
-    assert "T9 has not started" in (CHG_0004 / "proposal.md").read_text(encoding="utf-8")
+    assert "T9 Ready candidate" in proposal
+    assert "PR #4 remains Draft until the Ready Candidate passes final CI" in proposal
+    assert "T9 Ready candidate" in design
+    assert "T9 Ready candidate criteria" in acceptance
+    assert "CHG-0004 final review preparation" in readme
+    assert "PR #4 remains Draft until the Ready Candidate passes final CI" in readme

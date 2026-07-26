@@ -1,6 +1,6 @@
 # CHG-0004 Design
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0004-xianyu-message-boundary
 
 ## Design state
@@ -1762,3 +1762,16 @@ Complete repositories still require the Evidence Candidate object and strict HEA
 Missing Candidate history is accepted only when Git explicitly reports a shallow repository.
 
 No Workflow, Runtime, Migration, Registry, Capability Specification, Project State, task, dependency, or evidence path is modified.
+
+## T9 Ready candidate
+
+- T1 through T8 are complete.
+- T9 final PR administration is in progress.
+- CHG-0004 status is VERIFYING.
+- T9 is in progress and not yet complete.
+- Runtime, Persistence, Migration, permanent tests, and Capability Evidence are frozen.
+- Final review preparation must not modify implementation behavior.
+- PR #4 may move from Draft to Ready only after the Phase A HEAD passes every required local and GitHub check.
+- T9 is completed only after the Ready transition succeeds and the repository records that result.
+- CHG-0004 remains under `changes/active/` until PR #4 is merged.
+- Merge requires separate authorization against an exact PR HEAD.

@@ -4,17 +4,13 @@
 
 Define the local synthetic Xianyu message receiving boundary without opening a real WebSocket or connecting to any external platform.
 
-## Current implementation change
+## Current verification state
 
-Active change: none; verification recorded by CHG-0004 T8.
+- Active change: none; verification recorded by CHG-0004 T8.
+- Registry status: verified.
+- Last verified commit (`last_verified_commit`): `49498e6f30944883c1a0a5a504932bbd02fc86de`.
 
-Registry status: verified.
-
-Last verified commit: 49498e6f30944883c1a0a5a504932bbd02fc86de.
-
-last_verified_commit: 49498e6f30944883c1a0a5a504932bbd02fc86de
-
-The local boundary was implemented by CHG-0004 T6, covered by CHG-0004 T7, and verified by CHG-0004 T8.
+The local boundary was implemented by CHG-0004 T6, covered by CHG-0004 T7, verified by CHG-0004 T8, and frozen for CHG-0004 T9 final PR administration.
 
 ## Registered implementation paths
 

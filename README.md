@@ -529,3 +529,14 @@ CHG-0003 final PR administration is complete.
 - Tasks remain 8 / 9.
 - T9 remains the next executable task and has not started.
 - PR #4 remains Draft, open, and unmerged.
+
+## CHG-0004 final review preparation
+
+- CHG-0004 status is `VERIFYING`.
+- T1 through T8 are complete.
+- CAP-XY-MESSAGE remains verified.
+- Evidence Candidate remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- T8 Verification Record remains `9bfa571cdcc61fda03a234784d73b2b328151c32`.
+- T8 CI Compatibility Corrective SHA remains `f8539651268da1600fd1c2e0840ccef2bcb1b2c9`.
+- PR #4 remains Draft until the Ready Candidate passes final CI.
+- Merge, archive, branch deletion, and the next active Change remain out of scope.

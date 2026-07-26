@@ -1,6 +1,6 @@
 # CHG-0004 Tasks
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0004-xianyu-message-boundary
 
 - [x] T1 Obtain explicit project-owner approval for CHG-0004

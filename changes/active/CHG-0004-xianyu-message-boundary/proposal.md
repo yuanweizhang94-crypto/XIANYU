@@ -1,6 +1,6 @@
 # CHG-0004 Proposal
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0004-xianyu-message-boundary
 
 ## Purpose
@@ -364,3 +364,18 @@ Missing Candidate history is accepted only when Git explicitly reports that the 
 No Workflow, Runtime, Migration, Registry, Capability Specification, Project State, task, dependency, evidence path, Reviewer, Ready, auto-merge, or merge state is changed.
 
 T8 remains complete, tasks remain 8 / 9, and T9 remains the next executable task.
+
+## T9 Ready candidate
+
+- T1 through T8 are complete.
+- T9 is in final PR administration.
+- The change status is VERIFYING.
+- PR #4 remains Draft until the Ready Candidate passes final CI.
+- Implementation and verification work are complete.
+- CAP-XY-MESSAGE remains verified.
+- Evidence Candidate remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- T8 Verification Record remains `9bfa571cdcc61fda03a234784d73b2b328151c32`.
+- T8 CI Compatibility Corrective SHA remains `f8539651268da1600fd1c2e0840ccef2bcb1b2c9`.
+- This candidate changes only review-state documentation and active acceptance evidence.
+- T9 remains unchecked until GitHub accepts the Ready-for-review transition.
+- No Reviewer request, auto-merge, merge, close, archive, branch deletion, or next Change creation is authorized.
