@@ -5,17 +5,23 @@ Change ID: CHG-0004-xianyu-message-boundary
 
 ## Design state
 
-CHG-0004 remains approved for controlled, task-by-task execution.
+CHG-0004 remains VERIFYING for final review.
 
-T1 through T6 are complete.
+T1 through T9 are complete.
 
-The local, synchronous, Profile-scoped, Synthetic Message receiving boundary is implemented.
+There is no next task in CHG-0004.
 
-T7 is the next executable task.
+The local, synchronous, Profile-scoped, Synthetic Message receiving boundary is implemented and frozen.
 
-CAP-XY-MESSAGE remains planned and unbound until T8.
+CAP-XY-MESSAGE remains verified.
 
-No real WebSocket, Endpoint, DNS, HTTP, external network behavior, Credential Provider, browser integration, background thread, subprocess, Scheduler Job, message sending, API, Web UI, capability binding, Ready-for-review, auto-merge, or merge has been created.
+PR #4 is Ready for review, open and unmerged.
+
+No Reviewer was manually requested.
+
+Auto-merge, merge, close, source-branch deletion, archive, and next Change creation are not authorized.
+
+Merge requires separate explicit authorization against an exact PR HEAD.
 
 ## Architecture context
 
@@ -1763,15 +1769,16 @@ Missing Candidate history is accepted only when Git explicitly reports a shallow
 
 No Workflow, Runtime, Migration, Registry, Capability Specification, Project State, task, dependency, or evidence path is modified.
 
-## T9 Ready candidate
+## T9 final review state
 
-- T1 through T8 are complete.
-- T9 final PR administration is in progress.
-- CHG-0004 status is VERIFYING.
-- T9 is in progress and not yet complete.
-- Runtime, Persistence, Migration, permanent tests, and Capability Evidence are frozen.
-- Final review preparation must not modify implementation behavior.
-- PR #4 may move from Draft to Ready only after the Phase A HEAD passes every required local and GitHub check.
-- T9 is completed only after the Ready transition succeeds and the repository records that result.
-- CHG-0004 remains under `changes/active/` until PR #4 is merged.
-- Merge requires separate authorization against an exact PR HEAD.
+- T1 through T9 are complete.
+- There is no next task in CHG-0004.
+- CHG-0004 remains VERIFYING while PR #4 is under review.
+- T9 Ready Candidate SHA is `1cc4de90e88f607ab30b475232c7fa7ef01b8f14`.
+- Implementation and evidence are frozen.
+- PR #4 is Ready for review, open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge remains disabled.
+- Any further repository modification requires explicit correction authorization.
+- Merge requires separate explicit authorization against an exact PR HEAD.
+- Archive and next-change creation occur only after successful merge.

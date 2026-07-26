@@ -314,10 +314,42 @@ This execution does not authorize real WebSocket access, external network access
 21. No manual Reviewer request is authorized.
 22. Merge, archive, branch deletion, and next Change creation remain unauthorized.
 
-T1 through T8 are complete.
+## T9 final acceptance criteria
 
-T9 final PR administration is in progress.
+1. T1-T9 complete.
+2. All nine tasks are checked.
+3. PROJECT_STATE completed = 9.
+4. PROJECT_STATE next_task = null.
+5. CHG-0004 status is VERIFYING.
+6. CAP-XY-MESSAGE remains verified.
+7. active_change remains null.
+8. last_verified_commit remains the Evidence Candidate SHA.
+9. Exact seven implementation paths remain unchanged.
+10. Exact ten test paths remain unchanged.
+11. Unit = 225.
+12. Contract = 78.
+13. Permanent acceptance = 15.
+14. Active acceptance = 4.
+15. Full collection = 322.
+16. PR #4 is Ready for review.
+17. PR #4 remains open and unmerged.
+18. Auto-merge is disabled.
+19. No manual Reviewer request was made.
+20. No merge, close, branch deletion, archive, or next Change creation occurred.
+21. Final quality, tests, and security Actions pass on the final administration HEAD.
 
-This phase authorizes preparation for Ready for review only.
+T1 through T9 are complete.
 
-It does not authorize Reviewer requests, auto-merge, merge, close, branch deletion, archive, or creation of the next active Change.
+CHG-0004 remains VERIFYING while PR #4 is under review.
+
+T9 Ready Candidate SHA is `1cc4de90e88f607ab30b475232c7fa7ef01b8f14`.
+
+PR #4 is Ready for review, open, and unmerged.
+
+No Reviewer was manually requested.
+
+No further CHG-0004 task is authorized.
+
+Merge requires separate explicit authorization against the exact current PR HEAD.
+
+Auto-merge, admin bypass, close, source-branch deletion, archive, and creation of the next active Change are not authorized.

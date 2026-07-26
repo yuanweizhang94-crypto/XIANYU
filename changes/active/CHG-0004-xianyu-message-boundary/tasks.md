@@ -11,4 +11,4 @@ Change ID: CHG-0004-xianyu-message-boundary
 - [x] T6 Implement only the approved local message-receiving boundary
 - [x] T7 Add unit, contract, security, and active-change acceptance tests
 - [x] T8 Update capability evidence and run complete verification
-- [ ] T9 Complete final PR administration
+- [x] T9 Complete final PR administration

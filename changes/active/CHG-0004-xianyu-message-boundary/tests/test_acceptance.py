@@ -81,20 +81,20 @@ def test_chg_0004_is_the_only_verifying_active_change() -> None:
         assert status_of(CHG_0004 / name) == "VERIFYING"
 
 
-def test_chg_0004_t7_adds_permanent_message_boundary_coverage() -> None:
+def test_chg_0004_t9_completion_has_no_next_task() -> None:
     task_lines = [
         line
         for line in (CHG_0004 / "tasks.md").read_text(encoding="utf-8").splitlines()
         if line.startswith("- [")
     ]
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:8])
-    assert task_lines[8].startswith("- [ ]")
+    assert all(line.startswith("- [x]") for line in task_lines)
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"]["status"] == "VERIFYING"
-    assert state["tasks"]["completed"] == 8
-    assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
+    assert state["tasks"]["completed"] == 9
+    assert state["tasks"]["next_task"] is None
+    assert all(item["completed"] is True for item in state["tasks"]["items"])
 
     expected_counts = {
         ROOT / "tests" / "unit" / "test_message_domain.py": 12,
@@ -391,26 +391,31 @@ def test_message_capability_is_verified_after_t8() -> None:
         if line.startswith("- [")
     ]
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:8])
-    assert task_lines[8].startswith("- [ ]")
+    assert all(line.startswith("- [x]") for line in task_lines)
     assert state["active_change"]["status"] == "VERIFYING"
-    assert state["tasks"]["completed"] == 8
-    assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
+    assert state["tasks"]["completed"] == 9
+    assert state["tasks"]["next_task"] is None
     assert state["tasks"]["items"][7]["completed"] is True
-    assert state["tasks"]["items"][8]["completed"] is False
+    assert state["tasks"]["items"][8]["completed"] is True
+    assert all(item["completed"] is True for item in state["tasks"]["items"])
     assert state["capabilities"]["by_status"] == {"planned": 5, "verified": 5}
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     proposal = (CHG_0004 / "proposal.md").read_text(encoding="utf-8")
     design = (CHG_0004 / "design.md").read_text(encoding="utf-8")
     acceptance = (CHG_0004 / "acceptance.md").read_text(encoding="utf-8")
+    ready_candidate = "1cc4de90e88f607ab30b475232c7fa7ef01b8f14"
     for document in [readme, proposal, design, acceptance]:
         assert "T8 final-CI shallow-checkout correction" in document
         assert "depth-one" in document
         assert "Complete repositories still require" in document
         assert "Missing Candidate history is accepted only when Git" in document
         assert "No Workflow" in document
-        assert "T9" in document
+        assert ready_candidate in document
+        assert "PR #4 is Ready for review" in document
+        assert "open and unmerged" in document
+        assert "No Reviewer" in document
+        assert "Merge requires separate" in document
 
     message_spec = (ROOT / "specs" / "capabilities" / "CAP-XY-MESSAGE.md").read_text(
         encoding="utf-8"
@@ -419,9 +424,8 @@ def test_message_capability_is_verified_after_t8() -> None:
     assert candidate in message_spec
     for relative_path in expected_implementation + expected_tests:
         assert f"`{relative_path}`" in message_spec
-    assert "T9 Ready candidate" in proposal
-    assert "PR #4 remains Draft until the Ready Candidate passes final CI" in proposal
-    assert "T9 Ready candidate" in design
-    assert "T9 Ready candidate criteria" in acceptance
-    assert "CHG-0004 final review preparation" in readme
-    assert "PR #4 remains Draft until the Ready Candidate passes final CI" in readme
+    assert "T9 final PR administration result" in proposal
+    assert "T9 final review state" in design
+    assert "T9 final acceptance criteria" in acceptance
+    assert "CHG-0004 final PR administration" in readme
+    assert "All nine tasks are complete" in readme

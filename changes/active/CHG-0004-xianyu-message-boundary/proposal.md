@@ -15,15 +15,19 @@ Prepare a formally reviewable boundary for receiving Xianyu customer-inquiry mes
 
 The project owner approved CHG-0004 for controlled, one-task-at-a-time execution.
 
-T1 through T6 are complete.
+T1 through T9 are complete.
 
-The local, synchronous, Profile-scoped, Synthetic Message receiving boundary is implemented.
+CHG-0004 remains VERIFYING while PR #4 is under review.
 
-T7 is the next executable task and must be performed separately.
+No further CHG-0004 task is authorized.
 
-CAP-XY-MESSAGE remains planned and unbound until the separate capability evidence task.
+PR #4 is Ready for review, open, and unmerged.
 
-No real WebSocket, Endpoint, DNS, HTTP, external network access, Credential Provider, Cookie handling, Token handling, browser integration, background thread, subprocess, Scheduler Job, automatic retry, automatic reconnect, message sending, reply generation, API, Web UI, real account access, real customer-message processing, capability binding, Ready-for-review, auto-merge, or merge is authorized in this execution.
+No Reviewer was manually requested.
+
+Auto-merge, admin bypass, close, source-branch deletion, archive, and creation of the next active Change are not authorized.
+
+Merge requires separate explicit authorization against the exact current PR HEAD.
 
 ## T2 terminology outcome
 
@@ -365,17 +369,23 @@ No Workflow, Runtime, Migration, Registry, Capability Specification, Project Sta
 
 T8 remains complete, tasks remain 8 / 9, and T9 remains the next executable task.
 
-## T9 Ready candidate
+## T9 final PR administration result
 
-- T1 through T8 are complete.
-- T9 is in final PR administration.
-- The change status is VERIFYING.
-- PR #4 remains Draft until the Ready Candidate passes final CI.
-- Implementation and verification work are complete.
+- T1 through T9 are complete.
+- Tasks are 9 / 9.
+- There is no next task in CHG-0004.
+- CHG-0004 remains VERIFYING while PR #4 is under review.
+- T9 Ready Candidate SHA is `1cc4de90e88f607ab30b475232c7fa7ef01b8f14`.
+- The Ready Candidate passed complete local verification.
+- The Ready Candidate passed quality, tests, and security GitHub Actions.
+- PR #4 successfully moved from Draft to Ready for review.
+- PR #4 remains open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge is not enabled.
 - CAP-XY-MESSAGE remains verified.
 - Evidence Candidate remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
 - T8 Verification Record remains `9bfa571cdcc61fda03a234784d73b2b328151c32`.
 - T8 CI Compatibility Corrective SHA remains `f8539651268da1600fd1c2e0840ccef2bcb1b2c9`.
-- This candidate changes only review-state documentation and active acceptance evidence.
-- T9 remains unchecked until GitHub accepts the Ready-for-review transition.
-- No Reviewer request, auto-merge, merge, close, archive, branch deletion, or next Change creation is authorized.
+- CHG-0004 remains under `changes/active/` and is not archived.
+- No source branch deletion, archive, next Change creation, close, auto-merge, or merge is authorized.
+- Merge requires separate explicit authorization against an exact PR HEAD.

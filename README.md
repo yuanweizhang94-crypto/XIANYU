@@ -10,37 +10,20 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - `CAP-XY-ACCOUNT` remains verified.
 - Its `last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
 - CHG-0004-xianyu-message-boundary is the only active change.
-- CHG-0004 status is `APPROVED`.
-- T1 project-owner approval is complete.
-- T2 message, conversation, and delivery terminology is complete.
-- T3 transport, authentication, and risk-control boundaries is complete.
-- T4 ordering, deduplication, and persistence boundaries is complete.
-- T5 worker ownership, lifecycle, and failure boundaries is complete.
-- T6 local synthetic message-receiving implementation is complete.
-- T7 dedicated unit, contract, security, and active-change acceptance tests is complete.
-- T8 capability evidence and complete verification is the next executable task.
-- The local package `xianyu_system.worker.message` now exists.
-- The implementation contains Domain, Persistence, Service, Transport-neutral delivery values, and a synchronous Message Worker.
-- Migration `0003_xianyu_message_boundary` creates Profile-scoped Conversation, Message, and Delivery Attempt tables.
-- NEW, DUPLICATE, INDETERMINATE, and CONFLICT boundaries are implemented.
-- Duplicate delivery creates no second Message Record.
-- Indeterminate delivery is not silently discarded.
-- Conflicting Delivery Identity fails closed and rolls back.
-- The Message Service owns transactions.
-- Repository methods do not independently commit.
-- The Worker remains local, synchronous, explicitly started, and explicitly stopped.
-- Automatic reconnect and processing retry counts remain zero.
-- No real WebSocket, network access, Credential Provider, real account access, customer-message access, message sending, API, Web UI, background thread, subprocess, or Scheduler is implemented.
-- `CAP-XY-MESSAGE` remains planned and unbound pending T8.
-- Completion of T6 does not authorize T7 in the same execution, Ready-for-review, auto-merge, or merge.
-- A T6 corrective hardening commit closes the Conversation deduplication, Worker failure-state, reset, and public-surface gaps.
-- Delivery Identity compatibility now includes Platform Conversation Identifier.
-- BLOCKED and FAILED Workers require explicit reset and cannot use stop() to bypass recovery.
-- Authorization, risk, protocol, ownership, and deduplication conflicts block the Worker.
-- Persistence and internal failures fail the Worker.
-- The existing permanent-test changes are limited to generic `0003` Migration-head compatibility and added no test functions.
-- Tasks remain 7 / 9.
-- T8 remains the next separately authorized task.
+- CHG-0004 status is `VERIFYING`.
+- T1 through T9 are complete.
+- Tasks are 9 / 9.
+- Next task is none.
+- CAP-XY-MESSAGE remains verified.
+- Evidence Candidate remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- T8 Verification Record remains `9bfa571cdcc61fda03a234784d73b2b328151c32`.
+- T8 CI Compatibility Corrective SHA remains `f8539651268da1600fd1c2e0840ccef2bcb1b2c9`.
+- T9 Ready Candidate SHA is `1cc4de90e88f607ab30b475232c7fa7ef01b8f14`.
+- PR #4 is Ready for review, open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge and merge remain unauthorized.
+- CHG-0004 remains under `changes/active/` until PR #4 is merged.
+- No archive was performed, the source branch was not deleted, and no next active Change was created.
 
 ## Project goal
 
@@ -416,7 +399,7 @@ CHG-0003 final PR administration is complete.
 - CHG-0003 status is `VERIFYING`.
 - All nine tasks are complete.
 - CAP-XY-ACCOUNT remains verified.
-- PR #3 is Ready for review, open, and unmerged.
+- PR #3 is Ready for review, open and unmerged.
 - Merge and auto-merge remain unauthorized.
 - CHG-0003 remains under `changes/active/` until the PR is merged.
 
@@ -530,13 +513,15 @@ CHG-0003 final PR administration is complete.
 - T9 remains the next executable task and has not started.
 - PR #4 remains Draft, open, and unmerged.
 
-## CHG-0004 final review preparation
+## CHG-0004 final PR administration
 
+- CHG-0004 final PR administration is complete.
 - CHG-0004 status is `VERIFYING`.
-- T1 through T8 are complete.
+- All nine tasks are complete.
+- T9 Ready Candidate SHA is `1cc4de90e88f607ab30b475232c7fa7ef01b8f14`.
 - CAP-XY-MESSAGE remains verified.
-- Evidence Candidate remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
-- T8 Verification Record remains `9bfa571cdcc61fda03a234784d73b2b328151c32`.
-- T8 CI Compatibility Corrective SHA remains `f8539651268da1600fd1c2e0840ccef2bcb1b2c9`.
-- PR #4 remains Draft until the Ready Candidate passes final CI.
-- Merge, archive, branch deletion, and the next active Change remain out of scope.
+- PR #4 is Ready for review, open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge and merge remain unauthorized.
+- CHG-0004 remains under `changes/active/` until the PR is merged.
+- Merge requires separate explicit authorization against an exact PR HEAD.
