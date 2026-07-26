@@ -28,7 +28,7 @@ Define the local Xianyu account boundary, Profile isolation model, and non-secre
 - `tests/contract/test_migrations.py`
 - `tests/contract/test_core_runtime.py`
 - `tests/contract/test_capability_registry.py`
-- `changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py`
+- `changes/archive/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py`
 
 ## Implemented local boundary
 
@@ -89,5 +89,19 @@ The registered evidence paths were committed in Evidence Candidate `2aab941cb7f7
 - Unit tests: 196 passed.
 - Contract tests: 65 passed.
 - Permanent acceptance tests: 15 passed.
-- Active CHG-0003 acceptance tests: 4 passed.
+- Archived CHG-0003 acceptance tests: 4 passed.
 - Full collection: 280.
+
+## Post-merge evidence location
+
+PR #3 was merged through merge commit `51b8cff1c483d8b807b5186a14fe90fbaf45c8f9`.
+
+CHG-0003 is archived.
+
+Its historical acceptance test is preserved at:
+
+- `changes/archive/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py`
+
+The archive transition does not reverify the capability.
+
+`last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.

@@ -7,6 +7,11 @@ from alembic import context
 from sqlalchemy.engine import Connection
 
 from xianyu_system.worker.account.persistence import account_profiles_table
+from xianyu_system.worker.message.persistence import (
+    conversation_table,
+    delivery_attempt_table,
+    message_table,
+)
 
 from xianyu_system.core.database import (
     Base,
@@ -18,6 +23,9 @@ from xianyu_system.core.database import (
 config = context.config
 target_metadata = Base.metadata
 assert account_profiles_table.metadata is Base.metadata
+assert conversation_table.metadata is Base.metadata
+assert message_table.metadata is Base.metadata
+assert delivery_attempt_table.metadata is Base.metadata
 
 
 def get_explicit_database_path() -> Path:

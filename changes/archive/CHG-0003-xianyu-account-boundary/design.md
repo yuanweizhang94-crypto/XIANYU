@@ -1,6 +1,6 @@
 # CHG-0003 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0003-xianyu-account-boundary
 
 ## Design state
@@ -1033,3 +1033,27 @@ This T7 execution did not execute T8 or T9 and does not authorize API changes, W
 - Any further repository modification requires an explicit correction authorization.
 - Merge requires separate explicit authorization against an exact PR head.
 - Archive and next-change creation occur only after successful merge.
+
+## Merge and archive record
+
+PR #3 was merged into `main`.
+
+Merge commit: `51b8cff1c483d8b807b5186a14fe90fbaf45c8f9`.
+
+Merged feature head: `3b8162de5f24a0f57a86d23cf3263ccb400f98a4`.
+
+CHG-0003 is archived after successful merge.
+
+All nine CHG-0003 tasks remain complete.
+
+`CAP-XY-ACCOUNT` remains `verified`.
+
+Its `active_change` remains `null`.
+
+Its `last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
+
+Archiving CHG-0003 does not change runtime behavior.
+
+Archiving does not reverify `CAP-XY-ACCOUNT`.
+
+Archiving does not authorize CHG-0004 implementation.

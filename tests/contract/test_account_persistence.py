@@ -85,8 +85,9 @@ def test_account_migration_is_single_linear_head_and_matches_metadata() -> None:
 
         account_revision = '0002_xianyu_account_boundary'
         baseline_revision = '0001_core_baseline'
+        message_revision = '0003_xianyu_message_boundary'
         script = ScriptDirectory.from_config(build_alembic_config())
-        assert script.get_heads() == [account_revision]
+        assert script.get_heads() == [message_revision]
         revision = script.get_revision(account_revision)
         assert revision is not None
         assert revision.down_revision == baseline_revision
@@ -135,7 +136,7 @@ def test_fresh_upgrade_and_empty_downgrade_round_trip(tmp_path: Path) -> None:
         account_table = 'xianyu_account_profiles'
         resources = initialize_database(Path(__DATABASE_PATH__))
         try:
-            upgrade_database(resources)
+            upgrade_database(resources, account_revision)
             assert get_current_revision(resources) == account_revision
             assert set(inspect(resources.engine).get_table_names()) == {
                 'alembic_version',
@@ -177,7 +178,7 @@ def test_nonempty_downgrade_fails_closed_and_preserves_profile(
         profile_id = '11111111-1111-4111-8111-111111111111'
         resources = initialize_database(Path(__DATABASE_PATH__))
         try:
-            upgrade_database(resources)
+            upgrade_database(resources, account_revision)
             with resources.engine.begin() as connection:
                 connection.execute(
                     text('''

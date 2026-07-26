@@ -2,9 +2,9 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0003-xianyu-account-boundary",
+    "id": "CHG-0004-xianyu-message-boundary",
     "status": "VERIFYING",
-    "path": "changes/active/CHG-0003-xianyu-account-boundary"
+    "path": "changes/active/CHG-0004-xianyu-message-boundary"
   },
   "tasks": {
     "total": 9,
@@ -12,27 +12,27 @@
     "next_task": null,
     "items": [
       {
-        "text": "T1 Obtain explicit project-owner approval for CHG-0003",
+        "text": "T1 Obtain explicit project-owner approval for CHG-0004",
         "completed": true
       },
       {
-        "text": "T2 Finalize account and Profile isolation terminology",
+        "text": "T2 Finalize message, conversation, and delivery terminology",
         "completed": true
       },
       {
-        "text": "T3 Approve security and credential-handling boundaries",
+        "text": "T3 Approve transport, authentication, and risk-control boundaries",
         "completed": true
       },
       {
-        "text": "T4 Approve persistence and migration boundaries",
+        "text": "T4 Approve ordering, deduplication, and persistence boundaries",
         "completed": true
       },
       {
-        "text": "T5 Approve runtime module and ownership boundaries",
+        "text": "T5 Approve worker ownership, lifecycle, and failure boundaries",
         "completed": true
       },
       {
-        "text": "T6 Implement only the approved account boundary",
+        "text": "T6 Implement only the approved local message-receiving boundary",
         "completed": true
       },
       {
@@ -52,8 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 6,
-      "verified": 4
+      "planned": 5,
+      "verified": 5
     },
     "items": [
       {
@@ -127,7 +127,7 @@
           "tests/contract/test_migrations.py",
           "tests/contract/test_core_runtime.py",
           "tests/contract/test_capability_registry.py",
-          "changes/active/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py"
+          "changes/archive/CHG-0003-xianyu-account-boundary/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "2aab941cb7f713d7e46675789c47971a2c79c564"
@@ -135,13 +135,32 @@
       {
         "id": "CAP-XY-MESSAGE",
         "name": "Xianyu message receive",
-        "status": "planned",
+        "status": "verified",
         "owner_module": "worker.message",
         "specification": "specs/capabilities/CAP-XY-MESSAGE.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/worker/message/__init__.py",
+          "app/xianyu_system/worker/message/domain.py",
+          "app/xianyu_system/worker/message/transport.py",
+          "app/xianyu_system/worker/message/service.py",
+          "app/xianyu_system/worker/message/persistence.py",
+          "app/xianyu_system/worker/message/worker.py",
+          "migrations/versions/0003_xianyu_message_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_message_domain.py",
+          "tests/unit/test_message_service.py",
+          "tests/unit/test_message_worker.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_message_persistence.py",
+          "tests/contract/test_message_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py"
+        ],
         "active_change": null,
-        "last_verified_commit": null
+        "last_verified_commit": "49498e6f30944883c1a0a5a504932bbd02fc86de"
       },
       {
         "id": "CAP-XY-REPLY",

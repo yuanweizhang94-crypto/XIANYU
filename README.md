@@ -2,6 +2,29 @@
 
 XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository state contains governance, specifications, validation scripts, tests, CI, and the initial Core application boundary. It does not provide real Xianyu publishing, message receiving, message sending, automated reply, WeCom, AI Provider, business API routes, database business logic, WebSocket, Playwright, or scheduled publishing capability.
 
+## Current change state
+
+- PR #3 was merged into `main`.
+- PR #3 merge commit: `51b8cff1c483d8b807b5186a14fe90fbaf45c8f9`.
+- CHG-0003-xianyu-account-boundary is archived.
+- `CAP-XY-ACCOUNT` remains verified.
+- Its `last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
+- CHG-0004-xianyu-message-boundary is the only active change.
+- CHG-0004 status is `VERIFYING`.
+- T1 through T9 are complete.
+- Tasks are 9 / 9.
+- Next task is none.
+- CAP-XY-MESSAGE remains verified.
+- Evidence Candidate remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- T8 Verification Record remains `9bfa571cdcc61fda03a234784d73b2b328151c32`.
+- T8 CI Compatibility Corrective SHA remains `f8539651268da1600fd1c2e0840ccef2bcb1b2c9`.
+- T9 Ready Candidate SHA is `1cc4de90e88f607ab30b475232c7fa7ef01b8f14`.
+- PR #4 is Ready for review, open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge and merge remain unauthorized.
+- CHG-0004 remains under `changes/active/` until PR #4 is merged.
+- No archive was performed, the source branch was not deleted, and no next active Change was created.
+
 ## Project goal
 
 The final intended business path is:
@@ -376,6 +399,129 @@ CHG-0003 final PR administration is complete.
 - CHG-0003 status is `VERIFYING`.
 - All nine tasks are complete.
 - CAP-XY-ACCOUNT remains verified.
-- PR #3 is Ready for review, open, and unmerged.
+- PR #3 is Ready for review, open and unmerged.
 - Merge and auto-merge remain unauthorized.
 - CHG-0003 remains under `changes/active/` until the PR is merged.
+
+## CHG-0004 T7 permanent test coverage
+
+- T7 dedicated unit, contract, security, and active-change acceptance tests are complete.
+- T1 through T7 are complete; tasks are now 7 / 9.
+- T8 Update capability evidence and run complete verification is the next executable task.
+- T8 has not started and requires separate project-owner authorization.
+- The permanent Message test suite adds exactly 42 tests: 12 Domain, 9 Service, 8 Worker, 8 Persistence Contract, and 5 Security Contract tests.
+- Existing Import Safety coverage remains three test functions and now includes the Message Package import-safe boundary.
+- Coverage includes NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, UUID4 generation, transaction ownership, rollback, Profile scope, Account scope, Worker lifecycle, failure-state mapping, explicit reset, one in-flight delivery, re-entry protection, and graceful stop.
+- Coverage includes the three-table schema, Migration lineage, Foreign Keys, database constraints, Repository no-commit behavior, empty downgrade, non-empty downgrade fail-closed behavior, import isolation, absence of external integrations, blocked network/subprocess/Home/thread entry points, sanitized errors, Synthetic Fixture-only evidence, and contract order independence.
+- No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified for T7.
+- `CAP-XY-MESSAGE` remains planned and unbound with empty implementation paths, empty test paths, null active_change, and null last_verified_commit pending T8.
+
+## CHG-0004 T7 corrective hardening
+
+- T7 corrective hardening was completed before T8.
+- The permanent Message test count remains exactly 42 and full collection remains 322.
+- Worker re-entry is now triggered from inside an active Service operation; the inner call fails with `WorkerBusy` before any second Service operation begins, while the outer operation completes and leaves the Worker `RUNNING`.
+- Graceful stop is now covered with deterministic Events and finite-timeout test threads; the Worker enters `STOPPING`, rejects new delivery, waits for the in-flight operation, and reaches `STOPPED` only after completion.
+- Repository flush-without-commit behavior is tested directly, including visible flush, no Repository commit call, explicit rollback removal, ownership round-trip, and UTC timestamp round-trip.
+- Real SQLite evidence covers NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, row-count preservation, and existing Message Content preservation.
+- Schema and constraint evidence covers approved types, lengths, nullable rules, primary keys, foreign keys, unique constraints, check constraints, prohibited columns, Delivery Identity scope, nullable Delivery Identities, Platform Message Identifier reuse, Message Content, decisions, Attempt outcomes, and Attempt numbers.
+- Message-only downgrade explicitly targets `0002_xianyu_account_boundary`; empty downgrade preserves Account table/data and re-upgrades, while non-empty downgrade fails closed and preserves revision, tables, and rows.
+- Security evidence runs Message Service and Message Worker in an isolated process with network, DNS, subprocess, Home-directory, and production thread-start entry points blocked.
+- Package lazy-import evidence verifies Persistence, Service, and Worker are initially unloaded.
+- Synthetic Fixture and cleanup escape-hatch scans cover all dedicated Message tests and active acceptance evidence.
+- No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified by the T7 correction.
+- T8 was not started.
+
+## CHG-0004 T7 final evidence follow-up
+
+- T7 final evidence follow-up was completed before T8.
+- The permanent Message test count remains exactly 42 and full collection remains 322.
+- All approved Message Check Constraints are permanently verified by name and by normalized SQL semantics in both ORM projection and reflected SQLite schema.
+- Foreign Key evidence includes constrained columns, referred tables, referred columns, and `ON DELETE RESTRICT` for Conversation, Message, and Delivery Attempt ownership relationships.
+- Migration evidence covers source restrictions, Alembic CLI `upgrade head`, and Alembic offline SQL without creating the offline target database file.
+- Remaining database constraint evidence covers Profile and Account scope, Delivery Identity uniqueness scope, duplicate attempt numbers, nullable platform identifiers, nullable reason/correlation values, participant validation, persisted decisions, Attempt outcomes, Attempt numbers, reason limits, and correlation limits.
+- Public package evidence verifies initially unloaded Service, Persistence, and Worker modules, then actual lazy Domain, Transport, Service, Persistence, and Worker resolution.
+- Isolated Worker security evidence covers NEW, DUPLICATE, INDETERMINATE, Content Conflict, Conversation Conflict, reset, restart, and stop while network, DNS, subprocess, Home-directory, and production thread-start entry points are blocked.
+- Every dedicated Message test file and active acceptance test is independently checked for UTF-8 decoding, absence of BOM, Synthetic Fixtures, sensitive value patterns, customer data, and cleanup escape hatches.
+- No Runtime, Migration, Registry, Capability Specification, dependency, or CI file was modified by the final T7 evidence follow-up.
+- Tasks remain 7 / 9, T8 was not started, and `CAP-XY-MESSAGE` remains planned and unbound.
+
+## CHG-0004 T7 exact evidence completion
+
+- The final T7 correction closes the remaining direct database and isolated security evidence gaps.
+- Every expected database failure is isolated in its own Connection and Transaction.
+- Empty, blank, padded, over-limit, unknown-enum, ownership, scoped-identity, and Attempt-number cases are directly enforced.
+- The same Delivery Identity is verified as valid for the same Profile under a different Account scope.
+- Offline SQL is scanned for external URL, Credential, browser, and customer-data text.
+- Both isolated conflict paths preserve Conversation, Message, and Delivery Attempt counts.
+- Per-file security scans include plus-phone, standalone long-number, Credential-like, customer-data, raw-frame, production-account, and live-account patterns.
+- Permanent test count remains 42.
+- Full collection remains 322.
+- Tasks remain 7 / 9.
+- T8 remains separately authorized and has not started.
+
+## CHG-0004 T7 sensitive scan completion
+
+- CHG-0004 T7 sensitive-evidence scan correction is complete before T8.
+- Every approved Message evidence file is scanned as complete UTF-8 Source after raw-byte and BOM checks.
+- No prohibited source line is deleted, filtered, replaced, masked, or allowlisted before scanning.
+- Plus-phone detection supports common separators and requires at least eight digits.
+- Standalone long-number detection begins at eleven digits and avoids UUID-like embedded numeric segments.
+- Bearer, Authorization Header, API Key, Access Token, Refresh Token, Session Cookie, Password, and Secret forms are covered.
+- Real-customer, customer-message, customer-data, raw-frame, production-account, live-account, real-Xianyu-account, and real-account phrase forms are covered.
+- Runtime positive controls prove every scanner category can detect its intended input.
+- Scanner failure diagnostics report file path and category only, never matched values.
+- No Runtime, Migration, Persistence Contract, Registry, Capability Specification, dependency, or CI file was modified by this correction.
+- Permanent Message test count remains 42 and full collection remains 322.
+- Tasks remain 7 / 9; T8 remains the next executable task and has not started.
+- CAP-XY-MESSAGE remains planned and unbound.
+- PR #4 remains Draft, open, unmerged, without requested reviewers, and without auto-merge.
+
+## CHG-0004 T7 quoted-phrase scan completion
+
+- The final quoted-string bypass was removed from forbidden-phrase scanning.
+- Complete Source is checked with direct phrase matching.
+- Single-quoted, double-quoted, embedded, commented, and assigned forbidden phrases are not exempt.
+- Phrase positive controls use the same detector as real evidence-file scanning.
+- Persistence scanner-rule literals are assembled at runtime without weakening Offline SQL checks.
+- Scanner failure diagnostics expose only the path and category.
+- Permanent Message test count remains 42.
+- Full collection remains 322.
+- Tasks remain 7 / 9.
+- T8 remains separately authorized and has not started.
+
+## CHG-0004 T8 capability verification
+
+- CAP-XY-MESSAGE evidence paths are registered and verified.
+- Evidence Candidate SHA: `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- CAP-XY-MESSAGE status is verified.
+- active_change is null.
+- last_verified_commit records the Candidate SHA.
+- Tasks are 8 / 9.
+- T9 is the next executable task.
+- PR #4 remains Draft, open, and unmerged.
+
+## CHG-0004 T8 final-CI compatibility
+
+- T8 final-CI shallow-checkout correction keeps evidence and verification state unchanged.
+- The final CI correction handles depth-one pull-request merge checkouts.
+- Complete repositories still require the Evidence Candidate object and strict ancestor verification.
+- Missing Candidate history is accepted only when Git identifies the checkout as shallow.
+- No Workflow, Runtime, Migration, Registry, Capability Specification, dependency, or evidence path was changed.
+- CAP-XY-MESSAGE remains verified.
+- Tasks remain 8 / 9.
+- T9 remains the next executable task and has not started.
+- PR #4 remains Draft, open, and unmerged.
+
+## CHG-0004 final PR administration
+
+- CHG-0004 final PR administration is complete.
+- CHG-0004 status is `VERIFYING`.
+- All nine tasks are complete.
+- T9 Ready Candidate SHA is `1cc4de90e88f607ab30b475232c7fa7ef01b8f14`.
+- CAP-XY-MESSAGE remains verified.
+- PR #4 is Ready for review, open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge and merge remain unauthorized.
+- CHG-0004 remains under `changes/active/` until the PR is merged.
+- Merge requires separate explicit authorization against an exact PR HEAD.

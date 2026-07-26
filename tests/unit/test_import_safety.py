@@ -20,6 +20,9 @@ IMPORT_MODULES = [
     "xianyu_system.web.router",
     "xianyu_system.worker.account",
     "xianyu_system.worker.account.domain",
+    "xianyu_system.worker.message",
+    "xianyu_system.worker.message.domain",
+    "xianyu_system.worker.message.transport",
 ]
 FORBIDDEN_ARTIFACT_GLOBS = [
     "*.db",
@@ -94,6 +97,49 @@ after = {
         and "AccountService"
         in sys.modules["xianyu_system.worker.account"].__all__
     ),
+    "message_modules": sorted(
+        name
+        for name in sys.modules
+        if name.startswith("xianyu_system.worker.message")
+    ),
+    "message_service_loaded": (
+        "xianyu_system.worker.message.service" in sys.modules
+    ),
+    "message_persistence_loaded": (
+        "xianyu_system.worker.message.persistence" in sys.modules
+    ),
+    "message_worker_loaded": (
+        "xianyu_system.worker.message.worker" in sys.modules
+    ),
+    "message_public_surface": (
+        "xianyu_system.worker.message" in sys.modules
+        and "Conversation"
+        in sys.modules["xianyu_system.worker.message"].__all__
+        and "MessageService"
+        in sys.modules["xianyu_system.worker.message"].__all__
+        and "MessageWorker"
+        in sys.modules["xianyu_system.worker.message"].__all__
+    ),
+    "message_conversation_public": (
+        "xianyu_system.worker.message" in sys.modules
+        and "Conversation"
+        in sys.modules["xianyu_system.worker.message"].__all__
+    ),
+    "message_service_public": (
+        "xianyu_system.worker.message" in sys.modules
+        and "MessageService"
+        in sys.modules["xianyu_system.worker.message"].__all__
+    ),
+    "message_worker_public": (
+        "xianyu_system.worker.message" in sys.modules
+        and "MessageWorker"
+        in sys.modules["xianyu_system.worker.message"].__all__
+    ),
+    "message_transport_public": (
+        "xianyu_system.worker.message" in sys.modules
+        and "SyntheticMessageDelivery"
+        in sys.modules["xianyu_system.worker.message"].__all__
+    ),
     "cwd_files": sorted(path.name for path in cwd.iterdir()),
     "root_level": root_logger.level,
     "root_handlers": [id(handler) for handler in root_logger.handlers],
@@ -136,6 +182,20 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
         b'"""Public surface for the local Xianyu account boundary.'
     )
     account_init_bytes.decode("utf-8")
+    message_init_path = (
+        ROOT
+        / "app"
+        / "xianyu_system"
+        / "worker"
+        / "message"
+        / "__init__.py"
+    )
+    message_init_bytes = message_init_path.read_bytes()
+    assert not message_init_bytes.startswith(b"\xef\xbb\xbf")
+    assert message_init_bytes.startswith(
+        b'"""Local synthetic message receiving boundary package.'
+    )
+    message_init_bytes.decode("utf-8")
 
     report = run_import_probe(tmp_path, IMPORT_MODULES)
 
@@ -161,6 +221,31 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
     assert (
         "xianyu_system.worker.account.persistence"
         not in report["after"]["account_modules"]
+    )
+    assert report["after"]["message_service_loaded"] is False
+    assert report["after"]["message_persistence_loaded"] is False
+    assert report["after"]["message_worker_loaded"] is False
+    assert report["after"]["message_public_surface"] is True
+    assert report["after"]["message_conversation_public"] is True
+    assert report["after"]["message_service_public"] is True
+    assert report["after"]["message_worker_public"] is True
+    assert report["after"]["message_transport_public"] is True
+    assert "xianyu_system.worker.message" in report["after"]["message_modules"]
+    assert (
+        "xianyu_system.worker.message.domain"
+        in report["after"]["message_modules"]
+    )
+    assert (
+        "xianyu_system.worker.message.transport"
+        in report["after"]["message_modules"]
+    )
+    assert (
+        "xianyu_system.worker.message.service"
+        not in report["after"]["message_modules"]
+    )
+    assert (
+        "xianyu_system.worker.message.persistence"
+        not in report["after"]["message_modules"]
     )
     assert report["after"]["has_database_state"] is False
     assert report["after"]["has_scheduler_state"] is False
