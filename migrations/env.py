@@ -18,6 +18,11 @@ from xianyu_system.reply.persistence import (
     reply_rule_table,
     reply_template_table,
 )
+from xianyu_system.worker.publish.persistence import (
+    publish_attempt_snapshot_table,
+    publish_audit_event_table,
+    publish_request_table,
+)
 
 from xianyu_system.core.database import (
     Base,
@@ -36,6 +41,9 @@ assert reply_template_table.metadata is Base.metadata
 assert reply_rule_table.metadata is Base.metadata
 assert reply_condition_table.metadata is Base.metadata
 assert reply_audit_event_table.metadata is Base.metadata
+assert publish_request_table.metadata is Base.metadata
+assert publish_audit_event_table.metadata is Base.metadata
+assert publish_attempt_snapshot_table.metadata is Base.metadata
 
 
 def get_explicit_database_path() -> Path:

@@ -48,7 +48,17 @@ REPLY_TABLES = {
     "xianyu_reply_conditions",
     "xianyu_reply_audit_events",
 }
-BUSINESS_METADATA_TABLES = {"xianyu_account_profiles", *MESSAGE_TABLES, *REPLY_TABLES}
+PUBLISH_TABLES = {
+    "xianyu_publish_requests",
+    "xianyu_publish_audit_events",
+    "xianyu_publish_attempt_snapshots",
+}
+BUSINESS_METADATA_TABLES = {
+    "xianyu_account_profiles",
+    *MESSAGE_TABLES,
+    *REPLY_TABLES,
+    *PUBLISH_TABLES,
+}
 
 ROOT = Path(__file__).resolve().parents[2]
 

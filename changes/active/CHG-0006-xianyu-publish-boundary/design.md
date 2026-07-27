@@ -11,7 +11,7 @@ No Runtime design is approved.
 
 No Playwright or external platform behavior is approved.
 
-Current implementation: none.
+Historical pre-T6 implementation posture: none.
 
 ## Pending terminology
 
@@ -87,7 +87,7 @@ CHG-0006 status is APPROVED for sequential governance and design tasks only.
 
 T1 approves entry into T2 through T5 design tasks, with each task completed and committed independently.
 
-Current implementation: none.
+Historical pre-T6 implementation posture: none.
 
 No Runtime design or implementation is approved.
 
@@ -293,3 +293,23 @@ Approved stable failure categories are `VALIDATION_ERROR`, `AUTHORIZATION_ERROR`
 Validation errors are not retried. Authorization and risk errors are not bypassed. Idempotency conflicts do not overwrite previous requests. Duplicate requests do not automatically create a second attempt. Persistence errors do not produce `READY`. Adapter errors and timeouts are not automatically interpreted as success or failure. `UNKNOWN_OUTCOME` does not automatically retry.
 
 All retry, scheduler, and background-worker behavior requires future separate authorization and is not implemented by CHG-0006 T1-T5.
+
+## T6 implementation record
+
+T6 implements the approved local deterministic publishing boundary. The actual package is `app/xianyu_system/worker/publish/`.
+
+Actual Domain types include ListingDraft, PublishRequest, PublishEvaluationContext, ValidationIssue, PublishValidationResult, PublishDecision, PublishAttemptSnapshot, PublishDecisionType, PublishReasonCode, PublishAuthorizationState, PublishRiskState, ListingDraftLifecycle, PublishRequestLifecycle, PublishAttemptLifecycle, PublishOutcomeType, and PublishFailureCategory.
+
+Actual validation is provided by `PublishValidator` and follows the approved fail-closed order: request shape, synthetic-fixture validation, required-field validation through domain invariants, field normalization and fingerprinting, authorization validation, risk-state validation, idempotency validation, duplicate detection, uncertainty-state validation, and local READY decision.
+
+Actual fingerprinting is provided by `compute_publish_fingerprint`, using sorted JSON, SHA-256, explicit Decimal canonicalization, UTC-normalized timestamps through Domain construction, and bounded recursive media metadata canonicalization. It excludes request_id, idempotency_key, requested_at, correlation_id, created_at, and updated_at.
+
+Actual Repository and local persistence are provided by `PublishRepository` and `persistence.py`. They store local request decisions, sanitized audit events, and read-only attempt snapshots for UNKNOWN outcome detection. They do not store full title, full description, full media metadata, Credential material, raw platform responses, real personal data, or real customer data.
+
+Actual Service is `PublishService`. It returns READY only as local readiness for a separately authorized future boundary. It handles idempotency replay, idempotency conflict, duplicate draft detection, UNKNOWN outcome manual review, and persistence failure fail-closed behavior. It does not start a real PublishAttempt, create an IN_PROGRESS attempt, generate SUCCEEDED outcomes, retry automatically, call an Adapter, or execute platform behavior.
+
+Actual Migration is `migrations/versions/0005_xianyu_publish_boundary.py`, chained after `0004_xianyu_reply_boundary`. Downgrade is allowed only when publish tables are empty.
+
+There is no Platform Adapter, browser adapter, Xianyu client, API, Web UI, Scheduler, worker loop, retry worker, media uploader, Credential resolver, account login, Playwright use, browser startup, external network access, real Xianyu access, listing publication, media upload, Credential handling, or real-data handling.
+
+T7 is the next task but is not authorized and has not started. T8 remains responsible for capability evidence registration and verification.

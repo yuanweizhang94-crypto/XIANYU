@@ -255,3 +255,23 @@ Validation errors are not retried. Authorization and risk errors are not bypasse
 All retry, scheduler, and background-worker behavior requires future separate authorization and is not implemented by CHG-0006 T1-T5.
 
 T5 records architecture constraints only. CAP-XY-PUBLISH remains planned and unbound, with null active_change, empty implementation_paths, empty test_paths, and null last_verified_commit.
+
+## CHG-0006 T6 implementation record
+
+A local deterministic implementation now exists under `app/xianyu_system/worker/publish/`.
+
+Implemented runtime files:
+
+- `app/xianyu_system/worker/publish/__init__.py`
+- `app/xianyu_system/worker/publish/domain.py`
+- `app/xianyu_system/worker/publish/fingerprint.py`
+- `app/xianyu_system/worker/publish/validation.py`
+- `app/xianyu_system/worker/publish/persistence.py`
+- `app/xianyu_system/worker/publish/service.py`
+- `migrations/versions/0005_xianyu_publish_boundary.py`
+
+The implementation includes Domain types, deterministic validation, canonical SHA-256 fingerprinting, a local Repository, local persistence tables, local Service orchestration, sanitized audit records, and read-only attempt snapshots for UNKNOWN outcome detection.
+
+Registry status remains `planned`. The capability remains unbound. Registry `implementation_paths`, `test_paths`, `active_change`, and `last_verified_commit` remain empty or null. Evidence has not been registered. T7 will add dedicated publish tests, and T8 remains responsible for evidence registration and capability verification.
+
+The implementation has no real platform behavior. It does not publish listings, start a PublishAttempt, call Playwright, start a browser, access Xianyu, upload media, perform external network access, accept Credential material, or infer real platform state. READY remains a local decision only.

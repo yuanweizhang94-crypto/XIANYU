@@ -87,8 +87,9 @@ def test_account_migration_is_single_linear_head_and_matches_metadata() -> None:
         baseline_revision = '0001_core_baseline'
         message_revision = '0003_xianyu_message_boundary'
         reply_revision = '0004_xianyu_reply_boundary'
+        publish_revision = '0005_xianyu_publish_boundary'
         script = ScriptDirectory.from_config(build_alembic_config())
-        assert script.get_heads() == [reply_revision]
+        assert script.get_heads() == [publish_revision]
         revision = script.get_revision(account_revision)
         assert revision is not None
         assert revision.down_revision == baseline_revision

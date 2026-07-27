@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[2]
 ACCOUNT_REVISION = "0002_xianyu_account_boundary"
 MESSAGE_REVISION = "0003_xianyu_message_boundary"
 REPLY_REVISION = "0004_xianyu_reply_boundary"
+PUBLISH_REVISION = "0005_xianyu_publish_boundary"
 ACCOUNT_TABLE = "xianyu_account_profiles"
 CONVERSATION_TABLE = "xianyu_message_conversations"
 MESSAGE_TABLE = "xianyu_message_records"
@@ -407,8 +408,8 @@ def test_message_migration_is_single_linear_head_and_matches_projection(
 ) -> None:
     script = ScriptDirectory.from_config(build_alembic_config())
     revision = script.get_revision(MESSAGE_REVISION)
-    assert script.get_current_head() == REPLY_REVISION
-    assert script.get_heads() == [REPLY_REVISION]
+    assert script.get_current_head() == PUBLISH_REVISION
+    assert script.get_heads() == [PUBLISH_REVISION]
     assert revision is not None
     assert revision.down_revision == ACCOUNT_REVISION
     assert revision.branch_labels in (None, set())
@@ -485,7 +486,7 @@ def test_message_migration_is_single_linear_head_and_matches_projection(
     assert cli_database_path.exists()
     cli_resources = initialize_database(cli_database_path)
     try:
-        assert get_current_revision(cli_resources) == REPLY_REVISION
+        assert get_current_revision(cli_resources) == PUBLISH_REVISION
         inspector = inspect(cli_resources.engine)
         assert set(inspector.get_table_names()) >= MESSAGE_TABLES
     finally:
@@ -514,7 +515,9 @@ def test_message_migration_is_single_linear_head_and_matches_projection(
     assert not offline_database_path.exists()
     offline_sql = offline_result.stdout.lower()
     assert "0003_xianyu_message_boundary" in offline_sql
-    message_offline_sql = offline_sql[offline_sql.index("0003_xianyu_message_boundary") :]
+    message_start = offline_sql.index("0003_xianyu_message_boundary")
+    message_end = offline_sql.index("0004_xianyu_reply_boundary")
+    message_offline_sql = offline_sql[message_start:message_end]
     for forbidden in [
         "http://",
         "https://",
@@ -593,7 +596,7 @@ def test_fresh_upgrade_creates_exact_message_tables_and_foreign_keys(
     try:
         assert get_current_revision(resources) is None
         upgrade_database(resources)
-        assert get_current_revision(resources) == REPLY_REVISION
+        assert get_current_revision(resources) == PUBLISH_REVISION
         inspector = inspect(resources.engine)
         assert {
             name for name in inspector.get_table_names() if name.startswith("xianyu_message_")
@@ -1255,7 +1258,7 @@ def test_empty_message_downgrade_and_reupgrade_succeed(tmp_path: Path) -> None:
             ).scalar_one()
         assert alias == "synthetic-message-profile"
         upgrade_database(resources)
-        assert get_current_revision(resources) == REPLY_REVISION
+        assert get_current_revision(resources) == PUBLISH_REVISION
         assert set(inspect(resources.engine).get_table_names()) >= MESSAGE_TABLES
         assert count_rows(resources, ACCOUNT_TABLE) == 1
     finally:
@@ -1279,7 +1282,7 @@ def test_nonempty_message_downgrade_fails_closed_and_preserves_data_and_revision
         )
         with pytest.raises(RuntimeError):
             downgrade_database(resources, revision="0002_xianyu_account_boundary")
-        assert get_current_revision(resources) == REPLY_REVISION
+        assert get_current_revision(resources) == PUBLISH_REVISION
         assert set(inspect(resources.engine).get_table_names()) >= MESSAGE_TABLES
         assert (
             count_rows(resources, ACCOUNT_TABLE),

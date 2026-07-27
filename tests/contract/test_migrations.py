@@ -34,6 +34,7 @@ BASELINE_PATH = ROOT / "migrations" / "versions" / "0001_core_baseline.py"
 ACCOUNT_REVISION = "0002_xianyu_account_boundary"
 MESSAGE_REVISION = "0003_xianyu_message_boundary"
 REPLY_REVISION = "0004_xianyu_reply_boundary"
+PUBLISH_REVISION = "0005_xianyu_publish_boundary"
 ACCOUNT_TABLE = "xianyu_account_profiles"
 MESSAGE_TABLES = {
     "xianyu_message_conversations",
@@ -45,6 +46,11 @@ REPLY_TABLES = {
     "xianyu_reply_rules",
     "xianyu_reply_conditions",
     "xianyu_reply_audit_events",
+}
+PUBLISH_TABLES = {
+    "xianyu_publish_requests",
+    "xianyu_publish_audit_events",
+    "xianyu_publish_attempt_snapshots",
 }
 
 
@@ -62,6 +68,7 @@ def assert_account_tables(resources: Any) -> None:
         ACCOUNT_TABLE,
         *MESSAGE_TABLES,
         *REPLY_TABLES,
+        *PUBLISH_TABLES,
     }
 
 
@@ -75,6 +82,7 @@ def test_migration_files_exist() -> None:
         "migrations/versions/0002_xianyu_account_boundary.py",
         "migrations/versions/0003_xianyu_message_boundary.py",
         "migrations/versions/0004_xianyu_reply_boundary.py",
+        "migrations/versions/0005_xianyu_publish_boundary.py",
     ]:
         assert (ROOT / relative).is_file()
 
@@ -94,8 +102,8 @@ def test_alembic_config_parses_without_database_side_effects(tmp_path: Path) -> 
 def test_script_directory_has_single_baseline_head() -> None:
     script = ScriptDirectory.from_config(build_alembic_config())
 
-    assert script.get_current_head() == REPLY_REVISION
-    assert script.get_heads() == [REPLY_REVISION]
+    assert script.get_current_head() == PUBLISH_REVISION
+    assert script.get_heads() == [PUBLISH_REVISION]
 
 
 def test_revision_relationship_is_empty_baseline() -> None:
@@ -104,6 +112,7 @@ def test_revision_relationship_is_empty_baseline() -> None:
     account_revision = script.get_revision(ACCOUNT_REVISION)
     message_revision = script.get_revision(MESSAGE_REVISION)
     reply_revision = script.get_revision(REPLY_REVISION)
+    publish_revision = script.get_revision(PUBLISH_REVISION)
 
     assert revision is not None
     assert revision.revision == BASELINE_REVISION
@@ -122,6 +131,10 @@ def test_revision_relationship_is_empty_baseline() -> None:
     assert reply_revision.down_revision == MESSAGE_REVISION
     assert reply_revision.branch_labels in (None, set())
     assert reply_revision.dependencies in (None, ())
+    assert publish_revision is not None
+    assert publish_revision.down_revision == REPLY_REVISION
+    assert publish_revision.branch_labels in (None, set())
+    assert publish_revision.dependencies in (None, ())
 
 
 def test_baseline_revision_is_static_empty_operation() -> None:
@@ -173,7 +186,7 @@ def test_fresh_database_upgrade_creates_only_alembic_version(tmp_path: Path) -> 
     try:
         assert get_current_revision(resources) is None
         upgrade_database(resources)
-        assert get_current_revision(resources) == REPLY_REVISION
+        assert get_current_revision(resources) == PUBLISH_REVISION
         assert_account_tables(resources)
     finally:
         dispose_database(resources)
@@ -184,7 +197,7 @@ def test_upgrade_is_repeatable(tmp_path: Path) -> None:
     try:
         upgrade_database(resources)
         upgrade_database(resources)
-        assert get_current_revision(resources) == REPLY_REVISION
+        assert get_current_revision(resources) == PUBLISH_REVISION
         assert_account_tables(resources)
     finally:
         dispose_database(resources)
@@ -198,7 +211,7 @@ def test_downgrade_to_base_then_upgrade_again(tmp_path: Path) -> None:
         assert get_current_revision(resources) is None
         assert_no_business_tables(resources)
         upgrade_database(resources)
-        assert get_current_revision(resources) == REPLY_REVISION
+        assert get_current_revision(resources) == PUBLISH_REVISION
         assert_account_tables(resources)
     finally:
         dispose_database(resources)
@@ -238,7 +251,7 @@ def test_cli_upgrade_requires_explicit_path_and_creates_no_default_database(tmp_
     assert database_path.exists()
     resources = initialize_database(database_path)
     try:
-        assert get_current_revision(resources) == REPLY_REVISION
+        assert get_current_revision(resources) == PUBLISH_REVISION
         assert_account_tables(resources)
     finally:
         dispose_database(resources)
@@ -285,7 +298,7 @@ def test_offline_sql_does_not_create_database_file(tmp_path: Path) -> None:
     assert "alembic_version" in result.stdout
     assert "CREATE TABLE" in result.stdout.upper()
     assert ACCOUNT_TABLE in result.stdout
-    for table_name in MESSAGE_TABLES | REPLY_TABLES:
+    for table_name in MESSAGE_TABLES | REPLY_TABLES | PUBLISH_TABLES:
         assert table_name in result.stdout
     for forbidden in ["cookie", "token", "password", "browser", "customer", "schedule"]:
         assert forbidden not in result.stdout.lower()
@@ -372,6 +385,7 @@ def test_scheduler_adds_no_migration_revision_or_scheduler_table_names() -> None
         "0002_xianyu_account_boundary.py",
         "0003_xianyu_message_boundary.py",
         "0004_xianyu_reply_boundary.py",
+        "0005_xianyu_publish_boundary.py",
         "__init__.py",
     ]
     assert "SQLAlchemyJobStore" not in scheduler_source
@@ -399,6 +413,7 @@ def test_health_api_does_not_run_migrations_or_add_revisions(tmp_path: Path) -> 
         "0002_xianyu_account_boundary.py",
         "0003_xianyu_message_boundary.py",
         "0004_xianyu_reply_boundary.py",
+        "0005_xianyu_publish_boundary.py",
         "__init__.py",
     ]
     source = (ROOT / "app/xianyu_system/api/health.py").read_text(encoding="utf-8")

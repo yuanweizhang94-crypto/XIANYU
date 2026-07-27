@@ -40,9 +40,9 @@ Change ID: CHG-0006-xianyu-publish-boundary
 
 CHG-0006 is APPROVED for T1 through T5 governance and design work only.
 
-T1 through T5 are complete.
+T1 through T6 are complete.
 
-T6 is the next task but is not authorized in this execution and has not started.
+T7 is the next task but is not authorized in this execution and has not started.
 
 No implementation, capability binding, reviewer request, Ready transition, auto-merge, or merge is authorized.
 
@@ -104,3 +104,27 @@ No implementation, capability binding, reviewer request, Ready transition, auto-
 10. Failure classification and no-retry boundaries are documented.
 11. CAP-XY-PUBLISH remains planned, unbound, with empty implementation_paths, empty test_paths, null active_change, and null last_verified_commit.
 12. PR #6 remains Draft, open, and unmerged.
+
+## T6 acceptance criteria
+
+1. T1 through T6 are complete.
+2. T7 through T9 remain incomplete.
+3. PROJECT_STATE reports 6 / 9 tasks complete.
+4. PROJECT_STATE next_task is `T7 Add unit, contract, security, and active-change acceptance tests`.
+5. The local publish package exists under `app/xianyu_system/worker/publish/`.
+6. Domain types match the approved terminology and lifecycle names.
+7. Validation order is fixed and fail closed.
+8. `synthetic_fixture=false` cannot enter READY.
+9. UNKNOWN authorization cannot enter READY.
+10. UNKNOWN risk cannot enter READY.
+11. Same idempotency key with the same fingerprint is replay.
+12. Same idempotency key with a different fingerprint is conflict.
+13. A different idempotency key with the same draft revision and fingerprint is duplicate.
+14. UNKNOWN historical outcome is manual review.
+15. READY is only a local decision for a separately authorized future boundary.
+16. Service contains no platform publication behavior.
+17. No Playwright, browser, network, Credential, real-data, or platform Adapter behavior exists.
+18. Migration `0005_xianyu_publish_boundary` exists and is chained after the reply boundary.
+19. CAP-XY-PUBLISH Registry remains planned, unbound, with empty implementation_paths, empty test_paths, null active_change, and null last_verified_commit.
+20. T7 has not started.
+21. PR #6 remains Draft, open, and unmerged.

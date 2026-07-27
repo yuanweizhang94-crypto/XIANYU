@@ -12,14 +12,14 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
 - CHG-0006-xianyu-publish-boundary is the only Active Change.
 - CHG-0006 status is `APPROVED`.
-- CHG-0006 completed tasks: 5 / 9.
-- Completed tasks: T1-T5.
-- Next task: `T6 Implement only the separately approved local publishing boundary`.
-- T6 is not authorized and has not started.
+- CHG-0006 completed tasks: 6 / 9.
+- Completed tasks: T1-T6.
+- Next task: `T7 Add unit, contract, security, and active-change acceptance tests`.
+- T6 is complete. T7 is not authorized and has not started.
 - CAP-XY-PUBLISH remains planned and unbound.
 - CAP-XY-PUBLISH keeps empty `implementation_paths`, empty `test_paths`, null `active_change`, and null `last_verified_commit`.
-- No Playwright, browser automation, real Xianyu access, publishing behavior, credential access, real data access, or external network access is introduced.
-- Any T6 implementation requires new separate project-owner authorization.
+- The T6 implementation performs only local deterministic publish-boundary decisions and introduces no Playwright, browser automation, real Xianyu access, listing publication, media upload, credential access, real data access, or external network access.
+- Any T7 testing, T8 evidence registration, or T9 PR administration requires new separate project-owner authorization.
 
 ## CHG-0006 T5 approved publish architecture boundaries
 
@@ -31,6 +31,17 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - ListingDraftLifecycle is `DRAFT`, `VALIDATED`, `READY_FOR_MANUAL_REVIEW`, and `ARCHIVED`; it intentionally excludes `PUBLISHED` because the local boundary does not publish.
 - Failure classification covers `VALIDATION_ERROR`, `AUTHORIZATION_ERROR`, `RISK_BLOCKED`, `IDEMPOTENCY_CONFLICT`, `DUPLICATE_REQUEST`, `PERSISTENCE_ERROR`, `ADAPTER_ERROR`, `TIMEOUT`, `UNKNOWN_OUTCOME`, and `CANCELLED`.
 - T6 remains the next task but is not authorized and has not started.
+
+
+## CHG-0006 T6 local deterministic publish boundary
+
+- The local package `app/xianyu_system/worker/publish/` now exists.
+- Runtime files are `__init__.py`, `domain.py`, `fingerprint.py`, `validation.py`, `persistence.py`, and `service.py`.
+- Migration `0005_xianyu_publish_boundary` creates local publish request, sanitized audit, and attempt-snapshot tables.
+- The Service returns deterministic local decisions only: READY, INVALID_INPUT, UNAUTHORIZED, RISK_BLOCKED, DUPLICATE, CONFLICT, or MANUAL_REVIEW.
+- READY means local readiness for a separately authorized future boundary only; it does not publish listings and does not start a PublishAttempt.
+- CAP-XY-PUBLISH remains planned and unbound with no Registry implementation paths, test paths, active_change, or last_verified_commit. T8 remains responsible for evidence registration and verification.
+- T7 is the next task but is not authorized and has not started.
 
 ## Project goal
 

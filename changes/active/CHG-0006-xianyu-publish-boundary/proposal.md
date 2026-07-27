@@ -17,9 +17,9 @@ CHG-0006 is APPROVED for sequential governance and design work only.
 
 The project owner authorized T1 through T5 in this execution, with each task completed, verified, and committed independently.
 
-T1 through T5 are complete.
+T1 through T6 are complete.
 
-T6 is the next task but is not authorized in this execution and has not started.
+T7 is the next task but is not authorized in this execution and has not started.
 
 No Runtime implementation, capability binding, reviewer request, Ready transition, auto-merge, or merge is authorized.
 
@@ -112,3 +112,13 @@ T5 is complete. Ownership, persistence, lifecycle, audit, and failure boundaries
 T6 Implement only the separately approved local publishing boundary is the next task, but T6 is not authorized in this execution and has not started.
 
 CAP-XY-PUBLISH remains planned and unbound with null active_change, empty implementation_paths, empty test_paths, and null last_verified_commit. PR #6 remains Draft, open, and unmerged.
+
+## T6 completion record
+
+T6 is complete. The local deterministic publish boundary is implemented under `app/xianyu_system/worker/publish/`.
+
+Implemented files are `__init__.py`, `domain.py`, `fingerprint.py`, `validation.py`, `persistence.py`, and `service.py`. Migration `0005_xianyu_publish_boundary` creates local publish request, sanitized audit, and attempt-snapshot tables.
+
+The implementation remains local and synthetic only. It does not publish listings, start a PublishAttempt, call Playwright, start a browser, access Xianyu, upload media, perform external network access, accept Credential material, or infer real platform state.
+
+T7 Add unit, contract, security, and active-change acceptance tests is the next task, but T7 is not authorized in this execution and has not started. CAP-XY-PUBLISH remains planned and unbound with no Registry evidence.
