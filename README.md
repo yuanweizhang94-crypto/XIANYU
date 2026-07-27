@@ -12,10 +12,10 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
 - CHG-0006-xianyu-publish-boundary is the only Active Change.
 - CHG-0006 status is `APPROVED`.
-- CHG-0006 completed tasks: 6 / 9.
-- Completed tasks: T1-T6.
-- Next task: `T7 Add unit, contract, security, and active-change acceptance tests`.
-- T6 is complete. T7 is not authorized and has not started.
+- CHG-0006 completed tasks: 7 / 9.
+- Completed tasks: T1-T7.
+- Next task: `T8 Update capability evidence and run complete verification`.
+- T7 permanent local Publish boundary testing is complete. T8 is not authorized until T7 verification and commit are complete.
 - CAP-XY-PUBLISH remains planned and unbound.
 - CAP-XY-PUBLISH keeps empty `implementation_paths`, empty `test_paths`, null `active_change`, and null `last_verified_commit`.
 - The T6 implementation performs only local deterministic publish-boundary decisions and introduces no Playwright, browser automation, real Xianyu access, listing publication, media upload, credential access, real data access, or external network access.
@@ -42,6 +42,15 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - READY means local readiness for a separately authorized future boundary only; it does not publish listings and does not start a PublishAttempt.
 - CAP-XY-PUBLISH remains planned and unbound with no Registry implementation paths, test paths, active_change, or last_verified_commit. T8 remains responsible for evidence registration and verification.
 - T7 is the next task but is not authorized and has not started.
+
+
+## CHG-0006 T7 permanent local Publish boundary tests
+
+- T7 adds permanent unit, contract, security, migration, import-safety, and active-change acceptance coverage for the local deterministic Publish boundary.
+- New unit tests cover Publish domain normalization, media metadata canonicalization, fingerprint stability, validation fail-closed ordering, and service idempotency/duplicate/UNKNOWN/persistence-failure behavior.
+- New contract tests cover local SQLite publish persistence, Alembic migration constraints, empty downgrade, non-empty downgrade fail-closed behavior, and static/runtime security boundaries.
+- T7 does not bind CAP-XY-PUBLISH evidence; CAP-XY-PUBLISH remains planned and unbound until T8.
+- T8 is the next task but has not started in the T7 commit.
 
 ## Project goal
 

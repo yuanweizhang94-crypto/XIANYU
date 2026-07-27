@@ -275,3 +275,21 @@ The implementation includes Domain types, deterministic validation, canonical SH
 Registry status remains `planned`. The capability remains unbound. Registry `implementation_paths`, `test_paths`, `active_change`, and `last_verified_commit` remain empty or null. Evidence has not been registered. T7 will add dedicated publish tests, and T8 remains responsible for evidence registration and capability verification.
 
 The implementation has no real platform behavior. It does not publish listings, start a PublishAttempt, call Playwright, start a browser, access Xianyu, upload media, perform external network access, accept Credential material, or infer real platform state. READY remains a local decision only.
+
+## CHG-0006 T7 permanent test record
+
+T7 adds permanent local deterministic Publish boundary test coverage. The capability remains `planned` and unbound until T8 records exact evidence paths and complete verification.
+
+T7 test coverage includes:
+
+- `tests/unit/test_publish_domain.py`
+- `tests/unit/test_publish_fingerprint.py`
+- `tests/unit/test_publish_validation.py`
+- `tests/unit/test_publish_service.py`
+- `tests/contract/test_publish_persistence.py`
+- `tests/contract/test_publish_security.py`
+- `tests/unit/test_import_safety.py`
+- `tests/contract/test_migrations.py`
+- `changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`
+
+No platform publication, browser automation, media upload, external network behavior, Credential handling, scheduler, worker loop, or capability evidence binding is introduced by T7.

@@ -92,6 +92,7 @@ NEXT_BY_COMPLETED = {
     4: EXPECTED_TASKS[4],
     5: EXPECTED_TASKS[5],
     6: EXPECTED_TASKS[6],
+    7: EXPECTED_TASKS[7],
 }
 
 
@@ -127,7 +128,7 @@ def completed_count() -> int:
     assert len(lines) == 9
     marks = [line.startswith("- [x]") for line in lines]
     completed = sum(marks)
-    assert 1 <= completed <= 6
+    assert 1 <= completed <= 7
     assert marks == [index < completed for index in range(9)]
     assert [line[6:] for line in lines] == EXPECTED_TASKS
     return completed
@@ -246,6 +247,14 @@ def test_approved_documents_keep_publish_runtime_unapproved() -> None:
     if completed >= 6:
         for required in ["T6 is complete", "PublishService", "0005_xianyu_publish_boundary"]:
             assert required in combined
+    if completed >= 7:
+        for required in [
+            "T7 is complete",
+            "test_publish_domain.py",
+            "test_publish_persistence.py",
+            "CAP-XY-PUBLISH remains planned and unbound until T8",
+        ]:
+            assert required in combined
     for forbidden_path in FORBIDDEN_PUBLISH_PATH_PREFIXES:
         assert not (ROOT / forbidden_path).exists()
 
@@ -266,7 +275,11 @@ def test_transition_readme_documents_final_state() -> None:
         (
             "T6 is not authorized and has not started."
             if completed < 6
-            else "T7 is not authorized and has not started."
+            else (
+                "T7 is not authorized and has not started."
+                if completed < 7
+                else "T7 permanent local Publish boundary testing is complete."
+            )
         ),
         "CAP-XY-PUBLISH remains planned and unbound.",
         "The T6 implementation performs only local deterministic publish-boundary decisions and introduces no Playwright, browser automation, real Xianyu access, listing publication, media upload, credential access, real data access, or external network access.",
@@ -365,3 +378,32 @@ def test_project_state_and_registry_capability_totals_are_consistent() -> None:
     assert state["capabilities"]["total"] == 10
     assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
     assert sorted(registry) == sorted(item["id"] for item in state["capabilities"]["items"])
+
+
+def test_t7_permanent_publish_tests_exist_and_registry_remains_unbound() -> None:
+    completed = completed_count()
+    if completed < 7:
+        return
+    expected_test_files = [
+        "tests/unit/test_publish_domain.py",
+        "tests/unit/test_publish_fingerprint.py",
+        "tests/unit/test_publish_validation.py",
+        "tests/unit/test_publish_service.py",
+        "tests/contract/test_publish_persistence.py",
+        "tests/contract/test_publish_security.py",
+        "tests/unit/test_import_safety.py",
+        "tests/contract/test_migrations.py",
+        "changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py",
+    ]
+    for relative_path in expected_test_files:
+        path = ROOT / relative_path
+        assert path.is_file()
+        text = path.read_text(encoding="utf-8")
+        assert "publish" in text.lower()
+
+    publish = registry_by_id()[PUBLISH_CAPABILITY]
+    assert publish["status"] == "planned"
+    assert publish["implementation_paths"] == []
+    assert publish["test_paths"] == []
+    assert publish["active_change"] is None
+    assert publish["last_verified_commit"] is None

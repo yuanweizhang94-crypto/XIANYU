@@ -128,3 +128,9 @@ No implementation, capability binding, reviewer request, Ready transition, auto-
 19. CAP-XY-PUBLISH Registry remains planned, unbound, with empty implementation_paths, empty test_paths, null active_change, and null last_verified_commit.
 20. T7 has not started.
 21. PR #6 remains Draft, open, and unmerged.
+
+## T7 completion record
+
+T7 is complete. Permanent local Publish boundary tests now cover domain normalization, fingerprint stability, validation fail-closed ordering, service idempotency/duplicate/UNKNOWN/persistence-failure behavior, local SQLite persistence contracts, migration constraints, security boundaries, import safety, and active-change acceptance.
+
+CAP-XY-PUBLISH remains planned and unbound until T8. T7 coverage includes test_publish_domain.py, test_publish_fingerprint.py, test_publish_validation.py, test_publish_service.py, test_publish_persistence.py, and test_publish_security.py. T8 is the next task and has not started in the T7 commit.

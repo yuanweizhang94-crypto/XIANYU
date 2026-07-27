@@ -122,3 +122,9 @@ Implemented files are `__init__.py`, `domain.py`, `fingerprint.py`, `validation.
 The implementation remains local and synthetic only. It does not publish listings, start a PublishAttempt, call Playwright, start a browser, access Xianyu, upload media, perform external network access, accept Credential material, or infer real platform state.
 
 T7 Add unit, contract, security, and active-change acceptance tests is the next task, but T7 is not authorized in this execution and has not started. CAP-XY-PUBLISH remains planned and unbound with no Registry evidence.
+
+## T7 completion record
+
+T7 is complete. Permanent local Publish boundary tests now cover domain normalization, fingerprint stability, validation fail-closed ordering, service idempotency/duplicate/UNKNOWN/persistence-failure behavior, local SQLite persistence contracts, migration constraints, security boundaries, import safety, and active-change acceptance.
+
+CAP-XY-PUBLISH remains planned and unbound until T8. T7 coverage includes test_publish_domain.py, test_publish_fingerprint.py, test_publish_validation.py, test_publish_service.py, test_publish_persistence.py, and test_publish_security.py. T8 is the next task and has not started in the T7 commit.

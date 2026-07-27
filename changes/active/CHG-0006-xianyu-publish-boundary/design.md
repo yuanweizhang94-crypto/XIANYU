@@ -313,3 +313,9 @@ Actual Migration is `migrations/versions/0005_xianyu_publish_boundary.py`, chain
 There is no Platform Adapter, browser adapter, Xianyu client, API, Web UI, Scheduler, worker loop, retry worker, media uploader, Credential resolver, account login, Playwright use, browser startup, external network access, real Xianyu access, listing publication, media upload, Credential handling, or real-data handling.
 
 T7 is the next task but is not authorized and has not started. T8 remains responsible for capability evidence registration and verification.
+
+## T7 completion record
+
+T7 is complete. Permanent local Publish boundary tests now cover domain normalization, fingerprint stability, validation fail-closed ordering, service idempotency/duplicate/UNKNOWN/persistence-failure behavior, local SQLite persistence contracts, migration constraints, security boundaries, import safety, and active-change acceptance.
+
+CAP-XY-PUBLISH remains planned and unbound until T8. T7 coverage includes test_publish_domain.py, test_publish_fingerprint.py, test_publish_validation.py, test_publish_service.py, test_publish_persistence.py, and test_publish_security.py. T8 is the next task and has not started in the T7 commit.
