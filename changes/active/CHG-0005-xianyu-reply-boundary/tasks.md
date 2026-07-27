@@ -1,6 +1,6 @@
 # CHG-0005 Tasks
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0005-xianyu-reply-boundary
 
 - [x] T1 Obtain explicit project-owner approval for CHG-0005

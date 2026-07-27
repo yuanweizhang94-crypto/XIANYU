@@ -93,14 +93,14 @@ def test_completed_changes_are_archived_with_history_preserved() -> None:
         assert "CHG-0005 is a DRAFT preparation only" in text
 
 
-def test_chg_0005_is_the_only_draft_active_change() -> None:
+def test_chg_0005_is_the_only_verifying_active_change() -> None:
     active_dirs = sorted(path.name for path in ACTIVE.iterdir() if path.is_dir())
     assert active_dirs == ["CHG-0005-xianyu-reply-boundary"]
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
-        assert status_of(CHG_0005 / name) == "APPROVED"
+        assert status_of(CHG_0005 / name) == "VERIFYING"
 
 
-def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
+def test_chg_0005_ready_candidate_has_t9_as_next_task() -> None:
     task_lines = [
         line
         for line in (CHG_0005 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -114,7 +114,7 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": "CHG-0005-xianyu-reply-boundary",
-        "status": "APPROVED",
+        "status": "VERIFYING",
         "path": "changes/active/CHG-0005-xianyu-reply-boundary",
     }
     assert state["tasks"]["total"] == 9
@@ -214,6 +214,8 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
         "T6 implementation record",
         "CAP-XY-REPLY intentionally remains `planned`",
         "T7 permanent evidence record",
+        "T9 Ready candidate",
+        "PR #5 remains Draft until the Ready Candidate passes final CI",
     ]:
         assert required in joined
 

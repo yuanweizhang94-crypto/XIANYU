@@ -1,6 +1,6 @@
 # CHG-0005 Proposal
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0005-xianyu-reply-boundary
 
 ## Purpose
@@ -204,3 +204,14 @@ T8 is not complete in this candidate record. Tasks remain 7 / 9 and the next tas
 T8 Phase B verifies CAP-XY-REPLY evidence against Candidate SHA `5724d164619c64e93295595b3acdd1429d24e3e0`. The exact eight implementation paths and twelve test paths registered in Phase A remain unchanged. CAP-XY-REPLY is now `verified`; `active_change` is null; `last_verified_commit` records `5724d164619c64e93295595b3acdd1429d24e3e0`.
 
 Tasks are now 8 / 9. T9 Complete final PR administration is the next executable task. PR Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, CHG-0006, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser profile use, credential resolution, dependency changes, and workflow changes remain unauthorized.
+
+
+## T9 Ready candidate preparation
+
+CHG-0005 is moved to `VERIFYING` for final PR review preparation. T1 through T8 remain complete and T9 remains incomplete until the Ready transition and final administration record are completed.
+
+The actual T9 Ready Candidate SHA will be the real Phase A commit created after local verification; no placeholder or pre-T9 SHA is recorded as the Ready Candidate.
+
+CAP-XY-REPLY remains verified, `active_change` remains null, and `last_verified_commit` remains the T8 Evidence Candidate SHA `5724d164619c64e93295595b3acdd1429d24e3e0`. Implementation and evidence paths are frozen.
+
+PR #5 remains Draft until the Ready Candidate passes final CI. No Reviewer request, auto-merge, merge, close, branch deletion, archive, CHG-0006 creation, runtime expansion, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, or Credential access is authorized by this preparation record.

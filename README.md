@@ -553,3 +553,12 @@ CHG-0003 final PR administration is complete.
 - T9 is the next executable task.
 - PR #5 remains Draft, open, and unmerged.
 - No Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, CHG-0006, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser profile use, credential resolution, dependency change, or workflow change was performed.
+
+
+## CHG-0005 final review preparation
+
+- CHG-0005 status is `VERIFYING` for final PR review preparation.
+- T1 through T8 are complete; T9 remains incomplete until the Ready transition and final administration record finish.
+- CAP-XY-REPLY remains verified and frozen.
+- PR #5 remains Draft until the Ready Candidate passes final CI.
+- No Reviewer request, auto-merge, merge, close, archive, branch deletion, CHG-0006 creation, runtime expansion, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, or Credential access is authorized by this preparation state.

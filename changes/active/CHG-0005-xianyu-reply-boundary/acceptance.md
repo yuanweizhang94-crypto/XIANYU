@@ -1,6 +1,6 @@
 # CHG-0005 Acceptance
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0005-xianyu-reply-boundary
 
 ## T1 approval acceptance criteria
@@ -169,3 +169,26 @@ T8 is not complete in this candidate record. Tasks remain 7 / 9 and the next tas
 T8 Phase B verifies CAP-XY-REPLY evidence against Candidate SHA `5724d164619c64e93295595b3acdd1429d24e3e0`. The exact eight implementation paths and twelve test paths registered in Phase A remain unchanged. CAP-XY-REPLY is now `verified`; `active_change` is null; `last_verified_commit` records `5724d164619c64e93295595b3acdd1429d24e3e0`.
 
 Tasks are now 8 / 9. T9 Complete final PR administration is the next executable task. PR Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, CHG-0006, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser profile use, credential resolution, dependency changes, and workflow changes remain unauthorized.
+
+
+## T9 Ready candidate criteria
+
+1. CHG-0005 status is VERIFYING in proposal, design, tasks, and acceptance.
+2. T1-T8 are complete.
+3. T9 remains incomplete before the Ready transition.
+4. PROJECT_STATE completed = 8.
+5. PROJECT_STATE next_task remains T9.
+6. PROJECT_STATE active_change.status = VERIFYING.
+7. CAP-XY-REPLY remains verified.
+8. CAP-XY-REPLY active_change remains null.
+9. CAP-XY-REPLY last_verified_commit remains the T8 Evidence Candidate SHA.
+10. Exact eight implementation paths remain unchanged.
+11. Exact twelve test paths remain unchanged.
+12. Active acceptance remains four tests.
+13. Full collection remains 377.
+14. Phase A GitHub Actions must pass before Ready transition.
+15. PR #5 remains Draft, open, and unmerged before the Ready transition.
+16. Auto-merge remains disabled.
+17. No manual Reviewer request is authorized.
+18. Merge, close, archive, branch deletion, and next Change creation remain unauthorized.
+19. No Runtime, Migration, Registry, dependency, workflow, API, worker, scheduler, sender, browser, Xianyu, WeCom, AI, credential, or message-sending behavior changes.
