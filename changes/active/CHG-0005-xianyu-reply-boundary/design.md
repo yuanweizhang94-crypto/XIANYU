@@ -114,3 +114,90 @@ Project-owner approval for CHG-0005 is recorded by T1.
 No implementation task may begin until the required later design and boundary tasks are completed.
 
 No implementation path, module, database table, Migration, API, Worker, Service, Repository, Scheduler, WeCom behavior, or AI behavior is added by T1.
+
+## T2 approved terminology and data contract
+
+### Final terminology mapping
+
+| Candidate term | Approved term | Classification | Notes |
+| --- | --- | --- | --- |
+| Reply Rule | ReplyRule | Entity | Versioned local deterministic rule. |
+| Match Condition | ReplyCondition | Value Object | One predicate against an approved input field. |
+| Reply Template | ReplyTemplate | Entity | Versioned fixed-script body with variable allowlist. |
+| Match Input | ReplyEvaluationContext | DTO | Reply-side input adapted from local Message values. |
+| Reply Decision | ReplyDecision | DTO / Value Object | Evaluation result; no send side effect. |
+| Rule Priority | ReplyRule.priority | Value Object field | Integer; lower value means higher priority. |
+| No Match | ReplyDecisionType.NO_MATCH | Enum | No enabled rule matches. |
+| Conflict | ReplyDecisionType.CONFLICT | Enum | Multiple highest-priority rules match. |
+| Escalation | ReplyDecisionType.ESCALATE | Enum | Human-transfer path requested; no message sent. |
+| Suppression | ReplyDecisionType.SUPPRESSED | Enum | Sensitive or unsafe content suppresses reply. |
+| Synthetic Reply Fixture | SyntheticReplyFixture | Test DTO | Synthetic-only fixture, not customer data. |
+
+### ReplyRule
+
+Fields: `rule_id`, `name`, `enabled`, `priority`, `version`, `conditions`, `template_id`, `template_version`, `lifecycle_state`, `created_at`, `updated_at`.
+
+Invariants:
+
+- `rule_id` is stable and repository-unique.
+- `name` is non-empty display text.
+- `enabled` must be true before a rule can be evaluated.
+- `priority` is an integer where a smaller value has higher priority.
+- `version` is explicit and monotonically increases on semantic changes.
+- `conditions` is non-empty; conditions combine with AND.
+- `template_id` and `template_version` must reference an enabled template for a `REPLY` result.
+- timestamps are persistence metadata, not rule semantics.
+
+### ReplyCondition
+
+Fields: `field`, `operator`, `comparison_value`, `normalization`, `case_sensitive`.
+
+Approved operators for later implementation design: `equals`, `contains`, `starts_with`, and `ends_with`.
+
+Unsupported fields or unsupported operators produce `INVALID_INPUT`; they must not be ignored or treated as no-match. Empty input fields are invalid when the condition targets a required field and no-match only when the field is explicitly optional.
+
+### ReplyTemplate
+
+Fields: `template_id`, `version`, `body`, `variable_allowlist`, `enabled`, `lifecycle_state`.
+
+The body is inert text. Rendering substitutes only allowlisted variables. Missing variables, forbidden placeholders, object-property access, expression execution, file access, environment access, and network access all fail closed as `INVALID_INPUT`.
+
+### ReplyDecision
+
+Fields: `decision_type`, `reason_code`, `rule_id`, `template_id`, `template_version`, `rendered_text`, `escalation_reason`, `suppression_reason`, `audit_identifiers`.
+
+Allowed null fields:
+
+- `rule_id`, `template_id`, `template_version`, and `rendered_text` are populated only for `REPLY`.
+- `escalation_reason` is populated only for `ESCALATE`.
+- `suppression_reason` is populated only for `SUPPRESSED`.
+- `audit_identifiers` may be empty but must never include full customer message text.
+
+### ReplyEvaluationContext
+
+Allowed input values are reply-side copies or normalized projections of approved local Message-boundary values, such as profile identifier, account identifier, conversation identifier, platform message identifier, content text, received timestamp, language hint, and synthetic fixture metadata.
+
+The reply boundary must define a mapper rather than changing CAP-XY-MESSAGE. If a different shape is needed, the mapper owns the conversion and failure semantics.
+
+### Reason codes
+
+Approved initial reason codes:
+
+| Decision type | Reason code | Meaning |
+| --- | --- | --- |
+| REPLY | RULE_MATCHED | One enabled highest-priority rule matched and template rendered. |
+| NO_MATCH | NO_RULE_MATCHED | No enabled rule matched. |
+| CONFLICT | DUPLICATE_HIGHEST_PRIORITY_MATCH | More than one enabled rule matched at the highest priority. |
+| ESCALATE | UNSUPPORTED_LANGUAGE | Language is unsupported or unknown. |
+| ESCALATE | AUTHORIZATION_UNKNOWN | Authorization state is missing or uncertain. |
+| ESCALATE | RISK_UNKNOWN | Risk state is missing or uncertain. |
+| ESCALATE | HUMAN_TRANSFER_REQUIRED | Configuration requires human transfer. |
+| SUPPRESSED | SENSITIVE_TOPIC | Sensitive-topic policy suppresses reply. |
+| INVALID_INPUT | MISSING_REQUIRED_INPUT | Required context field is missing or blank. |
+| INVALID_INPUT | UNSUPPORTED_FIELD | A condition references an unsupported field. |
+| INVALID_INPUT | UNSUPPORTED_OPERATOR | A condition uses an unsupported operator. |
+| INVALID_INPUT | MISSING_TEMPLATE | Referenced template is missing or disabled. |
+| INVALID_INPUT | MISSING_TEMPLATE_VARIABLE | Rendering lacks a required allowlisted variable. |
+| INVALID_INPUT | FORBIDDEN_PLACEHOLDER | Template contains a placeholder outside the allowlist. |
+
+T2 approves terminology and contracts only. It does not create Runtime modules, persistence, migrations, API, workers, services, repositories, or Capability binding.

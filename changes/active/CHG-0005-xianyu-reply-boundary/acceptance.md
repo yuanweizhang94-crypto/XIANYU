@@ -54,3 +54,16 @@ T1 is complete.
 T2 is the next executable task and has not started.
 
 Implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge are not authorized.
+
+## T2 acceptance criteria
+
+1. CHG-0005 remains APPROVED.
+2. T1 and T2 are complete.
+3. T3 through T9 remain incomplete.
+4. PROJECT_STATE reports completed tasks as 2 / 9.
+5. PROJECT_STATE next_task is `T3 Approve authorization, risk-control, and content-safety boundaries`.
+6. Final terminology covers ReplyRule, ReplyCondition, ReplyTemplate, ReplyDecision, ReplyDecisionType, ReplyReasonCode, ReplyEvaluationContext, repository protocols, and service interfaces.
+7. ReplyEvaluationContext is explicitly a reply-side adapter contract and does not modify CAP-XY-MESSAGE semantics.
+8. CAP-XY-REPLY remains planned, unbound, and without implementation paths, test paths, active_change, or last_verified_commit.
+9. CAPABILITY_REGISTRY is not modified.
+10. No Runtime, Migration, dependency, workflow, Ready transition, reviewer request, auto-merge, or merge is authorized.

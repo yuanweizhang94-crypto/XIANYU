@@ -35,3 +35,23 @@ Define fixed-script reply boundary without sending real messages.
 - The capability exists in the registry with status planned.
 - The specification path is unique.
 - No conflicting implementation path exists.
+
+## CHG-0005 Phase 1 design status
+
+CHG-0005 approves design documentation only. The capability remains `planned` in the registry and remains unbound.
+
+### T2 approved terminology
+
+- `ReplyRule`: versioned local deterministic rule.
+- `ReplyCondition`: deterministic field/operator/value predicate.
+- `ReplyTemplate`: fixed-script body with variable allowlist and explicit version.
+- `ReplyEvaluationContext`: reply-side DTO adapted from approved local Message-boundary values.
+- `ReplyDecision`: deterministic evaluation output with no send side effect.
+- `ReplyDecisionType`: `REPLY`, `NO_MATCH`, `CONFLICT`, `ESCALATE`, `SUPPRESSED`, `INVALID_INPUT`.
+- `ReplyReasonCode`: stable machine-readable explanation.
+
+### T2 data contract boundary
+
+The Reply boundary may consume only approved local Message values through a mapper. It must not change CAP-XY-MESSAGE semantics or register implementation evidence during Phase 1.
+
+No runtime code, persistence code, API, worker, migration, external platform client, WeCom integration, AI Provider, browser profile access, credential access, or message sending is implemented by this design record.

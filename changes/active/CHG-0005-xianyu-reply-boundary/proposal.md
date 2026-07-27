@@ -82,3 +82,21 @@ T1 is complete.
 T2 is next and has not started.
 
 Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized until separately approved by the project owner.
+
+## T2 terminology approval record
+
+T2 finalizes the reply-domain vocabulary and local data contract for CHG-0005.
+
+Approved domain terms:
+
+- `ReplyRule`: a versioned local rule that can be enabled, disabled, drafted, or archived.
+- `ReplyCondition`: one deterministic predicate inside a rule; all conditions in one rule combine with AND.
+- `ReplyTemplate`: a versioned fixed-script body plus an explicit variable allowlist.
+- `ReplyEvaluationContext`: a reply-side DTO derived from approved local Message-boundary values.
+- `ReplyDecision`: the deterministic output of local evaluation; it never sends a platform message.
+- `ReplyDecisionType`: one of `REPLY`, `NO_MATCH`, `CONFLICT`, `ESCALATE`, `SUPPRESSED`, or `INVALID_INPUT`.
+- `ReplyReasonCode`: a stable machine-readable explanation for the decision.
+
+Message-to-Reply adaptation is owned by the future reply boundary. It may consume only approved local Message values and must not modify CAP-XY-MESSAGE semantics.
+
+T2 does not authorize Runtime implementation, persistence, Capability binding, Ready for review, Reviewer request, Auto-merge, or Merge.
