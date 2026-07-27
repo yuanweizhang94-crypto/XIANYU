@@ -1,6 +1,6 @@
 # CHG-0004 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0004-xianyu-message-boundary
 
 ## Design state
@@ -1782,3 +1782,29 @@ No Workflow, Runtime, Migration, Registry, Capability Specification, Project Sta
 - Any further repository modification requires explicit correction authorization.
 - Merge requires separate explicit authorization against an exact PR HEAD.
 - Archive and next-change creation occur only after successful merge.
+
+## Merge and archive record
+
+PR #4 was merged into `main`.
+
+Merge commit: `bab7a1a86239cb4dba9b2f7dc8db0ff33bc80dc6`.
+
+Merged feature head: `0cfd719dff5d472e9e5ac26bf720afc7efb74e9f`.
+
+CHG-0004 is archived after successful merge.
+
+CAP-XY-MESSAGE remains verified.
+
+Its `last_verified_commit` remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+
+Its seven implementation paths remain unchanged.
+
+Its ten verification paths remain unchanged except that the CHG-0004 acceptance evidence now uses the archive location.
+
+Archiving CHG-0004 does not change Runtime behavior.
+
+Archiving does not reverify CAP-XY-MESSAGE.
+
+Archiving does not authorize CHG-0005 implementation.
+
+CHG-0005 is a DRAFT preparation only.

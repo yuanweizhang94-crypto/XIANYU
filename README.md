@@ -4,26 +4,19 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 
 ## Current change state
 
-- PR #3 was merged into `main`.
-- PR #3 merge commit: `51b8cff1c483d8b807b5186a14fe90fbaf45c8f9`.
-- CHG-0003-xianyu-account-boundary is archived.
-- `CAP-XY-ACCOUNT` remains verified.
-- Its `last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
-- CHG-0004-xianyu-message-boundary is the only active change.
-- CHG-0004 status is `VERIFYING`.
-- T1 through T9 are complete.
-- Tasks are 9 / 9.
-- Next task is none.
+- PR #4 was merged into `main`.
+- PR #4 merge commit is `bab7a1a86239cb4dba9b2f7dc8db0ff33bc80dc6`.
+- Merged CHG-0004 feature head is `0cfd719dff5d472e9e5ac26bf720afc7efb74e9f`.
+- CHG-0004-xianyu-message-boundary is archived.
 - CAP-XY-MESSAGE remains verified.
-- Evidence Candidate remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
-- T8 Verification Record remains `9bfa571cdcc61fda03a234784d73b2b328151c32`.
-- T8 CI Compatibility Corrective SHA remains `f8539651268da1600fd1c2e0840ccef2bcb1b2c9`.
-- T9 Ready Candidate SHA is `1cc4de90e88f607ab30b475232c7fa7ef01b8f14`.
-- PR #4 is Ready for review, open and unmerged.
-- No Reviewer was manually requested.
-- Auto-merge and merge remain unauthorized.
-- CHG-0004 remains under `changes/active/` until PR #4 is merged.
-- No archive was performed, the source branch was not deleted, and no next active Change was created.
+- Its `last_verified_commit` remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- Its historical acceptance evidence is preserved under `changes/archive/`.
+- CHG-0005-xianyu-reply-boundary is the only Active Change.
+- CHG-0005 status is `DRAFT`.
+- No CHG-0005 task is complete.
+- CAP-XY-REPLY remains planned and unbound.
+- No Reply Runtime, Rule Engine, Template Engine, Message Sending, WeCom, AI Provider, browser, external network, real-account, or customer-data behavior is implemented.
+- Moving CHG-0005 beyond DRAFT requires separate explicit project-owner authorization.
 
 ## Project goal
 

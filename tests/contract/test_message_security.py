@@ -31,7 +31,7 @@ MESSAGE_TEST_PATHS = [
     ROOT / "tests" / "contract" / "test_message_security.py",
     ROOT
     / "changes"
-    / "active"
+    / "archive"
     / "CHG-0004-xianyu-message-boundary"
     / "tests"
     / "test_acceptance.py",
