@@ -52,7 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 4,
+      "implementing": 1,
+      "planned": 3,
       "verified": 6
     },
     "items": [
@@ -198,12 +199,31 @@
       {
         "id": "CAP-XY-PUBLISH",
         "name": "Xianyu publish",
-        "status": "planned",
+        "status": "implementing",
         "owner_module": "worker.publish",
         "specification": "specs/capabilities/CAP-XY-PUBLISH.md",
-        "implementation_paths": [],
-        "test_paths": [],
-        "active_change": null,
+        "implementation_paths": [
+          "app/xianyu_system/worker/publish/__init__.py",
+          "app/xianyu_system/worker/publish/domain.py",
+          "app/xianyu_system/worker/publish/fingerprint.py",
+          "app/xianyu_system/worker/publish/validation.py",
+          "app/xianyu_system/worker/publish/persistence.py",
+          "app/xianyu_system/worker/publish/service.py",
+          "migrations/versions/0005_xianyu_publish_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_publish_domain.py",
+          "tests/unit/test_publish_fingerprint.py",
+          "tests/unit/test_publish_validation.py",
+          "tests/unit/test_publish_service.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_publish_persistence.py",
+          "tests/contract/test_publish_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py"
+        ],
+        "active_change": "CHG-0006-xianyu-publish-boundary",
         "last_verified_commit": null
       },
       {

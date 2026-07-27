@@ -293,3 +293,36 @@ T7 test coverage includes:
 - `changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`
 
 No platform publication, browser automation, media upload, external network behavior, Credential handling, scheduler, worker loop, or capability evidence binding is introduced by T7.
+
+## CHG-0006 T8 Phase A evidence candidate
+
+Registry status: implementing
+
+Active change: `CHG-0006-xianyu-publish-boundary`
+
+Last verified commit: unset until T8 complete verification
+
+Implementation evidence paths:
+
+- `app/xianyu_system/worker/publish/__init__.py`
+- `app/xianyu_system/worker/publish/domain.py`
+- `app/xianyu_system/worker/publish/fingerprint.py`
+- `app/xianyu_system/worker/publish/validation.py`
+- `app/xianyu_system/worker/publish/persistence.py`
+- `app/xianyu_system/worker/publish/service.py`
+- `migrations/versions/0005_xianyu_publish_boundary.py`
+
+Test evidence paths:
+
+- `tests/unit/test_publish_domain.py`
+- `tests/unit/test_publish_fingerprint.py`
+- `tests/unit/test_publish_validation.py`
+- `tests/unit/test_publish_service.py`
+- `tests/unit/test_import_safety.py`
+- `tests/contract/test_publish_persistence.py`
+- `tests/contract/test_publish_security.py`
+- `tests/contract/test_migrations.py`
+- `tests/contract/test_capability_registry.py`
+- `changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`
+
+This Phase A candidate registers exact local deterministic Publish evidence paths only. It does not record `last_verified_commit` and does not mark CAP-XY-PUBLISH verified until the Candidate commit completes local and GitHub Actions verification.

@@ -198,24 +198,65 @@ def test_chg_0006_tasks_are_a_contiguous_prefix_with_expected_next_task() -> Non
         index < completed for index in range(9)
     ]
 
-def test_cap_xy_publish_remains_planned_unbound_and_empty() -> None:
-    publish = registry_by_id()[PUBLISH_CAPABILITY]
-    assert publish["status"] == "planned"
-    assert publish["implementation_paths"] == []
-    assert publish["test_paths"] == []
-    assert publish["active_change"] is None
-    assert publish["last_verified_commit"] is None
+EXPECTED_PUBLISH_IMPLEMENTATION_PATHS = [
+    "app/xianyu_system/worker/publish/__init__.py",
+    "app/xianyu_system/worker/publish/domain.py",
+    "app/xianyu_system/worker/publish/fingerprint.py",
+    "app/xianyu_system/worker/publish/validation.py",
+    "app/xianyu_system/worker/publish/persistence.py",
+    "app/xianyu_system/worker/publish/service.py",
+    "migrations/versions/0005_xianyu_publish_boundary.py",
+]
+EXPECTED_PUBLISH_TEST_PATHS = [
+    "tests/unit/test_publish_domain.py",
+    "tests/unit/test_publish_fingerprint.py",
+    "tests/unit/test_publish_validation.py",
+    "tests/unit/test_publish_service.py",
+    "tests/unit/test_import_safety.py",
+    "tests/contract/test_publish_persistence.py",
+    "tests/contract/test_publish_security.py",
+    "tests/contract/test_migrations.py",
+    "tests/contract/test_capability_registry.py",
+    "changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py",
+]
 
+
+def test_cap_xy_publish_state_matches_current_t8_phase() -> None:
+    publish = registry_by_id()[PUBLISH_CAPABILITY]
+    completed = completed_count()
     state = project_state()
     publish_state = {
         str(item["id"]): item for item in state["capabilities"]["items"]
     }[PUBLISH_CAPABILITY]
-    assert publish_state["status"] == "planned"
-    assert publish_state["implementation_paths"] == []
-    assert publish_state["test_paths"] == []
-    assert publish_state["active_change"] is None
-    assert publish_state["last_verified_commit"] is None
-    assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
+
+    if completed < 7:
+        assert publish["status"] == "planned"
+        assert publish["implementation_paths"] == []
+        assert publish["test_paths"] == []
+        assert publish["active_change"] is None
+        assert publish["last_verified_commit"] is None
+        assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
+    elif completed == 7:
+        assert publish["status"] == "implementing"
+        assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
+        assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
+        assert publish["active_change"] == "CHG-0006-xianyu-publish-boundary"
+        assert publish["last_verified_commit"] is None
+        assert state["capabilities"]["by_status"] == {
+            "planned": 3,
+            "implementing": 1,
+            "verified": 6,
+        }
+    else:
+        assert completed == 8
+        assert publish["status"] == "verified"
+        assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
+        assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
+        assert publish["active_change"] is None
+        assert isinstance(publish["last_verified_commit"], str)
+        assert state["capabilities"]["by_status"] == {"planned": 3, "verified": 7}
+
+    assert publish_state == publish
 
 
 def test_approved_documents_keep_publish_runtime_unapproved() -> None:
@@ -364,11 +405,25 @@ def test_t6_runtime_exists_without_registry_evidence_or_platform_modules() -> No
         assert forbidden not in combined
 
     publish = registry_by_id()[PUBLISH_CAPABILITY]
-    assert publish["status"] == "planned"
-    assert publish["implementation_paths"] == []
-    assert publish["test_paths"] == []
-    assert publish["active_change"] is None
-    assert publish["last_verified_commit"] is None
+    if completed == 6:
+        assert publish["status"] == "planned"
+        assert publish["implementation_paths"] == []
+        assert publish["test_paths"] == []
+        assert publish["active_change"] is None
+        assert publish["last_verified_commit"] is None
+    elif completed == 7:
+        assert publish["status"] == "implementing"
+        assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
+        assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
+        assert publish["active_change"] == "CHG-0006-xianyu-publish-boundary"
+        assert publish["last_verified_commit"] is None
+    else:
+        assert completed == 8
+        assert publish["status"] == "verified"
+        assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
+        assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
+        assert publish["active_change"] is None
+        assert isinstance(publish["last_verified_commit"], str)
 
 
 def test_project_state_and_registry_capability_totals_are_consistent() -> None:
@@ -376,7 +431,18 @@ def test_project_state_and_registry_capability_totals_are_consistent() -> None:
     registry = registry_by_id()
     assert len(registry) == 10
     assert state["capabilities"]["total"] == 10
-    assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
+    completed = completed_count()
+    if completed < 7:
+        assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
+    elif completed == 7:
+        assert state["capabilities"]["by_status"] == {
+            "planned": 3,
+            "implementing": 1,
+            "verified": 6,
+        }
+    else:
+        assert completed == 8
+        assert state["capabilities"]["by_status"] == {"planned": 3, "verified": 7}
     assert sorted(registry) == sorted(item["id"] for item in state["capabilities"]["items"])
 
 
@@ -402,8 +468,22 @@ def test_t7_permanent_publish_tests_exist_and_registry_remains_unbound() -> None
         assert "publish" in text.lower()
 
     publish = registry_by_id()[PUBLISH_CAPABILITY]
-    assert publish["status"] == "planned"
-    assert publish["implementation_paths"] == []
-    assert publish["test_paths"] == []
-    assert publish["active_change"] is None
-    assert publish["last_verified_commit"] is None
+    if completed == 6:
+        assert publish["status"] == "planned"
+        assert publish["implementation_paths"] == []
+        assert publish["test_paths"] == []
+        assert publish["active_change"] is None
+        assert publish["last_verified_commit"] is None
+    elif completed == 7:
+        assert publish["status"] == "implementing"
+        assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
+        assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
+        assert publish["active_change"] == "CHG-0006-xianyu-publish-boundary"
+        assert publish["last_verified_commit"] is None
+    else:
+        assert completed == 8
+        assert publish["status"] == "verified"
+        assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
+        assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
+        assert publish["active_change"] is None
+        assert isinstance(publish["last_verified_commit"], str)

@@ -52,6 +52,15 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - T7 does not bind CAP-XY-PUBLISH evidence; CAP-XY-PUBLISH remains planned and unbound until T8.
 - T8 is the next task but has not started in the T7 commit.
 
+
+## CHG-0006 T8 Phase A evidence candidate
+
+- CAP-XY-PUBLISH is registered as `implementing` for the Phase A Evidence Candidate.
+- `active_change` is `CHG-0006-xianyu-publish-boundary`.
+- `last_verified_commit` remains null until the Candidate commit itself completes local and GitHub Actions verification.
+- Evidence paths are exact repository-relative files for the local deterministic Publish runtime and permanent tests only.
+- T8 is not complete in Phase A; T8 Phase B must record the verified Candidate SHA after Actions are green.
+
 ## Project goal
 
 The final intended business path is:

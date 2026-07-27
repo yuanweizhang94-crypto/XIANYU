@@ -319,3 +319,7 @@ T7 is the next task but is not authorized and has not started. T8 remains respon
 T7 is complete. Permanent local Publish boundary tests now cover domain normalization, fingerprint stability, validation fail-closed ordering, service idempotency/duplicate/UNKNOWN/persistence-failure behavior, local SQLite persistence contracts, migration constraints, security boundaries, import safety, and active-change acceptance.
 
 CAP-XY-PUBLISH remains planned and unbound until T8. T7 coverage includes test_publish_domain.py, test_publish_fingerprint.py, test_publish_validation.py, test_publish_service.py, test_publish_persistence.py, and test_publish_security.py. T8 is the next task and has not started in the T7 commit.
+
+## T8 Phase A evidence candidate record
+
+T8 Phase A registers CAP-XY-PUBLISH as `implementing` with exact local deterministic Publish implementation and test evidence paths. `active_change` is `CHG-0006-xianyu-publish-boundary`; `last_verified_commit` remains null until the Phase A Candidate commit has completed local verification and GitHub Actions. T8 remains incomplete until Phase B records the verified Candidate SHA.
