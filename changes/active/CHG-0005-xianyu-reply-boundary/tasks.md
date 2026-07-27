@@ -1,9 +1,9 @@
 # CHG-0005 Tasks
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0005-xianyu-reply-boundary
 
-- [ ] T1 Obtain explicit project-owner approval for CHG-0005
+- [x] T1 Obtain explicit project-owner approval for CHG-0005
 - [ ] T2 Finalize reply rule, template, and decision terminology
 - [ ] T3 Approve authorization, risk-control, and content-safety boundaries
 - [ ] T4 Approve matching, precedence, fallback, and escalation boundaries

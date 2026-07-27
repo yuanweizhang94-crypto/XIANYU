@@ -68,7 +68,7 @@ def test_chg_0005_is_the_only_draft_active_change() -> None:
     active_dirs = sorted(path.name for path in ACTIVE.iterdir() if path.is_dir())
     assert active_dirs == ["CHG-0005-xianyu-reply-boundary"]
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
-        assert status_of(CHG_0005 / name) == "DRAFT"
+        assert status_of(CHG_0005 / name) == "APPROVED"
 
 
 def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
@@ -78,18 +78,20 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
         if line.startswith("- [")
     ]
     assert len(task_lines) == 9
-    assert all(line.startswith("- [ ]") for line in task_lines)
+    assert task_lines[0] == "- [x] T1 Obtain explicit project-owner approval for CHG-0005"
+    assert all(line.startswith("- [ ]") for line in task_lines[1:])
 
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": "CHG-0005-xianyu-reply-boundary",
-        "status": "DRAFT",
+        "status": "APPROVED",
         "path": "changes/active/CHG-0005-xianyu-reply-boundary",
     }
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 0
-    assert state["tasks"]["next_task"] is None
-    assert all(item["completed"] is False for item in state["tasks"]["items"])
+    assert state["tasks"]["completed"] == 1
+    assert state["tasks"]["next_task"] == "T2 Finalize reply rule, template, and decision terminology"
+    assert state["tasks"]["items"][0]["completed"] is True
+    assert all(item["completed"] is False for item in state["tasks"]["items"][1:])
     assert state["capabilities"]["by_status"] == {"planned": 5, "verified": 5}
 
 
@@ -146,7 +148,7 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
     ]
     joined = "\n".join(documents)
     for required in [
-        "DRAFT only",
+        "APPROVED",
         "No real Xianyu message sending",
         "No WeCom integration",
         "No AI Provider",

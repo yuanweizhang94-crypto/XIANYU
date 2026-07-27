@@ -1,6 +1,6 @@
 # CHG-0005 Proposal
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0005-xianyu-reply-boundary
 
 ## Purpose
@@ -13,11 +13,25 @@ Prepare a formally reviewable boundary for selecting local fixed-script reply de
 
 ## Current authorization
 
-This change is DRAFT only.
+The project owner has explicitly approved CHG-0005.
 
-The project owner has authorized creation of the change proposal but has not approved T1 or implementation.
+This approval completes T1 and moves CHG-0005 to `APPROVED`.
 
-No CHG-0005 task may execute while the change remains DRAFT.
+T2 is the next executable task: `T2 Finalize reply rule, template, and decision terminology`.
+
+T2 has not started in this execution.
+
+Every later task still requires separate execution with strict task boundaries.
+
+This approval does not authorize Runtime implementation.
+
+This approval does not authorize Capability binding.
+
+This approval does not authorize real Xianyu message sending.
+
+This approval does not authorize external network access, real account access, Credential, Cookie, Token, Secret, Session Material, browser Profile, or customer-data access.
+
+This approval does not authorize Ready for review, Reviewer request, Auto-merge, or Merge.
 
 ## Goals
 
@@ -61,6 +75,10 @@ No CHG-0005 task may execute while the change remains DRAFT.
 
 ## Approval boundary
 
-Moving CHG-0005 beyond DRAFT requires separate explicit project-owner authorization.
+CHG-0005 is approved for sequenced task execution only.
 
-Draft preparation does not authorize T1, Runtime implementation, Capability binding, Ready for review, Auto-merge, or Merge.
+T1 is complete.
+
+T2 is next and has not started.
+
+Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized until separately approved by the project owner.

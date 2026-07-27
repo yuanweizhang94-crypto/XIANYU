@@ -1,9 +1,17 @@
 # CHG-0005 Design
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0005-xianyu-reply-boundary
 
 ## Design state
+
+CHG-0005 has project-owner approval and is now `APPROVED`.
+
+T1 is complete.
+
+T2 is the next executable task: `T2 Finalize reply rule, template, and decision terminology`.
+
+T2 has not started in this execution.
 
 No Runtime design is approved.
 
@@ -37,9 +45,9 @@ Future review may define:
 - Content Safety Decision
 - Synthetic Reply Fixture
 
-No term is final until an approved task records the decision.
+No term is final until a later approved task records the decision.
 
-## Required decisions before approval
+## Required decisions before later task approval
 
 - Exact Reply Rule and Reply Template terminology.
 - Whether a Reply Decision contains text, a template reference, or both.
@@ -95,6 +103,14 @@ None.
 
 No `app.reply`, `worker.reply`, rule engine, template engine, Repository, Service, Worker, API, Web UI, Migration, Scheduler Job, WeCom adapter, AI adapter, or sending behavior is approved.
 
+All terminology, matching, authorization, risk, content safety, precedence, fallback, escalation, ownership, persistence, lifecycle, and failure decisions still require approval in later tasks.
+
+The candidate design text remains non-runtime and must not be treated as approved implementation design.
+
 ## Approval boundary
 
-No implementation task may begin until CHG-0005 receives explicit project-owner approval.
+Project-owner approval for CHG-0005 is recorded by T1.
+
+No implementation task may begin until the required later design and boundary tasks are completed.
+
+No implementation path, module, database table, Migration, API, Worker, Service, Repository, Scheduler, WeCom behavior, or AI behavior is added by T1.

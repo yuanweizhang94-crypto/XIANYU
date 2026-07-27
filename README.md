@@ -12,11 +12,11 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Its `last_verified_commit` remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
 - Its historical acceptance evidence is preserved under `changes/archive/`.
 - CHG-0005-xianyu-reply-boundary is the only Active Change.
-- CHG-0005 status is `DRAFT`.
-- No CHG-0005 task is complete.
+- CHG-0005 status is `APPROVED`.
+- CHG-0005 T1 is complete; tasks are 1 / 9.
 - CAP-XY-REPLY remains planned and unbound.
 - No Reply Runtime, Rule Engine, Template Engine, Message Sending, WeCom, AI Provider, browser, external network, real-account, or customer-data behavior is implemented.
-- Moving CHG-0005 beyond DRAFT requires separate explicit project-owner authorization.
+- T2 is the next executable task and has not started; Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
 
 ## Project goal
 
