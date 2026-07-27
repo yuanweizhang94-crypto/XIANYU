@@ -7,11 +7,11 @@ Change ID: CHG-0005-xianyu-reply-boundary
 
 CHG-0005 has project-owner approval and is now `APPROVED`.
 
-T1 is complete.
+T1 through T3 are complete.
 
-T2 is the next executable task: `T2 Finalize reply rule, template, and decision terminology`.
+T4 is the next executable task: `T4 Approve matching, precedence, fallback, and escalation boundaries`.
 
-T2 has not started in this execution.
+T4 has not started in this execution.
 
 No Runtime design is approved.
 
@@ -201,3 +201,80 @@ Approved initial reason codes:
 | INVALID_INPUT | FORBIDDEN_PLACEHOLDER | Template contains a placeholder outside the allowlist. |
 
 T2 approves terminology and contracts only. It does not create Runtime modules, persistence, migrations, API, workers, services, repositories, or Capability binding.
+
+
+## T3 approved authorization, risk-control, and content-safety boundaries
+
+### Safety evaluation order
+
+A later implementation must evaluate safety gates before attempting rule matching or template rendering:
+
+1. Validate required ReplyEvaluationContext identifiers and ownership projections.
+2. Validate authorization state.
+3. Validate risk-control state.
+4. Validate language support.
+5. Validate sensitive-topic and suppression policy.
+6. Evaluate deterministic rules only if all previous gates pass.
+7. Render a template only for exactly one allowed `REPLY` decision.
+
+### Authorization boundary
+
+Approved authorization states for a reply decision are local, explicit, and fail-closed:
+
+| Authorization state | Decision | Reason code | Notes |
+| --- | --- | --- | --- |
+| explicitly_authorized | continue evaluation | none | Profile, Account Reference, Conversation, and Message identifiers align. |
+| missing | ESCALATE | AUTHORIZATION_UNKNOWN | No reply text is produced. |
+| unknown | ESCALATE | AUTHORIZATION_UNKNOWN | No platform behavior is inferred. |
+| expired | ESCALATE | AUTHORIZATION_UNKNOWN | Re-authorization is outside CHG-0005. |
+| denied | ESCALATE | AUTHORIZATION_UNKNOWN | No retry or bypass is attempted. |
+| revoked | ESCALATE | AUTHORIZATION_UNKNOWN | No credential lookup is attempted. |
+| verification_required | ESCALATE | AUTHORIZATION_UNKNOWN | Platform verification is not bypassed. |
+
+Authorization data is an input assertion supplied to the reply boundary. The reply boundary does not resolve credentials, access sessions, open browser profiles, or call external systems.
+
+### Risk-control boundary
+
+Approved risk states are deterministic local inputs:
+
+| Risk state | Decision | Reason code | Notes |
+| --- | --- | --- | --- |
+| allowed | continue evaluation | none | Reply evaluation may proceed. |
+| low_risk | continue evaluation | none | No special handling required. |
+| unknown | ESCALATE | RISK_UNKNOWN | No reply text is produced. |
+| unavailable | ESCALATE | RISK_UNKNOWN | No platform lookup is attempted. |
+| pending_review | ESCALATE | RISK_UNKNOWN | Human review is required. |
+| throttled | ESCALATE | RISK_UNKNOWN | Sending is outside scope. |
+| blocked | SUPPRESSED | SAFETY_SUPPRESSED | No reply text is produced. |
+
+Risk-control data may be recorded as sanitized decision metadata only. It must not include secret material, browser state, raw network payloads, or full message content.
+
+### Content-safety and suppression boundary
+
+Sensitive-topic handling is local and deterministic:
+
+- Sensitive-topic detection runs before template rendering.
+- Sensitive-topic matches produce `SUPPRESSED` with `SENSITIVE_TOPIC`.
+- Policy-blocked content produces `SUPPRESSED` with `SAFETY_SUPPRESSED`.
+- The decision must not include rendered text when suppressed.
+- Suppression diagnostics may include policy identifier and sanitized category only.
+- No AI Provider, external moderation service, prompt generation, or network check is introduced.
+
+### Escalation and human transfer
+
+Escalation is a local decision value, not a message send:
+
+- Unsupported or unknown language returns `ESCALATE` / `UNSUPPORTED_LANGUAGE`.
+- Authorization uncertainty returns `ESCALATE` / `AUTHORIZATION_UNKNOWN`.
+- Risk uncertainty returns `ESCALATE` / `RISK_UNKNOWN`.
+- Explicit human-transfer configuration returns `ESCALATE` / `HUMAN_TRANSFER_REQUIRED`.
+- Escalation records may include sanitized reason codes and stable identifiers only.
+- WeCom handoff, customer-service routing, notification, and external delivery remain outside CHG-0005 Phase 1.
+
+### Logging and audit boundary
+
+Allowed audit fields are stable identifiers, rule/template references, decision type, reason code, lifecycle state, and sanitized failure category. Prohibited audit fields include full message text, personal contact details, credential values, Cookie, Token, Secret, Session Material, browser Profile data, raw network payloads, file paths outside the repository, and environment variables.
+
+### T3 non-implementation boundary
+
+T3 approves safety semantics only. It does not create Runtime modules, persistence files, migrations, API routes, workers, schedulers, external clients, credential handlers, browser integrations, sending behavior, Capability binding, or permanent capability evidence.

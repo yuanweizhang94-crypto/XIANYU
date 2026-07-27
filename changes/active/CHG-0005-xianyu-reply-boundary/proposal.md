@@ -17,9 +17,11 @@ The project owner has explicitly approved CHG-0005.
 
 This approval completes T1 and moves CHG-0005 to `APPROVED`.
 
-T2 is the next executable task: `T2 Finalize reply rule, template, and decision terminology`.
+T1 through T3 are complete.
 
-T2 has not started in this execution.
+T4 is the next executable task: `T4 Approve matching, precedence, fallback, and escalation boundaries`.
+
+T4 has not started in this execution.
 
 Every later task still requires separate execution with strict task boundaries.
 
@@ -77,9 +79,9 @@ This approval does not authorize Ready for review, Reviewer request, Auto-merge,
 
 CHG-0005 is approved for sequenced task execution only.
 
-T1 is complete.
+T1 through T3 are complete.
 
-T2 is next and has not started.
+T4 is next and has not started.
 
 Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized until separately approved by the project owner.
 
@@ -100,3 +102,21 @@ Approved domain terms:
 Message-to-Reply adaptation is owned by the future reply boundary. It may consume only approved local Message values and must not modify CAP-XY-MESSAGE semantics.
 
 T2 does not authorize Runtime implementation, persistence, Capability binding, Ready for review, Reviewer request, Auto-merge, or Merge.
+
+
+## T3 safety boundary approval record
+
+T3 approves the reply-side authorization, risk-control, content-safety, suppression, and human-transfer boundary for later implementation.
+
+Approved safety decisions:
+
+- A fixed-script reply may be evaluated only after explicit local authorization is present for the Profile, Account Reference, Conversation, and Message identifiers in the ReplyEvaluationContext.
+- Missing, unknown, expired, denied, revoked, verification-required, or otherwise uncertain authorization fails closed as `ESCALATE` with `AUTHORIZATION_UNKNOWN`.
+- Risk state must be locally available and explicitly non-blocked before a `REPLY` result is allowed.
+- Unknown, unavailable, pending-review, throttled, blocked, or platform-risk states fail closed as `ESCALATE` with `RISK_UNKNOWN` unless a configured suppression rule requires `SUPPRESSED`.
+- Sensitive-topic policy is evaluated before template rendering. Sensitive or disallowed topics produce `SUPPRESSED` with `SENSITIVE_TOPIC` and no rendered text.
+- Unsupported or unknown language produces `ESCALATE` with `UNSUPPORTED_LANGUAGE`.
+- Explicit human-transfer configuration produces `ESCALATE` with `HUMAN_TRANSFER_REQUIRED`.
+- Audit records may include identifiers, decision type, reason code, rule reference, template reference, timestamps, and sanitized failure category; they must not include full customer message text, credentials, browser state, or secret material.
+
+T3 does not authorize Runtime implementation, persistence, Capability binding, Ready for review, Reviewer request, Auto-merge, or Merge.

@@ -49,9 +49,9 @@ Change ID: CHG-0005-xianyu-reply-boundary
 
 Project-owner approval for CHG-0005 is recorded.
 
-T1 is complete.
+T1 through T3 are complete.
 
-T2 is the next executable task and has not started.
+T4 is the next executable task and has not started.
 
 Implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge are not authorized.
 
@@ -67,3 +67,20 @@ Implementation, Capability binding, Ready for review, Reviewer request, Auto-mer
 8. CAP-XY-REPLY remains planned, unbound, and without implementation paths, test paths, active_change, or last_verified_commit.
 9. CAPABILITY_REGISTRY is not modified.
 10. No Runtime, Migration, dependency, workflow, Ready transition, reviewer request, auto-merge, or merge is authorized.
+
+
+## T3 acceptance criteria
+
+1. CHG-0005 remains APPROVED.
+2. T1 through T3 are complete.
+3. T4 through T9 remain incomplete.
+4. PROJECT_STATE reports completed tasks as 3 / 9.
+5. PROJECT_STATE next_task is `T4 Approve matching, precedence, fallback, and escalation boundaries`.
+6. Authorization states fail closed unless explicitly authorized.
+7. Risk-control states fail closed unless explicitly allowed or low risk.
+8. Sensitive-topic and policy-blocked content suppress replies before template rendering.
+9. Unsupported language and human-transfer cases return escalation decisions only.
+10. Audit and logging boundaries prohibit full message text, credential material, browser state, raw network payloads, and secret material.
+11. CAP-XY-REPLY remains planned, unbound, and without implementation paths, test paths, active_change, or last_verified_commit.
+12. CAPABILITY_REGISTRY is not modified.
+13. No Runtime, Migration, dependency, workflow, Ready transition, reviewer request, auto-merge, or merge is authorized.

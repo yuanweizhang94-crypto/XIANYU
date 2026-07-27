@@ -55,3 +55,16 @@ CHG-0005 approves design documentation only. The capability remains `planned` in
 The Reply boundary may consume only approved local Message values through a mapper. It must not change CAP-XY-MESSAGE semantics or register implementation evidence during Phase 1.
 
 No runtime code, persistence code, API, worker, migration, external platform client, WeCom integration, AI Provider, browser profile access, credential access, or message sending is implemented by this design record.
+
+
+### T3 approved safety boundary
+
+- Reply evaluation requires explicit local authorization for Profile, Account Reference, Conversation, and Message identifiers.
+- Missing, unknown, expired, denied, revoked, or verification-required authorization returns `ESCALATE` with `AUTHORIZATION_UNKNOWN`.
+- Risk state must be explicitly allowed or low risk before any `REPLY` decision can be returned.
+- Unknown, unavailable, pending-review, throttled, or blocked risk states fail closed as escalation or suppression.
+- Sensitive-topic and policy-blocked content suppresses replies before template rendering.
+- Unsupported language and configured human transfer produce escalation decisions only.
+- Audit evidence is identifier- and reason-code based; full message text, credentials, browser state, raw network payloads, and secret material are prohibited.
+
+T3 remains design-only and registers no runtime, migration, or verification evidence.
