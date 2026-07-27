@@ -562,3 +562,19 @@ CHG-0003 final PR administration is complete.
 - CAP-XY-REPLY remains verified and frozen.
 - PR #5 remains Draft until the Ready Candidate passes final CI.
 - No Reviewer request, auto-merge, merge, close, archive, branch deletion, CHG-0006 creation, runtime expansion, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, or Credential access is authorized by this preparation state.
+
+
+## CHG-0005 final PR administration
+
+- CHG-0005 final PR administration is complete.
+- CHG-0005 status is `VERIFYING`.
+- All nine tasks are complete.
+- T9 Ready Candidate SHA is `365cce3ef6574974c1cee1bb676fe8c1ad8ad4e3`.
+- CAP-XY-REPLY remains verified.
+- Evidence Candidate SHA is `5724d164619c64e93295595b3acdd1429d24e3e0`.
+- PR #5 is Ready for review, open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge and merge remain unauthorized.
+- CHG-0005 remains under `changes/active/` until the PR is merged.
+- Merge requires separate explicit authorization against an exact PR HEAD.
+- No close, source-branch deletion, archive, CHG-0006 creation, runtime expansion, migration semantic change, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, Credential access, Cookie, Token, Secret, Session Material, or real customer-data access occurred.

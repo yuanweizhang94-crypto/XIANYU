@@ -751,3 +751,19 @@ Tasks are now 8 / 9. T9 Complete final PR administration is the next executable 
 - Implementation and evidence are frozen for final review.
 - PR #5 remains Draft until this Ready Candidate passes final CI.
 - No Reviewer request, auto-merge, merge, close, source-branch deletion, archive, or next Change creation is authorized.
+
+
+## T9 final review state
+
+- T1 through T9 are complete.
+- There is no next task in CHG-0005.
+- CHG-0005 remains `VERIFYING` while PR #5 is under review.
+- T9 Ready Candidate SHA is `365cce3ef6574974c1cee1bb676fe8c1ad8ad4e3`.
+- CAP-XY-REPLY remains verified with Evidence Candidate SHA `5724d164619c64e93295595b3acdd1429d24e3e0`.
+- Implementation and evidence are frozen.
+- PR #5 is Ready for review, open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge remains disabled.
+- Any further repository modification requires explicit correction authorization.
+- Merge requires separate explicit authorization against an exact PR head.
+- Archive and next-change creation occur only after successful merge.

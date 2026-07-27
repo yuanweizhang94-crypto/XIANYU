@@ -215,3 +215,19 @@ The actual T9 Ready Candidate SHA will be the real Phase A commit created after 
 CAP-XY-REPLY remains verified, `active_change` remains null, and `last_verified_commit` remains the T8 Evidence Candidate SHA `5724d164619c64e93295595b3acdd1429d24e3e0`. Implementation and evidence paths are frozen.
 
 PR #5 remains Draft until the Ready Candidate passes final CI. No Reviewer request, auto-merge, merge, close, branch deletion, archive, CHG-0006 creation, runtime expansion, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, or Credential access is authorized by this preparation record.
+
+
+## T9 final PR administration result
+
+- T1 through T9 are complete.
+- CHG-0005 remains `VERIFYING` while PR #5 is under review.
+- T9 Ready Candidate SHA is `365cce3ef6574974c1cee1bb676fe8c1ad8ad4e3`.
+- PR #5 successfully changed from Draft to Ready for review.
+- PR #5 remains open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge is not enabled.
+- CAP-XY-REPLY remains verified with Evidence Candidate SHA `5724d164619c64e93295595b3acdd1429d24e3e0`.
+- Implementation and evidence paths remain unchanged and frozen.
+- CHG-0005 remains under `changes/active/` and is not archived.
+- No merge, close, branch deletion, archive, CHG-0006 creation, runtime expansion, migration semantic change, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, Credential access, Cookie, Token, Secret, Session Material, or real customer-data access occurred.
+- Merge requires separate explicit authorization against the exact current PR head.

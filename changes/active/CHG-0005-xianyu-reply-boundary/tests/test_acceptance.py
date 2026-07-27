@@ -100,7 +100,7 @@ def test_chg_0005_is_the_only_verifying_active_change() -> None:
         assert status_of(CHG_0005 / name) == "VERIFYING"
 
 
-def test_chg_0005_ready_candidate_has_t9_as_next_task() -> None:
+def test_chg_0005_t9_completion_has_no_next_task() -> None:
     task_lines = [
         line
         for line in (CHG_0005 / "tasks.md").read_text(encoding="utf-8").splitlines()
@@ -108,9 +108,8 @@ def test_chg_0005_ready_candidate_has_t9_as_next_task() -> None:
     ]
     assert len(task_lines) == 9
     completed_count = sum(line.startswith("- [x]") for line in task_lines)
-    assert completed_count == 8
-    assert all(line.startswith("- [x]") for line in task_lines[:8])
-    assert all(line.startswith("- [ ]") for line in task_lines[8:])
+    assert completed_count == 9
+    assert all(line.startswith("- [x]") for line in task_lines)
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": "CHG-0005-xianyu-reply-boundary",
@@ -119,9 +118,8 @@ def test_chg_0005_ready_candidate_has_t9_as_next_task() -> None:
     }
     assert state["tasks"]["total"] == 9
     assert state["tasks"]["completed"] == completed_count
-    assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
-    assert all(item["completed"] is True for item in state["tasks"]["items"][:8])
-    assert all(item["completed"] is False for item in state["tasks"]["items"][8:])
+    assert state["tasks"]["next_task"] is None
+    assert all(item["completed"] is True for item in state["tasks"]["items"])
     assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
 
 
@@ -216,6 +214,11 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
         "T7 permanent evidence record",
         "T9 Ready candidate",
         "PR #5 remains Draft until the Ready Candidate passes final CI",
+        "T9 final acceptance criteria",
+        "T9 Ready Candidate SHA is `365cce3ef6574974c1cee1bb676fe8c1ad8ad4e3`",
+        "PR #5 is Ready for review",
+        "open, and unmerged",
+        "Merge requires separate explicit authorization",
     ]:
         assert required in joined
 

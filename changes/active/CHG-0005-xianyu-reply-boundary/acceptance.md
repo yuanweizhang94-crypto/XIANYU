@@ -192,3 +192,41 @@ Tasks are now 8 / 9. T9 Complete final PR administration is the next executable 
 17. No manual Reviewer request is authorized.
 18. Merge, close, archive, branch deletion, and next Change creation remain unauthorized.
 19. No Runtime, Migration, Registry, dependency, workflow, API, worker, scheduler, sender, browser, Xianyu, WeCom, AI, credential, or message-sending behavior changes.
+
+
+## T9 final acceptance criteria
+
+1. T1-T9 complete.
+2. All nine tasks are checked.
+3. PROJECT_STATE completed = 9.
+4. PROJECT_STATE next_task = null.
+5. CHG-0005 status is VERIFYING.
+6. CAP-XY-REPLY remains verified.
+7. CAP-XY-REPLY active_change remains null.
+8. CAP-XY-REPLY last_verified_commit remains Evidence Candidate SHA `5724d164619c64e93295595b3acdd1429d24e3e0`.
+9. Exact eight implementation paths remain unchanged.
+10. Exact twelve test paths remain unchanged.
+11. Active acceptance = 4.
+12. Full collection = 377.
+13. T9 Ready Candidate SHA is `365cce3ef6574974c1cee1bb676fe8c1ad8ad4e3`.
+14. PR #5 is Ready for review.
+15. PR #5 remains open and unmerged.
+16. Auto-merge is disabled.
+17. No manual Reviewer request was made.
+18. No merge, close, branch deletion, archive, or next Change creation occurred.
+19. Final quality, tests, and security Actions pass on the final administration HEAD.
+20. Merge requires separate explicit authorization against the exact current PR head.
+
+T1 through T9 are complete.
+
+CHG-0005 remains VERIFYING while PR #5 is under review.
+
+T9 Ready Candidate SHA is `365cce3ef6574974c1cee1bb676fe8c1ad8ad4e3`.
+
+PR #5 is Ready for review, open, and unmerged.
+
+No Reviewer was manually requested.
+
+No further CHG-0005 task is authorized.
+
+Merge requires separate explicit authorization against the exact current PR head.
