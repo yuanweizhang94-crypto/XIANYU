@@ -115,7 +115,7 @@ capabilities:
   - tests/contract/test_migrations.py
   - tests/contract/test_core_runtime.py
   - tests/contract/test_capability_registry.py
-  - changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py
+  - changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py
   active_change: null
   last_verified_commit: 5724d164619c64e93295595b3acdd1429d24e3e0
 - id: CAP-XY-PUBLISH

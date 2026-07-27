@@ -180,7 +180,7 @@ EXPECTED_CAPABILITY_PATHS = {
             "tests/contract/test_migrations.py",
             "tests/contract/test_core_runtime.py",
             "tests/contract/test_capability_registry.py",
-            "changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py",
+            "changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py",
         ],
     },
 }
@@ -334,7 +334,7 @@ def test_registry_path_responsibilities_are_separated() -> None:
                     "changes/archive/CHG-0002-core-application/tests/",
                     "changes/archive/CHG-0003-xianyu-account-boundary/tests/",
                     "changes/archive/CHG-0004-xianyu-message-boundary/tests/",
-                    "changes/active/CHG-0005-xianyu-reply-boundary/tests/",
+                    "changes/archive/CHG-0005-xianyu-reply-boundary/tests/",
                 )
             )
             assert not relative_path.startswith("app/")

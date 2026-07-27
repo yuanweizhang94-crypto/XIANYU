@@ -2,50 +2,50 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0005-xianyu-reply-boundary",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0005-xianyu-reply-boundary"
+    "id": "CHG-0006-xianyu-publish-boundary",
+    "status": "DRAFT",
+    "path": "changes/active/CHG-0006-xianyu-publish-boundary"
   },
   "tasks": {
     "total": 9,
-    "completed": 9,
+    "completed": 0,
     "next_task": null,
     "items": [
       {
-        "text": "T1 Obtain explicit project-owner approval for CHG-0005",
-        "completed": true
+        "text": "T1 Obtain explicit project-owner approval for CHG-0006",
+        "completed": false
       },
       {
-        "text": "T2 Finalize reply rule, template, and decision terminology",
-        "completed": true
+        "text": "T2 Finalize listing, publish request, attempt, and outcome terminology",
+        "completed": false
       },
       {
-        "text": "T3 Approve authorization, risk-control, and content-safety boundaries",
-        "completed": true
+        "text": "T3 Approve permission, credential, risk-control, and platform boundaries",
+        "completed": false
       },
       {
-        "text": "T4 Approve matching, precedence, fallback, and escalation boundaries",
-        "completed": true
+        "text": "T4 Approve validation, idempotency, duplicate, and uncertainty boundaries",
+        "completed": false
       },
       {
-        "text": "T5 Approve ownership, persistence, lifecycle, and failure boundaries",
-        "completed": true
+        "text": "T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries",
+        "completed": false
       },
       {
-        "text": "T6 Implement only the approved local fixed-script reply boundary",
-        "completed": true
+        "text": "T6 Implement only the separately approved local publishing boundary",
+        "completed": false
       },
       {
         "text": "T7 Add unit, contract, security, and active-change acceptance tests",
-        "completed": true
+        "completed": false
       },
       {
         "text": "T8 Update capability evidence and run complete verification",
-        "completed": true
+        "completed": false
       },
       {
         "text": "T9 Complete final PR administration",
-        "completed": true
+        "completed": false
       }
     ]
   },
@@ -190,7 +190,7 @@
           "tests/contract/test_migrations.py",
           "tests/contract/test_core_runtime.py",
           "tests/contract/test_capability_registry.py",
-          "changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py"
+          "changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "5724d164619c64e93295595b3acdd1429d24e3e0"

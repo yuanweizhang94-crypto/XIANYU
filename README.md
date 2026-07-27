@@ -4,19 +4,21 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 
 ## Current change state
 
-- PR #4 was merged into `main`.
-- PR #4 merge commit is `bab7a1a86239cb4dba9b2f7dc8db0ff33bc80dc6`.
-- Merged CHG-0004 feature head is `0cfd719dff5d472e9e5ac26bf720afc7efb74e9f`.
-- CHG-0004-xianyu-message-boundary is archived.
-- CAP-XY-MESSAGE remains verified.
-- Its `last_verified_commit` remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
-- Its historical acceptance evidence is preserved under `changes/archive/`.
-- CHG-0005-xianyu-reply-boundary is the only Active Change.
-- CHG-0005 status is `APPROVED`.
-- CHG-0005 T1 through T7 are complete; tasks are 7 / 9.
-- CAP-XY-REPLY remains planned and unbound.
-- A local deterministic Reply Runtime, Rule Engine, Template Engine, and Migration are implemented for T6 only. No Message Sending, WeCom, AI Provider, browser, external network, real-account, or customer-data behavior is implemented.
-- Owner Design Review corrective findings are resolved for T1-through-T5 design; T8 is the next executable task; Capability binding verification, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
+- PR #5 was merged into `main`.
+- PR #5 merge commit is `f00156045d75e632d71ade640a85a4c522568158`.
+- Merged CHG-0005 feature HEAD is `c4f7a3a3d14e34e5ebdaf6abd79587d45137f587`.
+- CHG-0005-xianyu-reply-boundary is archived.
+- CAP-XY-REPLY remains verified.
+- Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
+- Its historical acceptance evidence is preserved under `changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py`.
+- CHG-0006-xianyu-publish-boundary is the only Active Change.
+- CHG-0006 status is `DRAFT`.
+- No CHG-0006 task is complete.
+- DRAFT has no executable next task.
+- CAP-XY-PUBLISH remains planned and unbound.
+- CAP-XY-PUBLISH keeps empty `implementation_paths`, empty `test_paths`, null `active_change`, and null `last_verified_commit`.
+- No Playwright, browser automation, real Xianyu access, publishing behavior, credential access, real data access, or external network access is introduced.
+- T1 and any implementation require new separate project-owner authorization.
 
 ## Project goal
 
