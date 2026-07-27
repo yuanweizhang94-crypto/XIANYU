@@ -12,9 +12,9 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
 - CHG-0006-xianyu-publish-boundary is the only Active Change.
 - CHG-0006 status is `APPROVED`.
-- CHG-0006 completed tasks: 1 / 9.
-- Completed tasks: T1.
-- Next task: `T2 Finalize listing, publish request, attempt, and outcome terminology`.
+- CHG-0006 completed tasks: 2 / 9.
+- Completed tasks: T1-T2.
+- Next task: `T3 Approve permission, credential, risk-control, and platform boundaries`.
 - T6 is not authorized and has not started.
 - CAP-XY-PUBLISH remains planned and unbound.
 - CAP-XY-PUBLISH keeps empty `implementation_paths`, empty `test_paths`, null `active_change`, and null `last_verified_commit`.

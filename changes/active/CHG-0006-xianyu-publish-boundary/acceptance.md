@@ -56,3 +56,13 @@ No implementation, capability binding, reviewer request, Ready transition, auto-
 6. CAP-XY-PUBLISH remains planned, unbound, with empty implementation_paths, empty test_paths, null active_change, and null last_verified_commit.
 7. PR #6 remains Draft, open, and unmerged.
 8. No Runtime, Migration, dependency, workflow, Registry, app, or capability evidence change is introduced.
+
+## T2 acceptance criteria
+
+1. T1 and T2 are complete.
+2. T3 through T9 remain incomplete.
+3. PROJECT_STATE reports 2 / 9 tasks complete.
+4. PROJECT_STATE next_task is `T3 Approve permission, credential, risk-control, and platform boundaries`.
+5. Approved terminology includes ListingDraft, PublishRequest, PublishValidationResult, PublishDecision, PublishDecisionType, PublishAttempt, PublishAttemptState, PublishOutcomeType, PublishReasonCode, and PublishEvaluationContext.
+6. READY is documented as local readiness only and not publication.
+7. CAP-XY-PUBLISH remains planned and unbound.

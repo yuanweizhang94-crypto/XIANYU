@@ -82,3 +82,11 @@ Each task must still be executed, verified, and committed independently.
 T1 is complete. T2 is the next executable task.
 
 T6 implementation is not authorized. Runtime implementation, capability binding, Ready transition, Reviewer request, Auto-merge, Merge, branch deletion, Playwright, browser automation, real Xianyu access, listing publication, media upload, external network access, Credential handling, WeCom integration, and AI Provider integration remain unauthorized.
+
+## T2 completion record
+
+T2 is complete. Approved terminology and local data contracts are recorded in design.md and CAP-XY-PUBLISH.md.
+
+T3 is the next executable task.
+
+CAP-XY-PUBLISH remains planned and unbound. T6 implementation remains unauthorized.
