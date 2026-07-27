@@ -120,7 +120,7 @@ capabilities:
   last_verified_commit: 5724d164619c64e93295595b3acdd1429d24e3e0
 - id: CAP-XY-PUBLISH
   name: Xianyu publish
-  status: implementing
+  status: verified
   owner_module: worker.publish
   specification: specs/capabilities/CAP-XY-PUBLISH.md
   implementation_paths:
@@ -142,8 +142,8 @@ capabilities:
   - tests/contract/test_migrations.py
   - tests/contract/test_capability_registry.py
   - changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py
-  active_change: CHG-0006-xianyu-publish-boundary
-  last_verified_commit: null
+  active_change: null
+  last_verified_commit: 66ac5134e0f62b9b30b7423e7bebab297c5ced7a
 - id: CAP-XY-SCHEDULE
   name: Xianyu schedule
   status: planned

@@ -138,3 +138,24 @@ CAP-XY-PUBLISH remains planned and unbound until T8. T7 coverage includes test_p
 ## T8 Phase A evidence candidate record
 
 T8 Phase A registers CAP-XY-PUBLISH as `implementing` with exact local deterministic Publish implementation and test evidence paths. `active_change` is `CHG-0006-xianyu-publish-boundary`; `last_verified_commit` remains null until the Phase A Candidate commit has completed local verification and GitHub Actions. T8 remains incomplete until Phase B records the verified Candidate SHA.
+
+
+## CHG-0006 T8 Phase B verification record
+
+CAP-XY-PUBLISH evidence paths are registered and verified for the local deterministic Publish boundary.
+
+Evidence Candidate SHA: `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`
+
+Candidate GitHub Actions result: quality push, quality pull_request, tests push, tests pull_request, security push, and security pull_request all completed successfully.
+
+Registry status: verified
+
+Active change: null
+
+Last verified commit: `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`
+
+Tasks: 8 / 9
+
+Next task: T9 Complete final PR administration
+
+T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerged. Verified does not authorize Ready, reviewer request, review submission, auto-merge, merge, archive, branch deletion, CHG-0007, real Xianyu access, listing publication, media upload, Credential handling, browser automation, external platform access, platform adapter, scheduler, worker loop, retry behavior, dependency change, or workflow change.

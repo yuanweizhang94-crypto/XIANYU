@@ -18,6 +18,7 @@ PUBLISH_CAPABILITY = "CAP-XY-PUBLISH"
 PR_5_MERGE_COMMIT = "f00156045d75e632d71ade640a85a4c522568158"
 CHG_0005_FEATURE_HEAD = "c4f7a3a3d14e34e5ebdaf6abd79587d45137f587"
 REPLY_EVIDENCE_CANDIDATE = "5724d164619c64e93295595b3acdd1429d24e3e0"
+PUBLISH_EVIDENCE_CANDIDATE_SHA = "66ac5134e0f62b9b30b7423e7bebab297c5ced7a"
 REPLY_ARCHIVE_ACCEPTANCE = (
     "changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py"
 )
@@ -93,6 +94,7 @@ NEXT_BY_COMPLETED = {
     5: EXPECTED_TASKS[5],
     6: EXPECTED_TASKS[6],
     7: EXPECTED_TASKS[7],
+    8: EXPECTED_TASKS[8],
 }
 
 
@@ -128,7 +130,7 @@ def completed_count() -> int:
     assert len(lines) == 9
     marks = [line.startswith("- [x]") for line in lines]
     completed = sum(marks)
-    assert 1 <= completed <= 7
+    assert 1 <= completed <= 8
     assert marks == [index < completed for index in range(9)]
     assert [line[6:] for line in lines] == EXPECTED_TASKS
     return completed
@@ -253,7 +255,7 @@ def test_cap_xy_publish_state_matches_current_t8_phase() -> None:
         assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
         assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
         assert publish["active_change"] is None
-        assert isinstance(publish["last_verified_commit"], str)
+        assert publish["last_verified_commit"] == PUBLISH_EVIDENCE_CANDIDATE_SHA
         assert state["capabilities"]["by_status"] == {"planned": 3, "verified": 7}
 
     assert publish_state == publish
@@ -319,13 +321,28 @@ def test_transition_readme_documents_final_state() -> None:
             else (
                 "T7 is not authorized and has not started."
                 if completed < 7
-                else "T7 permanent local Publish boundary testing is complete."
+                else (
+                    "T7 permanent local Publish boundary testing is complete."
+                    if completed < 8
+                    else "T8 capability evidence verification is complete."
+                )
             )
         ),
-        "CAP-XY-PUBLISH remains planned and unbound.",
+        (
+            "CAP-XY-PUBLISH remains planned and unbound."
+            if completed < 7
+            else (
+                "CAP-XY-PUBLISH is registered as implementing for the T8 Evidence Candidate."
+                if completed == 7
+                else "CAP-XY-PUBLISH evidence paths are registered and verified."
+            )
+        ),
         "The T6 implementation performs only local deterministic publish-boundary decisions and introduces no Playwright, browser automation, real Xianyu access, listing publication, media upload, credential access, real data access, or external network access.",
     ]:
         assert required in text
+    if completed == 8:
+        assert PUBLISH_EVIDENCE_CANDIDATE_SHA in text
+        assert "T9 is not authorized and has not started." in text
 
 def test_no_forbidden_transition_file_scope_or_publish_implementation() -> None:
     completed = completed_count()
@@ -423,7 +440,7 @@ def test_t6_runtime_exists_without_registry_evidence_or_platform_modules() -> No
         assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
         assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
         assert publish["active_change"] is None
-        assert isinstance(publish["last_verified_commit"], str)
+        assert publish["last_verified_commit"] == PUBLISH_EVIDENCE_CANDIDATE_SHA
 
 
 def test_project_state_and_registry_capability_totals_are_consistent() -> None:
@@ -486,4 +503,4 @@ def test_t7_permanent_publish_tests_exist_and_registry_remains_unbound() -> None
         assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
         assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
         assert publish["active_change"] is None
-        assert isinstance(publish["last_verified_commit"], str)
+        assert publish["last_verified_commit"] == PUBLISH_EVIDENCE_CANDIDATE_SHA

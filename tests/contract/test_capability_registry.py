@@ -28,6 +28,7 @@ REPLY_CAPABILITY = "CAP-XY-REPLY"
 PUBLISH_CAPABILITY = "CAP-XY-PUBLISH"
 MESSAGE_VERIFIED_CANDIDATE_SHA = "49498e6f30944883c1a0a5a504932bbd02fc86de"
 REPLY_VERIFIED_CANDIDATE_SHA = "5724d164619c64e93295595b3acdd1429d24e3e0"
+PUBLISH_VERIFIED_CANDIDATE_SHA = "66ac5134e0f62b9b30b7423e7bebab297c5ced7a"
 CORE_CAPABILITIES = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
 EVIDENCED_CAPABILITIES = CORE_CAPABILITIES | {
     ACCOUNT_CAPABILITY,
@@ -429,9 +430,8 @@ def test_capability_spec_documents_match_registry_paths_and_status() -> None:
     else:
         assert publish["status"] == "verified"
         assert publish["active_change"] is None
-        publish_candidate = publish["last_verified_commit"]
-        assert isinstance(publish_candidate, str)
-        assert publish_candidate in publish_spec
+        assert publish["last_verified_commit"] == PUBLISH_VERIFIED_CANDIDATE_SHA
+        assert PUBLISH_VERIFIED_CANDIDATE_SHA in publish_spec
         assert "Registry status: verified" in publish_spec
 
 
@@ -478,9 +478,24 @@ def test_capability_statuses_match_verification_phase() -> None:
     else:
         assert publish["status"] == "verified"
         assert publish["active_change"] is None
-        publish_candidate = publish["last_verified_commit"]
-        assert isinstance(publish_candidate, str)
-        assert_commit_is_valid_offline(publish_candidate)
+        assert publish["last_verified_commit"] == PUBLISH_VERIFIED_CANDIDATE_SHA
+        assert_commit_is_valid_offline(PUBLISH_VERIFIED_CANDIDATE_SHA)
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            capture_output=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            capture_output=True,
+        ).stdout.strip()
+        if not dirty:
+            assert head != PUBLISH_VERIFIED_CANDIDATE_SHA
 
 
 def test_other_capabilities_remain_planned_empty_and_unbound() -> None:

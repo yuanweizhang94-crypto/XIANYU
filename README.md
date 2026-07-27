@@ -12,10 +12,10 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
 - CHG-0006-xianyu-publish-boundary is the only Active Change.
 - CHG-0006 status is `APPROVED`.
-- CHG-0006 completed tasks: 7 / 9.
-- Completed tasks: T1-T7.
-- Next task: `T8 Update capability evidence and run complete verification`.
-- T7 permanent local Publish boundary testing is complete. T8 is not authorized until T7 verification and commit are complete.
+- CHG-0006 completed tasks: 8 / 9.
+- Completed tasks: T1-T8.
+- Next task: `T9 Complete final PR administration`.
+- T8 capability evidence verification is complete. T9 is not authorized and has not started.
 - CAP-XY-PUBLISH remains planned and unbound.
 - CAP-XY-PUBLISH keeps empty `implementation_paths`, empty `test_paths`, null `active_change`, and null `last_verified_commit`.
 - The T6 implementation performs only local deterministic publish-boundary decisions and introduces no Playwright, browser automation, real Xianyu access, listing publication, media upload, credential access, real data access, or external network access.
@@ -40,7 +40,7 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Migration `0005_xianyu_publish_boundary` creates local publish request, sanitized audit, and attempt-snapshot tables.
 - The Service returns deterministic local decisions only: READY, INVALID_INPUT, UNAUTHORIZED, RISK_BLOCKED, DUPLICATE, CONFLICT, or MANUAL_REVIEW.
 - READY means local readiness for a separately authorized future boundary only; it does not publish listings and does not start a PublishAttempt.
-- CAP-XY-PUBLISH remains planned and unbound with no Registry implementation paths, test paths, active_change, or last_verified_commit. T8 remains responsible for evidence registration and verification.
+- CAP-XY-PUBLISH evidence paths are registered and verified. Registry active_change is null and last_verified_commit records the T8 Phase A Evidence Candidate SHA.
 - T7 is the next task but is not authorized and has not started.
 
 
@@ -621,3 +621,24 @@ CHG-0003 final PR administration is complete.
 - CHG-0005 remains under `changes/active/` until the PR is merged.
 - Merge requires separate explicit authorization against an exact PR HEAD.
 - No close, source-branch deletion, archive, CHG-0006 creation, runtime expansion, migration semantic change, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, Credential access, Cookie, Token, Secret, Session Material, or real customer-data access occurred.
+
+
+## CHG-0006 T8 Phase B verification record
+
+CAP-XY-PUBLISH evidence paths are registered and verified for the local deterministic Publish boundary.
+
+Evidence Candidate SHA: `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`
+
+Candidate GitHub Actions result: quality push, quality pull_request, tests push, tests pull_request, security push, and security pull_request all completed successfully.
+
+Registry status: verified
+
+Active change: null
+
+Last verified commit: `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`
+
+Tasks: 8 / 9
+
+Next task: T9 Complete final PR administration
+
+T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerged. Verified does not authorize Ready, reviewer request, review submission, auto-merge, merge, archive, branch deletion, CHG-0007, real Xianyu access, listing publication, media upload, Credential handling, browser automation, external platform access, platform adapter, scheduler, worker loop, retry behavior, dependency change, or workflow change.
