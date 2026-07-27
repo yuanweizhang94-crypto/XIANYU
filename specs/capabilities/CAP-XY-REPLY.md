@@ -161,3 +161,16 @@ Test paths:
 - `changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py`
 
 Candidate registration records evidence only. Verification remains incomplete until the real Candidate SHA is recorded in the T8 Verification Record.
+
+
+### T8 verification record
+
+Registry status: verified
+
+Evidence Candidate SHA: `5724d164619c64e93295595b3acdd1429d24e3e0`
+
+Last verified commit: `5724d164619c64e93295595b3acdd1429d24e3e0`
+
+CAP-XY-REPLY is now verified after complete local verification and GitHub Actions verification of the exact Candidate commit. The implementation and test paths remain exactly the same as the T8 evidence candidate. `active_change` is null and `last_verified_commit` records the Candidate SHA.
+
+T8 is complete. T9 final PR administration is the next executable task. Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, and CHG-0006 remain unauthorized until separately approved.

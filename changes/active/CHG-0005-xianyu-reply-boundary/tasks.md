@@ -10,5 +10,5 @@ Change ID: CHG-0005-xianyu-reply-boundary
 - [x] T5 Approve ownership, persistence, lifecycle, and failure boundaries
 - [x] T6 Implement only the approved local fixed-script reply boundary
 - [x] T7 Add unit, contract, security, and active-change acceptance tests
-- [ ] T8 Update capability evidence and run complete verification
+- [x] T8 Update capability evidence and run complete verification
 - [ ] T9 Complete final PR administration

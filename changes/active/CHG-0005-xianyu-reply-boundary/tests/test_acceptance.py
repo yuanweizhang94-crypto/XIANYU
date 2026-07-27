@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+import subprocess
 from pathlib import Path
 from typing import cast
 
@@ -19,6 +21,7 @@ MESSAGE_CAPABILITY = "CAP-XY-MESSAGE"
 REPLY_CAPABILITY = "CAP-XY-REPLY"
 
 MESSAGE_VERIFIED_CANDIDATE_SHA = "49498e6f30944883c1a0a5a504932bbd02fc86de"
+REPLY_EVIDENCE_CANDIDATE_SHA = "5724d164619c64e93295595b3acdd1429d24e3e0"
 
 MESSAGE_ARCHIVED_ACCEPTANCE = (
     "changes/archive/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py"
@@ -41,6 +44,37 @@ def registry_by_id() -> dict[str, dict[str, object]]:
         (ROOT / "specs" / "CAPABILITY_REGISTRY.yaml").read_text(encoding="utf-8")
     )
     return {str(item["id"]): item for item in registry["capabilities"]}
+
+
+def assert_candidate_commit_is_valid_offline(commit_sha: str) -> None:
+    assert re.fullmatch(r"[0-9a-f]{40}", commit_sha)
+    candidate_ref = f"{commit_sha}^{{commit}}"
+    candidate_exists = subprocess.run(
+        ["git", "cat-file", "-e", candidate_ref],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+    if candidate_exists.returncode == 0:
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", commit_sha, "HEAD"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+        )
+        assert ancestor.returncode == 0, ancestor.stderr or ancestor.stdout
+        return
+
+    shallow = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    assert shallow.stdout.strip() == "true", (
+        "reply evidence candidate commit is missing from a complete local repository"
+    )
 
 
 def test_completed_changes_are_archived_with_history_preserved() -> None:
@@ -74,9 +108,9 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     ]
     assert len(task_lines) == 9
     completed_count = sum(line.startswith("- [x]") for line in task_lines)
-    assert completed_count == 7
-    assert all(line.startswith("- [x]") for line in task_lines[:7])
-    assert all(line.startswith("- [ ]") for line in task_lines[7:])
+    assert completed_count == 8
+    assert all(line.startswith("- [x]") for line in task_lines[:8])
+    assert all(line.startswith("- [ ]") for line in task_lines[8:])
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": "CHG-0005-xianyu-reply-boundary",
@@ -85,20 +119,10 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     }
     assert state["tasks"]["total"] == 9
     assert state["tasks"]["completed"] == completed_count
-    assert state["tasks"]["next_task"] == (
-        "T8 Update capability evidence and run complete verification"
-    )
-    assert all(item["completed"] is True for item in state["tasks"]["items"][:7])
-    assert all(item["completed"] is False for item in state["tasks"]["items"][7:])
-    if completed_count == 7:
-        assert state["capabilities"]["by_status"] == {
-            "planned": 4,
-            "implementing": 1,
-            "verified": 5,
-        }
-    else:
-        assert completed_count == 8
-        assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
+    assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
+    assert all(item["completed"] is True for item in state["tasks"]["items"][:8])
+    assert all(item["completed"] is False for item in state["tasks"]["items"][8:])
+    assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
 
 
 def test_reply_capability_remains_planned_and_unimplemented() -> None:
@@ -116,13 +140,10 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
     assert MESSAGE_ARCHIVED_ACCEPTANCE in message_test_paths
     assert MESSAGE_ACTIVE_ACCEPTANCE not in message_test_paths
 
-    if reply["status"] == "implementing":
-        assert reply["active_change"] == "CHG-0005-xianyu-reply-boundary"
-        assert reply["last_verified_commit"] is None
-    else:
-        assert reply["status"] == "verified"
-        assert reply["active_change"] is None
-        assert isinstance(reply["last_verified_commit"], str)
+    assert reply["status"] == "verified"
+    assert reply["active_change"] is None
+    assert reply["last_verified_commit"] == REPLY_EVIDENCE_CANDIDATE_SHA
+    assert_candidate_commit_is_valid_offline(REPLY_EVIDENCE_CANDIDATE_SHA)
     assert reply["owner_module"] == "app.reply"
     assert reply["specification"] == "specs/capabilities/CAP-XY-REPLY.md"
     reply_implementation_paths = cast(list[str], reply["implementation_paths"])

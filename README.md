@@ -540,3 +540,16 @@ CHG-0003 final PR administration is complete.
 - `last_verified_commit` remains unset until the Candidate commit is verified and the Verification Record is created.
 - Tasks remain 7 / 9 during Phase A; T8 is still the next task until Phase B completes.
 - No runtime semantics, migration semantics, permanent tests, dependency, workflow, PR metadata, Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, or CHG-0006 was changed by the candidate registration.
+
+
+## CHG-0005 T8 reply capability verification
+
+- CAP-XY-REPLY evidence paths are registered and verified.
+- Evidence Candidate SHA: `5724d164619c64e93295595b3acdd1429d24e3e0`.
+- CAP-XY-REPLY status is verified.
+- active_change is null.
+- last_verified_commit records the Candidate SHA.
+- Tasks are 8 / 9.
+- T9 is the next executable task.
+- PR #5 remains Draft, open, and unmerged.
+- No Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, CHG-0006, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser profile use, credential resolution, dependency change, or workflow change was performed.

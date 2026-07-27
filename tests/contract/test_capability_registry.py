@@ -25,6 +25,7 @@ ACCOUNT_CAPABILITY = "CAP-XY-ACCOUNT"
 MESSAGE_CAPABILITY = "CAP-XY-MESSAGE"
 REPLY_CAPABILITY = "CAP-XY-REPLY"
 MESSAGE_VERIFIED_CANDIDATE_SHA = "49498e6f30944883c1a0a5a504932bbd02fc86de"
+REPLY_VERIFIED_CANDIDATE_SHA = "5724d164619c64e93295595b3acdd1429d24e3e0"
 CORE_CAPABILITIES = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
 EVIDENCED_CAPABILITIES = CORE_CAPABILITIES | {
     ACCOUNT_CAPABILITY,
@@ -384,9 +385,8 @@ def test_capability_spec_documents_match_registry_paths_and_status() -> None:
     else:
         assert reply["status"] == "verified"
         assert reply["active_change"] is None
-        reply_candidate = reply["last_verified_commit"]
-        assert isinstance(reply_candidate, str)
-        assert reply_candidate in reply_spec
+        assert reply["last_verified_commit"] == REPLY_VERIFIED_CANDIDATE_SHA
+        assert REPLY_VERIFIED_CANDIDATE_SHA in reply_spec
         assert "Registry status: verified" in reply_spec
 
 
@@ -423,9 +423,8 @@ def test_capability_statuses_match_verification_phase() -> None:
     else:
         assert reply["status"] == "verified"
         assert reply["active_change"] is None
-        reply_candidate = reply["last_verified_commit"]
-        assert isinstance(reply_candidate, str)
-        assert_commit_is_valid_offline(reply_candidate)
+        assert reply["last_verified_commit"] == REPLY_VERIFIED_CANDIDATE_SHA
+        assert_commit_is_valid_offline(REPLY_VERIFIED_CANDIDATE_SHA)
 
 
 def test_other_capabilities_remain_planned_empty_and_unbound() -> None:
@@ -475,6 +474,10 @@ def test_project_state_matches_registry_paths_and_status_counts() -> None:
         assert (
             project_state_capabilities_by_id()[MESSAGE_CAPABILITY]["last_verified_commit"]
             == MESSAGE_VERIFIED_CANDIDATE_SHA
+        )
+        assert (
+            project_state_capabilities_by_id()[REPLY_CAPABILITY]["last_verified_commit"]
+            == REPLY_VERIFIED_CANDIDATE_SHA
         )
     assert (
         project_state_capabilities_by_id()[ACCOUNT_CAPABILITY]["last_verified_commit"]
