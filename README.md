@@ -10,15 +10,16 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - CHG-0005-xianyu-reply-boundary is archived.
 - CAP-XY-REPLY remains verified.
 - Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
-- Its historical acceptance evidence is preserved under `changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py`.
 - CHG-0006-xianyu-publish-boundary is the only Active Change.
-- CHG-0006 status is `DRAFT`.
-- No CHG-0006 task is complete.
-- DRAFT has no executable next task.
+- CHG-0006 status is `APPROVED`.
+- CHG-0006 completed tasks: 1 / 9.
+- Completed tasks: T1.
+- Next task: `T2 Finalize listing, publish request, attempt, and outcome terminology`.
+- T6 is not authorized and has not started.
 - CAP-XY-PUBLISH remains planned and unbound.
 - CAP-XY-PUBLISH keeps empty `implementation_paths`, empty `test_paths`, null `active_change`, and null `last_verified_commit`.
 - No Playwright, browser automation, real Xianyu access, publishing behavior, credential access, real data access, or external network access is introduced.
-- T1 and any implementation require new separate project-owner authorization.
+- Any T6 implementation requires new separate project-owner authorization.
 
 ## Project goal
 

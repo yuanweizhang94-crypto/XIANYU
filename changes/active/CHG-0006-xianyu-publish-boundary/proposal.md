@@ -1,6 +1,6 @@
 # CHG-0006 Proposal
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0006-xianyu-publish-boundary
 
 ## Purpose
@@ -72,3 +72,13 @@ Fail closed on ambiguous, conflicting, unsupported, or missing publishing input.
 Creation of this DRAFT does not approve T1, Runtime implementation, capability binding, reviewer request, Ready transition, auto-merge, or merge.
 
 Moving CHG-0006 beyond DRAFT requires a new explicit project-owner authorization.
+
+## T1 project-owner approval record
+
+The project owner explicitly approves CHG-0006 and authorizes the sequential completion of governance and design tasks T1 through T5.
+
+Each task must still be executed, verified, and committed independently.
+
+T1 is complete. T2 is the next executable task.
+
+T6 implementation is not authorized. Runtime implementation, capability binding, Ready transition, Reviewer request, Auto-merge, Merge, branch deletion, Playwright, browser automation, real Xianyu access, listing publication, media upload, external network access, Credential handling, WeCom integration, and AI Provider integration remain unauthorized.

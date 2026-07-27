@@ -1,6 +1,6 @@
 # CHG-0006 Acceptance
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0006-xianyu-publish-boundary
 
 ## Draft-stage acceptance criteria
@@ -45,3 +45,14 @@ No CHG-0006 task is approved.
 T1 has not started.
 
 No implementation, capability binding, reviewer request, Ready transition, auto-merge, or merge is authorized.
+
+## T1 acceptance criteria
+
+1. Proposal, design, tasks, and acceptance are all APPROVED.
+2. Only T1 is complete.
+3. T2 through T9 remain incomplete.
+4. PROJECT_STATE reports 1 / 9 tasks complete.
+5. PROJECT_STATE next_task is `T2 Finalize listing, publish request, attempt, and outcome terminology`.
+6. CAP-XY-PUBLISH remains planned, unbound, with empty implementation_paths, empty test_paths, null active_change, and null last_verified_commit.
+7. PR #6 remains Draft, open, and unmerged.
+8. No Runtime, Migration, dependency, workflow, Registry, app, or capability evidence change is introduced.

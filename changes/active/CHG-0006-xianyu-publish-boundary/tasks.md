@@ -1,9 +1,9 @@
 # CHG-0006 Tasks
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0006-xianyu-publish-boundary
 
-- [ ] T1 Obtain explicit project-owner approval for CHG-0006
+- [x] T1 Obtain explicit project-owner approval for CHG-0006
 - [ ] T2 Finalize listing, publish request, attempt, and outcome terminology
 - [ ] T3 Approve permission, credential, risk-control, and platform boundaries
 - [ ] T4 Approve validation, idempotency, duplicate, and uncertainty boundaries
@@ -13,12 +13,12 @@ Change ID: CHG-0006-xianyu-publish-boundary
 - [ ] T8 Update capability evidence and run complete verification
 - [ ] T9 Complete final PR administration
 
-## Draft boundary
+## Current task state
 
-All tasks remain incomplete.
+Completed tasks: 1 / 9.
 
-T1 has not started.
+Next task: T2 Finalize listing, publish request, attempt, and outcome terminology.
 
-No task is executable while this change remains DRAFT.
+T6 implementation is not authorized in this execution and has not started.
 
-Moving beyond DRAFT requires separate explicit project-owner authorization.
+Each task must be completed, verified, and committed independently.

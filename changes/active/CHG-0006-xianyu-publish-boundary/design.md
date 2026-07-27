@@ -1,6 +1,6 @@
 # CHG-0006 Design
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0006-xianyu-publish-boundary
 
 ## Draft design posture
@@ -80,3 +80,15 @@ Migration requirements are unresolved. No database schema is approved.
 ## Explicit non-approval
 
 No module, database schema, API, Worker, Service, Repository, Scheduler, browser implementation, platform adapter, dependency, or workflow is approved by this DRAFT.
+
+## T1 approved design posture
+
+CHG-0006 status is APPROVED for sequential governance and design tasks only.
+
+T1 approves entry into T2 through T5 design tasks, with each task completed and committed independently.
+
+Current implementation: none.
+
+No Runtime design or implementation is approved.
+
+T2 is the current next executable task.

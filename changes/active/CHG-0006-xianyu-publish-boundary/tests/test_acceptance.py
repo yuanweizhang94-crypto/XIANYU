@@ -65,6 +65,26 @@ FORBIDDEN_PUBLISH_PATH_PREFIXES = (
 )
 
 
+EXPECTED_TASKS = [
+    "T1 Obtain explicit project-owner approval for CHG-0006",
+    "T2 Finalize listing, publish request, attempt, and outcome terminology",
+    "T3 Approve permission, credential, risk-control, and platform boundaries",
+    "T4 Approve validation, idempotency, duplicate, and uncertainty boundaries",
+    "T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries",
+    "T6 Implement only the separately approved local publishing boundary",
+    "T7 Add unit, contract, security, and active-change acceptance tests",
+    "T8 Update capability evidence and run complete verification",
+    "T9 Complete final PR administration",
+]
+NEXT_BY_COMPLETED = {
+    1: EXPECTED_TASKS[1],
+    2: EXPECTED_TASKS[2],
+    3: EXPECTED_TASKS[3],
+    4: EXPECTED_TASKS[4],
+    5: EXPECTED_TASKS[5],
+}
+
+
 def status_of(path: Path) -> str:
     for line in path.read_text(encoding="utf-8").splitlines():
         if line.startswith("Status:"):
@@ -90,6 +110,17 @@ def task_lines() -> list[str]:
         if line.startswith("- [")
     ]
 
+
+
+def completed_count() -> int:
+    lines = task_lines()
+    assert len(lines) == 9
+    marks = [line.startswith("- [x]") for line in lines]
+    completed = sum(marks)
+    assert 1 <= completed <= 5
+    assert marks == [index < completed for index in range(9)]
+    assert [line[6:] for line in lines] == EXPECTED_TASKS
+    return completed
 
 def test_chg_0005_is_archived_with_history_and_merge_record() -> None:
     assert not (ACTIVE / "CHG-0005-xianyu-reply-boundary").exists()
@@ -127,39 +158,34 @@ def test_cap_xy_reply_evidence_is_frozen_and_points_to_archive() -> None:
     assert REPLY_ACTIVE_ACCEPTANCE not in spec_text
 
 
-def test_chg_0006_is_the_only_draft_active_change() -> None:
+def test_chg_0006_is_the_only_approved_active_change() -> None:
     active_dirs = sorted(path.name for path in ACTIVE.iterdir() if path.is_dir())
     assert active_dirs == ["CHG-0006-xianyu-publish-boundary"]
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         path = CHG_0006 / name
         assert path.is_file()
-        assert status_of(path) == "DRAFT"
+        assert status_of(path) == "APPROVED"
         assert "Change ID: CHG-0006-xianyu-publish-boundary" in path.read_text(
             encoding="utf-8"
         )
     assert (CHG_0006 / "tests" / "test_acceptance.py").is_file()
 
 
-def test_chg_0006_has_zero_of_nine_tasks_and_no_next_task() -> None:
-    tasks = task_lines()
-    assert len(tasks) == 9
-    assert all(line.startswith("- [ ]") for line in tasks)
-    assert tasks[0] == "- [ ] T1 Obtain explicit project-owner approval for CHG-0006"
-    assert tasks[5] == "- [ ] T6 Implement only the separately approved local publishing boundary"
-    assert tasks[7] == "- [ ] T8 Update capability evidence and run complete verification"
-    assert tasks[8] == "- [ ] T9 Complete final PR administration"
-
+def test_chg_0006_tasks_are_a_contiguous_prefix_with_expected_next_task() -> None:
+    completed = completed_count()
     state = project_state()
     assert state["active_change"] == {
         "id": "CHG-0006-xianyu-publish-boundary",
-        "status": "DRAFT",
+        "status": "APPROVED",
         "path": "changes/active/CHG-0006-xianyu-publish-boundary",
     }
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 0
-    assert state["tasks"]["next_task"] is None
-    assert all(item["completed"] is False for item in state["tasks"]["items"])
-
+    assert state["tasks"]["completed"] == completed
+    assert state["tasks"]["next_task"] == NEXT_BY_COMPLETED[completed]
+    assert [item["text"] for item in state["tasks"]["items"]] == EXPECTED_TASKS
+    assert [item["completed"] for item in state["tasks"]["items"]] == [
+        index < completed for index in range(9)
+    ]
 
 def test_cap_xy_publish_remains_planned_unbound_and_empty() -> None:
     publish = registry_by_id()[PUBLISH_CAPABILITY]
@@ -181,26 +207,36 @@ def test_cap_xy_publish_remains_planned_unbound_and_empty() -> None:
     assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
 
 
-def test_draft_documents_keep_publish_runtime_unapproved() -> None:
+def test_approved_documents_keep_publish_runtime_unapproved() -> None:
+    completed = completed_count()
     combined = "\n".join(
         (CHG_0006 / name).read_text(encoding="utf-8")
         for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]
     )
     for required in [
-        "No CHG-0006 task is approved",
-        "T1 has not started",
-        "DRAFT state has no executable next task",
-        "Moving beyond DRAFT requires separate explicit project-owner approval",
-        "No Runtime design is approved",
-        "No Playwright or external platform behavior is approved",
+        "T1 is complete",
+        NEXT_BY_COMPLETED[completed],
+        "T6 implementation is not authorized",
         "Current implementation: none",
     ]:
         assert required in combined
+    if completed >= 2:
+        for required in ["ListingDraft", "PublishRequest", "PublishDecisionType"]:
+            assert required in combined
+    if completed >= 3:
+        for required in ["PublishAuthorizationState", "PublishRiskState", "fail closed"]:
+            assert required in combined
+    if completed >= 4:
+        for required in ["IDEMPOTENCY_REPLAY", "IDEMPOTENCY_CONFLICT", "UNKNOWN_PREVIOUS_OUTCOME"]:
+            assert required in combined
+    if completed >= 5:
+        for required in ["worker.publish", "ListingDraftLifecycle", "Failure classification"]:
+            assert required in combined
     for forbidden_path in FORBIDDEN_PUBLISH_PATH_PREFIXES:
         assert not (ROOT / forbidden_path).exists()
 
-
 def test_transition_readme_documents_final_state() -> None:
+    completed = completed_count()
     text = (ROOT / "README.md").read_text(encoding="utf-8")
     for required in [
         "PR #5 was merged into `main`.",
@@ -210,14 +246,14 @@ def test_transition_readme_documents_final_state() -> None:
         "CAP-XY-REPLY remains verified.",
         REPLY_EVIDENCE_CANDIDATE,
         "CHG-0006-xianyu-publish-boundary is the only Active Change.",
-        "CHG-0006 status is `DRAFT`.",
-        "No CHG-0006 task is complete.",
-        "DRAFT has no executable next task.",
+        "CHG-0006 status is `APPROVED`.",
+        f"CHG-0006 completed tasks: {completed} / 9.",
+        f"Next task: `{NEXT_BY_COMPLETED[completed]}`.",
+        "T6 is not authorized and has not started.",
         "CAP-XY-PUBLISH remains planned and unbound.",
         "No Playwright, browser automation, real Xianyu access, publishing behavior, credential access, real data access, or external network access is introduced.",
     ]:
         assert required in text
-
 
 def test_no_forbidden_transition_file_scope_or_publish_implementation() -> None:
     for path in FORBIDDEN_PUBLISH_PATH_PREFIXES:

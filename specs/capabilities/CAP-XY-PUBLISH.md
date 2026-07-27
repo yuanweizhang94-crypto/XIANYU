@@ -35,3 +35,11 @@ Define publishing boundary without invoking Playwright or publishing listings.
 - The capability exists in the registry with status planned.
 - The specification path is unique.
 - No conflicting implementation path exists.
+
+## CHG-0006 T1 approval record
+
+CHG-0006 is APPROVED for sequential governance and design tasks T1 through T5. T1 is complete.
+
+CAP-XY-PUBLISH remains planned, unbound, without implementation paths, without test paths, and without a verified commit.
+
+T6 implementation, Runtime, capability binding, Registry evidence, Ready transition, Reviewer request, Auto-merge, and Merge are not authorized.
