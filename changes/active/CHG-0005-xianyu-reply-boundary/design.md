@@ -714,3 +714,9 @@ The Owner Design Review corrective pass supersedes conflicting Phase 1 text and 
 ### T5 non-implementation boundary
 
 T5 completes design approval only. It creates no Runtime package, module, migration, table, repository, service, worker, API, Web UI, Scheduler job, external adapter, dependency, workflow, Capability Registry binding, or permanent evidence path. T6 is the next task and has not started.
+
+## T6 implementation record
+
+T6 is implemented under the approved local fixed-script reply boundary. The runtime package `app/xianyu_system/reply/` and migration `migrations/versions/0004_xianyu_reply_boundary.py` now exist. The implementation remains local and deterministic: no CLI, API, Web UI, worker loop, scheduler, sender, Xianyu client, browser adapter, WeCom adapter, AI adapter, credential resolver, external network behavior, or message sending behavior is introduced.
+
+CAP-XY-REPLY intentionally remains `planned` and unbound during T6: implementation paths, test paths, `active_change`, and `last_verified_commit` are not registered until T8.

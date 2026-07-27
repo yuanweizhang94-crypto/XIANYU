@@ -12,6 +12,12 @@ from xianyu_system.worker.message.persistence import (
     delivery_attempt_table,
     message_table,
 )
+from xianyu_system.reply.persistence import (
+    reply_audit_event_table,
+    reply_condition_table,
+    reply_rule_table,
+    reply_template_table,
+)
 
 from xianyu_system.core.database import (
     Base,
@@ -26,6 +32,10 @@ assert account_profiles_table.metadata is Base.metadata
 assert conversation_table.metadata is Base.metadata
 assert message_table.metadata is Base.metadata
 assert delivery_attempt_table.metadata is Base.metadata
+assert reply_template_table.metadata is Base.metadata
+assert reply_rule_table.metadata is Base.metadata
+assert reply_condition_table.metadata is Base.metadata
+assert reply_audit_event_table.metadata is Base.metadata
 
 
 def get_explicit_database_path() -> Path:
@@ -34,8 +44,7 @@ def get_explicit_database_path() -> Path:
     raw_path = arguments.get("database_path")
     if not raw_path:
         raise RuntimeError(
-            "Alembic requires a shared connection or an explicit "
-            "-x database_path=<path> argument."
+            "Alembic requires a shared connection or an explicit -x database_path=<path> argument."
         )
     return Path(str(raw_path))
 

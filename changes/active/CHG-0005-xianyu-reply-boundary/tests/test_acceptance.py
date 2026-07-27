@@ -17,20 +17,14 @@ CHG_0005 = ACTIVE / "CHG-0005-xianyu-reply-boundary"
 MESSAGE_CAPABILITY = "CAP-XY-MESSAGE"
 REPLY_CAPABILITY = "CAP-XY-REPLY"
 
-MESSAGE_VERIFIED_CANDIDATE_SHA = (
-    "49498e6f30944883c1a0a5a504932bbd02fc86de"
-)
+MESSAGE_VERIFIED_CANDIDATE_SHA = "49498e6f30944883c1a0a5a504932bbd02fc86de"
 
 MESSAGE_ARCHIVED_ACCEPTANCE = (
-    "changes/archive/"
-    "CHG-0004-xianyu-message-boundary/"
-    "tests/test_acceptance.py"
+    "changes/archive/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py"
 )
 
 MESSAGE_ACTIVE_ACCEPTANCE = (
-    "changes/active/"
-    "CHG-0004-xianyu-message-boundary/"
-    "tests/test_acceptance.py"
+    "changes/active/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py"
 )
 
 
@@ -79,9 +73,9 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     ]
     assert len(task_lines) == 9
     completed_count = sum(line.startswith("- [x]") for line in task_lines)
-    assert completed_count == 5
-    assert all(line.startswith("- [x]") for line in task_lines[:5])
-    assert all(line.startswith("- [ ]") for line in task_lines[5:])
+    assert completed_count == 6
+    assert all(line.startswith("- [x]") for line in task_lines[:6])
+    assert all(line.startswith("- [ ]") for line in task_lines[6:])
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": "CHG-0005-xianyu-reply-boundary",
@@ -91,10 +85,10 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     assert state["tasks"]["total"] == 9
     assert state["tasks"]["completed"] == completed_count
     assert state["tasks"]["next_task"] == (
-        "T6 Implement only the approved local fixed-script reply boundary"
+        "T7 Add unit, contract, security, and active-change acceptance tests"
     )
-    assert all(item["completed"] is True for item in state["tasks"]["items"][:5])
-    assert all(item["completed"] is False for item in state["tasks"]["items"][5:])
+    assert all(item["completed"] is True for item in state["tasks"]["items"][:6])
+    assert all(item["completed"] is False for item in state["tasks"]["items"][6:])
     assert state["capabilities"]["by_status"] == {"planned": 5, "verified": 5}
 
 
@@ -119,14 +113,11 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
     assert reply["active_change"] is None
     assert reply["last_verified_commit"] is None
 
-    forbidden_reply_paths = [
-        ROOT / "app" / "xianyu_system" / "reply.py",
-        ROOT / "app" / "xianyu_system" / "reply",
-        ROOT / "app" / "xianyu_system" / "worker" / "reply.py",
-        ROOT / "app" / "xianyu_system" / "worker" / "reply",
-    ]
-    assert not any(path.exists() for path in forbidden_reply_paths)
-    assert not list((ROOT / "migrations" / "versions").glob("*reply*"))
+    assert (ROOT / "app" / "xianyu_system" / "reply").is_dir()
+    assert (ROOT / "migrations" / "versions" / "0004_xianyu_reply_boundary.py").is_file()
+    assert not (ROOT / "app" / "xianyu_system" / "reply.py").exists()
+    assert not (ROOT / "app" / "xianyu_system" / "worker" / "reply.py").exists()
+    assert not (ROOT / "app" / "xianyu_system" / "worker" / "reply").exists()
     assert not list((ROOT / "tests" / "unit").glob("*reply*"))
     assert not list((ROOT / "tests" / "contract").glob("*reply*"))
 
@@ -169,13 +160,13 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
         "ReplyEvaluationResult",
         "ReplyDecisionService owns",
         "Migration created in Phase 1: no",
+        "T6 implementation record",
+        "CAP-XY-REPLY intentionally remains `planned`",
     ]:
         assert required in joined
 
     design_text = (CHG_0005 / "design.md").read_text(encoding="utf-8")
-    spec_text = (ROOT / "specs" / "capabilities" / "CAP-XY-REPLY.md").read_text(
-        encoding="utf-8"
-    )
+    spec_text = (ROOT / "specs" / "capabilities" / "CAP-XY-REPLY.md").read_text(encoding="utf-8")
     combined = "\n".join([design_text, spec_text])
     for forbidden in [
         "No Runtime design is approved.",

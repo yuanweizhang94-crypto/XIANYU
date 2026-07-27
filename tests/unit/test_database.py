@@ -42,7 +42,13 @@ MESSAGE_TABLES = {
     "xianyu_message_records",
     "xianyu_message_delivery_attempts",
 }
-BUSINESS_METADATA_TABLES = {"xianyu_account_profiles", *MESSAGE_TABLES}
+REPLY_TABLES = {
+    "xianyu_reply_templates",
+    "xianyu_reply_rules",
+    "xianyu_reply_conditions",
+    "xianyu_reply_audit_events",
+}
+BUSINESS_METADATA_TABLES = {"xianyu_account_profiles", *MESSAGE_TABLES, *REPLY_TABLES}
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -120,7 +126,9 @@ def test_initialize_database_enables_wal_mode(tmp_path: Path) -> None:
     resources = initialize_database(tmp_path / "wal.db")
     try:
         with resources.engine.connect() as connection:
-            assert str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
+            assert (
+                str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
+            )
     finally:
         dispose_database(resources)
 
@@ -204,9 +212,11 @@ def test_base_metadata_is_empty_and_database_has_no_business_tables(tmp_path: Pa
     resources = initialize_database(tmp_path / "empty.db")
     try:
         with resources.engine.connect() as connection:
-            names = connection.exec_driver_sql(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).scalars().all()
+            names = (
+                connection.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'")
+                .scalars()
+                .all()
+            )
         assert [name for name in names if not str(name).startswith("sqlite_")] == []
     finally:
         dispose_database(resources)
@@ -253,7 +263,9 @@ def test_initialize_database_disposes_engine_when_validation_fails(
     fake_context.__enter__.side_effect = RuntimeError("validation failed")
     fake_engine.connect.return_value = fake_context
     monkeypatch.setattr(database, "create_database_engine", lambda _path: fake_engine)
-    monkeypatch.setattr(database, "create_session_factory", lambda _engine: cast(sessionmaker[Session], Mock()))
+    monkeypatch.setattr(
+        database, "create_session_factory", lambda _engine: cast(sessionmaker[Session], Mock())
+    )
 
     with pytest.raises(RuntimeError, match="validation failed"):
         initialize_database(Path("synthetic.db"))
@@ -298,7 +310,7 @@ def test_build_alembic_config_is_isolated_and_has_no_side_effects(tmp_path: Path
     assert isinstance(config, Config)
     assert config is not second
     assert Path(config.config_file_name or "") == ALEMBIC_CONFIG_PATH
-    assert Path(config.get_main_option("script_location")) == MIGRATIONS_PATH
+    assert Path(str(config.get_main_option("script_location"))) == MIGRATIONS_PATH
     assert config.get_main_option("sqlalchemy.url") == ""
     assert not (tmp_path / "config.db").exists()
 
@@ -336,7 +348,9 @@ def test_upgrade_and_downgrade_database_manage_empty_baseline(tmp_path: Path) ->
         dispose_database(resources)
 
 
-def test_migration_api_does_not_create_second_engine_or_dispose_resources_engine(tmp_path: Path) -> None:
+def test_migration_api_does_not_create_second_engine_or_dispose_resources_engine(
+    tmp_path: Path,
+) -> None:
     resources = initialize_database(tmp_path / "shared-engine.db")
     try:
         with patch("xianyu_system.core.database.create_database_engine") as create_engine_mock:

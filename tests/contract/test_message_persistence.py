@@ -6,6 +6,7 @@ import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from alembic.script import ScriptDirectory
@@ -32,6 +33,7 @@ from xianyu_system.worker.message.transport import SyntheticMessageDelivery
 ROOT = Path(__file__).resolve().parents[2]
 ACCOUNT_REVISION = "0002_xianyu_account_boundary"
 MESSAGE_REVISION = "0003_xianyu_message_boundary"
+REPLY_REVISION = "0004_xianyu_reply_boundary"
 ACCOUNT_TABLE = "xianyu_account_profiles"
 CONVERSATION_TABLE = "xianyu_message_conversations"
 MESSAGE_TABLE = "xianyu_message_records"
@@ -53,7 +55,7 @@ def message_service(resources):
 
 
 def delivery(profile_id: str, **overrides: object) -> SyntheticMessageDelivery:
-    values = {
+    values: dict[str, Any] = {
         "profile_id": profile_id,
         "account_reference": "synthetic-account-reference",
         "participant_reference": "synthetic-participant",
@@ -65,7 +67,7 @@ def delivery(profile_id: str, **overrides: object) -> SyntheticMessageDelivery:
         "platform_timestamp": NOW,
     }
     values.update(overrides)
-    return SyntheticMessageDelivery(**values)  # type: ignore[arg-type]
+    return SyntheticMessageDelivery(**values)
 
 
 def count_rows(resources, table_name: str) -> int:
@@ -174,7 +176,8 @@ def assert_single_fk(
     assert foreign_key["constrained_columns"] == constrained_columns
     assert foreign_key["referred_table"] == referred_table
     assert foreign_key["referred_columns"] == referred_columns
-    assert str(foreign_key.get("options", {}).get("ondelete")).upper() == "RESTRICT"
+    options = cast(dict[str, object], foreign_key.get("options", {}))
+    assert str(options.get("ondelete")).upper() == "RESTRICT"
 
 
 def test_message_projection_schema_matches_approved_columns_constraints_and_indexes(
@@ -242,9 +245,7 @@ def test_message_projection_schema_matches_approved_columns_constraints_and_inde
         },
         MESSAGE_TABLE: {
             "ck_xianyu_message_record_id_len": ["length(message_id) = 36"],
-            "ck_xianyu_message_record_conversation_len": [
-                "length(conversation_id) = 36"
-            ],
+            "ck_xianyu_message_record_conversation_len": ["length(conversation_id) = 36"],
             "ck_xianyu_message_record_profile_len": ["length(profile_id) = 36"],
             "ck_xianyu_message_record_account_len": [
                 "account_reference = trim(account_reference)",
@@ -338,7 +339,7 @@ def test_message_projection_schema_matches_approved_columns_constraints_and_inde
             column = table.c[column_name]
             assert isinstance(column.type, type_class)
             if length is not None:
-                assert column.type.length == length
+                assert cast(Any, column.type).length == length
             assert column.nullable is nullable
             assert column.primary_key is primary_key
         assert prohibited.isdisjoint(set(table.columns.keys()))
@@ -406,8 +407,8 @@ def test_message_migration_is_single_linear_head_and_matches_projection(
 ) -> None:
     script = ScriptDirectory.from_config(build_alembic_config())
     revision = script.get_revision(MESSAGE_REVISION)
-    assert script.get_current_head() == MESSAGE_REVISION
-    assert script.get_heads() == [MESSAGE_REVISION]
+    assert script.get_current_head() == REPLY_REVISION
+    assert script.get_heads() == [REPLY_REVISION]
     assert revision is not None
     assert revision.down_revision == ACCOUNT_REVISION
     assert revision.branch_labels in (None, set())
@@ -430,7 +431,7 @@ def test_message_migration_is_single_linear_head_and_matches_projection(
     ]:
         assert column_name in migration
     assert 'revision: str = "0003_xianyu_message_boundary"' in migration
-    assert "down_revision: str | None = \"0002_xianyu_account_boundary\"" in migration
+    assert 'down_revision: str | None = "0002_xianyu_account_boundary"' in migration
     assert "branch_labels: str | Sequence[str] | None = None" in migration
     assert "depends_on: str | Sequence[str] | None = None" in migration
     for forbidden in [
@@ -484,7 +485,7 @@ def test_message_migration_is_single_linear_head_and_matches_projection(
     assert cli_database_path.exists()
     cli_resources = initialize_database(cli_database_path)
     try:
-        assert get_current_revision(cli_resources) == MESSAGE_REVISION
+        assert get_current_revision(cli_resources) == REPLY_REVISION
         inspector = inspect(cli_resources.engine)
         assert set(inspector.get_table_names()) >= MESSAGE_TABLES
     finally:
@@ -550,6 +551,9 @@ def test_fresh_upgrade_creates_exact_message_tables_and_foreign_keys(
         delivery_attempt_table,
         message_table,
     )
+    from xianyu_system.worker.account.persistence import account_profiles_table
+
+    assert account_profiles_table.metadata is conversation_table.metadata
 
     projection_fks = {
         CONVERSATION_TABLE: list(conversation_table.foreign_key_constraints),
@@ -589,7 +593,7 @@ def test_fresh_upgrade_creates_exact_message_tables_and_foreign_keys(
     try:
         assert get_current_revision(resources) is None
         upgrade_database(resources)
-        assert get_current_revision(resources) == MESSAGE_REVISION
+        assert get_current_revision(resources) == REPLY_REVISION
         inspector = inspect(resources.engine)
         assert {
             name for name in inspector.get_table_names() if name.startswith("xianyu_message_")
@@ -636,7 +640,8 @@ def test_repository_flushes_without_committing_and_round_trips_profile_ownership
             commit_calls += 1
             raise AssertionError("Repository must not commit")
 
-        session.commit = count_commit  # type: ignore[method-assign]
+        session_for_patch = cast(Any, session)
+        session_for_patch.commit = count_commit
         repository = MessageRepository(session)
         conversation = Conversation(
             conversation_id="00000000-0000-4000-8000-000000000401",
@@ -677,11 +682,14 @@ def test_repository_flushes_without_committing_and_round_trips_profile_ownership
             assert repository.count_conversations() == 1
             assert repository.count_messages() == 1
             assert repository.count_delivery_attempts() == 1
-            assert repository.get_conversation_by_platform_identifier(
-                profile_id=profile.profile_id,
-                account_reference=conversation.account_reference,
-                platform_conversation_identifier="synthetic-conversation",
-            ) == conversation
+            assert (
+                repository.get_conversation_by_platform_identifier(
+                    profile_id=profile.profile_id,
+                    account_reference=conversation.account_reference,
+                    platform_conversation_identifier="synthetic-conversation",
+                )
+                == conversation
+            )
             round_tripped = repository.get_message_by_delivery_identity(
                 profile_id=profile.profile_id,
                 account_reference=conversation.account_reference,
@@ -690,11 +698,14 @@ def test_repository_flushes_without_committing_and_round_trips_profile_ownership
             assert round_tripped == message
             assert round_tripped is not None
             assert round_tripped.received_at.tzinfo is UTC
-            assert repository.next_attempt_number(
-                message_id=message.message_id,
-                profile_id=profile.profile_id,
-                account_reference=conversation.account_reference,
-            ) == 2
+            assert (
+                repository.next_attempt_number(
+                    message_id=message.message_id,
+                    profile_id=profile.profile_id,
+                    account_reference=conversation.account_reference,
+                )
+                == 2
+            )
             session.rollback()
         finally:
             session.close()
@@ -897,52 +908,70 @@ def test_database_constraints_enforce_scope_lengths_decisions_and_attempt_number
                 },
             )
 
-        assert count_where(
-            resources,
-            MESSAGE_TABLE,
-            "profile_id = :profile_id AND delivery_identity = :delivery_identity",
-            {"profile_id": profile.profile_id, "delivery_identity": "synthetic-delivery"},
-        ) == 2
-        assert count_where(
-            resources,
-            MESSAGE_TABLE,
-            "profile_id = :profile_id AND account_reference = :account_reference "
-            "AND delivery_identity = :delivery_identity",
-            {
-                "profile_id": profile.profile_id,
-                "account_reference": "synthetic-account-reference",
-                "delivery_identity": "synthetic-delivery",
-            },
-        ) == 1
-        assert count_where(
-            resources,
-            MESSAGE_TABLE,
-            "profile_id = :profile_id AND account_reference = :account_reference "
-            "AND delivery_identity = :delivery_identity",
-            {
-                "profile_id": profile.profile_id,
-                "account_reference": "synthetic-second-account-reference",
-                "delivery_identity": "synthetic-delivery",
-            },
-        ) == 1
-        assert count_where(
-            resources,
-            MESSAGE_TABLE,
-            "delivery_identity = :delivery_identity",
-            {"delivery_identity": "synthetic-delivery"},
-        ) == 3
-        assert count_where(
-            resources,
-            MESSAGE_TABLE,
-            "platform_message_identifier IS NULL",
-            {},
-        ) >= 1
-        assert count_where(
-            resources,
-            ATTEMPT_TABLE,
-            "reason_code IS NULL AND correlation_identifier IS NULL",
-            {},
-        ) == 1
+        assert (
+            count_where(
+                resources,
+                MESSAGE_TABLE,
+                "profile_id = :profile_id AND delivery_identity = :delivery_identity",
+                {"profile_id": profile.profile_id, "delivery_identity": "synthetic-delivery"},
+            )
+            == 2
+        )
+        assert (
+            count_where(
+                resources,
+                MESSAGE_TABLE,
+                "profile_id = :profile_id AND account_reference = :account_reference "
+                "AND delivery_identity = :delivery_identity",
+                {
+                    "profile_id": profile.profile_id,
+                    "account_reference": "synthetic-account-reference",
+                    "delivery_identity": "synthetic-delivery",
+                },
+            )
+            == 1
+        )
+        assert (
+            count_where(
+                resources,
+                MESSAGE_TABLE,
+                "profile_id = :profile_id AND account_reference = :account_reference "
+                "AND delivery_identity = :delivery_identity",
+                {
+                    "profile_id": profile.profile_id,
+                    "account_reference": "synthetic-second-account-reference",
+                    "delivery_identity": "synthetic-delivery",
+                },
+            )
+            == 1
+        )
+        assert (
+            count_where(
+                resources,
+                MESSAGE_TABLE,
+                "delivery_identity = :delivery_identity",
+                {"delivery_identity": "synthetic-delivery"},
+            )
+            == 3
+        )
+        assert (
+            count_where(
+                resources,
+                MESSAGE_TABLE,
+                "platform_message_identifier IS NULL",
+                {},
+            )
+            >= 1
+        )
+        assert (
+            count_where(
+                resources,
+                ATTEMPT_TABLE,
+                "reason_code IS NULL AND correlation_identifier IS NULL",
+                {},
+            )
+            == 1
+        )
 
         conversation_insert = (
             "INSERT INTO xianyu_message_conversations "
@@ -1067,23 +1096,59 @@ def test_database_constraints_enforce_scope_lengths_decisions_and_attempt_number
         )
 
         # Message Account, Participant, Content, and Decision direct failures.
-        assert_integrity_failure(resources, message_insert, message_params("0101", account_reference=""))
-        assert_integrity_failure(resources, message_insert, message_params("0102", account_reference="   "))
-        assert_integrity_failure(resources, message_insert, message_params("0103", account_reference=" padded "))
-        assert_integrity_failure(resources, message_insert, message_params("0104", account_reference="synthetic-wrong-account"))
-        assert_integrity_failure(resources, message_insert, message_params("0105", profile_id=other_profile.profile_id))
-        assert_integrity_failure(resources, message_insert, message_params("0106", participant_reference=""))
-        assert_integrity_failure(resources, message_insert, message_params("0107", participant_reference="   "))
-        assert_integrity_failure(resources, message_insert, message_params("0108", participant_reference=" padded "))
-        assert_integrity_failure(resources, message_insert, message_params("0109", participant_reference="p" * 513))
-        assert_integrity_failure(resources, message_insert, message_params("0110", platform_message_identifier="   "))
-        assert_integrity_failure(resources, message_insert, message_params("0111", delivery_identity="   "))
-        assert_integrity_failure(resources, message_insert, message_params("0112", message_content=""))
-        assert_integrity_failure(resources, message_insert, message_params("0113", message_content="   "))
-        assert_integrity_failure(resources, message_insert, message_params("0114", message_content="x" * 4097))
-        assert_integrity_failure(resources, message_insert, message_params("0115", deduplication_decision="DUPLICATE"))
-        assert_integrity_failure(resources, message_insert, message_params("0116", deduplication_decision="CONFLICT"))
-        assert_integrity_failure(resources, message_insert, message_params("0117", deduplication_decision="UNKNOWN"))
+        assert_integrity_failure(
+            resources, message_insert, message_params("0101", account_reference="")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0102", account_reference="   ")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0103", account_reference=" padded ")
+        )
+        assert_integrity_failure(
+            resources,
+            message_insert,
+            message_params("0104", account_reference="synthetic-wrong-account"),
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0105", profile_id=other_profile.profile_id)
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0106", participant_reference="")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0107", participant_reference="   ")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0108", participant_reference=" padded ")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0109", participant_reference="p" * 513)
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0110", platform_message_identifier="   ")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0111", delivery_identity="   ")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0112", message_content="")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0113", message_content="   ")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0114", message_content="x" * 4097)
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0115", deduplication_decision="DUPLICATE")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0116", deduplication_decision="CONFLICT")
+        )
+        assert_integrity_failure(
+            resources, message_insert, message_params("0117", deduplication_decision="UNKNOWN")
+        )
 
         before_duplicate_identity = count_rows(resources, MESSAGE_TABLE)
         assert_integrity_failure(
@@ -1096,37 +1161,74 @@ def test_database_constraints_enforce_scope_lengths_decisions_and_attempt_number
             ),
         )
         assert count_rows(resources, MESSAGE_TABLE) == before_duplicate_identity
-        assert count_where(
-            resources,
-            MESSAGE_TABLE,
-            "profile_id = :profile_id AND account_reference = :account_reference "
-            "AND delivery_identity = :delivery_identity",
-            {
-                "profile_id": profile.profile_id,
-                "account_reference": "synthetic-account-reference",
-                "delivery_identity": "synthetic-delivery",
-            },
-        ) == 1
+        assert (
+            count_where(
+                resources,
+                MESSAGE_TABLE,
+                "profile_id = :profile_id AND account_reference = :account_reference "
+                "AND delivery_identity = :delivery_identity",
+                {
+                    "profile_id": profile.profile_id,
+                    "account_reference": "synthetic-account-reference",
+                    "delivery_identity": "synthetic-delivery",
+                },
+            )
+            == 1
+        )
 
         # Attempt Account, Outcome, Number, Reason, Correlation, and scope failures.
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0101", account_reference=""))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0102", account_reference="   "))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0103", account_reference=" padded "))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0104", outcome_class="CONFLICT"))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0105", outcome_class="UNKNOWN"))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0106", attempt_number=0))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0107", attempt_number=-1))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0108", profile_id=other_profile.profile_id))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0109", account_reference="synthetic-wrong-account"))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0110", reason_code=" padded "))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0111", reason_code="   "))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0112", reason_code="r" * 65))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0113", correlation_identifier=" padded "))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0114", correlation_identifier="   "))
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0115", correlation_identifier="c" * 129))
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0101", account_reference="")
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0102", account_reference="   ")
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0103", account_reference=" padded ")
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0104", outcome_class="CONFLICT")
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0105", outcome_class="UNKNOWN")
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0106", attempt_number=0)
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0107", attempt_number=-1)
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0108", profile_id=other_profile.profile_id)
+        )
+        assert_integrity_failure(
+            resources,
+            attempt_insert,
+            attempt_params("0109", account_reference="synthetic-wrong-account"),
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0110", reason_code=" padded ")
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0111", reason_code="   ")
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0112", reason_code="r" * 65)
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0113", correlation_identifier=" padded ")
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0114", correlation_identifier="   ")
+        )
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0115", correlation_identifier="c" * 129)
+        )
 
         before_duplicate_attempt = count_rows(resources, ATTEMPT_TABLE)
-        assert_integrity_failure(resources, attempt_insert, attempt_params("0116", attempt_number=2))
+        assert_integrity_failure(
+            resources, attempt_insert, attempt_params("0116", attempt_number=2)
+        )
         assert count_rows(resources, ATTEMPT_TABLE) == before_duplicate_attempt
     finally:
         dispose_database(resources)
@@ -1153,7 +1255,7 @@ def test_empty_message_downgrade_and_reupgrade_succeed(tmp_path: Path) -> None:
             ).scalar_one()
         assert alias == "synthetic-message-profile"
         upgrade_database(resources)
-        assert get_current_revision(resources) == MESSAGE_REVISION
+        assert get_current_revision(resources) == REPLY_REVISION
         assert set(inspect(resources.engine).get_table_names()) >= MESSAGE_TABLES
         assert count_rows(resources, ACCOUNT_TABLE) == 1
     finally:
@@ -1177,7 +1279,7 @@ def test_nonempty_message_downgrade_fails_closed_and_preserves_data_and_revision
         )
         with pytest.raises(RuntimeError):
             downgrade_database(resources, revision="0002_xianyu_account_boundary")
-        assert get_current_revision(resources) == MESSAGE_REVISION
+        assert get_current_revision(resources) == REPLY_REVISION
         assert set(inspect(resources.engine).get_table_names()) >= MESSAGE_TABLES
         assert (
             count_rows(resources, ACCOUNT_TABLE),

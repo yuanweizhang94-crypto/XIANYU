@@ -86,8 +86,9 @@ def test_account_migration_is_single_linear_head_and_matches_metadata() -> None:
         account_revision = '0002_xianyu_account_boundary'
         baseline_revision = '0001_core_baseline'
         message_revision = '0003_xianyu_message_boundary'
+        reply_revision = '0004_xianyu_reply_boundary'
         script = ScriptDirectory.from_config(build_alembic_config())
-        assert script.get_heads() == [message_revision]
+        assert script.get_heads() == [reply_revision]
         revision = script.get_revision(account_revision)
         assert revision is not None
         assert revision.down_revision == baseline_revision
@@ -243,7 +244,7 @@ def test_repository_add_flushes_without_independent_commit(tmp_path: Path) -> No
 
         profile_id = '{PROFILE_ID}'
         resources = initialize_database(
-            Path({str(tmp_path / 'account-repository-no-commit.db')!r})
+            Path({str(tmp_path / "account-repository-no-commit.db")!r})
         )
         try:
             Base.metadata.create_all(resources.engine)
@@ -299,7 +300,7 @@ def test_repository_round_trip_preserves_account_reference_and_stable_order(
                 row_version=1,
             )
 
-        resources = initialize_database(Path({str(tmp_path / 'account-round-trip.db')!r}))
+        resources = initialize_database(Path({str(tmp_path / "account-round-trip.db")!r}))
         try:
             Base.metadata.create_all(resources.engine)
             alpha = make_profile(
@@ -527,10 +528,12 @@ def test_database_enforces_uniqueness_concurrency_and_trim_constraints(
         """.replace(
             "__PROFILE_ID__",
             repr(PROFILE_ID),
-        ).replace(
+        )
+        .replace(
             "__OTHER_PROFILE_ID__",
             repr(OTHER_PROFILE_ID),
-        ).replace(
+        )
+        .replace(
             "__DATABASE_PATH__",
             repr(str(tmp_path / "account-database-constraints.db")),
         )

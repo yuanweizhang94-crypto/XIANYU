@@ -179,3 +179,9 @@ Corrective decisions:
 T1-T5 design and architecture are approved. Runtime implementation is not started. T6 requires a separate explicit owner authorization.
 
 CAP-XY-REPLY remains planned and unbound. No Runtime, Migration, Capability evidence, dependency, workflow, Ready transition, reviewer request, auto-merge, or merge is authorized by this corrective pass.
+
+## T6 implementation record
+
+T6 is implemented under the approved local fixed-script reply boundary. The runtime package `app/xianyu_system/reply/` and migration `migrations/versions/0004_xianyu_reply_boundary.py` now exist. The implementation remains local and deterministic: no CLI, API, Web UI, worker loop, scheduler, sender, Xianyu client, browser adapter, WeCom adapter, AI adapter, credential resolver, external network behavior, or message sending behavior is introduced.
+
+CAP-XY-REPLY intentionally remains `planned` and unbound during T6: implementation paths, test paths, `active_change`, and `last_verified_commit` are not registered until T8.
