@@ -49,9 +49,9 @@ Change ID: CHG-0005-xianyu-reply-boundary
 
 Project-owner approval for CHG-0005 is recorded.
 
-T1 through T4 are complete.
+T1 through T5 are complete.
 
-T5 is the next executable task and has not started.
+T6 is the next executable task and has not started.
 
 Implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge are not authorized.
 
@@ -104,3 +104,21 @@ Implementation, Capability binding, Ready for review, Reviewer request, Auto-mer
 14. CAP-XY-REPLY remains planned, unbound, and without implementation paths, test paths, active_change, or last_verified_commit.
 15. CAPABILITY_REGISTRY is not modified.
 16. No Runtime, Migration, dependency, workflow, Ready transition, reviewer request, auto-merge, or merge is authorized.
+
+
+## T5 acceptance criteria
+
+1. CHG-0005 remains APPROVED.
+2. T1 through T5 are complete.
+3. T6 through T9 remain incomplete.
+4. PROJECT_STATE reports completed tasks as 5 / 9.
+5. PROJECT_STATE next_task is `T6 Implement only the approved local fixed-script reply boundary`.
+6. Ownership, domain model, public interfaces, database design, lifecycle, migration plan, failure behavior, and test matrix are approved in design documentation.
+7. Migration created in Phase 1: no.
+8. Runtime files created in Phase 1: no.
+9. CAP-XY-REPLY remains planned, unbound, and without implementation paths, test paths, active_change, or last_verified_commit.
+10. CAPABILITY_REGISTRY is not modified.
+11. CAP-XY-MESSAGE remains verified and unchanged.
+12. No dependency, workflow, Ready transition, reviewer request, auto-merge, merge, branch deletion, or CHG-0006 is authorized.
+13. The diagnostic `tests` Mypy baseline remains accepted only up to 145 errors in 16 files.
+14. Technical-debt cleanup of unrelated `tests/` Mypy issues is not performed.

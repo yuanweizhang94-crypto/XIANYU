@@ -82,3 +82,18 @@ T3 remains design-only and registers no runtime, migration, or verification evid
 - Suppression and escalation decisions are evaluated before matching and rendering.
 
 T4 remains design-only and registers no runtime, migration, or verification evidence.
+
+
+### T5 approved architecture boundary
+
+- Capability owner remains `app.reply`; registry status remains planned and unbound during Phase 1.
+- Future local package may be `app/xianyu_system/reply/` only after T6 authorization.
+- Domain layer must remain independent of SQLAlchemy and FastAPI.
+- Future persistence must use existing Core SQLAlchemy Session and Alembic boundaries.
+- Future Service owns commit and rollback; Repository flushes without commit.
+- Future evaluator and renderer are pure deterministic local components.
+- Future tables are planned as `xianyu_reply_templates`, `xianyu_reply_rules`, `xianyu_reply_conditions`, and `xianyu_reply_audit_events`.
+- Future migration is planned as `0004_xianyu_reply_boundary` after `0003_xianyu_message_boundary`; it is not created in Phase 1.
+- Future verification must include Domain, Evaluator, Renderer, Mapper, Service, Persistence Contract, Migration Contract, Security, Import Safety, Capability Registry, active acceptance, and archived acceptance evidence.
+
+No runtime, migration, dependency, workflow, registry binding, or verification evidence path is registered by T5.

@@ -17,11 +17,11 @@ The project owner has explicitly approved CHG-0005.
 
 This approval completes T1 and moves CHG-0005 to `APPROVED`.
 
-T1 through T4 are complete.
+T1 through T5 are complete.
 
-T5 is the next executable task: `T5 Approve ownership, persistence, lifecycle, and failure boundaries`.
+T6 is the next executable task: `T6 Implement only the approved local fixed-script reply boundary`.
 
-T5 has not started in this execution.
+T6 has not started in this execution.
 
 Every later task still requires separate execution with strict task boundaries.
 
@@ -79,9 +79,9 @@ This approval does not authorize Ready for review, Reviewer request, Auto-merge,
 
 CHG-0005 is approved for sequenced task execution only.
 
-T1 through T4 are complete.
+T1 through T5 are complete.
 
-T5 is next and has not started.
+T6 is next and has not started.
 
 Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized until separately approved by the project owner.
 
@@ -140,3 +140,21 @@ Approved matching decisions:
 - Safety suppression and escalation gates approved in T3 take precedence over matching and rendering.
 
 T4 does not authorize Runtime implementation, persistence, Capability binding, Ready for review, Reviewer request, Auto-merge, or Merge.
+
+
+## T5 architecture approval record
+
+T5 approves the Phase 1 design for future local fixed-script reply ownership, domain model, public interfaces, persistence shape, lifecycle, migration plan, and verification matrix.
+
+Approved architecture decisions:
+
+- CAP-XY-REPLY remains a planned `app.reply` capability until a later implementation task registers evidence.
+- A future implementation may create a local package under `app/xianyu_system/reply/` that is independent of SQLAlchemy and FastAPI at the Domain layer.
+- Future persistence must use the existing Core database, Session, Alembic, and explicit migration boundaries.
+- Future rule evaluation is local, deterministic, synchronous, and side-effect free until a separate sending capability exists.
+- Future Service code owns transaction coordination; Repository code flushes but does not commit.
+- Future rule and template records are Profile-scoped and Account-scoped through existing Account and Message identifiers.
+- Future Migration is planned as `0004_xianyu_reply_boundary`, after `0003_xianyu_message_boundary`, but no migration file is created in Phase 1.
+- Future tests must cover Domain, Service, Persistence Contract, Security Contract, Import Safety, Migrations, Capability Registry, and archived acceptance evidence before CAP-XY-REPLY can become verified.
+
+T5 completes Phase 1 design approval only. T6 implementation, runtime files, database migration files, dependency changes, workflow changes, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.

@@ -7,11 +7,11 @@ Change ID: CHG-0005-xianyu-reply-boundary
 
 CHG-0005 has project-owner approval and is now `APPROVED`.
 
-T1 through T4 are complete.
+T1 through T5 are complete.
 
-T5 is the next executable task: `T5 Approve ownership, persistence, lifecycle, and failure boundaries`.
+T6 is the next executable task: `T6 Implement only the approved local fixed-script reply boundary`.
 
-T5 has not started in this execution.
+T6 has not started in this execution.
 
 No Runtime design is approved.
 
@@ -362,3 +362,297 @@ Template rendering occurs after a single matching rule is selected. Rendering fa
 ### T4 non-implementation boundary
 
 T4 approves deterministic behavior only. It does not create Runtime modules, persistence files, migrations, API routes, workers, schedulers, external clients, credential handlers, browser integrations, sending behavior, Capability binding, or permanent capability evidence.
+
+
+## T5 approved ownership, persistence, lifecycle, and failure architecture
+
+### Capability ownership and module boundary
+
+CAP-XY-REPLY remains planned and unbound in `specs/CAPABILITY_REGISTRY.yaml` during Phase 1. The registry owner module remains `app.reply` as the abstract capability owner.
+
+If T6 is later authorized, the approved local source package is `app/xianyu_system/reply/`. Planned modules are:
+
+| Planned module | Ownership | Notes |
+| --- | --- | --- |
+| `app/xianyu_system/reply/__init__.py` | package surface | lazy public exports only |
+| `app/xianyu_system/reply/domain.py` | pure Domain | entities, value objects, enums, DTOs, protocol types |
+| `app/xianyu_system/reply/evaluator.py` | pure evaluator | deterministic safety and rule evaluation; no SQLAlchemy, FastAPI, network, or file I/O |
+| `app/xianyu_system/reply/renderer.py` | pure renderer | fixed-template substitution with allowlisted variables only |
+| `app/xianyu_system/reply/mapper.py` | adapter | converts approved Message-boundary values to ReplyEvaluationContext |
+| `app/xianyu_system/reply/persistence.py` | SQLAlchemy persistence | ORM projections and Repository implementation only |
+| `app/xianyu_system/reply/service.py` | application service | transaction coordination, repository orchestration, and decision return |
+
+No API route, Web UI, Worker loop, Scheduler job, browser adapter, WeCom adapter, AI adapter, message sender, credential resolver, or external client is part of the approved T5 architecture.
+
+### Final domain model
+
+Entities:
+
+- `ReplyRule`: Profile-scoped, Account-scoped, versioned rule. Fields: `rule_id`, `profile_id`, `account_reference`, `name`, `priority`, `enabled`, `lifecycle_state`, `template_id`, `template_version`, `version`, `created_at`, `updated_at`, `row_version`.
+- `ReplyTemplate`: Profile-scoped, Account-scoped, versioned fixed-script template. Fields: `template_id`, `profile_id`, `account_reference`, `version`, `name`, `body`, `variable_allowlist`, `enabled`, `lifecycle_state`, `created_at`, `updated_at`, `row_version`.
+- `ReplyAuditEvent`: sanitized local decision record. Fields: `event_id`, `profile_id`, `account_reference`, `conversation_id`, `message_id`, `rule_id`, `template_id`, `template_version`, `decision_type`, `reason_code`, `failure_category`, `created_at`, `correlation_identifier`.
+
+Value Objects:
+
+- `ReplyCondition`: `field`, `operator`, `comparison_value`, `normalization`, `case_sensitive`.
+- `ReplyPriority`: non-negative integer; smaller value means higher priority.
+- `TemplateVariableName`: allowlisted identifier; no object access or expression execution.
+- `ReplyRenderedText`: inert text for a local decision; never a platform send instruction.
+- `ReplyAuditIdentifiers`: stable identifiers and correlation reference without full message text.
+
+Enums:
+
+- `ReplyDecisionType`: `REPLY`, `NO_MATCH`, `CONFLICT`, `ESCALATE`, `SUPPRESSED`, `INVALID_INPUT`.
+- `ReplyReasonCode`: `RULE_MATCHED`, `NO_RULE_MATCHED`, `DUPLICATE_HIGHEST_PRIORITY_MATCH`, `UNSUPPORTED_LANGUAGE`, `AUTHORIZATION_UNKNOWN`, `RISK_UNKNOWN`, `HUMAN_TRANSFER_REQUIRED`, `SENSITIVE_TOPIC`, `SAFETY_SUPPRESSED`, `MISSING_REQUIRED_INPUT`, `UNSUPPORTED_FIELD`, `UNSUPPORTED_OPERATOR`, `MISSING_TEMPLATE`, `MISSING_TEMPLATE_VARIABLE`, `FORBIDDEN_PLACEHOLDER`, `INVALID_LIFECYCLE_STATE`, `INVALID_PRIORITY`.
+- `ReplyLifecycleState`: `DRAFT`, `ENABLED`, `DISABLED`, `ARCHIVED`.
+- `ReplyAuthorizationState`: `EXPLICITLY_AUTHORIZED`, `MISSING`, `UNKNOWN`, `EXPIRED`, `DENIED`, `REVOKED`, `VERIFICATION_REQUIRED`.
+- `ReplyRiskState`: `ALLOWED`, `LOW_RISK`, `UNKNOWN`, `UNAVAILABLE`, `PENDING_REVIEW`, `THROTTLED`, `BLOCKED`.
+
+DTOs:
+
+- `ReplyEvaluationContext`: Profile, Account, Conversation, Message identifiers, approved content projection, received timestamp, language hint, authorization state, risk state, suppression hints, and synthetic fixture flag.
+- `ReplyDecision`: decision type, reason code, optional rule/template references, optional rendered text, sanitized escalation or suppression category, and audit identifiers.
+- `ReplyRuleSnapshot`: immutable evaluation snapshot containing one rule, its condition set, and referenced template version.
+- `ReplyTemplateRenderInput`: template body, allowlist, and supplied variables.
+
+Protocols:
+
+- `ReplyRuleRepository`: load rule snapshots, persist rules/templates/audit events, and flush without commit.
+- `ReplyTemplateRepository`: load enabled templates by profile/account/template/version.
+- `ReplyEvaluator`: evaluate context and snapshots into a ReplyDecision.
+- `ReplyTemplateRenderer`: render inert fixed text from allowlisted variables.
+- `ReplyContextMapper`: adapt verified Message values into ReplyEvaluationContext without changing CAP-XY-MESSAGE.
+- `ReplyDecisionService`: coordinate repository, mapper, evaluator, renderer, and transaction boundary.
+
+### Domain invariants and relationships
+
+- All persisted Reply records are Profile-scoped.
+- All persisted Reply records are Account-scoped through `account_reference`.
+- ReplyRule references exactly one ReplyTemplate version.
+- ReplyCondition rows belong to exactly one ReplyRule.
+- ReplyAuditEvent references Profile, Account, Conversation, and Message identifiers but does not own Message data.
+- Rule/template lifecycle transitions are `DRAFT -> ENABLED -> DISABLED -> ARCHIVED`; archived records are immutable.
+- Enabled rules require at least one condition and one enabled template version.
+- Template bodies are inert text and may reference only allowlisted variables.
+- A rendered ReplyDecision is local output only and is not a send operation.
+- Row-version fields support optimistic concurrency; stale updates fail closed.
+- Repository errors must be sanitized before surfacing to callers.
+
+### Public interface contract
+
+Planned protocol signatures are design-only and may be implemented only after T6 approval:
+
+```python
+class ReplyContextMapper(Protocol):
+    def map_message(self, message: object) -> ReplyEvaluationContext: ...
+
+class ReplyRuleRepository(Protocol):
+    def list_enabled_snapshots(self, profile_id: str, account_reference: str) -> list[ReplyRuleSnapshot]: ...
+    def get_template(self, profile_id: str, account_reference: str, template_id: str, version: int) -> ReplyTemplate | None: ...
+    def record_audit_event(self, event: ReplyAuditEvent) -> None: ...
+
+class ReplyEvaluator(Protocol):
+    def evaluate(self, context: ReplyEvaluationContext, snapshots: list[ReplyRuleSnapshot]) -> ReplyDecision: ...
+
+class ReplyTemplateRenderer(Protocol):
+    def render(self, template: ReplyTemplate, variables: dict[str, str]) -> ReplyRenderedText: ...
+
+class ReplyDecisionService(Protocol):
+    def decide_for_message(self, message: object) -> ReplyDecision: ...
+```
+
+Transaction ownership:
+
+- Service owns Session scope, commit, rollback, and error mapping.
+- Repository receives an existing Session and must not commit.
+- Evaluator and renderer are pure and own no transaction.
+- Mapper does not mutate Message records.
+- Local CLI, if later approved, may call the Service with synthetic fixture input and print sanitized decision JSON only.
+
+### Database design
+
+The approved future physical schema uses explicit relational tables, not generic JSON storage. No table is created in Phase 1.
+
+#### `xianyu_reply_templates`
+
+| Column | Type | Null | Constraint |
+| --- | --- | --- | --- |
+| `template_id` | String(36) | no | primary identity component |
+| `profile_id` | String(36) | no | FK to `xianyu_account_profiles.profile_id` |
+| `account_reference` | String(256) | no | trimmed, 1..256 |
+| `version` | Integer | no | positive |
+| `name` | String(120) | no | trimmed, 1..120 |
+| `body` | String(2000) | no | non-blank, 1..2000 |
+| `variable_allowlist` | String(512) | no | comma-separated allowlisted variable names only |
+| `enabled` | Boolean | no | explicit |
+| `lifecycle_state` | String(16) | no | DRAFT, ENABLED, DISABLED, ARCHIVED |
+| `created_at` | DateTime(timezone=True) | no | UTC |
+| `updated_at` | DateTime(timezone=True) | no | UTC |
+| `row_version` | Integer | no | positive optimistic concurrency value |
+
+Keys and constraints:
+
+- Primary key: `template_id`, `version`.
+- Unique: `profile_id`, `account_reference`, `name`, `version`.
+- FK: `profile_id` restricts deletion of Account Profile while templates exist.
+- Checks: identifier lengths, trimmed text, positive version, positive row_version, lifecycle enum, body length, allowlist length.
+- Indexes: `profile_id`, `account_reference`, `enabled`, `lifecycle_state`; `profile_id`, `account_reference`, `template_id`, `version`.
+
+#### `xianyu_reply_rules`
+
+| Column | Type | Null | Constraint |
+| --- | --- | --- | --- |
+| `rule_id` | String(36) | no | primary key |
+| `profile_id` | String(36) | no | FK to Account Profile |
+| `account_reference` | String(256) | no | trimmed, 1..256 |
+| `name` | String(120) | no | trimmed, 1..120 |
+| `priority` | Integer | no | zero or positive |
+| `enabled` | Boolean | no | explicit |
+| `lifecycle_state` | String(16) | no | DRAFT, ENABLED, DISABLED, ARCHIVED |
+| `template_id` | String(36) | no | FK component to ReplyTemplate |
+| `template_version` | Integer | no | FK component to ReplyTemplate |
+| `version` | Integer | no | positive rule semantic version |
+| `created_at` | DateTime(timezone=True) | no | UTC |
+| `updated_at` | DateTime(timezone=True) | no | UTC |
+| `row_version` | Integer | no | positive optimistic concurrency value |
+
+Keys and constraints:
+
+- Primary key: `rule_id`.
+- Unique: `profile_id`, `account_reference`, `name`, `version`.
+- FK: `profile_id` restricts deletion of Account Profile while rules exist.
+- FK: `template_id`, `template_version` restricts deletion of referenced templates while rules exist.
+- Checks: identifier lengths, trimmed name/account reference, non-negative priority, positive version, positive row_version, lifecycle enum.
+- Indexes: `profile_id`, `account_reference`, `enabled`, `lifecycle_state`, `priority`; `template_id`, `template_version`.
+
+#### `xianyu_reply_conditions`
+
+| Column | Type | Null | Constraint |
+| --- | --- | --- | --- |
+| `condition_id` | String(36) | no | primary key |
+| `rule_id` | String(36) | no | FK to ReplyRule |
+| `sequence_number` | Integer | no | positive and unique per rule |
+| `field_name` | String(64) | no | approved ReplyEvaluationContext field |
+| `operator` | String(16) | no | equals, contains, starts_with, ends_with |
+| `comparison_value` | String(512) | no | non-blank |
+| `normalization` | String(64) | no | explicit normalization flags |
+| `case_sensitive` | Boolean | no | explicit |
+
+Keys and constraints:
+
+- Primary key: `condition_id`.
+- Unique: `rule_id`, `sequence_number`.
+- FK: `rule_id` restricts deletion while conditions exist unless an explicit delete workflow removes conditions first.
+- Checks: identifier lengths, positive sequence, supported operator enum, non-blank comparison value, supported field enum, supported normalization flags.
+- Indexes: `rule_id`, `sequence_number`; `field_name`, `operator`.
+
+#### `xianyu_reply_audit_events`
+
+| Column | Type | Null | Constraint |
+| --- | --- | --- | --- |
+| `event_id` | String(36) | no | primary key |
+| `profile_id` | String(36) | no | FK to Account Profile |
+| `account_reference` | String(256) | no | trimmed, 1..256 |
+| `conversation_id` | String(36) | no | message identifier projection |
+| `message_id` | String(36) | no | message identifier projection |
+| `rule_id` | String(36) | yes | populated only when applicable |
+| `template_id` | String(36) | yes | populated only when applicable |
+| `template_version` | Integer | yes | populated only when applicable |
+| `decision_type` | String(16) | no | ReplyDecisionType |
+| `reason_code` | String(64) | no | ReplyReasonCode |
+| `failure_category` | String(64) | yes | sanitized category only |
+| `created_at` | DateTime(timezone=True) | no | UTC |
+| `correlation_identifier` | String(128) | yes | sanitized correlation only |
+
+Keys and constraints:
+
+- Primary key: `event_id`.
+- FK: `profile_id` restricts deletion of Account Profile while audit events exist.
+- Optional FK: `rule_id` restricts deletion when populated.
+- Optional composite FK: `template_id`, `template_version` restricts deletion when populated.
+- Checks: identifier lengths, trimmed account reference, supported decision enum, reason-code length, sanitized failure and correlation lengths.
+- Indexes: `profile_id`, `account_reference`, `message_id`; `decision_type`, `reason_code`; `created_at`.
+
+Prohibited stored data across all tables:
+
+- full message text in audit rows;
+- credential values;
+- Cookie, Token, Secret, Password, Session Material, or browser Profile state;
+- raw network payloads;
+- external-service responses;
+- arbitrary JSON, BLOB, metadata, extras, context, payload, or key-value extension columns.
+
+### Migration plan
+
+If T6 is later authorized, the planned migration is `migrations/versions/0004_xianyu_reply_boundary.py` with `down_revision = "0003_xianyu_message_boundary"`.
+
+Upgrade order:
+
+1. Create `xianyu_reply_templates`.
+2. Create `xianyu_reply_rules`.
+3. Create `xianyu_reply_conditions`.
+4. Create `xianyu_reply_audit_events`.
+5. Add all foreign keys during table creation.
+6. Add indexes after table creation.
+7. Add no seed data and run no external lookup.
+
+Downgrade order:
+
+1. Fail closed if reply tables contain rows unless an explicitly approved empty-downgrade path is used.
+2. Drop indexes in reverse creation order.
+3. Drop `xianyu_reply_audit_events`.
+4. Drop `xianyu_reply_conditions`.
+5. Drop `xianyu_reply_rules`.
+6. Drop `xianyu_reply_templates`.
+7. Preserve Account and Message tables and data.
+
+Rollback risks and compatibility checks:
+
+- Existing Account and Message migrations must remain present and unchanged.
+- Foreign keys must not cascade-delete Account, Conversation, Message, Rule, or Template data.
+- Empty downgrade must prove Account and Message rows are preserved.
+- Non-empty downgrade must preserve revision, tables, and rows when it fails closed.
+- Application startup must not auto-run migrations.
+- Migration tests must use synthetic local databases only.
+
+Migration created in Phase 1: no.
+
+### Failure boundary
+
+Failures return local decision or sanitized exception classes only:
+
+- missing required context: `INVALID_INPUT` / `MISSING_REQUIRED_INPUT`;
+- unsupported field or operator: `INVALID_INPUT` / `UNSUPPORTED_FIELD` or `UNSUPPORTED_OPERATOR`;
+- invalid lifecycle or priority: `INVALID_INPUT` / `INVALID_LIFECYCLE_STATE` or `INVALID_PRIORITY`;
+- missing or disabled template: `INVALID_INPUT` / `MISSING_TEMPLATE`;
+- template variable failure: `INVALID_INPUT` / `MISSING_TEMPLATE_VARIABLE` or `FORBIDDEN_PLACEHOLDER`;
+- duplicate highest-priority match: `CONFLICT` / `DUPLICATE_HIGHEST_PRIORITY_MATCH`;
+- no matching rule: `NO_MATCH` / `NO_RULE_MATCHED`;
+- authorization uncertainty: `ESCALATE` / `AUTHORIZATION_UNKNOWN`;
+- risk uncertainty: `ESCALATE` / `RISK_UNKNOWN`;
+- blocked or sensitive content: `SUPPRESSED` / `SAFETY_SUPPRESSED` or `SENSITIVE_TOPIC`.
+
+No failure path sends a message, calls WeCom, calls AI, opens a browser, reads credentials, performs external network I/O, starts a background thread, registers a Scheduler job, creates an API route, or writes full message text to audit records.
+
+### Test matrix
+
+Future implementation must add permanent evidence before verification:
+
+| Layer | Required evidence |
+| --- | --- |
+| Unit Domain | entity validation, lifecycle transitions, priority ordering, rule conflict semantics, reason-code mapping |
+| Unit Evaluator | safety gate order, operator semantics, normalization, case handling, AND composition, no-match, invalid-input behavior |
+| Unit Renderer | allowlist-only rendering, missing variables, forbidden placeholders, inert text, no expression execution |
+| Unit Mapper | approved Message-to-Reply projection, missing required identifiers, no mutation of Message semantics |
+| Unit Service | transaction ownership, repository orchestration, rollback, sanitized errors, audit-event recording |
+| Contract Persistence | exact tables, columns, keys, constraints, indexes, FKs, row-version checks, no prohibited columns |
+| Contract Migration | upgrade head, downgrade empty path, non-empty downgrade fail-closed, lineage from 0003, offline SQL scan |
+| Contract Capability Registry | planned-to-verified evidence paths only after complete implementation verification |
+| Security | no credentials, no browser state, no external network, no WeCom, no AI, no message sending, no full message text in audit |
+| Import Safety | package and Domain imports do not import persistence, register ORM metadata, create engines, start workers, or open files |
+| Active Acceptance | T6 implementation boundary must be separately authorized and cannot start during Phase 1 |
+| Archived Acceptance | CHG-0005 evidence preserved under archive only after PR merge and explicit transition |
+
+### T5 non-implementation boundary
+
+T5 completes design approval only. It creates no Runtime package, module, migration, table, repository, service, worker, API, Web UI, Scheduler job, external adapter, dependency, workflow, Capability Registry binding, or permanent evidence path. T6 is the next task and has not started.
