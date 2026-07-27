@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 4,
-    "next_task": "T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries",
+    "completed": 5,
+    "next_task": "T6 Implement only the separately approved local publishing boundary",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0006",
@@ -29,7 +29,7 @@
       },
       {
         "text": "T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T6 Implement only the separately approved local publishing boundary",

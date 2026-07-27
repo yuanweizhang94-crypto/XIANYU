@@ -239,3 +239,57 @@ If a future historical attempt exists with outcome `UNKNOWN`, the boundary must 
 A local PublishDecision may be `READY` only when the synthetic fixture is confirmed, required fields are valid, authorization is `AUTHORIZED`, risk is `CLEAR`, no idempotency conflict exists, no duplicate draft blocks execution, no historical `UNKNOWN` outcome exists, and no real platform state confirmation is required.
 
 `READY` still does not authorize publication.
+
+## T5 approved ownership, persistence, lifecycle, audit, and failure boundaries
+
+### Ownership boundary
+
+The owner module remains `worker.publish`, matching the capability Registry ownership for CAP-XY-PUBLISH.
+
+A future Python package may be recorded as `app/xianyu_system/worker/publish`, following the existing worker package convention, but this task creates no package, module, Domain, Service, Repository, Worker, Adapter, schema, or Migration.
+
+### Future publish domain responsibilities
+
+A future publish domain may own ListingDraft, PublishRequest, PublishValidationResult, PublishDecision, PublishAttempt, PublishOutcome, lifecycle rules, reason codes, and fail-closed invariants.
+
+### Future application and service boundary
+
+A future application or local Service boundary may orchestrate local validation and request a repository protocol. It must not call a real platform, receive Credential material, open a browser, invoke Playwright, or infer platform state.
+
+### Future repository protocol
+
+A future repository protocol may provide a local persistence abstraction only after separate authorization. T5 approves conceptual persistence rules but no physical table, column, index, ORM model, or Migration.
+
+### Future platform adapter
+
+Any platform adapter must be a separate capability or separately explicit approved boundary. It must not be mixed into the publish Domain, Repository, or local Service responsibilities.
+
+### Conceptual persistence requirements
+
+Future persistence must preserve idempotency-key uniqueness, immutable request fingerprints, monotonic attempt numbers, non-overwritten outcomes, preserved `UNKNOWN` outcomes, append-only audit history, identifiable synthetic fixtures, and fail-closed transaction failure.
+
+Future persistence must not store Credential, Cookie, Token, Secret, Password, Session Material, browser Profile, media binaries, raw platform responses, real customer data, or real personal data.
+
+### Lifecycle boundaries
+
+ListingDraftLifecycle states are `DRAFT`, `VALIDATED`, `READY_FOR_MANUAL_REVIEW`, and `ARCHIVED`. It intentionally has no `PUBLISHED` state because the local boundary does not publish.
+
+PublishRequestLifecycle states are `RECEIVED`, `VALIDATED`, `REJECTED`, `READY`, `DUPLICATE`, `CONFLICT`, and `MANUAL_REVIEW`.
+
+PublishAttemptLifecycle states are `NOT_STARTED`, `IN_PROGRESS`, and `COMPLETED`. The current change does not create a real `IN_PROGRESS` attempt.
+
+PublishOutcomeType remains `SUCCEEDED`, `FAILED`, `UNKNOWN`, and `CANCELLED`, and belongs to a future separately authorized platform boundary.
+
+### Audit boundary
+
+A future audit event may include `event_id`, `event_type`, `occurred_at`, `request_id`, `draft_id`, `draft_revision`, `attempt_id`, `decision_type`, `reason_code`, `correlation_id`, and `synthetic_fixture`.
+
+A future audit event must not include full description, full media metadata, Credential, Cookie, Token, Secret, Password, Session Material, browser state, raw platform response, real personal data, or real customer data.
+
+### Failure classification
+
+Approved stable failure categories are `VALIDATION_ERROR`, `AUTHORIZATION_ERROR`, `RISK_BLOCKED`, `IDEMPOTENCY_CONFLICT`, `DUPLICATE_REQUEST`, `PERSISTENCE_ERROR`, `ADAPTER_ERROR`, `TIMEOUT`, `UNKNOWN_OUTCOME`, and `CANCELLED`.
+
+Validation errors are not retried. Authorization and risk errors are not bypassed. Idempotency conflicts do not overwrite previous requests. Duplicate requests do not automatically create a second attempt. Persistence errors do not produce `READY`. Adapter errors and timeouts are not automatically interpreted as success or failure. `UNKNOWN_OUTCOME` does not automatically retry.
+
+All retry, scheduler, and background-worker behavior requires future separate authorization and is not implemented by CHG-0006 T1-T5.

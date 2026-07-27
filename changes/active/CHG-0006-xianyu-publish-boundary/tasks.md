@@ -7,7 +7,7 @@ Change ID: CHG-0006-xianyu-publish-boundary
 - [x] T2 Finalize listing, publish request, attempt, and outcome terminology
 - [x] T3 Approve permission, credential, risk-control, and platform boundaries
 - [x] T4 Approve validation, idempotency, duplicate, and uncertainty boundaries
-- [ ] T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries
+- [x] T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries
 - [ ] T6 Implement only the separately approved local publishing boundary
 - [ ] T7 Add unit, contract, security, and active-change acceptance tests
 - [ ] T8 Update capability evidence and run complete verification
@@ -15,9 +15,9 @@ Change ID: CHG-0006-xianyu-publish-boundary
 
 ## Current task state
 
-Completed tasks: 4 / 9.
+Completed tasks: 5 / 9.
 
-Next task: T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries.
+Next task: T6 Implement only the separately approved local publishing boundary.
 
 T6 implementation is not authorized in this execution and has not started.
 

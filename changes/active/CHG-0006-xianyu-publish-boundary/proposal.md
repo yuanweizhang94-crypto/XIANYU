@@ -13,17 +13,15 @@ Prepare a formally reviewable local Xianyu publishing boundary without using Pla
 
 ## Current authorization
 
-This change is DRAFT preparation only.
+CHG-0006 is APPROVED for sequential governance and design work only.
 
-No CHG-0006 task is approved.
+The project owner authorized T1 through T5 in this execution, with each task completed, verified, and committed independently.
 
-T1 has not started.
+T1 through T5 are complete.
 
-No task may execute while this change remains DRAFT.
+T6 is the next task but is not authorized in this execution and has not started.
 
-DRAFT state has no executable next task.
-
-Moving beyond DRAFT requires separate explicit project-owner approval.
+No Runtime implementation, capability binding, reviewer request, Ready transition, auto-merge, or merge is authorized.
 
 ## Candidate goals for later review
 
@@ -106,3 +104,11 @@ T4 is complete. Validation, idempotency, duplicate, and uncertainty behavior are
 T5 is the next executable task.
 
 READY remains local validation only and does not authorize publication. UNKNOWN outcomes require manual review and no automatic retry.
+
+## T5 completion record
+
+T5 is complete. Ownership, persistence, lifecycle, audit, and failure boundaries are approved as design-only constraints.
+
+T6 Implement only the separately approved local publishing boundary is the next task, but T6 is not authorized in this execution and has not started.
+
+CAP-XY-PUBLISH remains planned and unbound with null active_change, empty implementation_paths, empty test_paths, and null last_verified_commit. PR #6 remains Draft, open, and unmerged.

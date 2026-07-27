@@ -38,11 +38,11 @@ Change ID: CHG-0006-xianyu-publish-boundary
 
 ## Current authorization
 
-Draft preparation only.
+CHG-0006 is APPROVED for T1 through T5 governance and design work only.
 
-No CHG-0006 task is approved.
+T1 through T5 are complete.
 
-T1 has not started.
+T6 is the next task but is not authorized in this execution and has not started.
 
 No implementation, capability binding, reviewer request, Ready transition, auto-merge, or merge is authorized.
 
@@ -89,3 +89,18 @@ No implementation, capability binding, reviewer request, Ready transition, auto-
 6. Required fields and normalization boundaries are documented.
 7. Idempotency replay, idempotency conflict, duplicate draft handling, and UNKNOWN outcome manual review are documented.
 8. READY is documented as local validation only and not publication.
+
+## T5 acceptance criteria
+
+1. T1 through T5 are complete.
+2. T6 through T9 remain incomplete.
+3. PROJECT_STATE reports 5 / 9 tasks complete.
+4. PROJECT_STATE next_task is `T6 Implement only the separately approved local publishing boundary`.
+5. Owner module remains `worker.publish`.
+6. Future package path `app/xianyu_system/worker/publish` is documented only and is not created.
+7. ListingDraftLifecycle excludes `PUBLISHED` because the local boundary does not publish.
+8. Persistence and audit boundaries are conceptual only; no schema, Migration, table, column, or index is introduced.
+9. Audit excludes Credential, Cookie, Token, Secret, browser state, raw platform response, real personal data, and complete content.
+10. Failure classification and no-retry boundaries are documented.
+11. CAP-XY-PUBLISH remains planned, unbound, with empty implementation_paths, empty test_paths, null active_change, and null last_verified_commit.
+12. PR #6 remains Draft, open, and unmerged.

@@ -12,14 +12,25 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
 - CHG-0006-xianyu-publish-boundary is the only Active Change.
 - CHG-0006 status is `APPROVED`.
-- CHG-0006 completed tasks: 4 / 9.
-- Completed tasks: T1-T4.
-- Next task: `T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries`.
+- CHG-0006 completed tasks: 5 / 9.
+- Completed tasks: T1-T5.
+- Next task: `T6 Implement only the separately approved local publishing boundary`.
 - T6 is not authorized and has not started.
 - CAP-XY-PUBLISH remains planned and unbound.
 - CAP-XY-PUBLISH keeps empty `implementation_paths`, empty `test_paths`, null `active_change`, and null `last_verified_commit`.
 - No Playwright, browser automation, real Xianyu access, publishing behavior, credential access, real data access, or external network access is introduced.
 - Any T6 implementation requires new separate project-owner authorization.
+
+## CHG-0006 T5 approved publish architecture boundaries
+
+- Owner module remains `worker.publish`.
+- Future package `app/xianyu_system/worker/publish` is documented only and is not created by T5.
+- Future publish Domain responsibilities cover ListingDraft, PublishRequest, PublishValidationResult, PublishDecision, PublishAttempt, PublishOutcome, lifecycle rules, reason codes, and fail-closed invariants.
+- Future local Service orchestration may request a repository protocol, but it must not call a real platform, receive Credential material, open a browser, or invoke Playwright.
+- Future persistence and audit requirements are conceptual only; no schema, Migration, table, column, index, ORM model, or implementation file is introduced.
+- ListingDraftLifecycle is `DRAFT`, `VALIDATED`, `READY_FOR_MANUAL_REVIEW`, and `ARCHIVED`; it intentionally excludes `PUBLISHED` because the local boundary does not publish.
+- Failure classification covers `VALIDATION_ERROR`, `AUTHORIZATION_ERROR`, `RISK_BLOCKED`, `IDEMPOTENCY_CONFLICT`, `DUPLICATE_REQUEST`, `PERSISTENCE_ERROR`, `ADAPTER_ERROR`, `TIMEOUT`, `UNKNOWN_OUTCOME`, and `CANCELLED`.
+- T6 remains the next task but is not authorized and has not started.
 
 ## Project goal
 
