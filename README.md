@@ -13,10 +13,10 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Its historical acceptance evidence is preserved under `changes/archive/`.
 - CHG-0005-xianyu-reply-boundary is the only Active Change.
 - CHG-0005 status is `APPROVED`.
-- CHG-0005 T1 through T3 are complete; tasks are 3 / 9.
+- CHG-0005 T1 through T4 are complete; tasks are 4 / 9.
 - CAP-XY-REPLY remains planned and unbound.
 - No Reply Runtime, Rule Engine, Template Engine, Message Sending, WeCom, AI Provider, browser, external network, real-account, or customer-data behavior is implemented.
-- T4 is the next executable task and has not started; Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
+- T5 is the next executable task and has not started; Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
 
 ## Project goal
 

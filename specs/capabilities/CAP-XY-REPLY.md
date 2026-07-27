@@ -68,3 +68,17 @@ No runtime code, persistence code, API, worker, migration, external platform cli
 - Audit evidence is identifier- and reason-code based; full message text, credentials, browser state, raw network payloads, and secret material are prohibited.
 
 T3 remains design-only and registers no runtime, migration, or verification evidence.
+
+
+### T4 approved matching semantics
+
+- Supported operators are limited to `equals`, `contains`, `starts_with`, and `ends_with`.
+- Conditions combine with AND only.
+- Normalization is explicit and deterministic: trim, NFKC, and optional case folding.
+- Smaller integer priority values are higher priority.
+- Multiple matches at the best priority produce `CONFLICT` with `DUPLICATE_HIGHEST_PRIORITY_MATCH`.
+- No eligible matching rule produces `NO_MATCH` with `NO_RULE_MATCHED`.
+- Unsupported fields, operators, missing templates, forbidden placeholders, missing variables, and malformed configuration produce `INVALID_INPUT`.
+- Suppression and escalation decisions are evaluated before matching and rendering.
+
+T4 remains design-only and registers no runtime, migration, or verification evidence.

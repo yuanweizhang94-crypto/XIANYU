@@ -17,11 +17,11 @@ The project owner has explicitly approved CHG-0005.
 
 This approval completes T1 and moves CHG-0005 to `APPROVED`.
 
-T1 through T3 are complete.
+T1 through T4 are complete.
 
-T4 is the next executable task: `T4 Approve matching, precedence, fallback, and escalation boundaries`.
+T5 is the next executable task: `T5 Approve ownership, persistence, lifecycle, and failure boundaries`.
 
-T4 has not started in this execution.
+T5 has not started in this execution.
 
 Every later task still requires separate execution with strict task boundaries.
 
@@ -79,9 +79,9 @@ This approval does not authorize Ready for review, Reviewer request, Auto-merge,
 
 CHG-0005 is approved for sequenced task execution only.
 
-T1 through T3 are complete.
+T1 through T4 are complete.
 
-T4 is next and has not started.
+T5 is next and has not started.
 
 Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized until separately approved by the project owner.
 
@@ -120,3 +120,23 @@ Approved safety decisions:
 - Audit records may include identifiers, decision type, reason code, rule reference, template reference, timestamps, and sanitized failure category; they must not include full customer message text, credentials, browser state, or secret material.
 
 T3 does not authorize Runtime implementation, persistence, Capability binding, Ready for review, Reviewer request, Auto-merge, or Merge.
+
+
+## T4 matching behavior approval record
+
+T4 approves deterministic matching semantics for the future local fixed-script reply evaluator.
+
+Approved matching decisions:
+
+- Supported condition operators are `equals`, `contains`, `starts_with`, and `ends_with` only.
+- Conditions in one ReplyRule combine with AND; there is no OR, regex, script execution, fuzzy matching, semantic search, AI scoring, or external lookup.
+- Normalization is explicit per condition and limited to trim, Unicode NFKC, and optional case folding.
+- Case-sensitive and case-insensitive behavior must be explicitly configured; no implicit locale guessing is allowed.
+- Only enabled rules and enabled templates participate in evaluation.
+- Smaller integer `priority` values have higher priority.
+- Multiple enabled rules may share a priority, but if more than one highest-priority matching rule exists the result is `CONFLICT` with `DUPLICATE_HIGHEST_PRIORITY_MATCH`.
+- No enabled match returns `NO_MATCH` with `NO_RULE_MATCHED`.
+- Unsupported field/operator, blank required input, missing template, missing variable, or forbidden placeholder returns `INVALID_INPUT`.
+- Safety suppression and escalation gates approved in T3 take precedence over matching and rendering.
+
+T4 does not authorize Runtime implementation, persistence, Capability binding, Ready for review, Reviewer request, Auto-merge, or Merge.

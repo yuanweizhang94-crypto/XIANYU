@@ -49,9 +49,9 @@ Change ID: CHG-0005-xianyu-reply-boundary
 
 Project-owner approval for CHG-0005 is recorded.
 
-T1 through T3 are complete.
+T1 through T4 are complete.
 
-T4 is the next executable task and has not started.
+T5 is the next executable task and has not started.
 
 Implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge are not authorized.
 
@@ -84,3 +84,23 @@ Implementation, Capability binding, Ready for review, Reviewer request, Auto-mer
 11. CAP-XY-REPLY remains planned, unbound, and without implementation paths, test paths, active_change, or last_verified_commit.
 12. CAPABILITY_REGISTRY is not modified.
 13. No Runtime, Migration, dependency, workflow, Ready transition, reviewer request, auto-merge, or merge is authorized.
+
+
+## T4 acceptance criteria
+
+1. CHG-0005 remains APPROVED.
+2. T1 through T4 are complete.
+3. T5 through T9 remain incomplete.
+4. PROJECT_STATE reports completed tasks as 4 / 9.
+5. PROJECT_STATE next_task is `T5 Approve ownership, persistence, lifecycle, and failure boundaries`.
+6. Matching operators are limited to `equals`, `contains`, `starts_with`, and `ends_with`.
+7. Normalization and case handling are explicit and deterministic.
+8. Conditions in one rule combine with AND only.
+9. Smaller integer priority values have higher priority.
+10. Multiple highest-priority matches produce `CONFLICT` and no rendered text.
+11. No eligible matching rule produces `NO_MATCH` and no rendered text.
+12. Invalid fields, operators, templates, variables, lifecycle states, or priorities produce `INVALID_INPUT`.
+13. T3 suppression and escalation decisions take precedence over matching and rendering.
+14. CAP-XY-REPLY remains planned, unbound, and without implementation paths, test paths, active_change, or last_verified_commit.
+15. CAPABILITY_REGISTRY is not modified.
+16. No Runtime, Migration, dependency, workflow, Ready transition, reviewer request, auto-merge, or merge is authorized.

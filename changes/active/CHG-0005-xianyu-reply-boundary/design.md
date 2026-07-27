@@ -7,11 +7,11 @@ Change ID: CHG-0005-xianyu-reply-boundary
 
 CHG-0005 has project-owner approval and is now `APPROVED`.
 
-T1 through T3 are complete.
+T1 through T4 are complete.
 
-T4 is the next executable task: `T4 Approve matching, precedence, fallback, and escalation boundaries`.
+T5 is the next executable task: `T5 Approve ownership, persistence, lifecycle, and failure boundaries`.
 
-T4 has not started in this execution.
+T5 has not started in this execution.
 
 No Runtime design is approved.
 
@@ -278,3 +278,87 @@ Allowed audit fields are stable identifiers, rule/template references, decision 
 ### T3 non-implementation boundary
 
 T3 approves safety semantics only. It does not create Runtime modules, persistence files, migrations, API routes, workers, schedulers, external clients, credential handlers, browser integrations, sending behavior, Capability binding, or permanent capability evidence.
+
+
+## T4 approved matching, precedence, fallback, and escalation behavior
+
+### Approved operators
+
+The future evaluator may implement only these operators:
+
+| Operator | Semantics | Invalid cases |
+| --- | --- | --- |
+| `equals` | normalized input equals normalized comparison value | missing input, unsupported field, non-text value |
+| `contains` | normalized input contains normalized comparison value | missing input, empty comparison value, unsupported field |
+| `starts_with` | normalized input starts with normalized comparison value | missing input, empty comparison value, unsupported field |
+| `ends_with` | normalized input ends with normalized comparison value | missing input, empty comparison value, unsupported field |
+
+Regex, wildcard matching, expression evaluation, approximate matching, embedding search, database full-text search, AI classification, network classification, browser inspection, and platform calls are prohibited.
+
+### Normalization and case handling
+
+Normalization is deterministic and explicitly declared per condition:
+
+- `trim`: remove leading and trailing whitespace only.
+- `nfkc`: apply Unicode NFKC normalization.
+- `casefold`: apply Unicode case folding when `case_sensitive` is false.
+- No language-specific locale rules are inferred.
+- No punctuation stripping, tokenization, segmentation, spell correction, or semantic rewrite is performed.
+
+A condition with `case_sensitive=true` must not case-fold either side. A condition with `case_sensitive=false` must case-fold both sides after trim and NFKC if those flags are enabled.
+
+### Condition composition
+
+All ReplyCondition objects inside one ReplyRule combine with AND:
+
+- zero conditions is invalid;
+- every condition must evaluate true for the rule to match;
+- the first invalid condition fails the evaluation as `INVALID_INPUT`;
+- false conditions make only that rule non-matching;
+- there is no nested group, OR branch, custom function, callback, or script hook.
+
+### Rule eligibility and priority
+
+A rule is eligible only when:
+
+- the rule lifecycle allows evaluation;
+- `enabled` is true;
+- priority is a non-negative integer;
+- at least one condition exists;
+- the referenced template version exists and is enabled;
+- T3 safety gates have already allowed rule evaluation.
+
+Rules are sorted for deterministic evaluation by priority, rule identifier, and version. The sort order is used only to produce stable diagnostics; it must not break conflicts.
+
+### Conflict behavior
+
+If exactly one eligible rule matches at the best priority, the evaluator may render its template and return `REPLY` / `RULE_MATCHED`.
+
+If two or more eligible rules match at the same best priority, the evaluator returns `CONFLICT` / `DUPLICATE_HIGHEST_PRIORITY_MATCH` with no rendered text. The evaluator must not choose by insertion order, update time, name, identifier, template identifier, database row order, or random order.
+
+If lower-priority rules also match while exactly one highest-priority rule matches, the highest-priority rule wins and lower-priority matches are reported only as sanitized diagnostics if needed.
+
+### No-match and invalid-input behavior
+
+No eligible matching rule returns `NO_MATCH` / `NO_RULE_MATCHED` with no rendered text.
+
+Malformed rule or template configuration returns `INVALID_INPUT`; it is not treated as no-match. Invalid input cases include unsupported field, unsupported operator, missing required input, empty required comparison value, missing template, disabled template, missing template variable, forbidden placeholder, unsupported lifecycle state, and non-integer priority.
+
+### Fallback, suppression, and escalation precedence
+
+T3 safety outcomes override matching:
+
+1. `SUPPRESSED` outcomes stop evaluation and return no rendered text.
+2. `ESCALATE` outcomes stop evaluation and return no rendered text.
+3. `INVALID_INPUT` from context validation stops evaluation and returns no rendered text.
+4. Only then can rules be matched.
+5. `NO_MATCH` is returned only after eligible rules are evaluated and none match.
+6. AI fallback, WeCom transfer, platform delivery, browser automation, Scheduler jobs, and external network behavior are outside this phase.
+
+### Template failure behavior
+
+Template rendering occurs after a single matching rule is selected. Rendering failure returns `INVALID_INPUT` with one of `MISSING_TEMPLATE`, `MISSING_TEMPLATE_VARIABLE`, or `FORBIDDEN_PLACEHOLDER`. It must not fall through to another rule, call AI, send a partial response, or synthesize replacement text.
+
+### T4 non-implementation boundary
+
+T4 approves deterministic behavior only. It does not create Runtime modules, persistence files, migrations, API routes, workers, schedulers, external clients, credential handlers, browser integrations, sending behavior, Capability binding, or permanent capability evidence.
