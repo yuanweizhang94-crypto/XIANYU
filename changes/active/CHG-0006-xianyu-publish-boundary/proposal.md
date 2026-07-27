@@ -98,3 +98,11 @@ T3 is complete. Permission, credential, risk-control, and platform boundaries ar
 T4 is the next executable task.
 
 Unknown authorization and unknown risk fail closed. Platform adapter behavior remains separate and unimplemented.
+
+## T4 completion record
+
+T4 is complete. Validation, idempotency, duplicate, and uncertainty behavior are approved as design-only constraints.
+
+T5 is the next executable task.
+
+READY remains local validation only and does not authorize publication. UNKNOWN outcomes require manual review and no automatic retry.

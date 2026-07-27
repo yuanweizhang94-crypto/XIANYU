@@ -78,3 +78,14 @@ No implementation, capability binding, reviewer request, Ready transition, auto-
 7. UNKNOWN authorization and UNKNOWN risk fail closed.
 8. Credential and platform objects remain outside Domain, Service, Repository, audit, and tests.
 9. No Playwright, browser, Xianyu, publication, network, Credential, WeCom, or AI behavior is authorized.
+
+## T4 acceptance criteria
+
+1. T1 through T4 are complete.
+2. T5 through T9 remain incomplete.
+3. PROJECT_STATE reports 4 / 9 tasks complete.
+4. PROJECT_STATE next_task is `T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries`.
+5. Validation order is deterministic and fail-closed.
+6. Required fields and normalization boundaries are documented.
+7. Idempotency replay, idempotency conflict, duplicate draft handling, and UNKNOWN outcome manual review are documented.
+8. READY is documented as local validation only and not publication.

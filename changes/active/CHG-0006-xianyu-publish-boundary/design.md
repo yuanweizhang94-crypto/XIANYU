@@ -190,3 +190,52 @@ Any future platform adapter must be separately authorized and must remain outsid
 ### Fail-closed rule
 
 Missing, denied, unknown, blocked, expired, unavailable, verification-required, or ambiguous permission or risk state must fail closed. It must not be interpreted as permission to publish or permission to continue to platform behavior.
+
+## T4 approved validation, idempotency, duplicate, and uncertainty behavior
+
+### Deterministic validation order
+
+The local boundary uses this fixed fail-closed order:
+
+1. Request shape validation.
+2. Synthetic-fixture validation.
+3. Required-field validation.
+4. Field normalization validation.
+5. Authorization validation.
+6. Risk-state validation.
+7. Idempotency validation.
+8. Duplicate detection.
+9. Uncertainty-state validation.
+10. Local READY decision.
+
+Once a higher-priority failure occurs, later steps must not override it.
+
+### Required-field boundary
+
+At minimum the boundary must validate `draft_id`, `draft_revision`, `request_id`, `idempotency_key`, `title`, `description`, `category_reference`, `price`, `stock`, `location_reference`, `authorization_state`, `risk_state`, and `synthetic_fixture`.
+
+Media is metadata only in this change; upload is not required or performed.
+
+Missing, blank, type-invalid, out-of-bound, or unsupported fields must produce structured `INVALID_INPUT`.
+
+### Normalization boundary
+
+Normalization must be deterministic, local, and side-effect free. It must not call the network, read environment Credential, change business meaning, execute templates, run scripts or expressions, infer data from unknown fields, or silently discard unsupported fields.
+
+### Idempotency rules
+
+Same idempotency key with the same canonical request fingerprint returns a replay result consistent with the first local decision and reason `IDEMPOTENCY_REPLAY`. It must not create a new attempt.
+
+Same idempotency key with a different fingerprint returns `CONFLICT` and `IDEMPOTENCY_CONFLICT`. It must not overwrite the previous request.
+
+Different idempotency key with the same draft revision and fingerprint returns `DUPLICATE` with `DUPLICATE_DRAFT` or enters explicit manual review. It must not automatically publish a second time.
+
+### Unknown outcome behavior
+
+If a future historical attempt exists with outcome `UNKNOWN`, the boundary must not automatically retry, assume success, assume failure, or create a new attempt. It must return `MANUAL_REVIEW` with reason `UNKNOWN_PREVIOUS_OUTCOME` and wait for a separately authorized human or corrective process.
+
+### READY rule
+
+A local PublishDecision may be `READY` only when the synthetic fixture is confirmed, required fields are valid, authorization is `AUTHORIZED`, risk is `CLEAR`, no idempotency conflict exists, no duplicate draft blocks execution, no historical `UNKNOWN` outcome exists, and no real platform state confirmation is required.
+
+`READY` still does not authorize publication.
