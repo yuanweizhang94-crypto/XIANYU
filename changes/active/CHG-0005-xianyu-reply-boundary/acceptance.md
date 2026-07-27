@@ -122,3 +122,25 @@ Implementation, Capability binding, Ready for review, Reviewer request, Auto-mer
 12. No dependency, workflow, Ready transition, reviewer request, auto-merge, merge, branch deletion, or CHG-0006 is authorized.
 13. The diagnostic `tests` Mypy baseline remains accepted only up to 145 errors in 16 files.
 14. Technical-debt cleanup of unrelated `tests/` Mypy issues is not performed.
+
+
+## Owner Design Review corrective acceptance criteria
+
+1. CHG-0005 remains APPROVED.
+2. T1 through T5 remain complete.
+3. T6 through T9 remain incomplete.
+4. PROJECT_STATE reports completed tasks as 5 / 9.
+5. PROJECT_STATE next_task is `T6 Implement only the approved local fixed-script reply boundary`.
+6. ReplyRule identity is `(rule_id, version)`.
+7. ReplyCondition references exact `(rule_id, rule_version)`.
+8. ReplyAuditEvent records optional but exact `rule_version`; when `rule_id` exists, `rule_version` also exists.
+9. ReplyRule and ReplyTemplate do not define an independent persisted `enabled` field.
+10. `lifecycle_state == ENABLED` is the only rule and template evaluation-eligibility source.
+11. `ARCHIVED` is immutable and cannot transition to another lifecycle state.
+12. Rule, Template, and Audit repositories have separated responsibilities.
+13. ReplyEvaluator returns `ReplyEvaluationResult` and does not render templates.
+14. ReplyDecisionService owns template loading, rendering, final decision construction, sanitized audit recording, commit, and rollback.
+15. Phase 1 still has no Runtime or Migration.
+16. CAP-XY-REPLY remains planned and unbound.
+17. Capability counts remain planned 5 / verified 5.
+18. T6 requires a separate explicit owner authorization.

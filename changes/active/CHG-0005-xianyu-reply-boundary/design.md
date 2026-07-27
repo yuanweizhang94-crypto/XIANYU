@@ -13,9 +13,13 @@ T6 is the next executable task: `T6 Implement only the approved local fixed-scri
 
 T6 has not started in this execution.
 
-No Runtime design is approved.
+T1-T5 design and architecture are approved.
 
-This document records questions, constraints, and candidate boundaries for later review.
+Runtime implementation is not started.
+
+T6 requires a separate explicit owner authorization.
+
+This document records approved design constraints and boundaries for owner review; design approval does not mean implementation completion.
 
 ## Architecture context
 
@@ -26,9 +30,9 @@ This document records questions, constraints, and candidate boundaries for later
 
 These directions do not authorize implementation.
 
-## Proposed terminology
+## Approved terminology baseline
 
-Future review may define:
+T2 approved these terms for the Phase 1 design:
 
 - Reply Rule
 - Reply Template
@@ -45,9 +49,9 @@ Future review may define:
 - Content Safety Decision
 - Synthetic Reply Fixture
 
-No term is final until a later approved task records the decision.
+T2 finalizes these terms for the Phase 1 design; later implementation may add code only after separate T6 authorization.
 
-## Required decisions before later task approval
+## Decisions approved by T1-T5 before implementation
 
 - Exact Reply Rule and Reply Template terminology.
 - Whether a Reply Decision contains text, a template reference, or both.
@@ -70,9 +74,9 @@ No term is final until a later approved task records the decision.
 - Migration requirements.
 - API and Worker ownership boundaries.
 
-## Candidate fixed-rule boundary
+## Approved fixed-rule design boundary
 
-A future approved local boundary may:
+The approved design for a later authorized local boundary may:
 
 - accept Synthetic Fixture input only;
 - inspect explicitly approved local Message values;
@@ -81,7 +85,7 @@ A future approved local boundary may:
 - fail closed on ambiguous or unsafe input;
 - return no-send or escalation outcomes.
 
-This candidate description is not approved Runtime design.
+This approved design remains non-runtime. Runtime implementation is not started and requires separate T6 authorization.
 
 ## Security constraints
 
@@ -101,11 +105,11 @@ This candidate description is not approved Runtime design.
 
 None.
 
-No `app.reply`, `worker.reply`, rule engine, template engine, Repository, Service, Worker, API, Web UI, Migration, Scheduler Job, WeCom adapter, AI adapter, or sending behavior is approved.
+No Runtime package, rule engine, template engine, Repository, Service, Worker, API, Web UI, Migration, Scheduler Job, WeCom adapter, AI adapter, or sending behavior has been implemented. The planned local `app.reply` design remains unbound until a separate T6 authorization.
 
-All terminology, matching, authorization, risk, content safety, precedence, fallback, escalation, ownership, persistence, lifecycle, and failure decisions still require approval in later tasks.
+T2-T5 approve terminology, matching, authorization, risk, content safety, precedence, fallback, escalation, ownership, persistence, lifecycle, and failure decisions for design review only.
 
-The candidate design text remains non-runtime and must not be treated as approved implementation design.
+The approved design text remains non-runtime and must not be treated as completed implementation.
 
 ## Approval boundary
 
@@ -127,7 +131,7 @@ No implementation path, module, database table, Migration, API, Worker, Service,
 | Match Input | ReplyEvaluationContext | DTO | Reply-side input adapted from local Message values. |
 | Reply Decision | ReplyDecision | DTO / Value Object | Evaluation result; no send side effect. |
 | Rule Priority | ReplyRule.priority | Value Object field | Integer; lower value means higher priority. |
-| No Match | ReplyDecisionType.NO_MATCH | Enum | No enabled rule matches. |
+| No Match | ReplyDecisionType.NO_MATCH | Enum | No lifecycle-eligible rule matches. |
 | Conflict | ReplyDecisionType.CONFLICT | Enum | Multiple highest-priority rules match. |
 | Escalation | ReplyDecisionType.ESCALATE | Enum | Human-transfer path requested; no message sent. |
 | Suppression | ReplyDecisionType.SUPPRESSED | Enum | Sensitive or unsafe content suppresses reply. |
@@ -135,17 +139,17 @@ No implementation path, module, database table, Migration, API, Worker, Service,
 
 ### ReplyRule
 
-Fields: `rule_id`, `name`, `enabled`, `priority`, `version`, `conditions`, `template_id`, `template_version`, `lifecycle_state`, `created_at`, `updated_at`.
+Fields: `rule_id`, `version`, `name`, `priority`, `conditions`, `template_id`, `template_version`, `lifecycle_state`, `created_at`, `updated_at`, `row_version`.
 
 Invariants:
 
-- `rule_id` is stable and repository-unique.
+- `(rule_id, version)` is the immutable rule identity; `rule_id` is a stable rule-family identifier and `version` is the semantic version.
 - `name` is non-empty display text.
-- `enabled` must be true before a rule can be evaluated.
+- only `lifecycle_state == ENABLED` makes a rule eligible for evaluation; no independent persisted `enabled` state exists.
 - `priority` is an integer where a smaller value has higher priority.
-- `version` is explicit and monotonically increases on semantic changes.
-- `conditions` is non-empty; conditions combine with AND.
-- `template_id` and `template_version` must reference an enabled template for a `REPLY` result.
+- `version` is explicit, monotonically increases on semantic changes, and old versions are not overwritten.
+- `conditions` is non-empty; conditions combine with AND and belong to one exact `(rule_id, version)`.
+- `template_id` and `template_version` must reference a template whose `lifecycle_state == ENABLED` for a `REPLY` result.
 - timestamps are persistence metadata, not rule semantics.
 
 ### ReplyCondition
@@ -158,7 +162,7 @@ Unsupported fields or unsupported operators produce `INVALID_INPUT`; they must n
 
 ### ReplyTemplate
 
-Fields: `template_id`, `version`, `body`, `variable_allowlist`, `enabled`, `lifecycle_state`.
+Fields: `template_id`, `version`, `body`, `variable_allowlist`, `lifecycle_state`.
 
 The body is inert text. Rendering substitutes only allowlisted variables. Missing variables, forbidden placeholders, object-property access, expression execution, file access, environment access, and network access all fail closed as `INVALID_INPUT`.
 
@@ -185,9 +189,9 @@ Approved initial reason codes:
 
 | Decision type | Reason code | Meaning |
 | --- | --- | --- |
-| REPLY | RULE_MATCHED | One enabled highest-priority rule matched and template rendered. |
-| NO_MATCH | NO_RULE_MATCHED | No enabled rule matched. |
-| CONFLICT | DUPLICATE_HIGHEST_PRIORITY_MATCH | More than one enabled rule matched at the highest priority. |
+| REPLY | RULE_MATCHED | One lifecycle-eligible highest-priority rule matched and template rendered. |
+| NO_MATCH | NO_RULE_MATCHED | No lifecycle-eligible rule matched. |
+| CONFLICT | DUPLICATE_HIGHEST_PRIORITY_MATCH | More than one lifecycle-eligible rule matched at the highest priority. |
 | ESCALATE | UNSUPPORTED_LANGUAGE | Language is unsupported or unknown. |
 | ESCALATE | AUTHORIZATION_UNKNOWN | Authorization state is missing or uncertain. |
 | ESCALATE | RISK_UNKNOWN | Risk state is missing or uncertain. |
@@ -322,10 +326,10 @@ All ReplyCondition objects inside one ReplyRule combine with AND:
 A rule is eligible only when:
 
 - the rule lifecycle allows evaluation;
-- `enabled` is true;
+- `lifecycle_state == ENABLED`; no independent persisted `enabled` state exists;
 - priority is a non-negative integer;
 - at least one condition exists;
-- the referenced template version exists and is enabled;
+- the referenced template version exists and has `lifecycle_state == ENABLED`;
 - T3 safety gates have already allowed rule evaluation.
 
 Rules are sorted for deterministic evaluation by priority, rule identifier, and version. The sort order is used only to produce stable diagnostics; it must not break conflicts.
@@ -388,9 +392,9 @@ No API route, Web UI, Worker loop, Scheduler job, browser adapter, WeCom adapter
 
 Entities:
 
-- `ReplyRule`: Profile-scoped, Account-scoped, versioned rule. Fields: `rule_id`, `profile_id`, `account_reference`, `name`, `priority`, `enabled`, `lifecycle_state`, `template_id`, `template_version`, `version`, `created_at`, `updated_at`, `row_version`.
-- `ReplyTemplate`: Profile-scoped, Account-scoped, versioned fixed-script template. Fields: `template_id`, `profile_id`, `account_reference`, `version`, `name`, `body`, `variable_allowlist`, `enabled`, `lifecycle_state`, `created_at`, `updated_at`, `row_version`.
-- `ReplyAuditEvent`: sanitized local decision record. Fields: `event_id`, `profile_id`, `account_reference`, `conversation_id`, `message_id`, `rule_id`, `template_id`, `template_version`, `decision_type`, `reason_code`, `failure_category`, `created_at`, `correlation_identifier`.
+- `ReplyRule`: Profile-scoped, Account-scoped, versioned rule. Fields: `rule_id`, `version`, `profile_id`, `account_reference`, `name`, `priority`, `lifecycle_state`, `template_id`, `template_version`, `created_at`, `updated_at`, `row_version`.
+- `ReplyTemplate`: Profile-scoped, Account-scoped, versioned fixed-script template. Fields: `template_id`, `profile_id`, `account_reference`, `version`, `name`, `body`, `variable_allowlist`, `lifecycle_state`, `created_at`, `updated_at`, `row_version`.
+- `ReplyAuditEvent`: sanitized local decision record. Fields: `event_id`, `profile_id`, `account_reference`, `conversation_id`, `message_id`, `rule_id`, `rule_version`, `template_id`, `template_version`, `decision_type`, `reason_code`, `failure_category`, `created_at`, `correlation_identifier`.
 
 Value Objects:
 
@@ -411,28 +415,30 @@ Enums:
 DTOs:
 
 - `ReplyEvaluationContext`: Profile, Account, Conversation, Message identifiers, approved content projection, received timestamp, language hint, authorization state, risk state, suppression hints, and synthetic fixture flag.
-- `ReplyDecision`: decision type, reason code, optional rule/template references, optional rendered text, sanitized escalation or suppression category, and audit identifiers.
-- `ReplyRuleSnapshot`: immutable evaluation snapshot containing one rule, its condition set, and referenced template version.
+- `ReplyDecision`: final local decision with decision type, reason code, optional rule/template references, optional rendered text, sanitized escalation or suppression category, and audit identifiers.
+- `ReplyEvaluationResult`: internal DTO / Value Object returned by the evaluator with no rendered text, no Session, and no send capability.
+- `ReplyRuleSnapshot`: immutable evaluation snapshot containing `rule_id`, `rule_version`, exact condition set, exact template ID/version, priority, lifecycle state, and immutable evaluation data.
 - `ReplyTemplateRenderInput`: template body, allowlist, and supplied variables.
 
 Protocols:
 
-- `ReplyRuleRepository`: load rule snapshots, persist rules/templates/audit events, and flush without commit.
-- `ReplyTemplateRepository`: load enabled templates by profile/account/template/version.
-- `ReplyEvaluator`: evaluate context and snapshots into a ReplyDecision.
+- `ReplyRuleRepository`: reads exact rule versions, lists current `ENABLED` rule snapshots, saves new rule versions, performs rule lifecycle transitions, and flushes without commit.
+- `ReplyTemplateRepository`: reads exact `ENABLED` template versions, saves new template versions, performs template lifecycle transitions, and flushes without commit.
+- `ReplyAuditRepository`: records sanitized audit events and flushes without commit.
+- `ReplyEvaluator`: evaluates context and snapshots into an internal `ReplyEvaluationResult` without loading or rendering templates.
 - `ReplyTemplateRenderer`: render inert fixed text from allowlisted variables.
 - `ReplyContextMapper`: adapt verified Message values into ReplyEvaluationContext without changing CAP-XY-MESSAGE.
-- `ReplyDecisionService`: coordinate repository, mapper, evaluator, renderer, and transaction boundary.
+- `ReplyDecisionService`: coordinates mapper, repositories, evaluator, renderer, final decision construction, sanitized audit recording, commit, rollback, and error mapping.
 
 ### Domain invariants and relationships
 
 - All persisted Reply records are Profile-scoped.
 - All persisted Reply records are Account-scoped through `account_reference`.
-- ReplyRule references exactly one ReplyTemplate version.
-- ReplyCondition rows belong to exactly one ReplyRule.
-- ReplyAuditEvent references Profile, Account, Conversation, and Message identifiers but does not own Message data.
-- Rule/template lifecycle transitions are `DRAFT -> ENABLED -> DISABLED -> ARCHIVED`; archived records are immutable.
-- Enabled rules require at least one condition and one enabled template version.
+- ReplyRule identity is `(rule_id, version)` and each rule version references exactly one ReplyTemplate version.
+- ReplyCondition rows belong to exactly one rule version through `(rule_id, rule_version)` and are not shared across versions.
+- ReplyAuditEvent references Profile, Account, Conversation, Message, and optional exact `(rule_id, rule_version)` identifiers but does not own Message data.
+- Approved lifecycle transitions are `DRAFT -> ENABLED`, `ENABLED -> DISABLED`, `DISABLED -> ENABLED`, `DRAFT -> ARCHIVED`, and `DISABLED -> ARCHIVED`; `ARCHIVED` cannot transition to any other state and archived records are immutable.
+- `lifecycle_state == ENABLED` is the only evaluation-eligibility source for rules and templates; DRAFT, DISABLED, and ARCHIVED records do not participate in evaluation.
 - Template bodies are inert text and may reference only allowlisted variables.
 - A rendered ReplyDecision is local output only and is not a send operation.
 - Row-version fields support optimistic concurrency; stale updates fail closed.
@@ -447,15 +453,49 @@ class ReplyContextMapper(Protocol):
     def map_message(self, message: object) -> ReplyEvaluationContext: ...
 
 class ReplyRuleRepository(Protocol):
-    def list_enabled_snapshots(self, profile_id: str, account_reference: str) -> list[ReplyRuleSnapshot]: ...
-    def get_template(self, profile_id: str, account_reference: str, template_id: str, version: int) -> ReplyTemplate | None: ...
-    def record_audit_event(self, event: ReplyAuditEvent) -> None: ...
+    def list_enabled_snapshots(
+        self,
+        profile_id: str,
+        account_reference: str,
+    ) -> Sequence[ReplyRuleSnapshot]: ...
+    def get_version(
+        self,
+        profile_id: str,
+        account_reference: str,
+        rule_id: str,
+        version: int,
+    ) -> ReplyRule | None: ...
+    def add_version(self, rule: ReplyRule) -> None: ...
+    def flush(self) -> None: ...
+
+class ReplyTemplateRepository(Protocol):
+    def get_enabled_version(
+        self,
+        profile_id: str,
+        account_reference: str,
+        template_id: str,
+        version: int,
+    ) -> ReplyTemplate | None: ...
+    def add_version(self, template: ReplyTemplate) -> None: ...
+    def flush(self) -> None: ...
+
+class ReplyAuditRepository(Protocol):
+    def record(self, event: ReplyAuditEvent) -> None: ...
+    def flush(self) -> None: ...
 
 class ReplyEvaluator(Protocol):
-    def evaluate(self, context: ReplyEvaluationContext, snapshots: list[ReplyRuleSnapshot]) -> ReplyDecision: ...
+    def evaluate(
+        self,
+        context: ReplyEvaluationContext,
+        snapshots: Sequence[ReplyRuleSnapshot],
+    ) -> ReplyEvaluationResult: ...
 
 class ReplyTemplateRenderer(Protocol):
-    def render(self, template: ReplyTemplate, variables: dict[str, str]) -> ReplyRenderedText: ...
+    def render(
+        self,
+        template: ReplyTemplate,
+        variables: Mapping[str, str],
+    ) -> ReplyRenderedText: ...
 
 class ReplyDecisionService(Protocol):
     def decide_for_message(self, message: object) -> ReplyDecision: ...
@@ -484,7 +524,6 @@ The approved future physical schema uses explicit relational tables, not generic
 | `name` | String(120) | no | trimmed, 1..120 |
 | `body` | String(2000) | no | non-blank, 1..2000 |
 | `variable_allowlist` | String(512) | no | comma-separated allowlisted variable names only |
-| `enabled` | Boolean | no | explicit |
 | `lifecycle_state` | String(16) | no | DRAFT, ENABLED, DISABLED, ARCHIVED |
 | `created_at` | DateTime(timezone=True) | no | UTC |
 | `updated_at` | DateTime(timezone=True) | no | UTC |
@@ -496,41 +535,41 @@ Keys and constraints:
 - Unique: `profile_id`, `account_reference`, `name`, `version`.
 - FK: `profile_id` restricts deletion of Account Profile while templates exist.
 - Checks: identifier lengths, trimmed text, positive version, positive row_version, lifecycle enum, body length, allowlist length.
-- Indexes: `profile_id`, `account_reference`, `enabled`, `lifecycle_state`; `profile_id`, `account_reference`, `template_id`, `version`.
+- Indexes: `profile_id`, `account_reference`, `lifecycle_state`; `profile_id`, `account_reference`, `template_id`, `version`.
 
 #### `xianyu_reply_rules`
 
 | Column | Type | Null | Constraint |
 | --- | --- | --- | --- |
-| `rule_id` | String(36) | no | primary key |
+| `rule_id` | String(36) | no | composite primary key component |
+| `version` | Integer | no | composite primary key component and immutable semantic version |
 | `profile_id` | String(36) | no | FK to Account Profile |
 | `account_reference` | String(256) | no | trimmed, 1..256 |
 | `name` | String(120) | no | trimmed, 1..120 |
 | `priority` | Integer | no | zero or positive |
-| `enabled` | Boolean | no | explicit |
 | `lifecycle_state` | String(16) | no | DRAFT, ENABLED, DISABLED, ARCHIVED |
 | `template_id` | String(36) | no | FK component to ReplyTemplate |
 | `template_version` | Integer | no | FK component to ReplyTemplate |
-| `version` | Integer | no | positive rule semantic version |
 | `created_at` | DateTime(timezone=True) | no | UTC |
 | `updated_at` | DateTime(timezone=True) | no | UTC |
 | `row_version` | Integer | no | positive optimistic concurrency value |
 
 Keys and constraints:
 
-- Primary key: `rule_id`.
+- Primary key: `rule_id`, `version`.
 - Unique: `profile_id`, `account_reference`, `name`, `version`.
 - FK: `profile_id` restricts deletion of Account Profile while rules exist.
 - FK: `template_id`, `template_version` restricts deletion of referenced templates while rules exist.
 - Checks: identifier lengths, trimmed name/account reference, non-negative priority, positive version, positive row_version, lifecycle enum.
-- Indexes: `profile_id`, `account_reference`, `enabled`, `lifecycle_state`, `priority`; `template_id`, `template_version`.
+- Indexes: `profile_id`, `account_reference`, `lifecycle_state`, `priority`; `template_id`, `template_version`; `rule_id`, `version` for composite foreign keys.
 
 #### `xianyu_reply_conditions`
 
 | Column | Type | Null | Constraint |
 | --- | --- | --- | --- |
 | `condition_id` | String(36) | no | primary key |
-| `rule_id` | String(36) | no | FK to ReplyRule |
+| `rule_id` | String(36) | no | FK component to ReplyRule |
+| `rule_version` | Integer | no | FK component to ReplyRule semantic version |
 | `sequence_number` | Integer | no | positive and unique per rule |
 | `field_name` | String(64) | no | approved ReplyEvaluationContext field |
 | `operator` | String(16) | no | equals, contains, starts_with, ends_with |
@@ -541,10 +580,10 @@ Keys and constraints:
 Keys and constraints:
 
 - Primary key: `condition_id`.
-- Unique: `rule_id`, `sequence_number`.
-- FK: `rule_id` restricts deletion while conditions exist unless an explicit delete workflow removes conditions first.
+- Unique: `rule_id`, `rule_version`, `sequence_number`.
+- FK: `rule_id`, `rule_version` restricts deletion of the exact rule version while conditions exist unless an explicit delete workflow removes conditions first.
 - Checks: identifier lengths, positive sequence, supported operator enum, non-blank comparison value, supported field enum, supported normalization flags.
-- Indexes: `rule_id`, `sequence_number`; `field_name`, `operator`.
+- Indexes: `rule_id`, `rule_version`, `sequence_number`; `field_name`, `operator`.
 
 #### `xianyu_reply_audit_events`
 
@@ -556,6 +595,7 @@ Keys and constraints:
 | `conversation_id` | String(36) | no | message identifier projection |
 | `message_id` | String(36) | no | message identifier projection |
 | `rule_id` | String(36) | yes | populated only when applicable |
+| `rule_version` | Integer | yes | required when `rule_id` is populated |
 | `template_id` | String(36) | yes | populated only when applicable |
 | `template_version` | Integer | yes | populated only when applicable |
 | `decision_type` | String(16) | no | ReplyDecisionType |
@@ -568,10 +608,10 @@ Keys and constraints:
 
 - Primary key: `event_id`.
 - FK: `profile_id` restricts deletion of Account Profile while audit events exist.
-- Optional FK: `rule_id` restricts deletion when populated.
+- Optional FK: `rule_id`, `rule_version` restricts deletion of the exact rule version when populated.
 - Optional composite FK: `template_id`, `template_version` restricts deletion when populated.
-- Checks: identifier lengths, trimmed account reference, supported decision enum, reason-code length, sanitized failure and correlation lengths.
-- Indexes: `profile_id`, `account_reference`, `message_id`; `decision_type`, `reason_code`; `created_at`.
+- Checks: identifier lengths, trimmed account reference, rule_id/rule_version all-or-none pairing, supported decision enum, reason-code length, sanitized failure and correlation lengths.
+- Indexes: `profile_id`, `account_reference`, `message_id`; `rule_id`, `rule_version`; `decision_type`, `reason_code`; `created_at`.
 
 Prohibited stored data across all tables:
 
@@ -589,11 +629,11 @@ If T6 is later authorized, the planned migration is `migrations/versions/0004_xi
 Upgrade order:
 
 1. Create `xianyu_reply_templates`.
-2. Create `xianyu_reply_rules`.
-3. Create `xianyu_reply_conditions`.
-4. Create `xianyu_reply_audit_events`.
-5. Add all foreign keys during table creation.
-6. Add indexes after table creation.
+2. Create `xianyu_reply_rules` with composite primary key `(rule_id, version)`.
+3. Create indexes needed by composite foreign keys.
+4. Create `xianyu_reply_conditions` with composite foreign key `(rule_id, rule_version)`.
+5. Create `xianyu_reply_audit_events` with optional composite foreign key `(rule_id, rule_version)`.
+6. Add remaining indexes after table creation.
 7. Add no seed data and run no external lookup.
 
 Downgrade order:
@@ -624,7 +664,7 @@ Failures return local decision or sanitized exception classes only:
 - missing required context: `INVALID_INPUT` / `MISSING_REQUIRED_INPUT`;
 - unsupported field or operator: `INVALID_INPUT` / `UNSUPPORTED_FIELD` or `UNSUPPORTED_OPERATOR`;
 - invalid lifecycle or priority: `INVALID_INPUT` / `INVALID_LIFECYCLE_STATE` or `INVALID_PRIORITY`;
-- missing or disabled template: `INVALID_INPUT` / `MISSING_TEMPLATE`;
+- missing template or template whose lifecycle is not `ENABLED`: `INVALID_INPUT` / `MISSING_TEMPLATE`;
 - template variable failure: `INVALID_INPUT` / `MISSING_TEMPLATE_VARIABLE` or `FORBIDDEN_PLACEHOLDER`;
 - duplicate highest-priority match: `CONFLICT` / `DUPLICATE_HIGHEST_PRIORITY_MATCH`;
 - no matching rule: `NO_MATCH` / `NO_RULE_MATCHED`;
@@ -640,18 +680,36 @@ Future implementation must add permanent evidence before verification:
 
 | Layer | Required evidence |
 | --- | --- |
-| Unit Domain | entity validation, lifecycle transitions, priority ordering, rule conflict semantics, reason-code mapping |
+| Unit Domain | entity validation, `(rule_id, version)` identity, lifecycle transitions, priority ordering, rule conflict semantics, reason-code mapping |
 | Unit Evaluator | safety gate order, operator semantics, normalization, case handling, AND composition, no-match, invalid-input behavior |
 | Unit Renderer | allowlist-only rendering, missing variables, forbidden placeholders, inert text, no expression execution |
 | Unit Mapper | approved Message-to-Reply projection, missing required identifiers, no mutation of Message semantics |
 | Unit Service | transaction ownership, repository orchestration, rollback, sanitized errors, audit-event recording |
-| Contract Persistence | exact tables, columns, keys, constraints, indexes, FKs, row-version checks, no prohibited columns |
+| Contract Persistence | exact tables, columns, composite rule PK, condition/audit composite FKs, lifecycle-only eligibility, constraints, indexes, row-version checks, no prohibited columns |
 | Contract Migration | upgrade head, downgrade empty path, non-empty downgrade fail-closed, lineage from 0003, offline SQL scan |
 | Contract Capability Registry | planned-to-verified evidence paths only after complete implementation verification |
 | Security | no credentials, no browser state, no external network, no WeCom, no AI, no message sending, no full message text in audit |
 | Import Safety | package and Domain imports do not import persistence, register ORM metadata, create engines, start workers, or open files |
 | Active Acceptance | T6 implementation boundary must be separately authorized and cannot start during Phase 1 |
 | Archived Acceptance | CHG-0005 evidence preserved under archive only after PR merge and explicit transition |
+
+
+### Owner review corrective architecture
+
+The Owner Design Review corrective pass supersedes conflicting Phase 1 text and locks the following design semantics:
+
+- `ReplyRule` identity is `(rule_id, version)`.
+- `rule_id` is a stable rule-family identifier; `version` is the immutable semantic version.
+- `row_version` is only optimistic concurrency metadata for an unpublished row and never replaces semantic `version`.
+- Conditions reference exact rule versions with `(rule_id, rule_version)` and cannot be shared as mutable rows across versions.
+- Audit events include nullable `rule_version`; when `rule_id` is populated, `rule_version` is also required.
+- Rule and Template records have no independent persisted `enabled` column.
+- `lifecycle_state == ENABLED` is the only source of evaluation eligibility.
+- `ARCHIVED` records are permanently immutable and cannot transition to any other state.
+- Rule, Template, and Audit repositories are separate responsibilities.
+- `ReplyEvaluator` returns an internal `ReplyEvaluationResult` with no rendered text and no side effects.
+- `ReplyDecisionService` loads exact templates, invokes rendering, creates final `ReplyDecision`, records sanitized audit events, and owns transaction commit/rollback.
+- T1-T5 design and architecture are approved; Runtime implementation is not started; T6 requires separate explicit owner authorization.
 
 ### T5 non-implementation boundary
 

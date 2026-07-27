@@ -16,7 +16,7 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - CHG-0005 T1 through T5 are complete; tasks are 5 / 9.
 - CAP-XY-REPLY remains planned and unbound.
 - No Reply Runtime, Rule Engine, Template Engine, Message Sending, WeCom, AI Provider, browser, external network, real-account, or customer-data behavior is implemented.
-- T6 is the next executable task and has not started; Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
+- Owner Design Review corrective findings are resolved for T1-through-T5 design; T6 is the next executable task and has not started; Runtime implementation, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
 
 ## Project goal
 

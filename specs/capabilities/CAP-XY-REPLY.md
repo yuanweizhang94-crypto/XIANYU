@@ -97,3 +97,23 @@ T4 remains design-only and registers no runtime, migration, or verification evid
 - Future verification must include Domain, Evaluator, Renderer, Mapper, Service, Persistence Contract, Migration Contract, Security, Import Safety, Capability Registry, active acceptance, and archived acceptance evidence.
 
 No runtime, migration, dependency, workflow, registry binding, or verification evidence path is registered by T5.
+
+
+### Owner Design Review corrective boundary
+
+- T1-T5 design and architecture are approved.
+- Runtime implementation is not started.
+- T6 requires a separate explicit owner authorization.
+- ReplyRule identity is `(rule_id, version)`.
+- ReplyCondition rows reference exact rule versions through `(rule_id, rule_version)`.
+- ReplyAuditEvent may reference a rule, but when it does it records both `rule_id` and `rule_version`.
+- Rule and Template designs have no independent persisted `enabled` column.
+- `lifecycle_state == ENABLED` is the only evaluation-eligibility source for both rules and templates.
+- `ARCHIVED` records are permanently immutable and cannot transition to another lifecycle state.
+- `ReplyRuleRepository`, `ReplyTemplateRepository`, and `ReplyAuditRepository` have separated responsibilities and may flush but must not commit.
+- `ReplyEvaluator` returns internal `ReplyEvaluationResult`; it does not query the database, load templates, render templates, write audit events, or create final rendered decisions.
+- `ReplyDecisionService` owns orchestration, exact template loading, rendering, final `ReplyDecision` construction, sanitized audit recording, commit, rollback, and fail-closed error mapping.
+- Planned migration `0004_xianyu_reply_boundary` remains design-only with `down_revision = "0003_xianyu_message_boundary"`.
+- No migration is created in Phase 1.
+
+CAP-XY-REPLY remains planned and unbound with no implementation paths, test paths, active_change, or last_verified_commit.

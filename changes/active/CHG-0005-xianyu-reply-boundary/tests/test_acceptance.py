@@ -79,17 +79,9 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     ]
     assert len(task_lines) == 9
     completed_count = sum(line.startswith("- [x]") for line in task_lines)
-    assert 1 <= completed_count <= 5
-    assert all(line.startswith("- [x]") for line in task_lines[:completed_count])
-    assert all(line.startswith("- [ ]") for line in task_lines[completed_count:])
-
-    expected_next_by_completed = {
-        1: "T2 Finalize reply rule, template, and decision terminology",
-        2: "T3 Approve authorization, risk-control, and content-safety boundaries",
-        3: "T4 Approve matching, precedence, fallback, and escalation boundaries",
-        4: "T5 Approve ownership, persistence, lifecycle, and failure boundaries",
-        5: "T6 Implement only the approved local fixed-script reply boundary",
-    }
+    assert completed_count == 5
+    assert all(line.startswith("- [x]") for line in task_lines[:5])
+    assert all(line.startswith("- [ ]") for line in task_lines[5:])
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": "CHG-0005-xianyu-reply-boundary",
@@ -98,9 +90,11 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     }
     assert state["tasks"]["total"] == 9
     assert state["tasks"]["completed"] == completed_count
-    assert state["tasks"]["next_task"] == expected_next_by_completed[completed_count]
-    assert all(item["completed"] is True for item in state["tasks"]["items"][:completed_count])
-    assert all(item["completed"] is False for item in state["tasks"]["items"][completed_count:])
+    assert state["tasks"]["next_task"] == (
+        "T6 Implement only the approved local fixed-script reply boundary"
+    )
+    assert all(item["completed"] is True for item in state["tasks"]["items"][:5])
+    assert all(item["completed"] is False for item in state["tasks"]["items"][5:])
     assert state["capabilities"]["by_status"] == {"planned": 5, "verified": 5}
 
 
@@ -163,5 +157,31 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
         "No AI Provider",
         "Synthetic Fixtures",
         "Fail closed",
+        "T1-T5 design and architecture are approved",
+        "Runtime implementation is not started",
+        "T6 requires a separate explicit owner authorization",
+        "ReplyRule identity is `(rule_id, version)`",
+        "`rule_id`, `rule_version`",
+        "ReplyAuditEvent",
+        "`lifecycle_state == ENABLED` is the only",
+        "`ARCHIVED`",
+        "ReplyAuditRepository",
+        "ReplyEvaluationResult",
+        "ReplyDecisionService owns",
+        "Migration created in Phase 1: no",
     ]:
         assert required in joined
+
+    design_text = (CHG_0005 / "design.md").read_text(encoding="utf-8")
+    spec_text = (ROOT / "specs" / "capabilities" / "CAP-XY-REPLY.md").read_text(
+        encoding="utf-8"
+    )
+    combined = "\n".join([design_text, spec_text])
+    for forbidden in [
+        "No Runtime design is approved.",
+        "No term is final until a later approved task records the decision.",
+        "All terminology, matching, authorization, risk, content safety, precedence, fallback, escalation, ownership, persistence, lifecycle, and failure decisions still require approval in later tasks.",
+        "This candidate description is not approved Runtime design.",
+        "| `enabled` | Boolean",
+    ]:
+        assert forbidden not in combined

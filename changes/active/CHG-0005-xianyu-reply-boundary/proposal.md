@@ -158,3 +158,24 @@ Approved architecture decisions:
 - Future tests must cover Domain, Service, Persistence Contract, Security Contract, Import Safety, Migrations, Capability Registry, and archived acceptance evidence before CAP-XY-REPLY can become verified.
 
 T5 completes Phase 1 design approval only. T6 implementation, runtime files, database migration files, dependency changes, workflow changes, Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
+
+
+## Owner Design Review corrective record
+
+The Owner Design Review corrective pass resolves Phase 1 design ambiguities without changing task completion state.
+
+Corrective decisions:
+
+- `ReplyRule` identity is `(rule_id, version)`.
+- `rule_id` is the stable rule-family identifier; `version` is the immutable semantic rule version.
+- `ReplyCondition` belongs to one exact rule version through `(rule_id, rule_version)`.
+- `ReplyAuditEvent` records `rule_version` whenever `rule_id` is recorded so audits identify the exact rule version that produced a decision.
+- Rule and Template eligibility is derived only from `lifecycle_state == ENABLED`; there is no independent persisted `enabled` field.
+- `ARCHIVED` records are permanently immutable and cannot return to another lifecycle state.
+- Rule, Template, and Audit repository responsibilities are separated.
+- `ReplyEvaluator` returns an internal `ReplyEvaluationResult` without rendered text and without database, template, audit, network, AI, WeCom, browser, credential, or send behavior.
+- `ReplyDecisionService` owns orchestration, template loading, rendering, final `ReplyDecision` construction, sanitized audit recording, commit, and rollback.
+
+T1-T5 design and architecture are approved. Runtime implementation is not started. T6 requires a separate explicit owner authorization.
+
+CAP-XY-REPLY remains planned and unbound. No Runtime, Migration, Capability evidence, dependency, workflow, Ready transition, reviewer request, auto-merge, or merge is authorized by this corrective pass.
