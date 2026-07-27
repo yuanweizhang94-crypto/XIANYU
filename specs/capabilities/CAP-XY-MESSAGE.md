@@ -6,11 +6,13 @@ Define the local synthetic Xianyu message receiving boundary without opening a r
 
 ## Current verification state
 
-- Active change: none; verification recorded by CHG-0004 T8.
+- CHG-0004 was merged through PR #4 and is archived.
+- Merge commit: `bab7a1a86239cb4dba9b2f7dc8db0ff33bc80dc6`.
+- Merged feature head: `0cfd719dff5d472e9e5ac26bf720afc7efb74e9f`.
+- Active change: none.
 - Registry status: verified.
 - Last verified commit (`last_verified_commit`): `49498e6f30944883c1a0a5a504932bbd02fc86de`.
-
-The local boundary was implemented by CHG-0004 T6, covered by CHG-0004 T7, verified by CHG-0004 T8, and frozen for CHG-0004 T9 final PR administration.
+- CHG-0004 historical acceptance evidence is preserved under `changes/archive/`.
 
 ## Registered implementation paths
 
@@ -33,7 +35,7 @@ The local boundary was implemented by CHG-0004 T6, covered by CHG-0004 T7, verif
 - `tests/contract/test_migrations.py`
 - `tests/contract/test_core_runtime.py`
 - `tests/contract/test_capability_registry.py`
-- `changes/active/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py`
+- `changes/archive/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py`
 
 ## Implemented local boundary
 
@@ -112,3 +114,19 @@ A separate verification-record commit records that Candidate SHA after complete 
 - last_verified_commit records `49498e6f30944883c1a0a5a504932bbd02fc86de`.
 - Complete verification ran on the committed Candidate SHA.
 - GitHub Actions passed for the Candidate before verification was recorded.
+
+## Archive transition
+
+Archiving CHG-0004 changes only the historical acceptance-evidence location.
+
+It does not change:
+
+- Runtime behavior;
+- Migration behavior;
+- Capability status;
+- implementation paths;
+- verification semantics;
+- `active_change`;
+- `last_verified_commit`.
+
+CHG-0005 is DRAFT only and does not extend CAP-XY-MESSAGE.

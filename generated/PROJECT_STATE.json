@@ -2,9 +2,9 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0004-xianyu-message-boundary",
+    "id": "CHG-0005-xianyu-reply-boundary",
     "status": "VERIFYING",
-    "path": "changes/active/CHG-0004-xianyu-message-boundary"
+    "path": "changes/active/CHG-0005-xianyu-reply-boundary"
   },
   "tasks": {
     "total": 9,
@@ -12,27 +12,27 @@
     "next_task": null,
     "items": [
       {
-        "text": "T1 Obtain explicit project-owner approval for CHG-0004",
+        "text": "T1 Obtain explicit project-owner approval for CHG-0005",
         "completed": true
       },
       {
-        "text": "T2 Finalize message, conversation, and delivery terminology",
+        "text": "T2 Finalize reply rule, template, and decision terminology",
         "completed": true
       },
       {
-        "text": "T3 Approve transport, authentication, and risk-control boundaries",
+        "text": "T3 Approve authorization, risk-control, and content-safety boundaries",
         "completed": true
       },
       {
-        "text": "T4 Approve ordering, deduplication, and persistence boundaries",
+        "text": "T4 Approve matching, precedence, fallback, and escalation boundaries",
         "completed": true
       },
       {
-        "text": "T5 Approve worker ownership, lifecycle, and failure boundaries",
+        "text": "T5 Approve ownership, persistence, lifecycle, and failure boundaries",
         "completed": true
       },
       {
-        "text": "T6 Implement only the approved local message-receiving boundary",
+        "text": "T6 Implement only the approved local fixed-script reply boundary",
         "completed": true
       },
       {
@@ -52,8 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 5,
-      "verified": 5
+      "planned": 4,
+      "verified": 6
     },
     "items": [
       {
@@ -157,7 +157,7 @@
           "tests/contract/test_migrations.py",
           "tests/contract/test_core_runtime.py",
           "tests/contract/test_capability_registry.py",
-          "changes/active/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py"
+          "changes/archive/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "49498e6f30944883c1a0a5a504932bbd02fc86de"
@@ -165,13 +165,35 @@
       {
         "id": "CAP-XY-REPLY",
         "name": "Xianyu reply rules",
-        "status": "planned",
+        "status": "verified",
         "owner_module": "app.reply",
         "specification": "specs/capabilities/CAP-XY-REPLY.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/reply/__init__.py",
+          "app/xianyu_system/reply/domain.py",
+          "app/xianyu_system/reply/evaluator.py",
+          "app/xianyu_system/reply/renderer.py",
+          "app/xianyu_system/reply/mapper.py",
+          "app/xianyu_system/reply/persistence.py",
+          "app/xianyu_system/reply/service.py",
+          "migrations/versions/0004_xianyu_reply_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_reply_domain.py",
+          "tests/unit/test_reply_evaluator.py",
+          "tests/unit/test_reply_renderer.py",
+          "tests/unit/test_reply_mapper.py",
+          "tests/unit/test_reply_service.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_reply_persistence.py",
+          "tests/contract/test_reply_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py"
+        ],
         "active_change": null,
-        "last_verified_commit": null
+        "last_verified_commit": "5724d164619c64e93295595b3acdd1429d24e3e0"
       },
       {
         "id": "CAP-XY-PUBLISH",

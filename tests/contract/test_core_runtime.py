@@ -18,6 +18,16 @@ from xianyu_system.core.logging import ManagedStreamHandler
 from xianyu_system.web.router import HOME_PATH, HOME_ROUTE_NAME, STATIC_URL_PATH
 
 ROOT = Path(__file__).resolve().parents[2]
+BUSINESS_METADATA_TABLES = {
+    "xianyu_account_profiles",
+    "xianyu_message_conversations",
+    "xianyu_message_records",
+    "xianyu_message_delivery_attempts",
+    "xianyu_reply_templates",
+    "xianyu_reply_rules",
+    "xianyu_reply_conditions",
+    "xianyu_reply_audit_events",
+}
 
 
 def project_events(captured: str) -> list[dict[str, object]]:
@@ -32,7 +42,7 @@ def assert_runtime_surface(client: TestClient, app: FastAPI, *, service: str = "
     home = client.get(HOME_PATH)
     assert home.status_code == 200
     assert service in home.text
-    assert "hx-get=\"/health\"" in home.text
+    assert 'hx-get="/health"' in home.text
     assert client.get("/health").json()["status"] == "ok"
     assert client.get(f"{STATIC_URL_PATH}/styles.css").status_code == 200
     assert client.get(f"{STATIC_URL_PATH}/vendor/htmx.min.js").status_code == 200
@@ -49,11 +59,13 @@ def test_core_runtime_contract_serves_only_approved_read_surfaces(tmp_path: Path
         assert app.state.scheduler.running is True
         assert app.state.scheduler.get_jobs() == []
         assert get_current_revision(app.state.database) is None
-        assert Base.metadata.tables == {}
+        assert set(Base.metadata.tables) <= BUSINESS_METADATA_TABLES
         assert set(inspect(app.state.database.engine).get_table_names()) == set()
         with app.state.database.engine.connect() as connection:
             assert connection.exec_driver_sql("SELECT 1").scalar_one() == 1
-            assert str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
+            assert (
+                str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
+            )
         with open_session(app.state.database) as session:
             assert session.execute(text("SELECT 1")).scalar_one() == 1
         assert_runtime_surface(client, app)
@@ -112,7 +124,9 @@ def test_one_application_can_shutdown_while_another_remains_healthy(tmp_path: Pa
     assert second.state.database is None
 
 
-def test_repeated_lifespan_cycles_leave_no_jobs_handlers_or_default_artifacts(tmp_path: Path) -> None:
+def test_repeated_lifespan_cycles_leave_no_jobs_handlers_or_default_artifacts(
+    tmp_path: Path,
+) -> None:
     for index in range(3):
         app = create_application(settings=settings_for(tmp_path, f"cycle-{index}.db"))
         logger_name = f"xianyu.application.{id(app)}"
@@ -180,6 +194,6 @@ def test_runtime_does_not_apply_migrations_or_create_business_tables(tmp_path: P
     with TestClient(app):
         assert get_current_revision(app.state.database) is None
         assert set(inspect(app.state.database.engine).get_table_names()) == set()
-        assert Base.metadata.tables == {}
+        assert set(Base.metadata.tables) <= BUSINESS_METADATA_TABLES
 
     assert app.state.database is None

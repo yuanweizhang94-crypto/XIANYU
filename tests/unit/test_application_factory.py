@@ -26,7 +26,15 @@ from xianyu_system.core.logging import ManagedStreamHandler
 from xianyu_system.web.router import HOME_ROUTE_NAME, STATIC_URL_PATH
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_FASTAPI_ROUTE_PATHS = {"/", "/static", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc", "/health"}
+DEFAULT_FASTAPI_ROUTE_PATHS = {
+    "/",
+    "/static",
+    "/openapi.json",
+    "/docs",
+    "/docs/oauth2-redirect",
+    "/redoc",
+    "/health",
+}
 FORBIDDEN_IMPORT_ARTIFACTS = [
     "*.db",
     "*.sqlite",
@@ -188,9 +196,7 @@ def test_health_route_is_registered_once_per_application_instance() -> None:
 
 def test_create_application_openapi_has_no_file_or_lifespan_side_effects(tmp_path: Path) -> None:
     path = tmp_path / "openapi.db"
-    app = create_application(
-        settings=ApplicationSettings(environment="test", database_path=path)
-    )
+    app = create_application(settings=ApplicationSettings(environment="test", database_path=path))
 
     assert set(app.openapi()["paths"]) == {"/health"}
     assert not path.exists()
@@ -213,7 +219,9 @@ def test_health_endpoint_available_during_project_and_custom_lifespan(tmp_path: 
 
     app = create_application(
         lifespan=lifespan,
-        settings=ApplicationSettings(environment="test", database_path=tmp_path / "health-lifespan.db"),
+        settings=ApplicationSettings(
+            environment="test", database_path=tmp_path / "health-lifespan.db"
+        ),
     )
 
     with TestClient(app) as client:
@@ -377,7 +385,9 @@ def test_application_instances_get_distinct_logger_names(tmp_path: Path) -> None
         settings=ApplicationSettings(environment="test", database_path=tmp_path / "first-logger.db")
     )
     second = create_application(
-        settings=ApplicationSettings(environment="test", database_path=tmp_path / "second-logger.db")
+        settings=ApplicationSettings(
+            environment="test", database_path=tmp_path / "second-logger.db"
+        )
     )
 
     with TestClient(first), TestClient(second):
@@ -463,7 +473,9 @@ def test_custom_lifespan_exception_still_cleans_project_handler(tmp_path: Path) 
     with pytest.raises(RuntimeError), TestClient(app):
         pass
 
-    assert not any(isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers)
+    assert not any(
+        isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers
+    )
 
 
 def test_importing_main_does_not_emit_logs_or_create_files(tmp_path: Path) -> None:
@@ -489,12 +501,9 @@ def test_importing_main_does_not_emit_logs_or_create_files(tmp_path: Path) -> No
         assert list(tmp_path.glob(pattern)) == []
 
 
-
 def test_create_application_does_not_create_database_immediately(tmp_path: Path) -> None:
     path = tmp_path / "not-created.db"
-    app = create_application(
-        settings=ApplicationSettings(environment="test", database_path=path)
-    )
+    app = create_application(settings=ApplicationSettings(environment="test", database_path=path))
 
     assert not path.exists()
     assert not hasattr(app.state, "database")
@@ -502,16 +511,16 @@ def test_create_application_does_not_create_database_immediately(tmp_path: Path)
 
 def test_database_lifespan_initializes_session_and_cleans_up(tmp_path: Path) -> None:
     path = tmp_path / "lifespan.db"
-    app = create_application(
-        settings=ApplicationSettings(environment="test", database_path=path)
-    )
+    app = create_application(settings=ApplicationSettings(environment="test", database_path=path))
 
     assert not hasattr(app.state, "database")
     with TestClient(app):
         assert isinstance(app.state.database, DatabaseResources)
         assert path.exists()
         with app.state.database.engine.connect() as connection:
-            assert str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
+            assert (
+                str(connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()).lower() == "wal"
+            )
         with open_session(app.state.database) as session:
             assert session.execute(text("SELECT 1")).scalar_one() == 1
 
@@ -543,10 +552,14 @@ def test_scheduler_lifespan_starts_and_stops_with_no_jobs(tmp_path: Path) -> Non
 
 def test_application_instances_use_isolated_scheduler_resources(tmp_path: Path) -> None:
     first = create_application(
-        settings=ApplicationSettings(environment="test", database_path=tmp_path / "first-scheduler.db")
+        settings=ApplicationSettings(
+            environment="test", database_path=tmp_path / "first-scheduler.db"
+        )
     )
     second = create_application(
-        settings=ApplicationSettings(environment="test", database_path=tmp_path / "second-scheduler.db")
+        settings=ApplicationSettings(
+            environment="test", database_path=tmp_path / "second-scheduler.db"
+        )
     )
 
     with TestClient(first), TestClient(second):
@@ -572,7 +585,9 @@ def test_custom_lifespan_can_use_scheduler_during_startup_and_shutdown(tmp_path:
 
     app = create_application(
         lifespan=lifespan,
-        settings=ApplicationSettings(environment="test", database_path=tmp_path / "custom-scheduler.db"),
+        settings=ApplicationSettings(
+            environment="test", database_path=tmp_path / "custom-scheduler.db"
+        ),
     )
 
     with TestClient(app):
@@ -584,7 +599,9 @@ def test_custom_lifespan_can_use_scheduler_during_startup_and_shutdown(tmp_path:
 
 def test_application_startup_does_not_automatically_create_scheduler_tables(tmp_path: Path) -> None:
     app = create_application(
-        settings=ApplicationSettings(environment="test", database_path=tmp_path / "scheduler-tables.db")
+        settings=ApplicationSettings(
+            environment="test", database_path=tmp_path / "scheduler-tables.db"
+        )
     )
 
     with TestClient(app):
@@ -678,7 +695,9 @@ def test_database_initialization_failure_cleans_logging_and_skips_custom_lifespa
 
     assert events == []
     assert app.state.database is None
-    assert not any(isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers)
+    assert not any(
+        isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers
+    )
 
 
 def test_scheduler_start_failure_disposes_database_and_skips_custom_lifespan(
@@ -708,7 +727,9 @@ def test_scheduler_start_failure_disposes_database_and_skips_custom_lifespan(
     assert events == []
     assert app.state.database is None
     assert app.state.scheduler is None
-    assert not any(isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers)
+    assert not any(
+        isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers
+    )
     path.unlink()
     assert not path.exists()
 
@@ -731,7 +752,9 @@ def test_scheduler_shutdown_failure_still_disposes_database_and_logging(
 
     assert app.state.database is None
     assert app.state.scheduler is None
-    assert not any(isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers)
+    assert not any(
+        isinstance(handler, ManagedStreamHandler) for handler in app.state.logger.handlers
+    )
     path.unlink()
     assert not path.exists()
 
@@ -759,17 +782,17 @@ def test_importing_main_does_not_create_default_database_file(tmp_path: Path) ->
 
 def test_application_startup_does_not_automatically_run_alembic(tmp_path: Path) -> None:
     path = tmp_path / "no-auto-migration.db"
-    app = create_application(
-        settings=ApplicationSettings(environment="test", database_path=path)
-    )
+    app = create_application(settings=ApplicationSettings(environment="test", database_path=path))
 
     with TestClient(app):
         assert path.exists()
         assert get_current_revision(app.state.database) is None
         with app.state.database.engine.connect() as connection:
-            tables = connection.exec_driver_sql(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).scalars().all()
+            tables = (
+                connection.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'")
+                .scalars()
+                .all()
+            )
         assert "alembic_version" not in set(tables)
 
     assert app.state.database is None
@@ -782,10 +805,10 @@ def test_custom_lifespan_can_explicitly_run_alembic_upgrade(tmp_path: Path) -> N
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         assert get_current_revision(app.state.database) is None
         upgrade_database(app.state.database)
-        assert get_current_revision(app.state.database) == "0003_xianyu_message_boundary"
+        assert get_current_revision(app.state.database) == "0004_xianyu_reply_boundary"
         events.append("explicit-migration")
         yield
-        assert get_current_revision(app.state.database) == "0003_xianyu_message_boundary"
+        assert get_current_revision(app.state.database) == "0004_xianyu_reply_boundary"
 
     app = create_application(
         lifespan=lifespan,
@@ -809,7 +832,9 @@ def test_explicit_migration_does_not_break_logging_lifespan(
 
     app = create_application(
         lifespan=lifespan,
-        settings=ApplicationSettings(environment="test", database_path=tmp_path / "logging-migration.db"),
+        settings=ApplicationSettings(
+            environment="test", database_path=tmp_path / "logging-migration.db"
+        ),
     )
 
     with TestClient(app):

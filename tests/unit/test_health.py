@@ -27,6 +27,12 @@ MESSAGE_TABLES = {
     "xianyu_message_records",
     "xianyu_message_delivery_attempts",
 }
+REPLY_TABLES = {
+    "xianyu_reply_templates",
+    "xianyu_reply_rules",
+    "xianyu_reply_conditions",
+    "xianyu_reply_audit_events",
+}
 
 EXPECTED_TOP_LEVEL = {"status", "service", "version", "environment", "database", "scheduler"}
 EXPECTED_DATABASE = {"status", "connected", "journal_mode"}
@@ -98,7 +104,9 @@ def test_health_endpoint_degrades_database_without_exception_details(
 def test_health_endpoint_degrades_scheduler_without_mutating_database(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    settings = ApplicationSettings(environment="test", database_path=tmp_path / "scheduler-degraded.db")
+    settings = ApplicationSettings(
+        environment="test", database_path=tmp_path / "scheduler-degraded.db"
+    )
     app = create_application(settings=settings)
 
     def unavailable_scheduler(_scheduler):
@@ -135,14 +143,18 @@ def test_collect_health_outside_lifespan_returns_structured_degraded(tmp_path: P
 
     assert isinstance(health, HealthResponse)
     assert health.status == "degraded"
-    assert health.database == DatabaseHealth(status="unavailable", connected=False, journal_mode=None)
+    assert health.database == DatabaseHealth(
+        status="unavailable", connected=False, journal_mode=None
+    )
     assert health.scheduler == SchedulerHealth(
         status="unavailable", running=False, job_count=0, timezone="UTC"
     )
 
 
 def test_collect_database_health_is_read_only_and_uses_existing_engine(tmp_path: Path) -> None:
-    app = create_application(settings=ApplicationSettings(environment="test", database_path=tmp_path / "readonly.db"))
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "readonly.db")
+    )
 
     with TestClient(app):
         resources = app.state.database
@@ -179,7 +191,10 @@ def test_collect_database_health_requires_wal_and_select_one() -> None:
     context.__enter__ = Mock(return_value=connection)
     context.__exit__ = Mock(return_value=None)
     resources.engine.connect.return_value = context
-    connection.exec_driver_sql.side_effect = [Mock(scalar_one=Mock(return_value=1)), Mock(scalar_one=Mock(return_value="delete"))]
+    connection.exec_driver_sql.side_effect = [
+        Mock(scalar_one=Mock(return_value=1)),
+        Mock(scalar_one=Mock(return_value="delete")),
+    ]
 
     health = collect_database_health(resources)
 
@@ -187,7 +202,9 @@ def test_collect_database_health_requires_wal_and_select_one() -> None:
 
 
 def test_collect_scheduler_health_is_read_only_and_job_free(tmp_path: Path) -> None:
-    app = create_application(settings=ApplicationSettings(environment="test", database_path=tmp_path / "scheduler.db"))
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "scheduler.db")
+    )
 
     with TestClient(app):
         scheduler = app.state.scheduler
@@ -223,7 +240,9 @@ def test_collect_scheduler_health_handles_absent_stopped_and_failing_scheduler()
 
 
 def test_health_endpoint_does_not_run_migrations_or_write_database(tmp_path: Path) -> None:
-    app = create_application(settings=ApplicationSettings(environment="test", database_path=tmp_path / "migration.db"))
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "migration.db")
+    )
 
     with TestClient(app) as client:
         resources = app.state.database
@@ -236,12 +255,18 @@ def test_health_endpoint_does_not_run_migrations_or_write_database(tmp_path: Pat
         with resources.engine.connect() as connection:
             assert connection.execute(text("SELECT 1")).scalar_one() == 1
 
-    assert before_revision == after_revision == "0003_xianyu_message_boundary"
-    assert before_tables == after_tables == {"alembic_version", "xianyu_account_profiles", *MESSAGE_TABLES}
+    assert before_revision == after_revision == "0004_xianyu_reply_boundary"
+    assert (
+        before_tables
+        == after_tables
+        == {"alembic_version", "xianyu_account_profiles", *MESSAGE_TABLES, *REPLY_TABLES}
+    )
 
 
 def test_health_endpoint_does_not_modify_logger_handlers_or_scheduler_jobs(tmp_path: Path) -> None:
-    app = create_application(settings=ApplicationSettings(environment="test", database_path=tmp_path / "effects.db"))
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "effects.db")
+    )
 
     with TestClient(app) as client:
         root_handlers = list(__import__("logging").getLogger().handlers)
@@ -257,7 +282,9 @@ def test_health_endpoint_does_not_modify_logger_handlers_or_scheduler_jobs(tmp_p
 
 
 def test_health_route_allows_only_get_and_declares_no_parameters(tmp_path: Path) -> None:
-    app = create_application(settings=ApplicationSettings(environment="test", database_path=tmp_path / "methods.db"))
+    app = create_application(
+        settings=ApplicationSettings(environment="test", database_path=tmp_path / "methods.db")
+    )
 
     with TestClient(app) as client:
         assert client.post("/health").status_code == 405

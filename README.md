@@ -4,26 +4,19 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 
 ## Current change state
 
-- PR #3 was merged into `main`.
-- PR #3 merge commit: `51b8cff1c483d8b807b5186a14fe90fbaf45c8f9`.
-- CHG-0003-xianyu-account-boundary is archived.
-- `CAP-XY-ACCOUNT` remains verified.
-- Its `last_verified_commit` remains `2aab941cb7f713d7e46675789c47971a2c79c564`.
-- CHG-0004-xianyu-message-boundary is the only active change.
-- CHG-0004 status is `VERIFYING`.
-- T1 through T9 are complete.
-- Tasks are 9 / 9.
-- Next task is none.
+- PR #4 was merged into `main`.
+- PR #4 merge commit is `bab7a1a86239cb4dba9b2f7dc8db0ff33bc80dc6`.
+- Merged CHG-0004 feature head is `0cfd719dff5d472e9e5ac26bf720afc7efb74e9f`.
+- CHG-0004-xianyu-message-boundary is archived.
 - CAP-XY-MESSAGE remains verified.
-- Evidence Candidate remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
-- T8 Verification Record remains `9bfa571cdcc61fda03a234784d73b2b328151c32`.
-- T8 CI Compatibility Corrective SHA remains `f8539651268da1600fd1c2e0840ccef2bcb1b2c9`.
-- T9 Ready Candidate SHA is `1cc4de90e88f607ab30b475232c7fa7ef01b8f14`.
-- PR #4 is Ready for review, open and unmerged.
-- No Reviewer was manually requested.
-- Auto-merge and merge remain unauthorized.
-- CHG-0004 remains under `changes/active/` until PR #4 is merged.
-- No archive was performed, the source branch was not deleted, and no next active Change was created.
+- Its `last_verified_commit` remains `49498e6f30944883c1a0a5a504932bbd02fc86de`.
+- Its historical acceptance evidence is preserved under `changes/archive/`.
+- CHG-0005-xianyu-reply-boundary is the only Active Change.
+- CHG-0005 status is `APPROVED`.
+- CHG-0005 T1 through T7 are complete; tasks are 7 / 9.
+- CAP-XY-REPLY remains planned and unbound.
+- A local deterministic Reply Runtime, Rule Engine, Template Engine, and Migration are implemented for T6 only. No Message Sending, WeCom, AI Provider, browser, external network, real-account, or customer-data behavior is implemented.
+- Owner Design Review corrective findings are resolved for T1-through-T5 design; T8 is the next executable task; Capability binding verification, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
 
 ## Project goal
 
@@ -525,3 +518,63 @@ CHG-0003 final PR administration is complete.
 - Auto-merge and merge remain unauthorized.
 - CHG-0004 remains under `changes/active/` until the PR is merged.
 - Merge requires separate explicit authorization against an exact PR HEAD.
+
+## CHG-0005 T6 local reply runtime
+
+- T6 implements the local deterministic reply package under `app/xianyu_system/reply/`.
+- Migration `0004_xianyu_reply_boundary` introduces local Reply Template, Rule, Condition, and sanitized Audit projections after the verified Message boundary.
+- CAP-XY-REPLY remains planned and unbound during T6; T8 is responsible for evidence-path registration and verification.
+- There is still no real Xianyu access, message sending, browser profile use, WeCom integration, AI Provider integration, API/Web UI, worker loop, scheduler, credential resolver, dependency change, workflow change, Ready transition, reviewer request, auto-merge, or merge.
+
+## CHG-0005 T7 permanent reply evidence
+
+- T7 permanent Reply tests are implemented across Domain, Evaluator, Renderer, Mapper, Service, Persistence Contract, Security Contract, Import Safety, Migration, Runtime compatibility, Capability Registry planned-state assertions, and active acceptance.
+- Tasks are now 7 / 9 and T8 capability evidence is the next executable task.
+- CAP-XY-REPLY remains planned and unbound pending T8.
+- No real Xianyu access, message sending, browser profile use, WeCom integration, AI Provider integration, API/Web UI, worker loop, scheduler, credential resolver, dependency change, workflow change, Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, or CHG-0006 was introduced.
+
+## CHG-0005 T8 evidence candidate
+
+- CAP-XY-REPLY is registered as `implementing` for the T8 Evidence Candidate.
+- Exact implementation and test evidence paths are registered.
+- `last_verified_commit` remains unset until the Candidate commit is verified and the Verification Record is created.
+- Tasks remain 7 / 9 during Phase A; T8 is still the next task until Phase B completes.
+- No runtime semantics, migration semantics, permanent tests, dependency, workflow, PR metadata, Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, or CHG-0006 was changed by the candidate registration.
+
+
+## CHG-0005 T8 reply capability verification
+
+- CAP-XY-REPLY evidence paths are registered and verified.
+- Evidence Candidate SHA: `5724d164619c64e93295595b3acdd1429d24e3e0`.
+- CAP-XY-REPLY status is verified.
+- active_change is null.
+- last_verified_commit records the Candidate SHA.
+- Tasks are 8 / 9.
+- T9 is the next executable task.
+- PR #5 remains Draft, open, and unmerged.
+- No Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, CHG-0006, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser profile use, credential resolution, dependency change, or workflow change was performed.
+
+
+## CHG-0005 final review preparation
+
+- CHG-0005 status is `VERIFYING` for final PR review preparation.
+- T1 through T8 are complete; T9 remains incomplete until the Ready transition and final administration record finish.
+- CAP-XY-REPLY remains verified and frozen.
+- PR #5 remains Draft until the Ready Candidate passes final CI.
+- No Reviewer request, auto-merge, merge, close, archive, branch deletion, CHG-0006 creation, runtime expansion, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, or Credential access is authorized by this preparation state.
+
+
+## CHG-0005 final PR administration
+
+- CHG-0005 final PR administration is complete.
+- CHG-0005 status is `VERIFYING`.
+- All nine tasks are complete.
+- T9 Ready Candidate SHA is `365cce3ef6574974c1cee1bb676fe8c1ad8ad4e3`.
+- CAP-XY-REPLY remains verified.
+- Evidence Candidate SHA is `5724d164619c64e93295595b3acdd1429d24e3e0`.
+- PR #5 is Ready for review, open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge and merge remain unauthorized.
+- CHG-0005 remains under `changes/active/` until the PR is merged.
+- Merge requires separate explicit authorization against an exact PR HEAD.
+- No close, source-branch deletion, archive, CHG-0006 creation, runtime expansion, migration semantic change, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, Credential access, Cookie, Token, Secret, Session Material, or real customer-data access occurred.

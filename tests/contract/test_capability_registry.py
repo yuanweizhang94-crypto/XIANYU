@@ -5,6 +5,7 @@ import re
 import subprocess
 from collections import Counter
 from pathlib import Path, PureWindowsPath
+from typing import Any, cast
 
 import jsonschema
 
@@ -17,13 +18,20 @@ PROJECT_STATE_PATH = ROOT / "generated" / "PROJECT_STATE.json"
 CHG_0002 = "CHG-0002-core-application"
 CHG_0003 = "CHG-0003-xianyu-account-boundary"
 CHG_0004 = "CHG-0004-xianyu-message-boundary"
+CHG_0005 = "CHG-0005-xianyu-reply-boundary"
 VERIFIED_CANDIDATE_SHA = "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
 ACCOUNT_VERIFIED_CANDIDATE_SHA = "2aab941cb7f713d7e46675789c47971a2c79c564"
 ACCOUNT_CAPABILITY = "CAP-XY-ACCOUNT"
 MESSAGE_CAPABILITY = "CAP-XY-MESSAGE"
+REPLY_CAPABILITY = "CAP-XY-REPLY"
 MESSAGE_VERIFIED_CANDIDATE_SHA = "49498e6f30944883c1a0a5a504932bbd02fc86de"
+REPLY_VERIFIED_CANDIDATE_SHA = "5724d164619c64e93295595b3acdd1429d24e3e0"
 CORE_CAPABILITIES = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
-EVIDENCED_CAPABILITIES = CORE_CAPABILITIES | {ACCOUNT_CAPABILITY, MESSAGE_CAPABILITY}
+EVIDENCED_CAPABILITIES = CORE_CAPABILITIES | {
+    ACCOUNT_CAPABILITY,
+    MESSAGE_CAPABILITY,
+    REPLY_CAPABILITY,
+}
 EXPECTED_CAPABILITY_IDS = {
     "CAP-CORE-CONFIG",
     "CAP-CORE-DATABASE",
@@ -42,6 +50,7 @@ EXPECTED_OWNER_MODULES = {
     "CAP-HEALTH-MONITOR": "app.health",
     "CAP-XY-ACCOUNT": "worker.account",
     "CAP-XY-MESSAGE": "worker.message",
+    "CAP-XY-REPLY": "app.reply",
 }
 EXPECTED_SPECIFICATIONS = {
     "CAP-CORE-CONFIG": "specs/capabilities/CAP-CORE-CONFIG.md",
@@ -49,6 +58,7 @@ EXPECTED_SPECIFICATIONS = {
     "CAP-HEALTH-MONITOR": "specs/capabilities/CAP-HEALTH-MONITOR.md",
     "CAP-XY-ACCOUNT": "specs/capabilities/CAP-XY-ACCOUNT.md",
     "CAP-XY-MESSAGE": "specs/capabilities/CAP-XY-MESSAGE.md",
+    "CAP-XY-REPLY": "specs/capabilities/CAP-XY-REPLY.md",
 }
 EXPECTED_CAPABILITY_PATHS = {
     "CAP-CORE-CONFIG": {
@@ -144,7 +154,33 @@ EXPECTED_CAPABILITY_PATHS = {
             "tests/contract/test_migrations.py",
             "tests/contract/test_core_runtime.py",
             "tests/contract/test_capability_registry.py",
-            "changes/active/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py",
+            "changes/archive/CHG-0004-xianyu-message-boundary/tests/test_acceptance.py",
+        ],
+    },
+    "CAP-XY-REPLY": {
+        "implementation_paths": [
+            "app/xianyu_system/reply/__init__.py",
+            "app/xianyu_system/reply/domain.py",
+            "app/xianyu_system/reply/evaluator.py",
+            "app/xianyu_system/reply/renderer.py",
+            "app/xianyu_system/reply/mapper.py",
+            "app/xianyu_system/reply/persistence.py",
+            "app/xianyu_system/reply/service.py",
+            "migrations/versions/0004_xianyu_reply_boundary.py",
+        ],
+        "test_paths": [
+            "tests/unit/test_reply_domain.py",
+            "tests/unit/test_reply_evaluator.py",
+            "tests/unit/test_reply_renderer.py",
+            "tests/unit/test_reply_mapper.py",
+            "tests/unit/test_reply_service.py",
+            "tests/unit/test_import_safety.py",
+            "tests/contract/test_reply_persistence.py",
+            "tests/contract/test_reply_security.py",
+            "tests/contract/test_migrations.py",
+            "tests/contract/test_core_runtime.py",
+            "tests/contract/test_capability_registry.py",
+            "changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py",
         ],
     },
 }
@@ -154,6 +190,7 @@ PRIMARY_IMPLEMENTATION_PATHS = {
     "CAP-HEALTH-MONITOR": "app/xianyu_system/api/health.py",
     "CAP-XY-ACCOUNT": "app/xianyu_system/worker/account/__init__.py",
     "CAP-XY-MESSAGE": "app/xianyu_system/worker/message/__init__.py",
+    "CAP-XY-REPLY": "app/xianyu_system/reply/__init__.py",
 }
 APPROVED_SHARED_PATHS = {
     "app/xianyu_system/application.py",
@@ -181,23 +218,25 @@ FORBIDDEN_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".whl"}
 GLOB_MARKERS = {"*", "?", "[", "]"}
 
 
-def registry() -> dict[str, object]:
+def registry() -> dict[str, Any]:
     data = read_yaml(REGISTRY_PATH)
     assert isinstance(data, dict)
     return data
 
 
-def capabilities_by_id() -> dict[str, dict[str, object]]:
-    return {str(item["id"]): item for item in registry()["capabilities"]}
+def capabilities_by_id() -> dict[str, dict[str, Any]]:
+    capabilities = cast(list[dict[str, Any]], registry()["capabilities"])
+    return {str(item["id"]): item for item in capabilities}
 
 
-def project_state() -> dict[str, object]:
+def project_state() -> dict[str, Any]:
     return json.loads(PROJECT_STATE_PATH.read_text(encoding="utf-8"))
 
 
-def project_state_capabilities_by_id() -> dict[str, dict[str, object]]:
+def project_state_capabilities_by_id() -> dict[str, dict[str, Any]]:
     state = project_state()
-    return {str(item["id"]): item for item in state["capabilities"]["items"]}
+    capabilities = cast(list[dict[str, Any]], state["capabilities"]["items"])
+    return {str(item["id"]): item for item in capabilities}
 
 
 def account_last_verified_commit() -> str | None:
@@ -236,11 +275,15 @@ def assert_commit_is_valid_offline(commit_sha: str) -> None:
         text=True,
         capture_output=True,
     ).stdout.strip()
-    assert shallow == "true", "verified candidate commit is missing from a complete local repository"
+    assert shallow == "true", (
+        "verified candidate commit is missing from a complete local repository"
+    )
 
 
-def all_registered_paths(capability: dict[str, object]) -> list[str]:
-    return [str(path) for path in capability["implementation_paths"] + capability["test_paths"]]
+def all_registered_paths(capability: dict[str, Any]) -> list[str]:
+    implementation_paths = cast(list[str], capability["implementation_paths"])
+    test_paths = cast(list[str], capability["test_paths"])
+    return [str(path) for path in implementation_paths + test_paths]
 
 
 def assert_safe_registry_path(relative_path: str) -> None:
@@ -285,12 +328,15 @@ def test_registry_path_responsibilities_are_separated() -> None:
         for relative_path in capability["implementation_paths"]:
             assert not relative_path.startswith(("tests/", "changes/", "generated/"))
         for relative_path in capability["test_paths"]:
-            assert relative_path.startswith((
-                "tests/",
-                "changes/archive/CHG-0002-core-application/tests/",
-                "changes/archive/CHG-0003-xianyu-account-boundary/tests/",
-                "changes/active/CHG-0004-xianyu-message-boundary/tests/",
-            ))
+            assert relative_path.startswith(
+                (
+                    "tests/",
+                    "changes/archive/CHG-0002-core-application/tests/",
+                    "changes/archive/CHG-0003-xianyu-account-boundary/tests/",
+                    "changes/archive/CHG-0004-xianyu-message-boundary/tests/",
+                    "changes/active/CHG-0005-xianyu-reply-boundary/tests/",
+                )
+            )
             assert not relative_path.startswith("app/")
 
 
@@ -329,6 +375,20 @@ def test_capability_spec_documents_match_registry_paths_and_status() -> None:
         assert MESSAGE_VERIFIED_CANDIDATE_SHA in message_spec
         assert "Registry status: verified" in message_spec
 
+    reply_spec = (ROOT / EXPECTED_SPECIFICATIONS[REPLY_CAPABILITY]).read_text(encoding="utf-8")
+    reply = items[REPLY_CAPABILITY]
+    if reply["status"] == "implementing":
+        assert reply["active_change"] == CHG_0005
+        assert reply["last_verified_commit"] is None
+        assert "Registry status: implementing" in reply_spec
+        assert "Last verified commit: unset until T8 complete verification" in reply_spec
+    else:
+        assert reply["status"] == "verified"
+        assert reply["active_change"] is None
+        assert reply["last_verified_commit"] == REPLY_VERIFIED_CANDIDATE_SHA
+        assert REPLY_VERIFIED_CANDIDATE_SHA in reply_spec
+        assert "Registry status: verified" in reply_spec
+
 
 def test_capability_statuses_match_verification_phase() -> None:
     items = capabilities_by_id()
@@ -355,6 +415,16 @@ def test_capability_statuses_match_verification_phase() -> None:
         assert MESSAGE_VERIFIED_CANDIDATE_SHA is not None
         assert message["last_verified_commit"] == MESSAGE_VERIFIED_CANDIDATE_SHA
         assert_commit_is_valid_offline(MESSAGE_VERIFIED_CANDIDATE_SHA)
+
+    reply = items[REPLY_CAPABILITY]
+    if reply["status"] == "implementing":
+        assert reply["active_change"] == CHG_0005
+        assert reply["last_verified_commit"] is None
+    else:
+        assert reply["status"] == "verified"
+        assert reply["active_change"] is None
+        assert reply["last_verified_commit"] == REPLY_VERIFIED_CANDIDATE_SHA
+        assert_commit_is_valid_offline(REPLY_VERIFIED_CANDIDATE_SHA)
 
 
 def test_other_capabilities_remain_planned_empty_and_unbound() -> None:
@@ -385,18 +455,34 @@ def test_project_state_matches_registry_paths_and_status_counts() -> None:
     state_items = project_state_capabilities_by_id()
     assert set(state_items) == set(registry_items)
     for cap_id in EVIDENCED_CAPABILITIES:
-        assert state_items[cap_id]["implementation_paths"] == registry_items[cap_id]["implementation_paths"]
+        assert (
+            state_items[cap_id]["implementation_paths"]
+            == registry_items[cap_id]["implementation_paths"]
+        )
         assert state_items[cap_id]["test_paths"] == registry_items[cap_id]["test_paths"]
         assert state_items[cap_id]["status"] == registry_items[cap_id]["status"]
         assert state_items[cap_id]["active_change"] == registry_items[cap_id]["active_change"]
-        assert state_items[cap_id]["last_verified_commit"] == registry_items[cap_id]["last_verified_commit"]
+        assert (
+            state_items[cap_id]["last_verified_commit"]
+            == registry_items[cap_id]["last_verified_commit"]
+        )
     state_counts = project_state()["capabilities"]["by_status"]
-    if registry_items[MESSAGE_CAPABILITY]["status"] == "implementing":
-        assert state_counts == {"planned": 5, "implementing": 1, "verified": 4}
+    if registry_items[REPLY_CAPABILITY]["status"] == "implementing":
+        assert state_counts == {"planned": 4, "implementing": 1, "verified": 5}
     else:
-        assert state_counts == {"planned": 5, "verified": 5}
-        assert project_state_capabilities_by_id()[MESSAGE_CAPABILITY]["last_verified_commit"] == MESSAGE_VERIFIED_CANDIDATE_SHA
-    assert project_state_capabilities_by_id()[ACCOUNT_CAPABILITY]["last_verified_commit"] == ACCOUNT_VERIFIED_CANDIDATE_SHA
+        assert state_counts == {"planned": 4, "verified": 6}
+        assert (
+            project_state_capabilities_by_id()[MESSAGE_CAPABILITY]["last_verified_commit"]
+            == MESSAGE_VERIFIED_CANDIDATE_SHA
+        )
+        assert (
+            project_state_capabilities_by_id()[REPLY_CAPABILITY]["last_verified_commit"]
+            == REPLY_VERIFIED_CANDIDATE_SHA
+        )
+    assert (
+        project_state_capabilities_by_id()[ACCOUNT_CAPABILITY]["last_verified_commit"]
+        == ACCOUNT_VERIFIED_CANDIDATE_SHA
+    )
 
 
 def test_path_lists_have_no_duplicates_and_shared_paths_are_approved() -> None:
