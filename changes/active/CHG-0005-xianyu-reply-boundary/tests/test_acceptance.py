@@ -73,9 +73,9 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     ]
     assert len(task_lines) == 9
     completed_count = sum(line.startswith("- [x]") for line in task_lines)
-    assert completed_count == 6
-    assert all(line.startswith("- [x]") for line in task_lines[:6])
-    assert all(line.startswith("- [ ]") for line in task_lines[6:])
+    assert completed_count == 7
+    assert all(line.startswith("- [x]") for line in task_lines[:7])
+    assert all(line.startswith("- [ ]") for line in task_lines[7:])
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": "CHG-0005-xianyu-reply-boundary",
@@ -85,10 +85,10 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     assert state["tasks"]["total"] == 9
     assert state["tasks"]["completed"] == completed_count
     assert state["tasks"]["next_task"] == (
-        "T7 Add unit, contract, security, and active-change acceptance tests"
+        "T8 Update capability evidence and run complete verification"
     )
-    assert all(item["completed"] is True for item in state["tasks"]["items"][:6])
-    assert all(item["completed"] is False for item in state["tasks"]["items"][6:])
+    assert all(item["completed"] is True for item in state["tasks"]["items"][:7])
+    assert all(item["completed"] is False for item in state["tasks"]["items"][7:])
     assert state["capabilities"]["by_status"] == {"planned": 5, "verified": 5}
 
 
@@ -118,8 +118,21 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
     assert not (ROOT / "app" / "xianyu_system" / "reply.py").exists()
     assert not (ROOT / "app" / "xianyu_system" / "worker" / "reply.py").exists()
     assert not (ROOT / "app" / "xianyu_system" / "worker" / "reply").exists()
-    assert not list((ROOT / "tests" / "unit").glob("*reply*"))
-    assert not list((ROOT / "tests" / "contract").glob("*reply*"))
+    expected_unit_tests = {
+        "test_reply_domain.py",
+        "test_reply_evaluator.py",
+        "test_reply_renderer.py",
+        "test_reply_mapper.py",
+        "test_reply_service.py",
+    }
+    expected_contract_tests = {
+        "test_reply_persistence.py",
+        "test_reply_security.py",
+    }
+    assert expected_unit_tests <= {path.name for path in (ROOT / "tests" / "unit").glob("*reply*")}
+    assert expected_contract_tests <= {
+        path.name for path in (ROOT / "tests" / "contract").glob("*reply*")
+    }
 
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
     for forbidden in [
@@ -162,6 +175,7 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
         "Migration created in Phase 1: no",
         "T6 implementation record",
         "CAP-XY-REPLY intentionally remains `planned`",
+        "T7 permanent evidence record",
     ]:
         assert required in joined
 

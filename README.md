@@ -13,10 +13,10 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Its historical acceptance evidence is preserved under `changes/archive/`.
 - CHG-0005-xianyu-reply-boundary is the only Active Change.
 - CHG-0005 status is `APPROVED`.
-- CHG-0005 T1 through T6 are complete; tasks are 6 / 9.
+- CHG-0005 T1 through T7 are complete; tasks are 7 / 9.
 - CAP-XY-REPLY remains planned and unbound.
 - A local deterministic Reply Runtime, Rule Engine, Template Engine, and Migration are implemented for T6 only. No Message Sending, WeCom, AI Provider, browser, external network, real-account, or customer-data behavior is implemented.
-- Owner Design Review corrective findings are resolved for T1-through-T5 design; T7 is the next executable task; Capability binding, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
+- Owner Design Review corrective findings are resolved for T1-through-T5 design; T8 is the next executable task; Capability binding verification, Ready for review, Reviewer request, Auto-merge, and Merge remain unauthorized.
 
 ## Project goal
 
@@ -525,3 +525,10 @@ CHG-0003 final PR administration is complete.
 - Migration `0004_xianyu_reply_boundary` introduces local Reply Template, Rule, Condition, and sanitized Audit projections after the verified Message boundary.
 - CAP-XY-REPLY remains planned and unbound during T6; T8 is responsible for evidence-path registration and verification.
 - There is still no real Xianyu access, message sending, browser profile use, WeCom integration, AI Provider integration, API/Web UI, worker loop, scheduler, credential resolver, dependency change, workflow change, Ready transition, reviewer request, auto-merge, or merge.
+
+## CHG-0005 T7 permanent reply evidence
+
+- T7 permanent Reply tests are implemented across Domain, Evaluator, Renderer, Mapper, Service, Persistence Contract, Security Contract, Import Safety, Migration, Runtime compatibility, Capability Registry planned-state assertions, and active acceptance.
+- Tasks are now 7 / 9 and T8 capability evidence is the next executable task.
+- CAP-XY-REPLY remains planned and unbound pending T8.
+- No real Xianyu access, message sending, browser profile use, WeCom integration, AI Provider integration, API/Web UI, worker loop, scheduler, credential resolver, dependency change, workflow change, Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, or CHG-0006 was introduced.

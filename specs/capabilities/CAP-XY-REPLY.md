@@ -123,3 +123,7 @@ CAP-XY-REPLY remains planned and unbound with no implementation paths, test path
 T6 implements the approved local deterministic Reply runtime package and migration without registering capability evidence yet. The package is `app/xianyu_system/reply/` and contains pure Domain, Evaluator, Renderer, Mapper, Persistence, and Service boundaries. Migration `0004_xianyu_reply_boundary` creates local Template, Rule, Condition, and sanitized Audit tables after the verified Message migration.
 
 The implementation does not send messages, does not access Xianyu, does not integrate WeCom or AI, does not open browser profiles, does not resolve credentials, does not create API/Web UI/worker/scheduler/sender behavior, and does not modify CAP-XY-MESSAGE semantics. CAP-XY-REPLY remains `planned`, with no registered implementation paths, test paths, active_change, or last_verified_commit until T8.
+
+### T7 permanent evidence
+
+T7 adds permanent tests for the local deterministic Reply boundary: Domain, Evaluator, Renderer, Mapper, Service, Persistence Contract, Security Contract, Import Safety, Migration, Runtime compatibility, Capability Registry planned-state assertions, and active acceptance. The capability remains `planned` and unbound until T8 registers exact evidence paths and verifies the candidate commit.

@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 IMPORT_MODULES = [
@@ -23,6 +24,8 @@ IMPORT_MODULES = [
     "xianyu_system.worker.message",
     "xianyu_system.worker.message.domain",
     "xianyu_system.worker.message.transport",
+    "xianyu_system.reply",
+    "xianyu_system.reply.domain",
 ]
 FORBIDDEN_ARTIFACT_GLOBS = [
     "*.db",
@@ -34,7 +37,7 @@ FORBIDDEN_ARTIFACT_GLOBS = [
 ]
 
 
-def run_import_probe(tmp_path: Path, modules: list[str]) -> dict[str, object]:
+def run_import_probe(tmp_path: Path, modules: list[str]) -> dict[str, Any]:
     env = os.environ.copy()
     pythonpath = [str(ROOT / "app"), str(ROOT)]
     if env.get("PYTHONPATH"):
@@ -140,6 +143,24 @@ after = {
         and "SyntheticMessageDelivery"
         in sys.modules["xianyu_system.worker.message"].__all__
     ),
+    "reply_modules": sorted(
+        name
+        for name in sys.modules
+        if name.startswith("xianyu_system.reply")
+    ),
+    "reply_persistence_loaded": (
+        "xianyu_system.reply.persistence" in sys.modules
+    ),
+    "reply_service_loaded": (
+        "xianyu_system.reply.service" in sys.modules
+    ),
+    "reply_public_surface": (
+        "xianyu_system.reply" in sys.modules
+        and "ReplyDecision"
+        in sys.modules["xianyu_system.reply"].__all__
+        and "ReplyService"
+        in sys.modules["xianyu_system.reply"].__all__
+    ),
     "cwd_files": sorted(path.name for path in cwd.iterdir()),
     "root_level": root_logger.level,
     "root_handlers": [id(handler) for handler in root_logger.handlers],
@@ -167,14 +188,7 @@ print(json.dumps({"before": before, "after": after}, sort_keys=True))
 
 
 def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> None:
-    account_init_path = (
-        ROOT
-        / "app"
-        / "xianyu_system"
-        / "worker"
-        / "account"
-        / "__init__.py"
-    )
+    account_init_path = ROOT / "app" / "xianyu_system" / "worker" / "account" / "__init__.py"
     account_init_bytes = account_init_path.read_bytes()
 
     assert not account_init_bytes.startswith(b"\xef\xbb\xbf")
@@ -182,20 +196,18 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
         b'"""Public surface for the local Xianyu account boundary.'
     )
     account_init_bytes.decode("utf-8")
-    message_init_path = (
-        ROOT
-        / "app"
-        / "xianyu_system"
-        / "worker"
-        / "message"
-        / "__init__.py"
-    )
+    message_init_path = ROOT / "app" / "xianyu_system" / "worker" / "message" / "__init__.py"
     message_init_bytes = message_init_path.read_bytes()
     assert not message_init_bytes.startswith(b"\xef\xbb\xbf")
-    assert message_init_bytes.startswith(
-        b'"""Local synthetic message receiving boundary package.'
-    )
+    assert message_init_bytes.startswith(b'"""Local synthetic message receiving boundary package.')
     message_init_bytes.decode("utf-8")
+    reply_init_path = ROOT / "app" / "xianyu_system" / "reply" / "__init__.py"
+    reply_init_bytes = reply_init_path.read_bytes()
+    assert not reply_init_bytes.startswith(b"\xef\xbb\xbf")
+    assert reply_init_bytes.startswith(
+        b'"""Lazy public surface for the local deterministic Reply boundary.'
+    )
+    reply_init_bytes.decode("utf-8")
 
     report = run_import_probe(tmp_path, IMPORT_MODULES)
 
@@ -210,18 +222,9 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
     assert report["after"]["account_persistence_loaded"] is False
     assert report["after"]["account_service_public"] is True
     assert "xianyu_system.worker.account" in report["after"]["account_modules"]
-    assert (
-        "xianyu_system.worker.account.domain"
-        in report["after"]["account_modules"]
-    )
-    assert (
-        "xianyu_system.worker.account.service"
-        not in report["after"]["account_modules"]
-    )
-    assert (
-        "xianyu_system.worker.account.persistence"
-        not in report["after"]["account_modules"]
-    )
+    assert "xianyu_system.worker.account.domain" in report["after"]["account_modules"]
+    assert "xianyu_system.worker.account.service" not in report["after"]["account_modules"]
+    assert "xianyu_system.worker.account.persistence" not in report["after"]["account_modules"]
     assert report["after"]["message_service_loaded"] is False
     assert report["after"]["message_persistence_loaded"] is False
     assert report["after"]["message_worker_loaded"] is False
@@ -231,22 +234,17 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
     assert report["after"]["message_worker_public"] is True
     assert report["after"]["message_transport_public"] is True
     assert "xianyu_system.worker.message" in report["after"]["message_modules"]
-    assert (
-        "xianyu_system.worker.message.domain"
-        in report["after"]["message_modules"]
-    )
-    assert (
-        "xianyu_system.worker.message.transport"
-        in report["after"]["message_modules"]
-    )
-    assert (
-        "xianyu_system.worker.message.service"
-        not in report["after"]["message_modules"]
-    )
-    assert (
-        "xianyu_system.worker.message.persistence"
-        not in report["after"]["message_modules"]
-    )
+    assert "xianyu_system.worker.message.domain" in report["after"]["message_modules"]
+    assert "xianyu_system.worker.message.transport" in report["after"]["message_modules"]
+    assert "xianyu_system.worker.message.service" not in report["after"]["message_modules"]
+    assert "xianyu_system.worker.message.persistence" not in report["after"]["message_modules"]
+    assert report["after"]["reply_persistence_loaded"] is False
+    assert report["after"]["reply_service_loaded"] is False
+    assert report["after"]["reply_public_surface"] is True
+    assert "xianyu_system.reply" in report["after"]["reply_modules"]
+    assert "xianyu_system.reply.domain" in report["after"]["reply_modules"]
+    assert "xianyu_system.reply.persistence" not in report["after"]["reply_modules"]
+    assert "xianyu_system.reply.service" not in report["after"]["reply_modules"]
     assert report["after"]["has_database_state"] is False
     assert report["after"]["has_scheduler_state"] is False
     assert report["after"]["has_logger_state"] is False
