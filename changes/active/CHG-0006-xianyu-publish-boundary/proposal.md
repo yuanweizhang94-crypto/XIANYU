@@ -90,3 +90,11 @@ T2 is complete. Approved terminology and local data contracts are recorded in de
 T3 is the next executable task.
 
 CAP-XY-PUBLISH remains planned and unbound. T6 implementation remains unauthorized.
+
+## T3 completion record
+
+T3 is complete. Permission, credential, risk-control, and platform boundaries are approved as design-only constraints.
+
+T4 is the next executable task.
+
+Unknown authorization and unknown risk fail closed. Platform adapter behavior remains separate and unimplemented.

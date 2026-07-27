@@ -66,3 +66,15 @@ No implementation, capability binding, reviewer request, Ready transition, auto-
 5. Approved terminology includes ListingDraft, PublishRequest, PublishValidationResult, PublishDecision, PublishDecisionType, PublishAttempt, PublishAttemptState, PublishOutcomeType, PublishReasonCode, and PublishEvaluationContext.
 6. READY is documented as local readiness only and not publication.
 7. CAP-XY-PUBLISH remains planned and unbound.
+
+## T3 acceptance criteria
+
+1. T1 through T3 are complete.
+2. T4 through T9 remain incomplete.
+3. PROJECT_STATE reports 3 / 9 tasks complete.
+4. PROJECT_STATE next_task is `T4 Approve validation, idempotency, duplicate, and uncertainty boundaries`.
+5. Authorization states are AUTHORIZED, DENIED, and UNKNOWN.
+6. Risk states are CLEAR, BLOCKED, and UNKNOWN.
+7. UNKNOWN authorization and UNKNOWN risk fail closed.
+8. Credential and platform objects remain outside Domain, Service, Repository, audit, and tests.
+9. No Playwright, browser, Xianyu, publication, network, Credential, WeCom, or AI behavior is authorized.

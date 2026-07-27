@@ -104,3 +104,46 @@ It must not contain Cookie, Token, Secret, Password, Session Material, browser P
 
 
 T2 records terminology only. CAP-XY-PUBLISH remains planned and unbound.
+
+## CHG-0006 T3 approved safety boundaries
+
+### PublishAuthorizationState
+
+Approved states: `AUTHORIZED`, `DENIED`, and `UNKNOWN`.
+
+Rules:
+
+- Only `AUTHORIZED` may continue local evaluation.
+- `DENIED` must produce `UNAUTHORIZED` with reason `AUTHORIZATION_DENIED`.
+- `UNKNOWN` must fail closed with `UNAUTHORIZED` and reason `AUTHORIZATION_UNKNOWN`.
+- The local publishing boundary does not log in, resolve platform permission, or acquire platform authorization.
+
+### PublishRiskState
+
+Approved states: `CLEAR`, `BLOCKED`, and `UNKNOWN`.
+
+Rules:
+
+- Only `CLEAR` may continue local evaluation.
+- `BLOCKED` must produce `RISK_BLOCKED`.
+- `UNKNOWN` must fail closed with reason `RISK_UNKNOWN`.
+- Verification codes, platform checks, rate limits, and risk controls must not be bypassed.
+
+### Credential boundary
+
+The publishing Domain, local Service, validation logic, audit records, and future repository protocol must not accept or store Cookie, Token, Secret, Password, Session Material, browser Profile, raw Credential, Playwright object, HTTP client, or platform page object.
+
+`local_profile_reference` and `seller_profile_reference` are non-secret local references only.
+
+### Platform boundary
+
+The local publishing boundary is synthetic and deterministic. It does not open a browser, call Playwright, access Xianyu, log in, upload media, create or edit a listing, publish a listing, perform HTTP, WebSocket, DNS, or other external network access, or infer real platform state.
+
+Any future platform adapter must be separately authorized and must remain outside Domain, Repository, and local Service responsibilities.
+
+### Fail-closed rule
+
+Missing, denied, unknown, blocked, expired, unavailable, verification-required, or ambiguous permission or risk state must fail closed. It must not be interpreted as permission to publish or permission to continue to platform behavior.
+
+
+T3 records design constraints only. CAP-XY-PUBLISH remains planned and unbound.
