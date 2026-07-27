@@ -191,3 +191,9 @@ CAP-XY-REPLY intentionally remains `planned` and unbound during T6: implementati
 T7 adds permanent Reply unit, contract, security, import-safety, migration, runtime, and active acceptance evidence. The tests cover Domain invariants, deterministic evaluation, fixed-script rendering, Message-to-Reply mapping, Service transaction ownership, persistence constraints, migration behavior, audit sanitization, and prohibited external behavior.
 
 CAP-XY-REPLY still intentionally remains `planned` and unbound after T7: implementation paths, test paths, `active_change`, and `last_verified_commit` remain empty/null until the T8 evidence candidate and verification record. T8 is the next task; T9, PR Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, and CHG-0006 remain unauthorized.
+
+## T8 evidence candidate record
+
+T8 Phase A registers CAP-XY-REPLY as `implementing` for the evidence candidate. The registry records the exact eight implementation paths and twelve test paths approved for CHG-0005. `active_change` is `CHG-0005-xianyu-reply-boundary`; `last_verified_commit` remains null until the Candidate commit is created, pushed, and verified locally and by GitHub Actions.
+
+T8 is not complete in this candidate record. Tasks remain 7 / 9 and the next task remains T8 until the Verification Record records the real Candidate SHA. No runtime, migration, test, dependency, workflow, PR metadata, Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, or CHG-0006 behavior is changed by this evidence registration.

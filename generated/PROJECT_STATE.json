@@ -52,7 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 5,
+      "implementing": 1,
+      "planned": 4,
       "verified": 5
     },
     "items": [
@@ -165,12 +166,34 @@
       {
         "id": "CAP-XY-REPLY",
         "name": "Xianyu reply rules",
-        "status": "planned",
+        "status": "implementing",
         "owner_module": "app.reply",
         "specification": "specs/capabilities/CAP-XY-REPLY.md",
-        "implementation_paths": [],
-        "test_paths": [],
-        "active_change": null,
+        "implementation_paths": [
+          "app/xianyu_system/reply/__init__.py",
+          "app/xianyu_system/reply/domain.py",
+          "app/xianyu_system/reply/evaluator.py",
+          "app/xianyu_system/reply/renderer.py",
+          "app/xianyu_system/reply/mapper.py",
+          "app/xianyu_system/reply/persistence.py",
+          "app/xianyu_system/reply/service.py",
+          "migrations/versions/0004_xianyu_reply_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_reply_domain.py",
+          "tests/unit/test_reply_evaluator.py",
+          "tests/unit/test_reply_renderer.py",
+          "tests/unit/test_reply_mapper.py",
+          "tests/unit/test_reply_service.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_reply_persistence.py",
+          "tests/contract/test_reply_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_core_runtime.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py"
+        ],
+        "active_change": "CHG-0005-xianyu-reply-boundary",
         "last_verified_commit": null
       },
       {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import yaml
 
@@ -89,7 +90,15 @@ def test_chg_0005_tasks_and_generated_state_are_draft_only() -> None:
     )
     assert all(item["completed"] is True for item in state["tasks"]["items"][:7])
     assert all(item["completed"] is False for item in state["tasks"]["items"][7:])
-    assert state["capabilities"]["by_status"] == {"planned": 5, "verified": 5}
+    if completed_count == 7:
+        assert state["capabilities"]["by_status"] == {
+            "planned": 4,
+            "implementing": 1,
+            "verified": 5,
+        }
+    else:
+        assert completed_count == 8
+        assert state["capabilities"]["by_status"] == {"planned": 4, "verified": 6}
 
 
 def test_reply_capability_remains_planned_and_unimplemented() -> None:
@@ -100,18 +109,26 @@ def test_reply_capability_remains_planned_and_unimplemented() -> None:
     assert message["status"] == "verified"
     assert message["active_change"] is None
     assert message["last_verified_commit"] == MESSAGE_VERIFIED_CANDIDATE_SHA
-    assert len(message["implementation_paths"]) == 7
-    assert len(message["test_paths"]) == 10
-    assert MESSAGE_ARCHIVED_ACCEPTANCE in message["test_paths"]
-    assert MESSAGE_ACTIVE_ACCEPTANCE not in message["test_paths"]
+    message_implementation_paths = cast(list[str], message["implementation_paths"])
+    message_test_paths = cast(list[str], message["test_paths"])
+    assert len(message_implementation_paths) == 7
+    assert len(message_test_paths) == 10
+    assert MESSAGE_ARCHIVED_ACCEPTANCE in message_test_paths
+    assert MESSAGE_ACTIVE_ACCEPTANCE not in message_test_paths
 
-    assert reply["status"] == "planned"
+    if reply["status"] == "implementing":
+        assert reply["active_change"] == "CHG-0005-xianyu-reply-boundary"
+        assert reply["last_verified_commit"] is None
+    else:
+        assert reply["status"] == "verified"
+        assert reply["active_change"] is None
+        assert isinstance(reply["last_verified_commit"], str)
     assert reply["owner_module"] == "app.reply"
     assert reply["specification"] == "specs/capabilities/CAP-XY-REPLY.md"
-    assert reply["implementation_paths"] == []
-    assert reply["test_paths"] == []
-    assert reply["active_change"] is None
-    assert reply["last_verified_commit"] is None
+    reply_implementation_paths = cast(list[str], reply["implementation_paths"])
+    reply_test_paths = cast(list[str], reply["test_paths"])
+    assert len(reply_implementation_paths) == 8
+    assert len(reply_test_paths) == 12
 
     assert (ROOT / "app" / "xianyu_system" / "reply").is_dir()
     assert (ROOT / "migrations" / "versions" / "0004_xianyu_reply_boundary.py").is_file()

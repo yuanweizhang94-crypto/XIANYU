@@ -532,3 +532,11 @@ CHG-0003 final PR administration is complete.
 - Tasks are now 7 / 9 and T8 capability evidence is the next executable task.
 - CAP-XY-REPLY remains planned and unbound pending T8.
 - No real Xianyu access, message sending, browser profile use, WeCom integration, AI Provider integration, API/Web UI, worker loop, scheduler, credential resolver, dependency change, workflow change, Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, or CHG-0006 was introduced.
+
+## CHG-0005 T8 evidence candidate
+
+- CAP-XY-REPLY is registered as `implementing` for the T8 Evidence Candidate.
+- Exact implementation and test evidence paths are registered.
+- `last_verified_commit` remains unset until the Candidate commit is verified and the Verification Record is created.
+- Tasks remain 7 / 9 during Phase A; T8 is still the next task until Phase B completes.
+- No runtime semantics, migration semantics, permanent tests, dependency, workflow, PR metadata, Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, or CHG-0006 was changed by the candidate registration.

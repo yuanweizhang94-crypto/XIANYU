@@ -127,3 +127,37 @@ The implementation does not send messages, does not access Xianyu, does not inte
 ### T7 permanent evidence
 
 T7 adds permanent tests for the local deterministic Reply boundary: Domain, Evaluator, Renderer, Mapper, Service, Persistence Contract, Security Contract, Import Safety, Migration, Runtime compatibility, Capability Registry planned-state assertions, and active acceptance. The capability remains `planned` and unbound until T8 registers exact evidence paths and verifies the candidate commit.
+
+### T8 evidence candidate
+
+Registry status: implementing
+
+Last verified commit: unset until T8 complete verification
+
+Implementation paths:
+
+- `app/xianyu_system/reply/__init__.py`
+- `app/xianyu_system/reply/domain.py`
+- `app/xianyu_system/reply/evaluator.py`
+- `app/xianyu_system/reply/renderer.py`
+- `app/xianyu_system/reply/mapper.py`
+- `app/xianyu_system/reply/persistence.py`
+- `app/xianyu_system/reply/service.py`
+- `migrations/versions/0004_xianyu_reply_boundary.py`
+
+Test paths:
+
+- `tests/unit/test_reply_domain.py`
+- `tests/unit/test_reply_evaluator.py`
+- `tests/unit/test_reply_renderer.py`
+- `tests/unit/test_reply_mapper.py`
+- `tests/unit/test_reply_service.py`
+- `tests/unit/test_import_safety.py`
+- `tests/contract/test_reply_persistence.py`
+- `tests/contract/test_reply_security.py`
+- `tests/contract/test_migrations.py`
+- `tests/contract/test_core_runtime.py`
+- `tests/contract/test_capability_registry.py`
+- `changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py`
+
+Candidate registration records evidence only. Verification remains incomplete until the real Candidate SHA is recorded in the T8 Verification Record.
