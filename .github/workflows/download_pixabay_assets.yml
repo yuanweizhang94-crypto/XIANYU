@@ -1,0 +1,100 @@
+name: Download Pixabay Assets
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/download_pixabay_assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install downloader dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests beautifulsoup4 playwright
+          python -m playwright install chromium
+      - name: Download selected Pixabay music and sound effects
+        shell: bash
+        run: |
+          cat > /tmp/download_assets.py <<'PY'
+          import html, json, re, sys
+          from pathlib import Path
+          import requests
+
+          assets = {
+              'bgm_corporate.mp3': 'https://pixabay.com/music/corporate-corporate-music-562854/',
+              'sfx_whoosh.mp3': 'https://pixabay.com/sound-effects/film-special-effects-whoosh-effect-382717/',
+              'sfx_ding.mp3': 'https://pixabay.com/sound-effects/film-special-effects-notification-ping-372479/',
+              'sfx_notification.mp3': 'https://pixabay.com/sound-effects/film-special-effects-ui-ai-system-notification-537631/',
+          }
+          out = Path('pixabay_assets')
+          out.mkdir(exist_ok=True)
+          headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/150 Safari/537.36'}
+
+          def candidates_from_text(text):
+              variants = [text, html.unescape(text), text.replace('\\/','/'), html.unescape(text).replace('\\/','/')]
+              found=[]
+              pats=[
+                  r'https://cdn\.pixabay\.com/download/audio/[^"\'<> ]+?\.mp3(?:\?[^"\'<> ]*)?',
+                  r'https://cdn\.pixabay\.com/audio/[^"\'<> ]+?\.mp3(?:\?[^"\'<> ]*)?',
+              ]
+              for v in variants:
+                  v=v.replace('\\u002F','/').replace('\\u0026','&')
+                  for p in pats:
+                      found += re.findall(p,v)
+              clean=[]
+              for u in found:
+                  u=html.unescape(u).replace('\\/','/')
+                  if u not in clean: clean.append(u)
+              return clean
+
+          def fetch_page(url):
+              r=requests.get(url,headers=headers,timeout=45)
+              r.raise_for_status()
+              return r.text
+
+          for filename,page in assets.items():
+              text=fetch_page(page)
+              urls=candidates_from_text(text)
+              if not urls:
+                  Path('/tmp/page.html').write_text(text,encoding='utf-8')
+                  raise RuntimeError(f'No CDN mp3 URL found for {page}')
+              ok=False
+              for u in urls:
+                  try:
+                      r=requests.get(u,headers=headers,timeout=90,allow_redirects=True)
+                      if r.status_code==200 and len(r.content)>1000 and ('audio' in r.headers.get('content-type','') or r.content[:3]==b'ID3' or r.content[:2]==b'\xff\xfb'):
+                          (out/filename).write_bytes(r.content)
+                          print(filename, len(r.content), u)
+                          ok=True
+                          break
+                  except Exception as e:
+                      print('candidate failed',u,e,file=sys.stderr)
+              if not ok:
+                  raise RuntimeError(f'Could not download valid audio for {page}; candidates={urls[:5]}')
+
+          (out/'sources.txt').write_text('\n'.join(f'{k}\t{v}' for k,v in assets.items()),encoding='utf-8')
+          PY
+          python /tmp/download_assets.py
+      - name: Probe downloaded media
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          for f in pixabay_assets/*.mp3; do ffprobe -v error -show_entries format=filename,duration,size -of default=nw=1 "$f"; done
+      - name: Upload Pixabay assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghana-pixabay-audio-assets
+          path: pixabay_assets/
+          if-no-files-found: error
+          retention-days: 7
