@@ -1,0 +1,39 @@
+name: Fetch Green Check Candidates
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch_green_check_candidates.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download original Flaticon candidates
+        shell: bash
+        run: |
+          set -e
+          mkdir -p green_candidates
+          UA='Mozilla/5.0'
+          download() { curl -fL --retry 3 -A "$UA" -e 'https://www.flaticon.com/' -o "green_candidates/$1" "$2" || true; }
+          download check_190411.png https://cdn-icons-png.flaticon.com/512/190/190411.png
+          download check_845646.png https://cdn-icons-png.flaticon.com/512/845/845646.png
+          download check_561094.png https://cdn-icons-png.flaticon.com/512/561/561094.png
+          download check_4436481.png https://cdn-icons-png.flaticon.com/512/4436/4436481.png
+          download check_1828640.png https://cdn-icons-png.flaticon.com/512/1828/1828640.png
+          download check_5290058.png https://cdn-icons-png.flaticon.com/512/5290/5290058.png
+          download check_14090371.png https://cdn-icons-png.flaticon.com/512/14090/14090371.png
+          file green_candidates/* || true
+          sha256sum green_candidates/* > green_candidates/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ghana-green-check-candidates
+          path: green_candidates/
+          if-no-files-found: error
+          retention-days: 7
