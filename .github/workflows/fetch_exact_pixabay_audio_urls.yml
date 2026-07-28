@@ -45,19 +45,16 @@ jobs:
             size=$(stat -c %s "$f")
             echo "$f format=$format duration=$duration size=$size" | tee -a exact_pixabay_audio/VALIDATION.txt
             test "$size" -gt 20000
-            python3 - "$duration" <<'PY'
-import sys
-assert float(sys.argv[1]) > 0.1
-PY
+            python3 -c "import sys; assert float(sys.argv[1]) > 0.1" "$duration"
             case "$format" in *mp3*) ;; *) echo "Not MP3: $f ($format)"; exit 1;; esac
           done
           sha256sum exact_pixabay_audio/*.mp3 > exact_pixabay_audio/SHA256SUMS.txt
-          cat > exact_pixabay_audio/SOURCES.tsv <<'EOF'
-bgm_the_technology_corporate_198151.mp3	The Technology Corporate — MomotMusic	https://pixabay.com/music/corporate-the-technology-corporate-198151/
-whoosh_effect_382717.mp3	Whoosh Effect — DRAGON-STUDIO	https://pixabay.com/sound-effects/film-special-effects-whoosh-effect-382717/
-ding_402325.mp3	Ding — DRAGON-STUDIO	https://pixabay.com/sound-effects/film-special-effects-ding-402325/
-ui_notification_pop_513564.mp3	UI Notification Pop — SoundShelfStudio	https://pixabay.com/sound-effects/technology-ui-notification-pop-513564/
-EOF
+          printf '%s\n' \
+            $'bgm_the_technology_corporate_198151.mp3\tThe Technology Corporate — MomotMusic\thttps://pixabay.com/music/corporate-the-technology-corporate-198151/' \
+            $'whoosh_effect_382717.mp3\tWhoosh Effect — DRAGON-STUDIO\thttps://pixabay.com/sound-effects/film-special-effects-whoosh-effect-382717/' \
+            $'ding_402325.mp3\tDing — DRAGON-STUDIO\thttps://pixabay.com/sound-effects/film-special-effects-ding-402325/' \
+            $'ui_notification_pop_513564.mp3\tUI Notification Pop — SoundShelfStudio\thttps://pixabay.com/sound-effects/technology-ui-notification-pop-513564/' \
+            > exact_pixabay_audio/SOURCES.tsv
       - uses: actions/upload-artifact@v4
         with:
           name: ghana-exact-pixabay-audio
