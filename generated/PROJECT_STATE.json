@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 3,
-    "next_task": "T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior",
+    "completed": 4,
+    "next_task": "T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0007",
@@ -25,7 +25,7 @@
       },
       {
         "text": "T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries",
