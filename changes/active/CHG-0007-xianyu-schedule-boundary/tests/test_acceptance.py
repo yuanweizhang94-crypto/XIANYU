@@ -21,8 +21,8 @@ def test_draft_has_exactly_nine_unfinished_tasks() -> None:
     tasks = (CHANGE_DIR / "tasks.md").read_text(encoding="utf-8").splitlines()
     task_lines = [line for line in tasks if line.startswith("- [ ] T") or line.startswith("- [x] T")]
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:2])
-    assert all(line.startswith("- [ ]") for line in task_lines[2:])
+    assert all(line.startswith("- [x]") for line in task_lines[:3])
+    assert all(line.startswith("- [ ]") for line in task_lines[3:])
 
 
 def test_draft_keeps_schedule_capability_planned_and_unbound() -> None:
@@ -40,8 +40,8 @@ def test_draft_project_state_and_runtime_absence() -> None:
     assert state["active_change"]["id"] == CHANGE_ID
     assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 2
-    assert state["tasks"]["next_task"] == "T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries."
+    assert state["tasks"]["completed"] == 3
+    assert state["tasks"]["next_task"] == "T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior."
     assert state["capabilities"]["by_status"] == {"planned": 3, "verified": 7}
     assert not (ROOT / "app" / "xianyu_system" / "schedule").exists()
     assert not (ROOT / "migrations" / "versions" / "0006_xianyu_schedule_boundary.py").exists()
