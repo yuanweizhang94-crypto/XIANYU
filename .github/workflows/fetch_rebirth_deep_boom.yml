@@ -1,0 +1,107 @@
+name: Fetch Rebirth Deep Boom
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch_rebirth_deep_boom.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser and media validators
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install curl_cffi playwright
+          python -m playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg xvfb
+      - name: Capture exact Pixabay cinematic boom MP3
+        shell: bash
+        run: |
+          cat > /tmp/fetch_boom.py <<'PY'
+          import asyncio, html, re, subprocess, hashlib
+          from pathlib import Path
+          from curl_cffi import requests as crequests
+          from playwright.async_api import async_playwright
+          PAGE='https://pixabay.com/sound-effects/cinematic-boom-454254/'
+          OUT=Path('rebirth_deep_boom'); OUT.mkdir(exist_ok=True)
+          TARGET=OUT/'cinematic_boom_454254.mp3'
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
+          def probe(p):
+            try:
+              fmt=subprocess.check_output(['ffprobe','-v','error','-show_entries','format=format_name','-of','csv=p=0',str(p)],text=True).strip()
+              dur=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',str(p)],text=True).strip())
+              return ('mp3' in fmt and dur>0.1),fmt,dur
+            except Exception as e:return False,str(e),0
+          async def main():
+            logs=[]; candidates=[]
+            async with async_playwright() as p:
+              browser=await p.chromium.launch(headless=True,args=['--disable-blink-features=AutomationControlled','--no-sandbox'])
+              context=await browser.new_context(user_agent=UA,locale='en-US',viewport={'width':1440,'height':1100})
+              page=await context.new_page()
+              async def handler(resp):
+                u=resp.url; ct=(resp.headers.get('content-type') or '').lower()
+                if 'cdn.pixabay.com' in u and ('/audio/' in u or '.mp3' in u.lower() or 'audio' in ct): candidates.append(u)
+              page.on('response',handler)
+              await page.goto(PAGE,wait_until='domcontentloaded',timeout=120000)
+              await page.wait_for_timeout(5000)
+              for sel in ['button[aria-label*="Play" i]','button:has-text("Play")']:
+                try:
+                  if await page.locator(sel).count(): await page.locator(sel).first.click(timeout=5000)
+                except Exception: pass
+              await page.wait_for_timeout(10000)
+              content=html.unescape(await page.content()).replace('\\/','/').replace('\\u002F','/').replace('\\u0026','&')
+              candidates += re.findall(r'https://cdn\.pixabay\.com/(?:download/)?audio/[^"\'<> ]+?\.mp3(?:\?[^"\'<> ]*)?',content)
+              dedup=[]
+              for u in candidates:
+                u=html.unescape(u).replace('\\/','/')
+                if u not in dedup: dedup.append(u)
+              for u in dedup:
+                try:
+                  r=await context.request.get(u,headers={'Referer':PAGE,'Accept':'audio/mpeg,audio/*;q=0.9,*/*;q=0.8','Range':'bytes=0-'},timeout=120000)
+                  b=await r.body(); temp=OUT/'candidate.bin'; temp.write_bytes(b)
+                  ok,fmt,dur=probe(temp); logs.append(f'request {r.status} {len(b)} {fmt} {dur} {u}')
+                  if ok: temp.replace(TARGET); break
+                  temp.unlink(missing_ok=True)
+                except Exception as e: logs.append(f'request error {e}')
+              if not TARGET.exists():
+                cookies=await context.cookies(); jar={c['name']:c['value'] for c in cookies}
+                for u in dedup:
+                  try:
+                    r=crequests.get(u,impersonate='chrome',cookies=jar,headers={'User-Agent':UA,'Referer':PAGE,'Accept':'audio/mpeg,audio/*;q=0.9,*/*;q=0.8','Range':'bytes=0-'},timeout=120,allow_redirects=True)
+                    temp=OUT/'candidate2.bin'; temp.write_bytes(r.content)
+                    ok,fmt,dur=probe(temp); logs.append(f'curl {r.status_code} {len(r.content)} {fmt} {dur} {u}')
+                    if ok: temp.replace(TARGET); break
+                    temp.unlink(missing_ok=True)
+                  except Exception as e: logs.append(f'curl error {e}')
+              await browser.close()
+            (OUT/'CAPTURE_LOG.txt').write_text('\n'.join(logs),encoding='utf-8')
+            if not TARGET.exists(): raise SystemExit('No valid boom captured')
+            ok,fmt,dur=probe(TARGET)
+            (OUT/'SOURCE_SHA256.txt').write_text(f'{PAGE}\n{dur}\n{hashlib.sha256(TARGET.read_bytes()).hexdigest()}\n',encoding='utf-8')
+          asyncio.run(main())
+          PY
+          xvfb-run -a python /tmp/fetch_boom.py
+      - name: Validate boom
+        if: always()
+        run: |
+          cat rebirth_deep_boom/CAPTURE_LOG.txt || true
+          cat rebirth_deep_boom/SOURCE_SHA256.txt || true
+          ffprobe -v error -show_entries format=filename,format_name,duration,size -of default=nw=1 rebirth_deep_boom/cinematic_boom_454254.mp3 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ghana-rebirth-deep-boom
+          path: rebirth_deep_boom/
+          if-no-files-found: error
+          retention-days: 7
