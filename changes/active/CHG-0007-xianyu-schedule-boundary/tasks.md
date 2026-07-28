@@ -7,7 +7,7 @@ Change ID: CHG-0007-xianyu-schedule-boundary
 - [x] T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology
 - [x] T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries
 - [x] T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior
-- [ ] T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries
+- [x] T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries
 - [ ] T6 Implement the approved local deterministic scheduling boundary
 - [ ] T7 Add permanent unit, contract, security, migration, and active-change acceptance tests
 - [ ] T8 Bind capability evidence and complete two-phase verification
@@ -15,9 +15,9 @@ Change ID: CHG-0007-xianyu-schedule-boundary
 
 ## Current task state
 
-Completed tasks: 4 / 9.
+Completed tasks: 5 / 9.
 
-Next task: T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries.
+Next task: T6 Implement the approved local deterministic scheduling boundary.
 
 
 ## T1 approval record
@@ -38,3 +38,8 @@ CHG-0007 reuses xianyu_system.core.scheduler without modifying it. APScheduler M
 ## T4 deterministic decision rules
 
 Validation accepts only IMMEDIATE and RUN_AT_UTC one-time schedules. run_at must be timezone-aware UTC when provided. Idempotency key and deterministic fingerprint prevent duplicates. Cancellation is allowed only before dispatch claim. Atomic claim prevents duplicate dispatch. Due schedules outside the finite grace window become MISFIRED. Any uncertain Publish result is recorded for manual review and does not retry automatically.
+
+
+## T5 ownership and persistence decision
+
+Schedule Repository is the business fact source. It owns schedule records and audit events. Lifecycle states are PENDING, CLAIMED, DISPATCHED, CANCELLED, MISFIRED, FAILED, and NEEDS_MANUAL_REVIEW. Persistence uses local SQLAlchemy tables in migration 0006. Concurrency uses atomic claim predicates. Failures are recorded as local audit facts. APScheduler never becomes the fact source.
