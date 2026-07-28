@@ -47,3 +47,8 @@ Redis, Celery, MySQL, PostgreSQL, React, n8n, OpenClaw runtime, vector databases
 CHG-0007 is in VERIFYING for final PR review preparation. CAP-XY-SCHEDULE is verified only for the local deterministic one-time Schedule boundary and synthetic fixtures. It does not provide real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedules, or external queue behavior. PR #8 remains Draft until final administration and Ready transition gates pass.
 
 After CHG-0007 is merged and archived, the next separately authorized project-owner decision should prioritize a supervised real Xianyu integration feasibility spike before adding more WeCom or AI abstractions. That future spike should start with low-risk, single-account, human-supervised, fail-closed checks for login state and page reachability, without committing Credential material or using real customer data. This roadmap note does not create or authorize CHG-0008.
+
+
+## CHG-0007 final PR administration
+
+CHG-0007 final PR administration is complete. CAP-XY-SCHEDULE remains verified only for local deterministic one-time Schedule behavior with synthetic fixtures. PR #8 remains Draft until the final administration commit passes CI and the Ready transition is performed. Merge, archive, branch deletion, CHG-0008 creation, real Xianyu access, real scheduled publishing, browser automation, Credential handling, WeCom, AI, Redis, Celery, recurring schedules, and external queue behavior remain unauthorized until their separate gates or future approvals.
