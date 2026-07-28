@@ -100,6 +100,13 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - CHG-0006 later moved to `changes/archive/CHG-0006-xianyu-publish-boundary` after merge.
 - Merge requires separate authorization against exact PR HEAD.
 
+## CHG-0007 T7 permanent Schedule tests
+
+T7 added permanent unit, contract, security, migration, import-safety, and active-change acceptance coverage for the local deterministic Schedule boundary. Coverage includes one-time IMMEDIATE and RUN_AT_UTC requests, UTC normalization, deterministic fingerprints, idempotency replay, conflict detection, cancellation, atomic dispatch claim, finite misfire grace, local PublishService coupling, APScheduler DateTrigger registration through the existing in-memory Core scheduler, migration 0006 lineage, and security scans proving no real Xianyu, browser, Playwright, Credential, WeCom, AI, Redis, Celery, recurring schedule, or external queue behavior was introduced.
+
+Tasks are now 7 / 9. T8 Bind capability evidence and complete two-phase verification is the next executable task. CAP-XY-SCHEDULE remains planned and unbound until T8.
+
+
 ## Project goal
 
 The final intended business path is:

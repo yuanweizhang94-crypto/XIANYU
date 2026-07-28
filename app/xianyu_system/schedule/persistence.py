@@ -1,9 +1,9 @@
-﻿"""SQLAlchemy persistence for local deterministic Schedule facts."""
+"""SQLAlchemy persistence for local deterministic Schedule facts."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, Index, Integer, String, Table, func, select, update
@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from xianyu_system.core.database import Base
 from xianyu_system.schedule.domain import (
     ScheduleDecision,
-    ScheduleDecisionType,
     ScheduleDispatchOutcome,
     ScheduleDispatchResult,
     ScheduleLifecycle,
@@ -125,9 +124,15 @@ def _stored(record: _ScheduleRequestRecord) -> StoredSchedule:
         idempotency_key=record.idempotency_key,
         lifecycle=ScheduleLifecycle(record.lifecycle),
         normalized_fingerprint=record.normalized_fingerprint,
-        due_at=record.due_at,
+        due_at=_as_utc(record.due_at),
         misfire_grace_seconds=record.misfire_grace_seconds,
     )
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 class ScheduleRepository:
@@ -156,36 +161,50 @@ class ScheduleRepository:
 
     def cancel_pending(self, *, event_id: str, schedule_id: str, occurred_at: datetime, reason: str) -> ScheduleDispatchResult:
         try:
-            result = self._session.execute(
+            result = cast(
+                Any,
+                self._session.execute(
                 update(schedule_request_table)
                 .where(schedule_request_table.c.schedule_id == schedule_id, schedule_request_table.c.lifecycle == ScheduleLifecycle.PENDING.value)
                 .values(lifecycle=ScheduleLifecycle.CANCELLED.value, completed_at=occurred_at, reason=reason)
+                ),
             )
             if result.rowcount != 1:
                 return ScheduleDispatchResult(schedule_id, ScheduleDispatchOutcome.NOT_FOUND, None, reason="not pending")
             self._add_audit(event_id=event_id, schedule_id=schedule_id, event_type="SCHEDULE_CANCELLED", occurred_at=occurred_at, from_lifecycle=ScheduleLifecycle.PENDING, to_lifecycle=ScheduleLifecycle.CANCELLED, reason=reason)
             self._session.flush()
-            return ScheduleDispatchResult(schedule_id, ScheduleDispatchOutcome.NOT_FOUND, ScheduleLifecycle.CANCELLED, reason=reason)
+            return ScheduleDispatchResult(schedule_id, ScheduleDispatchOutcome.CANCELLED, ScheduleLifecycle.CANCELLED, reason=reason)
         except SQLAlchemyError:
             raise SchedulePersistenceError("Schedule persistence operation failed.") from None
 
     def claim_due(self, *, event_id: str, schedule_id: str, now: datetime) -> StoredSchedule | None:
         try:
             record = self._session.scalars(select(_ScheduleRequestRecord).where(schedule_request_table.c.schedule_id == schedule_id)).first()
-            if record is None or record.lifecycle != ScheduleLifecycle.PENDING.value or record.due_at > now:
+            now_utc = _as_utc(now)
+            if record is None or record.lifecycle != ScheduleLifecycle.PENDING.value or _as_utc(record.due_at) > now_utc:
                 return None
-            result = self._session.execute(
+            result = cast(
+                Any,
+                self._session.execute(
                 update(schedule_request_table)
-                .where(schedule_request_table.c.schedule_id == schedule_id, schedule_request_table.c.lifecycle == ScheduleLifecycle.PENDING.value, schedule_request_table.c.due_at <= now)
-                .values(lifecycle=ScheduleLifecycle.CLAIMED.value, claimed_at=now)
+                .where(schedule_request_table.c.schedule_id == schedule_id, schedule_request_table.c.lifecycle == ScheduleLifecycle.PENDING.value, schedule_request_table.c.due_at <= now_utc)
+                .values(lifecycle=ScheduleLifecycle.CLAIMED.value, claimed_at=now_utc)
+                ),
             )
             if result.rowcount != 1:
                 return None
             self._add_audit(event_id=event_id, schedule_id=schedule_id, event_type="SCHEDULE_CLAIMED", occurred_at=now, from_lifecycle=ScheduleLifecycle.PENDING, to_lifecycle=ScheduleLifecycle.CLAIMED, reason=None)
             self._session.flush()
-            record.lifecycle = ScheduleLifecycle.CLAIMED.value
-            record.claimed_at = now
-            return _stored(record)
+            stored = _stored(record)
+            return StoredSchedule(
+                schedule_id=stored.schedule_id,
+                publish_request_id=stored.publish_request_id,
+                idempotency_key=stored.idempotency_key,
+                lifecycle=ScheduleLifecycle.CLAIMED,
+                normalized_fingerprint=stored.normalized_fingerprint,
+                due_at=stored.due_at,
+                misfire_grace_seconds=stored.misfire_grace_seconds,
+            )
         except SQLAlchemyError:
             raise SchedulePersistenceError("Schedule persistence operation failed.") from None
 

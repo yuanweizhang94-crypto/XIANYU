@@ -28,6 +28,7 @@ from xianyu_system.core.database import (
     initialize_database,
     upgrade_database,
 )
+from xianyu_system.schedule.persistence import schedule_audit_event_table, schedule_request_table
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE_PATH = ROOT / "migrations" / "versions" / "0001_core_baseline.py"
@@ -35,6 +36,7 @@ ACCOUNT_REVISION = "0002_xianyu_account_boundary"
 MESSAGE_REVISION = "0003_xianyu_message_boundary"
 REPLY_REVISION = "0004_xianyu_reply_boundary"
 PUBLISH_REVISION = "0005_xianyu_publish_boundary"
+SCHEDULE_REVISION = "0006_xianyu_schedule_boundary"
 ACCOUNT_TABLE = "xianyu_account_profiles"
 MESSAGE_TABLES = {
     "xianyu_message_conversations",
@@ -51,6 +53,10 @@ PUBLISH_TABLES = {
     "xianyu_publish_requests",
     "xianyu_publish_audit_events",
     "xianyu_publish_attempt_snapshots",
+}
+SCHEDULE_TABLES = {
+    "xianyu_schedule_requests",
+    "xianyu_schedule_audit_events",
 }
 
 
@@ -69,7 +75,12 @@ def assert_account_tables(resources: Any) -> None:
         *MESSAGE_TABLES,
         *REPLY_TABLES,
         *PUBLISH_TABLES,
+        *SCHEDULE_TABLES,
     }
+
+
+def test_schedule_metadata_is_registered_for_migration_checks() -> None:
+    assert schedule_request_table.metadata is schedule_audit_event_table.metadata
 
 
 def test_migration_files_exist() -> None:
@@ -83,6 +94,7 @@ def test_migration_files_exist() -> None:
         "migrations/versions/0003_xianyu_message_boundary.py",
         "migrations/versions/0004_xianyu_reply_boundary.py",
         "migrations/versions/0005_xianyu_publish_boundary.py",
+        "migrations/versions/0006_xianyu_schedule_boundary.py",
     ]:
         assert (ROOT / relative).is_file()
 
@@ -102,8 +114,8 @@ def test_alembic_config_parses_without_database_side_effects(tmp_path: Path) -> 
 def test_script_directory_has_single_baseline_head() -> None:
     script = ScriptDirectory.from_config(build_alembic_config())
 
-    assert script.get_current_head() == PUBLISH_REVISION
-    assert script.get_heads() == [PUBLISH_REVISION]
+    assert script.get_current_head() == SCHEDULE_REVISION
+    assert script.get_heads() == [SCHEDULE_REVISION]
 
 
 def test_revision_relationship_is_empty_baseline() -> None:
@@ -113,6 +125,7 @@ def test_revision_relationship_is_empty_baseline() -> None:
     message_revision = script.get_revision(MESSAGE_REVISION)
     reply_revision = script.get_revision(REPLY_REVISION)
     publish_revision = script.get_revision(PUBLISH_REVISION)
+    schedule_revision = script.get_revision(SCHEDULE_REVISION)
 
     assert revision is not None
     assert revision.revision == BASELINE_REVISION
@@ -135,6 +148,10 @@ def test_revision_relationship_is_empty_baseline() -> None:
     assert publish_revision.down_revision == REPLY_REVISION
     assert publish_revision.branch_labels in (None, set())
     assert publish_revision.dependencies in (None, ())
+    assert schedule_revision is not None
+    assert schedule_revision.down_revision == PUBLISH_REVISION
+    assert schedule_revision.branch_labels in (None, set())
+    assert schedule_revision.dependencies in (None, ())
 
 
 def test_baseline_revision_is_static_empty_operation() -> None:
@@ -186,7 +203,7 @@ def test_fresh_database_upgrade_creates_only_alembic_version(tmp_path: Path) -> 
     try:
         assert get_current_revision(resources) is None
         upgrade_database(resources)
-        assert get_current_revision(resources) == PUBLISH_REVISION
+        assert get_current_revision(resources) == SCHEDULE_REVISION
         assert_account_tables(resources)
     finally:
         dispose_database(resources)
@@ -197,7 +214,7 @@ def test_upgrade_is_repeatable(tmp_path: Path) -> None:
     try:
         upgrade_database(resources)
         upgrade_database(resources)
-        assert get_current_revision(resources) == PUBLISH_REVISION
+        assert get_current_revision(resources) == SCHEDULE_REVISION
         assert_account_tables(resources)
     finally:
         dispose_database(resources)
@@ -211,7 +228,7 @@ def test_downgrade_to_base_then_upgrade_again(tmp_path: Path) -> None:
         assert get_current_revision(resources) is None
         assert_no_business_tables(resources)
         upgrade_database(resources)
-        assert get_current_revision(resources) == PUBLISH_REVISION
+        assert get_current_revision(resources) == SCHEDULE_REVISION
         assert_account_tables(resources)
     finally:
         dispose_database(resources)
@@ -251,7 +268,7 @@ def test_cli_upgrade_requires_explicit_path_and_creates_no_default_database(tmp_
     assert database_path.exists()
     resources = initialize_database(database_path)
     try:
-        assert get_current_revision(resources) == PUBLISH_REVISION
+        assert get_current_revision(resources) == SCHEDULE_REVISION
         assert_account_tables(resources)
     finally:
         dispose_database(resources)
@@ -298,9 +315,9 @@ def test_offline_sql_does_not_create_database_file(tmp_path: Path) -> None:
     assert "alembic_version" in result.stdout
     assert "CREATE TABLE" in result.stdout.upper()
     assert ACCOUNT_TABLE in result.stdout
-    for table_name in MESSAGE_TABLES | REPLY_TABLES | PUBLISH_TABLES:
+    for table_name in MESSAGE_TABLES | REPLY_TABLES | PUBLISH_TABLES | SCHEDULE_TABLES:
         assert table_name in result.stdout
-    for forbidden in ["cookie", "token", "password", "browser", "customer", "schedule"]:
+    for forbidden in ["cookie", "token", "password", "browser", "customer"]:
         assert forbidden not in result.stdout.lower()
 
 
@@ -376,7 +393,7 @@ def test_migration_directory_contains_no_business_or_sensitive_data() -> None:
         assert term not in combined
 
 
-def test_scheduler_adds_no_migration_revision_or_scheduler_table_names() -> None:
+def test_schedule_migration_does_not_make_core_scheduler_persistent() -> None:
     revision_files = sorted((ROOT / "migrations" / "versions").glob("*.py"))
     scheduler_source = (ROOT / "app/xianyu_system/core/scheduler.py").read_text(encoding="utf-8")
 
@@ -386,11 +403,13 @@ def test_scheduler_adds_no_migration_revision_or_scheduler_table_names() -> None
         "0003_xianyu_message_boundary.py",
         "0004_xianyu_reply_boundary.py",
         "0005_xianyu_publish_boundary.py",
+        "0006_xianyu_schedule_boundary.py",
         "__init__.py",
     ]
     assert "SQLAlchemyJobStore" not in scheduler_source
     assert "apscheduler_jobs" not in scheduler_source
     assert "op.create_table" not in scheduler_source
+    assert "xianyu_schedule_requests" in (ROOT / "migrations" / "versions" / "0006_xianyu_schedule_boundary.py").read_text(encoding="utf-8")
 
 
 def test_health_api_does_not_run_migrations_or_add_revisions(tmp_path: Path) -> None:
@@ -414,6 +433,7 @@ def test_health_api_does_not_run_migrations_or_add_revisions(tmp_path: Path) -> 
         "0003_xianyu_message_boundary.py",
         "0004_xianyu_reply_boundary.py",
         "0005_xianyu_publish_boundary.py",
+        "0006_xianyu_schedule_boundary.py",
         "__init__.py",
     ]
     source = (ROOT / "app/xianyu_system/api/health.py").read_text(encoding="utf-8")

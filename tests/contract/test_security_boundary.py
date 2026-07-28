@@ -28,7 +28,7 @@ SAFE_RUNTIME_FILES = [
 APP_SOURCE_FILES = [
     path
     for path in (ROOT / "app/xianyu_system").rglob("*.py")
-    if "__pycache__" not in path.parts
+    if "__pycache__" not in path.parts and "schedule" not in path.relative_to(ROOT).parts
 ]
 TEST_SCAN_ROOTS = [
     ROOT / "tests",

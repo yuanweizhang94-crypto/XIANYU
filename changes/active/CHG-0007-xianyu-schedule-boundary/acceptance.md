@@ -54,3 +54,8 @@ Schedule Repository is the business fact source. It owns schedule records and au
 ## T6 implementation record
 
 T6 implemented the approved local deterministic Schedule boundary: pure domain types, deterministic fingerprinting, validation, SQLAlchemy repository facts, local ScheduleService dispatch, APScheduler DateTrigger adapter, and migration 0006. It reuses PublishService explicitly and does not modify Core scheduler or Publish modules. No real Xianyu, browser, Playwright, Credential, WeCom, AI, Redis, Celery, recurring schedule, or external queue was added.
+
+
+## T7 permanent test evidence
+
+T7 added permanent unit, contract, security, migration, import-safety, and active-change acceptance coverage for the local deterministic Schedule boundary. The permanent evidence covers Schedule domain normalization, deterministic fingerprinting, validator fail-closed behavior, ScheduleService idempotency, conflict, cancellation, dispatch, misfire behavior, APScheduler DateTrigger registration through the existing Core scheduler, schedule table registration, migration lineage, offline SQL, and absence of real platform or integration side effects. CAP-XY-SCHEDULE remains planned and unbound until T8 evidence binding.

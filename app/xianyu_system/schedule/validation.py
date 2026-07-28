@@ -1,4 +1,4 @@
-﻿"""Validation helpers for local deterministic Schedule requests."""
+"""Validation helpers for local deterministic Schedule requests."""
 
 from __future__ import annotations
 

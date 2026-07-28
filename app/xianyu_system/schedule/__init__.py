@@ -1,4 +1,4 @@
-﻿"""Lazy public surface for the local deterministic Schedule boundary."""
+"""Lazy public surface for the local deterministic Schedule boundary."""
 
 from __future__ import annotations
 

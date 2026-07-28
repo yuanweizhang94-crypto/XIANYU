@@ -9,15 +9,15 @@ Change ID: CHG-0007-xianyu-schedule-boundary
 - [x] T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior
 - [x] T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries
 - [x] T6 Implement the approved local deterministic scheduling boundary
-- [ ] T7 Add permanent unit, contract, security, migration, and active-change acceptance tests
+- [x] T7 Add permanent unit, contract, security, migration, and active-change acceptance tests
 - [ ] T8 Bind capability evidence and complete two-phase verification
 - [ ] T9 Complete final PR administration
 
 ## Current task state
 
-Completed tasks: 6 / 9.
+Completed tasks: 7 / 9.
 
-Next task: T7 Add permanent unit, contract, security, migration, and active-change acceptance tests.
+Next task: T8 Bind capability evidence and complete two-phase verification.
 
 
 ## T1 approval record
@@ -48,3 +48,8 @@ Schedule Repository is the business fact source. It owns schedule records and au
 ## T6 implementation record
 
 T6 implemented the approved local deterministic Schedule boundary: pure domain types, deterministic fingerprinting, validation, SQLAlchemy repository facts, local ScheduleService dispatch, APScheduler DateTrigger adapter, and migration 0006. It reuses PublishService explicitly and does not modify Core scheduler or Publish modules. No real Xianyu, browser, Playwright, Credential, WeCom, AI, Redis, Celery, recurring schedule, or external queue was added.
+
+
+## T7 permanent test evidence
+
+T7 added permanent unit, contract, security, migration, import-safety, and active-change acceptance coverage for the local deterministic Schedule boundary. Coverage includes Schedule domain normalization, deterministic fingerprinting, validator fail-closed behavior, ScheduleService idempotency, conflict, cancellation, dispatch, misfire behavior, APScheduler DateTrigger registration, schedule table registration, migration lineage, offline SQL, and absence of real platform or integration side effects. CAP-XY-SCHEDULE remains planned and unbound until T8 evidence binding.

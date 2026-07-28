@@ -1,4 +1,4 @@
-﻿"""Deterministic fingerprinting for approved local Schedule input."""
+"""Deterministic fingerprinting for approved local Schedule input."""
 
 from __future__ import annotations
 

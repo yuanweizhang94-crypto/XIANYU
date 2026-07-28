@@ -1,4 +1,4 @@
-﻿"""Pure domain model for one-time local deterministic Schedule decisions."""
+"""Pure domain model for one-time local deterministic Schedule decisions."""
 
 from __future__ import annotations
 
@@ -58,6 +58,7 @@ class ScheduleDispatchOutcome(StrEnum):
     DISPATCHED = "DISPATCHED"
     MISFIRED = "MISFIRED"
     MANUAL_REVIEW = "MANUAL_REVIEW"
+    CANCELLED = "CANCELLED"
     NOT_FOUND = "NOT_FOUND"
 
 

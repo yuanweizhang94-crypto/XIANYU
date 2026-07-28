@@ -1,11 +1,11 @@
-﻿"""Application service for local deterministic one-time Schedule dispatch."""
+"""Application service for local deterministic one-time Schedule dispatch."""
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ from xianyu_system.schedule.domain import (
     ScheduleLifecycle,
     SchedulePersistenceError,
     ScheduleRequest,
+    ScheduleTriggerType,
 )
 from xianyu_system.schedule.fingerprint import compute_schedule_fingerprint
 from xianyu_system.schedule.persistence import ScheduleRepository
@@ -107,7 +108,7 @@ class ScheduleService:
                     "schedule_id": request.schedule_id,
                     "publish_request_id": request.publish_request_id,
                     "idempotency_key": request.idempotency_key,
-                    "trigger_type": request.trigger_type.value,
+                    "trigger_type": cast(ScheduleTriggerType, request.trigger_type).value,
                     "lifecycle": ScheduleLifecycle.PENDING.value,
                     "normalized_fingerprint": fingerprint,
                     "requested_at": request.requested_at,
@@ -231,7 +232,7 @@ class ScheduleService:
             schedule_id=schedule_id,
             outcome=outcome,
             lifecycle=lifecycle,
-            publish_decision_type=cast(PublishDecisionType, publish_decision.decision_type).value,
+            publish_decision_type=publish_decision.decision_type.value,
             reason=reason,
         )
 

@@ -30,6 +30,8 @@ BUSINESS_METADATA_TABLES = {
     "xianyu_publish_requests",
     "xianyu_publish_audit_events",
     "xianyu_publish_attempt_snapshots",
+    "xianyu_schedule_requests",
+    "xianyu_schedule_audit_events",
 }
 
 

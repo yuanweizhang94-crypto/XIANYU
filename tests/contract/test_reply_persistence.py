@@ -44,7 +44,7 @@ from xianyu_system.worker.message.transport import SyntheticMessageDelivery
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 REPLY_REVISION = "0004_xianyu_reply_boundary"
-PUBLISH_REVISION = "0005_xianyu_publish_boundary"
+PUBLISH_REVISION = "0006_xianyu_schedule_boundary"
 MESSAGE_REVISION = "0003_xianyu_message_boundary"
 PROFILE_ALIAS = "reply-persistence-profile"
 ACCOUNT_REFERENCE = "reply-persistence-account"

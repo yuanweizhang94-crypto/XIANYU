@@ -1,4 +1,4 @@
-﻿"""APScheduler adapter for one-time in-process Schedule wakeups."""
+"""APScheduler adapter for one-time in-process Schedule wakeups."""
 
 from __future__ import annotations
 

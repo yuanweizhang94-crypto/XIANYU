@@ -39,7 +39,7 @@ from xianyu_system.worker.publish.persistence import (
 from xianyu_system.worker.publish.service import PublishService
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
-PUBLISH_REVISION = "0005_xianyu_publish_boundary"
+PUBLISH_REVISION = "0006_xianyu_schedule_boundary"
 REPLY_REVISION = "0004_xianyu_reply_boundary"
 DRAFT_ID = "00000000-0000-4000-8000-000000000101"
 REQUEST_ID = "00000000-0000-4000-8000-000000000201"

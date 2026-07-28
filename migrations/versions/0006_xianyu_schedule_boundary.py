@@ -1,4 +1,4 @@
-﻿"""Create local deterministic schedule boundary tables."""
+"""Create local deterministic schedule boundary tables."""
 
 from __future__ import annotations
 
