@@ -1,4 +1,4 @@
-﻿# XIANYU
+# XIANYU
 
 XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository contains governance, specifications, validation scripts, tests, CI, and Registry-verified local deterministic boundaries. Those verified capabilities are valid only within local execution and synthetic fixtures. The repository does not provide real Xianyu access, real listing publication, real message receiving or sending, Playwright or browser automation, real Credential handling, WeCom integration, AI Provider integration, or external platform side effects.
 
@@ -690,3 +690,8 @@ T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerge
 ## CHG-0007 draft schedule boundary
 
 CHG-0007-xianyu-schedule-boundary is open as DRAFT for governance review only. It proposes a narrow local deterministic Schedule boundary for one-time UTC publish scheduling. DRAFT does not authorize Runtime implementation, Registry binding, Migration work, real Xianyu access, browser automation, Playwright, Credential handling, recurring scheduling, WeCom, AI, or external platform side effects.
+
+
+## CHG-0007 approval record
+
+CHG-0007-xianyu-schedule-boundary is APPROVED by the project owner for ordered T1-T9 execution. The approval remains limited to local deterministic scheduling and does not authorize real Xianyu access, browser automation, Playwright, Credential handling, recurring scheduling, WeCom, AI, or CHG-0008.

@@ -1,9 +1,9 @@
-﻿# CHG-0007 Tasks
+# CHG-0007 Tasks
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0007-xianyu-schedule-boundary
 
-- [ ] T1 Obtain explicit project-owner approval for CHG-0007
+- [x] T1 Obtain explicit project-owner approval for CHG-0007
 - [ ] T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology
 - [ ] T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries
 - [ ] T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior
@@ -15,6 +15,11 @@ Change ID: CHG-0007-xianyu-schedule-boundary
 
 ## Current task state
 
-Completed tasks: 0 / 9.
+Completed tasks: 1 / 9.
 
-Next task: null because DRAFT is read-and-review only.
+Next task: T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology.
+
+
+## T1 approval record
+
+Project-owner approval authorizes T1-T9 for CHG-0007 only, in order. Runtime, merge, archive, and branch deletion remain gated by their later checks.

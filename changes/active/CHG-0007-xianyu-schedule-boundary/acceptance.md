@@ -1,6 +1,6 @@
-﻿# CHG-0007 Acceptance
+# CHG-0007 Acceptance
 
-Status: DRAFT
+Status: APPROVED
 Change ID: CHG-0007-xianyu-schedule-boundary
 
 ## Draft acceptance gates
@@ -20,3 +20,12 @@ Change ID: CHG-0007-xianyu-schedule-boundary
 ## Final acceptance target
 
 CHG-0007 is complete only after T1-T9, local deterministic Schedule Runtime, tests, CAP-XY-SCHEDULE evidence, PR Ready, merge, post-merge archive, archive CI, and safe branch cleanup are complete.
+
+
+## T1 approval record
+
+This instruction is the explicit project-owner authorization for CHG-0007 T1 through T9, executed in order.
+
+T6 may implement only the approved local deterministic Schedule boundary. It does not authorize real Xianyu access, browser automation, Playwright, Credential handling, WeCom, AI, operations-console work, recurring schedules, Redis, Celery, or external queues.
+
+Merge, archive, and branch deletion remain gated by the later exact CI, PR, merge, post-merge, and archive checks in this change.

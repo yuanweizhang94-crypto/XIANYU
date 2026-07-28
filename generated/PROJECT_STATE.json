@@ -3,17 +3,17 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0007-xianyu-schedule-boundary",
-    "status": "DRAFT",
+    "status": "APPROVED",
     "path": "changes/active/CHG-0007-xianyu-schedule-boundary"
   },
   "tasks": {
     "total": 9,
-    "completed": 0,
-    "next_task": null,
+    "completed": 1,
+    "next_task": "T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0007",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology",
