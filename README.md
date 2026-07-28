@@ -4,28 +4,22 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 
 ## Current change state
 
-- PR #5 was merged into `main`.
-- PR #5 merge commit is `f00156045d75e632d71ade640a85a4c522568158`.
-- Merged CHG-0005 feature HEAD is `c4f7a3a3d14e34e5ebdaf6abd79587d45137f587`.
-- CHG-0005-xianyu-reply-boundary is archived.
-- CAP-XY-REPLY remains verified.
-- Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
-- CHG-0006-xianyu-publish-boundary is the only Active Change.
-- CHG-0006 status is `VERIFYING`.
-- CHG-0006 completed tasks: 9 / 9.
-- Completed tasks: T1-T9.
-- Next task: none.
-- T8 capability evidence verification is complete.
-- T9 final PR administration is complete.
-- PR #6 is Ready for review, open, and unmerged.
-- CAP-XY-PUBLISH is verified for the local deterministic Publish boundary.
-- CAP-XY-PUBLISH evidence paths are registered and verified.
-- CAP-XY-PUBLISH `implementation_paths` are registered exactly in `specs/CAPABILITY_REGISTRY.yaml`.
-- CAP-XY-PUBLISH `test_paths` are registered exactly in `specs/CAPABILITY_REGISTRY.yaml`.
+- PR #6 was merged into `main`.
+- PR #6 merge commit is `dcc4a770dfcb3a69fb3809cb3868ed752813482b`.
+- Merged CHG-0006 feature HEAD is `417db817d8641755fb5f66d78db6c143bd1dc53c`.
+- CHG-0006-xianyu-publish-boundary is archived.
+- CAP-XY-PUBLISH remains verified.
+- Evidence Candidate remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+- Historical acceptance evidence is under `changes/archive/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`.
+- There is no Active Change.
+- There is no approved executable task.
+- CHG-0007 has not been created.
+- CAP-XY-PUBLISH `implementation_paths` are unchanged.
+- CAP-XY-PUBLISH `test_paths` changed only by moving the CHG-0006 acceptance evidence path from `changes/active/` to `changes/archive/`.
 - CAP-XY-PUBLISH `active_change` is null.
 - CAP-XY-PUBLISH `last_verified_commit` is `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
 - READY does not mean a real listing was published.
-- The T6 implementation performs only local deterministic publish-boundary decisions and introduces no Playwright, browser automation, real Xianyu access, listing publication, media upload, credential access, real data access, or external network access.
+- The repository still has no real Xianyu access, real listing publication, real media upload, real message receiving or sending, browser automation, Playwright, Credential handling, browser Profile access, WeCom Provider, AI Provider, or external platform side effects.
 
 
 ## Historical phase record - CHG-0006 T5 approved publish architecture
@@ -78,7 +72,7 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - During Phase A, T8 was not complete; Phase B later recorded the verified Candidate SHA after Actions were green.
 
 
-## CHG-0006 final review preparation
+## Historical phase record - CHG-0006 final review preparation
 
 - CHG-0006 status is VERIFYING.
 - T1-T8 are complete.
@@ -91,7 +85,7 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - Auto-merge and Merge remain unauthorized.
 - The actual T9 Ready Candidate SHA is the SHA of the separate Phase A preparation commit created after local verification.
 
-## CHG-0006 final PR administration
+## Historical phase record - CHG-0006 final PR administration
 
 - CHG-0006 final PR administration is complete.
 - CHG-0006 status is VERIFYING.
@@ -100,10 +94,10 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - CAP-XY-PUBLISH remains verified.
 - Evidence Candidate remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
 - T8 Verification commit remains `51bfefb4ca63e2c7ac0128359da1f00c62ad37e9`.
-- PR #6 is Ready for review, open and unmerged.
+- PR #6 later merged through normal two-parent merge commit `dcc4a770dfcb3a69fb3809cb3868ed752813482b`.
 - No Reviewer was manually requested.
 - Auto-merge and Merge remain unauthorized.
-- CHG-0006 remains under changes/active until Merge.
+- CHG-0006 later moved to `changes/archive/CHG-0006-xianyu-publish-boundary` after merge.
 - Merge requires separate authorization against exact PR HEAD.
 
 ## Project goal
@@ -121,15 +115,15 @@ The final intended business path is:
 
 ## Current phase
 
-The current phase is CHG-0006 after T9 final PR administration and before separately authorized exact-HEAD merge:
+The current phase is after CHG-0006 post-merge archive and before any separately authorized next change:
 
 - Governance and fact-source rules remain active.
 - Registry, generated project state, validation scripts, tests, and GitHub CI are present.
 - The repository has verified local deterministic capability evidence for its completed boundaries.
 - CAP-XY-PUBLISH is verified only for the local deterministic Publish boundary and synthetic fixtures.
 - The repository still has no real Xianyu platform operation, real listing publication, media upload, browser automation, Credential handling, external network side effect, WeCom integration, or AI Provider integration.
-- There is no remaining CHG-0006 task before review and separate exact-HEAD merge authorization.
-- Merge remains separate from T9 and still requires later exact-HEAD project-owner authorization.
+- There is no Active Change and no approved executable task.
+- CHG-0007 has not been created and requires separate project-owner authorization.
 
 
 ## Technical direction

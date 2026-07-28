@@ -290,7 +290,7 @@ T7 test coverage includes:
 - `tests/contract/test_publish_security.py`
 - `tests/unit/test_import_safety.py`
 - `tests/contract/test_migrations.py`
-- `changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`
+- `changes/archive/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`
 
 No platform publication, browser automation, media upload, external network behavior, Credential handling, scheduler, worker loop, or capability evidence binding is introduced by T7.
 
@@ -323,7 +323,7 @@ Test evidence paths:
 - `tests/contract/test_publish_security.py`
 - `tests/contract/test_migrations.py`
 - `tests/contract/test_capability_registry.py`
-- `changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`
+- `changes/archive/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`
 
 This Phase A candidate registers exact local deterministic Publish evidence paths only. It does not record `last_verified_commit` and does not mark CAP-XY-PUBLISH verified until the Candidate commit completes local and GitHub Actions verification.
 
@@ -347,3 +347,22 @@ Tasks: 8 / 9
 Next task: T9 Complete final PR administration
 
 T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerged. Verified does not authorize Ready, reviewer request, review submission, auto-merge, merge, archive, branch deletion, CHG-0007, real Xianyu access, listing publication, media upload, Credential handling, browser automation, external platform access, platform adapter, scheduler, worker loop, retry behavior, dependency change, or workflow change.
+
+
+## Archive transition
+
+CHG-0006 was merged through PR #6 and is archived.
+
+- PR #6: merged.
+- Merged feature HEAD: `417db817d8641755fb5f66d78db6c143bd1dc53c`.
+- Merge commit: `dcc4a770dfcb3a69fb3809cb3868ed752813482b`.
+- Archived acceptance evidence path: `changes/archive/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`.
+- CAP-XY-PUBLISH remains verified.
+- Evidence Candidate remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+- `last_verified_commit` remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+- The seven implementation paths remain unchanged.
+- The other nine test paths remain unchanged; only the CHG-0006 acceptance evidence path moved from `changes/active/` to `changes/archive/`.
+- This archive transition does not re-verify CAP-XY-PUBLISH.
+- CHG-0007 has not been created.
+
+Archiving changes only the historical acceptance-evidence location and governance state. It does not change Runtime behavior, Migration behavior, capability status, implementation paths, verification semantics, `active_change`, `last_verified_commit`, real Xianyu access, listing publication, media upload, browser automation, Credential handling, WeCom integration, AI Provider integration, branch deletion, or next-change creation.

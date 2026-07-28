@@ -1,6 +1,6 @@
 # CHG-0006 Acceptance
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0006-xianyu-publish-boundary
 
 ## Draft-stage acceptance criteria
@@ -203,3 +203,28 @@ T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerge
 16. No Merge, close, branch deletion, archive or CHG-0007 occurred.
 17. Final quality, tests and security Actions must pass on the final administration HEAD.
 18. Merge requires separate exact-HEAD authorization.
+
+
+## Archive transition record
+
+PR #6: merged.
+
+Merged feature HEAD: `417db817d8641755fb5f66d78db6c143bd1dc53c`.
+
+Merge commit: `dcc4a770dfcb3a69fb3809cb3868ed752813482b`.
+
+Merge method: normal two-parent merge commit.
+
+Merged-main quality/tests/security: success.
+
+CHG-0006 is complete and archived.
+
+CAP-XY-PUBLISH remains verified.
+
+Evidence Candidate remains: `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+
+last_verified_commit remains: `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+
+The archive transition does not re-verify CAP-XY-PUBLISH. The seven implementation paths remain unchanged. The ten test paths remain semantically unchanged. Only the CHG-0006 acceptance evidence location moves from `changes/active/` to `changes/archive/`.
+
+This archive transition does not authorize Runtime, Migration, platform access, listing publication, media upload, browser automation, Playwright, Credential, Cookie, Token, Secret, Password, Session, browser Profile, WeCom, AI Provider, branch deletion, or CHG-0007 work.

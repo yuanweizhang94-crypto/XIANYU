@@ -1,6 +1,6 @@
 # CHG-0006 Proposal
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0006-xianyu-publish-boundary
 
 ## Purpose
@@ -173,3 +173,28 @@ T9 Ready Candidate SHA: `52e389e804ca24f144c6c1bd73cc21b1ba21d4cb`
 PR #6 is Ready for review, open, and unmerged. CAP-XY-PUBLISH remains verified and frozen with last_verified_commit `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`. No manual Reviewer request, review submission, auto-merge, merge, close, archive, branch deletion, CHG-0007 creation, Runtime change, Migration semantic change, Registry change, dependency change, workflow change, browser/platform/Credential behavior, WeCom integration, or AI Provider integration occurred.
 
 Merge requires separate explicit authorization against the exact current PR HEAD.
+
+
+## Archive transition record
+
+PR #6: merged.
+
+Merged feature HEAD: `417db817d8641755fb5f66d78db6c143bd1dc53c`.
+
+Merge commit: `dcc4a770dfcb3a69fb3809cb3868ed752813482b`.
+
+Merge method: normal two-parent merge commit.
+
+Merged-main quality/tests/security: success.
+
+CHG-0006 is complete and archived.
+
+CAP-XY-PUBLISH remains verified.
+
+Evidence Candidate remains: `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+
+last_verified_commit remains: `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+
+The archive transition does not re-verify CAP-XY-PUBLISH. The seven implementation paths remain unchanged. The ten test paths remain semantically unchanged. Only the CHG-0006 acceptance evidence location moves from `changes/active/` to `changes/archive/`.
+
+This archive transition does not authorize Runtime, Migration, platform access, listing publication, media upload, browser automation, Playwright, Credential, Cookie, Token, Secret, Password, Session, browser Profile, WeCom, AI Provider, branch deletion, or CHG-0007 work.

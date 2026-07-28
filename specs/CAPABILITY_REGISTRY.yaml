@@ -141,7 +141,7 @@ capabilities:
   - tests/contract/test_publish_security.py
   - tests/contract/test_migrations.py
   - tests/contract/test_capability_registry.py
-  - changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py
+  - changes/archive/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py
   active_change: null
   last_verified_commit: 66ac5134e0f62b9b30b7423e7bebab297c5ced7a
 - id: CAP-XY-SCHEDULE

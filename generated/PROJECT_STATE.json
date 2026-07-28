@@ -1,53 +1,12 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": {
-    "id": "CHG-0006-xianyu-publish-boundary",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0006-xianyu-publish-boundary"
-  },
+  "active_change": null,
   "tasks": {
-    "total": 9,
-    "completed": 9,
+    "total": 0,
+    "completed": 0,
     "next_task": null,
-    "items": [
-      {
-        "text": "T1 Obtain explicit project-owner approval for CHG-0006",
-        "completed": true
-      },
-      {
-        "text": "T2 Finalize listing, publish request, attempt, and outcome terminology",
-        "completed": true
-      },
-      {
-        "text": "T3 Approve permission, credential, risk-control, and platform boundaries",
-        "completed": true
-      },
-      {
-        "text": "T4 Approve validation, idempotency, duplicate, and uncertainty boundaries",
-        "completed": true
-      },
-      {
-        "text": "T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries",
-        "completed": true
-      },
-      {
-        "text": "T6 Implement only the separately approved local publishing boundary",
-        "completed": true
-      },
-      {
-        "text": "T7 Add unit, contract, security, and active-change acceptance tests",
-        "completed": true
-      },
-      {
-        "text": "T8 Update capability evidence and run complete verification",
-        "completed": true
-      },
-      {
-        "text": "T9 Complete final PR administration",
-        "completed": true
-      }
-    ]
+    "items": []
   },
   "capabilities": {
     "total": 10,
@@ -220,7 +179,7 @@
           "tests/contract/test_publish_security.py",
           "tests/contract/test_migrations.py",
           "tests/contract/test_capability_registry.py",
-          "changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py"
+          "changes/archive/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "66ac5134e0f62b9b30b7423e7bebab297c5ced7a"

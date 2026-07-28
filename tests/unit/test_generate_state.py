@@ -30,6 +30,18 @@ def active_change_dir(root: Path) -> Path:
     return active
 
 
+def seed_single_active_change(
+    root: Path,
+    change_id: str = "CHG-0002-test-change",
+    status: str = "APPROVED",
+) -> Path:
+    source = root / "changes" / "archive" / "CHG-0006-xianyu-publish-boundary"
+    target = root / "changes" / "active" / change_id
+    shutil.copytree(source, target)
+    set_change_identity(target, change_id, status)
+    return target
+
+
 def set_change_identity(change_dir: Path, change_id: str, status: str) -> None:
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         path = change_dir / name
@@ -41,43 +53,50 @@ def set_change_identity(change_dir: Path, change_id: str, status: str) -> None:
 
 def test_generate_state_reflects_current_repository_sources() -> None:
     state = build_project_state(ROOT)
-    active = active_change_dir(ROOT)
     assert state["project"] == "XIANYU"
     assert state["version"]
-    assert state["active_change"] == {
-        "id": active.name,
-        "status": extract_change_status(active),
-        "path": active.relative_to(ROOT).as_posix(),
-    }
+    active = discover_active_change(ROOT)
+    if active is None:
+        assert state["active_change"] is None
+        assert state["tasks"] == {
+            "total": 0,
+            "completed": 0,
+            "next_task": None,
+            "items": [],
+        }
+    else:
+        assert state["active_change"] == {
+            "id": active.name,
+            "status": extract_change_status(active),
+            "path": active.relative_to(ROOT).as_posix(),
+        }
     assert state["capabilities"]["total"] == len(load_capabilities(ROOT))
 
 
 def test_chg_0002_test_change_is_discovered_without_source_changes(tmp_path: Path) -> None:
     root = copy_state_tree(tmp_path)
-    old = active_change_dir(root)
-    new = root / "changes" / "active" / "CHG-0002-test-change"
-    old.rename(new)
-    set_change_identity(new, "CHG-0002-test-change", "APPROVED")
+    new = seed_single_active_change(root)
 
     state = build_project_state(root)
     assert state["active_change"]["id"] == "CHG-0002-test-change"
     assert state["active_change"]["path"] == "changes/active/CHG-0002-test-change"
+    assert state["tasks"]["total"] > 0
 
 
 def test_zero_active_change_generates_null_state(tmp_path: Path) -> None:
     root = copy_state_tree(tmp_path)
-    shutil.rmtree(active_change_dir(root))
 
     state = build_project_state(root)
     assert state["active_change"] is None
     assert state["tasks"]["total"] == 0
+    assert state["tasks"]["completed"] == 0
     assert state["tasks"]["next_task"] is None
+    assert state["tasks"]["items"] == []
 
 
 def test_draft_change_is_not_executable(tmp_path: Path) -> None:
     root = copy_state_tree(tmp_path)
-    change_dir = active_change_dir(root)
-    set_change_identity(change_dir, change_dir.name, "DRAFT")
+    change_dir = seed_single_active_change(root, status="DRAFT")
     tasks_path = change_dir / "tasks.md"
     tasks_path.write_text(
         tasks_path.read_text(encoding="utf-8") + "\n- [ ] T99 Draft-only task\n", encoding="utf-8"
