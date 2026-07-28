@@ -69,3 +69,8 @@ T6 implemented the approved local deterministic Schedule boundary: pure domain t
 ## T7 permanent test evidence
 
 Permanent tests now cover the approved local Schedule boundary without binding CAP-XY-SCHEDULE evidence before T8. No real Xianyu access, browser automation, Playwright, Credential handling, recurring schedule, WeCom, AI, Redis, Celery, or external queue was introduced.
+
+
+## T8 Phase A evidence candidate record
+
+CAP-XY-SCHEDULE is registered as `implementing` for the Evidence Candidate. Exact implementation and test evidence paths are bound in `specs/CAPABILITY_REGISTRY.yaml` and documented in `specs/capabilities/CAP-XY-SCHEDULE.md`. `last_verified_commit` remains null until this Candidate commit completes local and GitHub Actions verification. Tasks remain 7 / 9 while Phase A is in progress; T8 is still the next task until Phase B records the verified Candidate SHA.

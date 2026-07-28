@@ -20,21 +20,25 @@ CHG_0003 = "CHG-0003-xianyu-account-boundary"
 CHG_0004 = "CHG-0004-xianyu-message-boundary"
 CHG_0005 = "CHG-0005-xianyu-reply-boundary"
 CHG_0006 = "CHG-0006-xianyu-publish-boundary"
+CHG_0007 = "CHG-0007-xianyu-schedule-boundary"
 VERIFIED_CANDIDATE_SHA = "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
 ACCOUNT_VERIFIED_CANDIDATE_SHA = "2aab941cb7f713d7e46675789c47971a2c79c564"
 ACCOUNT_CAPABILITY = "CAP-XY-ACCOUNT"
 MESSAGE_CAPABILITY = "CAP-XY-MESSAGE"
 REPLY_CAPABILITY = "CAP-XY-REPLY"
 PUBLISH_CAPABILITY = "CAP-XY-PUBLISH"
+SCHEDULE_CAPABILITY = "CAP-XY-SCHEDULE"
 MESSAGE_VERIFIED_CANDIDATE_SHA = "49498e6f30944883c1a0a5a504932bbd02fc86de"
 REPLY_VERIFIED_CANDIDATE_SHA = "5724d164619c64e93295595b3acdd1429d24e3e0"
 PUBLISH_VERIFIED_CANDIDATE_SHA = "66ac5134e0f62b9b30b7423e7bebab297c5ced7a"
+SCHEDULE_VERIFIED_CANDIDATE_SHA: str | None = None
 CORE_CAPABILITIES = {"CAP-CORE-CONFIG", "CAP-CORE-DATABASE", "CAP-HEALTH-MONITOR"}
 EVIDENCED_CAPABILITIES = CORE_CAPABILITIES | {
     ACCOUNT_CAPABILITY,
     MESSAGE_CAPABILITY,
     REPLY_CAPABILITY,
     PUBLISH_CAPABILITY,
+    SCHEDULE_CAPABILITY,
 }
 EXPECTED_CAPABILITY_IDS = {
     "CAP-CORE-CONFIG",
@@ -56,6 +60,7 @@ EXPECTED_OWNER_MODULES = {
     "CAP-XY-MESSAGE": "worker.message",
     "CAP-XY-REPLY": "app.reply",
     "CAP-XY-PUBLISH": "worker.publish",
+    "CAP-XY-SCHEDULE": "app.schedule",
 }
 EXPECTED_SPECIFICATIONS = {
     "CAP-CORE-CONFIG": "specs/capabilities/CAP-CORE-CONFIG.md",
@@ -65,6 +70,7 @@ EXPECTED_SPECIFICATIONS = {
     "CAP-XY-MESSAGE": "specs/capabilities/CAP-XY-MESSAGE.md",
     "CAP-XY-REPLY": "specs/capabilities/CAP-XY-REPLY.md",
     "CAP-XY-PUBLISH": "specs/capabilities/CAP-XY-PUBLISH.md",
+    "CAP-XY-SCHEDULE": "specs/capabilities/CAP-XY-SCHEDULE.md",
 }
 EXPECTED_CAPABILITY_PATHS = {
     "CAP-CORE-CONFIG": {
@@ -212,6 +218,31 @@ EXPECTED_CAPABILITY_PATHS = {
             "changes/archive/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py",
         ],
     },
+    "CAP-XY-SCHEDULE": {
+        "implementation_paths": [
+            "app/xianyu_system/schedule/__init__.py",
+            "app/xianyu_system/schedule/domain.py",
+            "app/xianyu_system/schedule/fingerprint.py",
+            "app/xianyu_system/schedule/validation.py",
+            "app/xianyu_system/schedule/persistence.py",
+            "app/xianyu_system/schedule/service.py",
+            "app/xianyu_system/schedule/apscheduler_adapter.py",
+            "migrations/versions/0006_xianyu_schedule_boundary.py",
+        ],
+        "test_paths": [
+            "tests/unit/test_schedule_domain.py",
+            "tests/unit/test_schedule_fingerprint.py",
+            "tests/unit/test_schedule_validation.py",
+            "tests/unit/test_schedule_service.py",
+            "tests/unit/test_schedule_apscheduler_adapter.py",
+            "tests/unit/test_import_safety.py",
+            "tests/contract/test_schedule_persistence.py",
+            "tests/contract/test_schedule_security.py",
+            "tests/contract/test_migrations.py",
+            "tests/contract/test_capability_registry.py",
+            "changes/active/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py",
+        ],
+    },
 }
 PRIMARY_IMPLEMENTATION_PATHS = {
     "CAP-CORE-CONFIG": "app/xianyu_system/core/config.py",
@@ -221,6 +252,7 @@ PRIMARY_IMPLEMENTATION_PATHS = {
     "CAP-XY-MESSAGE": "app/xianyu_system/worker/message/__init__.py",
     "CAP-XY-REPLY": "app/xianyu_system/reply/__init__.py",
     "CAP-XY-PUBLISH": "app/xianyu_system/worker/publish/__init__.py",
+    "CAP-XY-SCHEDULE": "app/xianyu_system/schedule/__init__.py",
 }
 APPROVED_SHARED_PATHS = {
     "app/xianyu_system/application.py",
@@ -366,6 +398,8 @@ def test_registry_path_responsibilities_are_separated() -> None:
                     "changes/archive/CHG-0004-xianyu-message-boundary/tests/",
                     "changes/archive/CHG-0005-xianyu-reply-boundary/tests/",
                     "changes/archive/CHG-0006-xianyu-publish-boundary/tests/",
+                    "changes/active/CHG-0007-xianyu-schedule-boundary/tests/",
+                    "changes/archive/CHG-0007-xianyu-schedule-boundary/tests/",
                 )
             )
             assert not relative_path.startswith("app/")
@@ -434,6 +468,21 @@ def test_capability_spec_documents_match_registry_paths_and_status() -> None:
         assert PUBLISH_VERIFIED_CANDIDATE_SHA in publish_spec
         assert "Registry status: verified" in publish_spec
 
+    schedule_spec = (ROOT / EXPECTED_SPECIFICATIONS[SCHEDULE_CAPABILITY]).read_text(encoding="utf-8")
+    schedule = items[SCHEDULE_CAPABILITY]
+    if schedule["status"] == "implementing":
+        assert schedule["active_change"] == CHG_0007
+        assert schedule["last_verified_commit"] is None
+        assert "Registry status: implementing" in schedule_spec
+        assert "Last verified commit: unset until T8 complete verification" in schedule_spec
+    else:
+        assert schedule["status"] == "verified"
+        assert schedule["active_change"] is None
+        assert SCHEDULE_VERIFIED_CANDIDATE_SHA is not None
+        assert schedule["last_verified_commit"] == SCHEDULE_VERIFIED_CANDIDATE_SHA
+        assert SCHEDULE_VERIFIED_CANDIDATE_SHA in schedule_spec
+        assert "Registry status: verified" in schedule_spec
+
 
 def test_capability_statuses_match_verification_phase() -> None:
     items = capabilities_by_id()
@@ -497,6 +546,17 @@ def test_capability_statuses_match_verification_phase() -> None:
         if not dirty:
             assert head != PUBLISH_VERIFIED_CANDIDATE_SHA
 
+    schedule = items[SCHEDULE_CAPABILITY]
+    if schedule["status"] == "implementing":
+        assert schedule["active_change"] == CHG_0007
+        assert schedule["last_verified_commit"] is None
+    else:
+        assert schedule["status"] == "verified"
+        assert schedule["active_change"] is None
+        assert SCHEDULE_VERIFIED_CANDIDATE_SHA is not None
+        assert schedule["last_verified_commit"] == SCHEDULE_VERIFIED_CANDIDATE_SHA
+        assert_commit_is_valid_offline(SCHEDULE_VERIFIED_CANDIDATE_SHA)
+
 
 def test_other_capabilities_remain_planned_empty_and_unbound() -> None:
     items = capabilities_by_id()
@@ -507,9 +567,6 @@ def test_other_capabilities_remain_planned_empty_and_unbound() -> None:
         assert capability["test_paths"] == []
         assert capability["active_change"] is None
         assert capability["last_verified_commit"] is None
-    assert items["CAP-XY-SCHEDULE"]["status"] == "planned"
-    assert items["CAP-XY-SCHEDULE"]["implementation_paths"] == []
-    assert items["CAP-XY-SCHEDULE"]["test_paths"] == []
 
 
 def test_capability_id_set_and_stable_metadata_are_preserved() -> None:
@@ -538,18 +595,16 @@ def test_project_state_matches_registry_paths_and_status_counts() -> None:
             == registry_items[cap_id]["last_verified_commit"]
         )
     state_counts = project_state()["capabilities"]["by_status"]
-    if registry_items[PUBLISH_CAPABILITY]["status"] == "implementing":
-        assert state_counts == {"planned": 3, "implementing": 1, "verified": 6}
-    else:
-        assert state_counts == {"planned": 3, "verified": 7}
-        assert (
-            project_state_capabilities_by_id()[MESSAGE_CAPABILITY]["last_verified_commit"]
-            == MESSAGE_VERIFIED_CANDIDATE_SHA
-        )
-        assert (
-            project_state_capabilities_by_id()[REPLY_CAPABILITY]["last_verified_commit"]
-            == REPLY_VERIFIED_CANDIDATE_SHA
-        )
+    expected_counts = Counter(str(item["status"]) for item in registry_items.values())
+    assert state_counts == dict(expected_counts)
+    assert (
+        project_state_capabilities_by_id()[MESSAGE_CAPABILITY]["last_verified_commit"]
+        == MESSAGE_VERIFIED_CANDIDATE_SHA
+    )
+    assert (
+        project_state_capabilities_by_id()[REPLY_CAPABILITY]["last_verified_commit"]
+        == REPLY_VERIFIED_CANDIDATE_SHA
+    )
     assert (
         project_state_capabilities_by_id()[ACCOUNT_CAPABILITY]["last_verified_commit"]
         == ACCOUNT_VERIFIED_CANDIDATE_SHA

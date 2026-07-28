@@ -52,7 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 3,
+      "implementing": 1,
+      "planned": 2,
       "verified": 7
     },
     "items": [
@@ -228,12 +229,33 @@
       {
         "id": "CAP-XY-SCHEDULE",
         "name": "Xianyu schedule",
-        "status": "planned",
+        "status": "implementing",
         "owner_module": "app.schedule",
         "specification": "specs/capabilities/CAP-XY-SCHEDULE.md",
-        "implementation_paths": [],
-        "test_paths": [],
-        "active_change": null,
+        "implementation_paths": [
+          "app/xianyu_system/schedule/__init__.py",
+          "app/xianyu_system/schedule/domain.py",
+          "app/xianyu_system/schedule/fingerprint.py",
+          "app/xianyu_system/schedule/validation.py",
+          "app/xianyu_system/schedule/persistence.py",
+          "app/xianyu_system/schedule/service.py",
+          "app/xianyu_system/schedule/apscheduler_adapter.py",
+          "migrations/versions/0006_xianyu_schedule_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_schedule_domain.py",
+          "tests/unit/test_schedule_fingerprint.py",
+          "tests/unit/test_schedule_validation.py",
+          "tests/unit/test_schedule_service.py",
+          "tests/unit/test_schedule_apscheduler_adapter.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_schedule_persistence.py",
+          "tests/contract/test_schedule_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py"
+        ],
+        "active_change": "CHG-0007-xianyu-schedule-boundary",
         "last_verified_commit": null
       },
       {
