@@ -353,3 +353,14 @@ CHG-0006 is in VERIFYING status for PR review preparation. The local determinist
 The Ready Candidate keeps T9 incomplete, keeps PROJECT_STATE next_task as T9, keeps CAP-XY-PUBLISH verified, keeps active_change null, and keeps last_verified_commit as `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
 
 The Ready Candidate is a governance review state only. It introduces no Runtime, Migration, Registry, capability evidence, dependency, workflow, browser, platform, Credential, WeCom, AI Provider, scheduler, worker loop, retry, API, or Web UI change.
+
+
+## T9 final review state
+
+CHG-0006 remains in VERIFYING status for project-owner review. All nine CHG-0006 tasks are complete, and there is no next active task inside CHG-0006 before separate exact-HEAD merge authorization.
+
+T9 Ready Candidate SHA is `52e389e804ca24f144c6c1bd73cc21b1ba21d4cb`. PR #6 is Ready for review, open, and unmerged. No Reviewer was manually requested, and auto-merge is disabled.
+
+The local deterministic Publish boundary remains unchanged from the verified T8 evidence state. CAP-XY-PUBLISH remains verified, active_change remains null, and last_verified_commit remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`. Merge, close, archive, branch deletion, CHG-0007, Runtime, Migration semantics, Registry, evidence paths, dependency, workflow, browser, platform, Credential, WeCom, AI Provider, scheduler, worker loop, retry, API, and Web UI changes remain outside T9.
+
+Merge requires separate explicit authorization against the exact current PR HEAD.

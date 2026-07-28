@@ -12,12 +12,12 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
 - CHG-0006-xianyu-publish-boundary is the only Active Change.
 - CHG-0006 status is `VERIFYING`.
-- CHG-0006 completed tasks: 8 / 9.
-- Completed tasks: T1-T8.
-- Next task: `T9 Complete final PR administration`.
-- T8 capability evidence verification is complete. T9 is not authorized and has not started.
-- T7 and T8 are complete. T9 requires separate project-owner authorization.
-- PR #6 remains Draft, open, and unmerged.
+- CHG-0006 completed tasks: 9 / 9.
+- Completed tasks: T1-T9.
+- Next task: none.
+- T8 capability evidence verification is complete.
+- T9 final PR administration is complete.
+- PR #6 is Ready for review, open, and unmerged.
 - CAP-XY-PUBLISH is verified for the local deterministic Publish boundary.
 - CAP-XY-PUBLISH evidence paths are registered and verified.
 - CAP-XY-PUBLISH `implementation_paths` are registered exactly in `specs/CAPABILITY_REGISTRY.yaml`.
@@ -91,6 +91,21 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - Auto-merge and Merge remain unauthorized.
 - The actual T9 Ready Candidate SHA is the SHA of the separate Phase A preparation commit created after local verification.
 
+## CHG-0006 final PR administration
+
+- CHG-0006 final PR administration is complete.
+- CHG-0006 status is VERIFYING.
+- All nine tasks are complete.
+- T9 Ready Candidate SHA is `52e389e804ca24f144c6c1bd73cc21b1ba21d4cb`.
+- CAP-XY-PUBLISH remains verified.
+- Evidence Candidate remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+- T8 Verification commit remains `51bfefb4ca63e2c7ac0128359da1f00c62ad37e9`.
+- PR #6 is Ready for review, open and unmerged.
+- No Reviewer was manually requested.
+- Auto-merge and Merge remain unauthorized.
+- CHG-0006 remains under changes/active until Merge.
+- Merge requires separate authorization against exact PR HEAD.
+
 ## Project goal
 
 The final intended business path is:
@@ -106,14 +121,14 @@ The final intended business path is:
 
 ## Current phase
 
-The current phase is CHG-0006 after T8 completion and before separately authorized T9 final PR administration:
+The current phase is CHG-0006 after T9 final PR administration and before separately authorized exact-HEAD merge:
 
 - Governance and fact-source rules remain active.
 - Registry, generated project state, validation scripts, tests, and GitHub CI are present.
 - The repository has verified local deterministic capability evidence for its completed boundaries.
 - CAP-XY-PUBLISH is verified only for the local deterministic Publish boundary and synthetic fixtures.
 - The repository still has no real Xianyu platform operation, real listing publication, media upload, browser automation, Credential handling, external network side effect, WeCom integration, or AI Provider integration.
-- The next governance boundary is T9 final PR administration.
+- There is no remaining CHG-0006 task before review and separate exact-HEAD merge authorization.
 - Merge remains separate from T9 and still requires later exact-HEAD project-owner authorization.
 
 

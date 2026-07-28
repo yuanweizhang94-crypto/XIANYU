@@ -19,6 +19,7 @@ PR_5_MERGE_COMMIT = "f00156045d75e632d71ade640a85a4c522568158"
 CHG_0005_FEATURE_HEAD = "c4f7a3a3d14e34e5ebdaf6abd79587d45137f587"
 REPLY_EVIDENCE_CANDIDATE = "5724d164619c64e93295595b3acdd1429d24e3e0"
 PUBLISH_EVIDENCE_CANDIDATE_SHA = "66ac5134e0f62b9b30b7423e7bebab297c5ced7a"
+T9_READY_CANDIDATE_SHA = "52e389e804ca24f144c6c1bd73cc21b1ba21d4cb"
 REPLY_ARCHIVE_ACCEPTANCE = (
     "changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py"
 )
@@ -538,5 +539,7 @@ def test_t9_governance_state_matches_review_phase() -> None:
     if completed == 9:
         assert status == "VERIFYING"
         assert project_state()["tasks"]["next_task"] is None
+        assert T9_READY_CANDIDATE_SHA in combined
         assert "Ready for review" in combined
+        assert "open, and unmerged" in combined
         assert "Merge requires separate" in combined

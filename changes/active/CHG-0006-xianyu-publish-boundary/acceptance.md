@@ -181,3 +181,25 @@ T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerge
 16. No manual Reviewer request is authorized.
 17. Merge, close, archive, branch deletion and CHG-0007 remain unauthorized.
 18. No Runtime, Migration, Registry, dependency, workflow, browser, platform, Credential, WeCom or AI changes occur.
+
+
+## T9 final acceptance criteria
+
+1. T1-T9 are complete.
+2. All nine tasks are checked.
+3. PROJECT_STATE completed = 9.
+4. PROJECT_STATE next_task = null.
+5. CHG-0006 status remains VERIFYING.
+6. CAP-XY-PUBLISH remains verified.
+7. CAP-XY-PUBLISH active_change remains null.
+8. CAP-XY-PUBLISH last_verified_commit remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+9. Exact implementation paths remain unchanged.
+10. Exact test paths remain unchanged.
+11. Ready Candidate SHA is `52e389e804ca24f144c6c1bd73cc21b1ba21d4cb`.
+12. PR #6 is Ready for review.
+13. PR #6 remains open and unmerged.
+14. Auto-merge is disabled.
+15. No manual Reviewer request was made.
+16. No Merge, close, branch deletion, archive or CHG-0007 occurred.
+17. Final quality, tests and security Actions must pass on the final administration HEAD.
+18. Merge requires separate exact-HEAD authorization.

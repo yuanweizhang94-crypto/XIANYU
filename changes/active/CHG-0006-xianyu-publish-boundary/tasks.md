@@ -11,15 +11,15 @@ Change ID: CHG-0006-xianyu-publish-boundary
 - [x] T6 Implement only the separately approved local publishing boundary
 - [x] T7 Add unit, contract, security, and active-change acceptance tests
 - [x] T8 Update capability evidence and run complete verification
-- [ ] T9 Complete final PR administration
+- [x] T9 Complete final PR administration
 
 ## Current task state
 
-Completed tasks: 8 / 9.
+Completed tasks: 9 / 9.
 
-Next task: T9 Complete final PR administration.
+Next task: none.
 
-T8 capability evidence verification is complete. T9 is the next task and has not started.
+T9 final PR administration is complete. There is no next task in CHG-0006 before separate merge authorization.
 
 Each task must be completed, verified, and committed independently.
 
@@ -43,6 +43,6 @@ Registry final state:
 - implementation_paths: exact Publish implementation evidence paths
 - test_paths: exact Publish permanent test evidence paths
 
-Tasks are 8 / 9. T9 Complete final PR administration is next but remains unauthorized and has not started.
+Tasks are 9 / 9. T9 Complete final PR administration is complete, and no next CHG-0006 task remains before separate exact-HEAD merge authorization.
 
-No Ready transition, reviewer request, review submission, auto-merge, merge, archive, branch deletion, CHG-0007, real Xianyu access, listing publication, media upload, Credential handling, browser automation, platform adapter, scheduler, worker loop, retry behavior, dependency change, or workflow change was performed.
+The Ready transition was completed only after Candidate local gates and GitHub Actions passed. No reviewer request, review submission, auto-merge, merge, archive, branch deletion, CHG-0007, real Xianyu access, listing publication, media upload, Credential handling, browser automation, platform adapter, scheduler, worker loop, retry behavior, dependency change, or workflow change was performed.

@@ -162,3 +162,14 @@ CHG-0006 status is VERIFYING for final review preparation. T1-T8 are complete, a
 CAP-XY-PUBLISH remains verified and frozen. The Evidence Candidate remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`, and last_verified_commit must continue to point to that Candidate.
 
 PR #6 must remain Draft, open, and unmerged until the Ready Candidate local gates and GitHub Actions pass. No manual Reviewer request, review submission, auto-merge, merge, close, archive, branch deletion, CHG-0007 creation, Runtime change, Migration semantic change, Registry change, dependency change, workflow change, browser/platform/Credential behavior, WeCom integration, or AI Provider integration is authorized.
+
+
+## T9 final PR administration result
+
+T9 final PR administration is complete. T1-T9 are complete, PROJECT_STATE completed is 9 / 9, and PROJECT_STATE next_task is null.
+
+T9 Ready Candidate SHA: `52e389e804ca24f144c6c1bd73cc21b1ba21d4cb`
+
+PR #6 is Ready for review, open, and unmerged. CAP-XY-PUBLISH remains verified and frozen with last_verified_commit `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`. No manual Reviewer request, review submission, auto-merge, merge, close, archive, branch deletion, CHG-0007 creation, Runtime change, Migration semantic change, Registry change, dependency change, workflow change, browser/platform/Credential behavior, WeCom integration, or AI Provider integration occurred.
+
+Merge requires separate explicit authorization against the exact current PR HEAD.
