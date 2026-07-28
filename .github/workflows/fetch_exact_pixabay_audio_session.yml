@@ -1,0 +1,162 @@
+name: Fetch Exact Pixabay Audio Session
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch_exact_pixabay_audio_session.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser and validators
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install curl_cffi playwright
+          python -m playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg xvfb
+      - name: Capture exact MP3 response bytes
+        shell: bash
+        run: |
+          cat > /tmp/capture_exact.py <<'PY'
+          import asyncio, hashlib, subprocess
+          from pathlib import Path
+          from curl_cffi import requests as crequests
+          from playwright.async_api import async_playwright
+
+          OUT=Path('exact_pixabay_session'); OUT.mkdir(exist_ok=True)
+          assets={
+            'bgm_the_technology_corporate_198151.mp3':(
+              'https://pixabay.com/music/corporate-the-technology-corporate-198151/',
+              'https://cdn.pixabay.com/download/audio/2024/03/25/audio_5bfd7d0327.mp3?filename=momotmusic-the-technology-corporate-198151.mp3'),
+            'whoosh_effect_382717.mp3':(
+              'https://pixabay.com/sound-effects/film-special-effects-whoosh-effect-382717/',
+              'https://cdn.pixabay.com/download/audio/2025/07/30/audio_9b5f822de1.mp3?filename=dragon-studio-whoosh-effect-382717.mp3'),
+            'ding_402325.mp3':(
+              'https://pixabay.com/sound-effects/film-special-effects-ding-402325/',
+              'https://cdn.pixabay.com/download/audio/2025/09/09/audio_2556e69436.mp3?filename=dragon-studio-ding-402325.mp3'),
+            'ui_notification_pop_513564.mp3':(
+              'https://pixabay.com/sound-effects/technology-ui-notification-pop-513564/',
+              'https://cdn.pixabay.com/download/audio/2026/04/09/audio_d5e1301b98.mp3?filename=soundshelfstudio-ui-notification-pop-513564.mp3'),
+          }
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
+
+          def is_mp3(path):
+            try:
+              fmt=subprocess.check_output(['ffprobe','-v','error','-show_entries','format=format_name','-of','csv=p=0',str(path)],text=True).strip()
+              dur=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',str(path)],text=True).strip())
+              return 'mp3' in fmt and dur>0.1,fmt,dur
+            except Exception as e: return False,str(e),0
+
+          async def main():
+            logs=[]
+            async with async_playwright() as p:
+              browser=await p.chromium.launch(headless=True,args=['--disable-blink-features=AutomationControlled','--no-sandbox'])
+              context=await browser.new_context(user_agent=UA,locale='en-US',viewport={'width':1440,'height':1000},extra_http_headers={'Accept-Language':'en-US,en;q=0.9'})
+              await context.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined})")
+              for filename,(page_url,audio_url) in assets.items():
+                target=OUT/filename
+                saved=False
+                page=await context.new_page()
+                captured=[]
+                async def response_handler(resp):
+                  nonlocal saved
+                  if saved: return
+                  u=resp.url
+                  ct=(resp.headers.get('content-type') or '').lower()
+                  if ('/download/audio/' in u or u==audio_url) and ('.mp3' in u or 'audio' in ct):
+                    try:
+                      body=await resp.body()
+                      temp=OUT/(filename+'.capture')
+                      temp.write_bytes(body)
+                      ok,fmt,dur=is_mp3(temp)
+                      logs.append(f'{filename} intercepted status={resp.status} ct={ct} bytes={len(body)} fmt={fmt} dur={dur} url={u}')
+                      if ok:
+                        temp.replace(target); saved=True
+                      else: temp.unlink(missing_ok=True)
+                    except Exception as e: logs.append(f'{filename} intercept error {e}')
+                page.on('response',response_handler)
+                try:
+                  await page.goto(page_url,wait_until='domcontentloaded',timeout=120000)
+                  await page.wait_for_timeout(6000)
+                  # Trigger the site's own audio request.
+                  try:
+                    await page.locator('audio').first.evaluate("a => {a.volume=0; return a.play();}")
+                  except Exception as e: logs.append(f'{filename} audio play error {e}')
+                  for selector in ['button[aria-label*="Play"]','button:has-text("Play")']:
+                    try:
+                      if await page.locator(selector).count(): await page.locator(selector).first.click(timeout=4000)
+                    except Exception: pass
+                  await page.wait_for_timeout(10000)
+                except Exception as e: logs.append(f'{filename} page error {e}')
+
+                # Use session cookies and browser request context against exact URL.
+                if not saved:
+                  try:
+                    resp=await context.request.get(audio_url,headers={
+                      'Referer':page_url,'Accept':'audio/mpeg,audio/*;q=0.9,*/*;q=0.8','Range':'bytes=0-'
+                    },timeout=120000)
+                    body=await resp.body(); temp=OUT/(filename+'.request')
+                    temp.write_bytes(body); ok,fmt,dur=is_mp3(temp)
+                    logs.append(f'{filename} context request status={resp.status} ct={resp.headers.get("content-type")} bytes={len(body)} fmt={fmt} dur={dur}')
+                    if ok: temp.replace(target); saved=True
+                    else: temp.unlink(missing_ok=True)
+                  except Exception as e: logs.append(f'{filename} context request error {e}')
+
+                # Last exact-URL attempt using Chrome TLS impersonation plus browser cookies.
+                if not saved:
+                  try:
+                    cookies=await context.cookies(); cookiejar={c['name']:c['value'] for c in cookies}
+                    r=crequests.get(audio_url,impersonate='chrome',cookies=cookiejar,headers={
+                      'User-Agent':UA,'Referer':page_url,'Accept':'audio/mpeg,audio/*;q=0.9,*/*;q=0.8','Range':'bytes=0-'
+                    },timeout=120,allow_redirects=True)
+                    temp=OUT/(filename+'.curlcffi'); temp.write_bytes(r.content)
+                    ok,fmt,dur=is_mp3(temp)
+                    logs.append(f'{filename} curl_cffi status={r.status_code} ct={r.headers.get("content-type")} bytes={len(r.content)} fmt={fmt} dur={dur}')
+                    if ok: temp.replace(target); saved=True
+                    else: temp.unlink(missing_ok=True)
+                  except Exception as e: logs.append(f'{filename} curl_cffi error {e}')
+                await page.close()
+                if not saved: logs.append(f'{filename} FAILED')
+              await browser.close()
+            (OUT/'CAPTURE_LOG.txt').write_text('\n'.join(logs),encoding='utf-8')
+
+            missing=[f for f in assets if not (OUT/f).exists()]
+            rows=[]
+            for f in assets:
+              p=OUT/f
+              if p.exists():
+                ok,fmt,dur=is_mp3(p)
+                rows.append(f'{f}\t{p.stat().st_size}\t{dur}\t{hashlib.sha256(p.read_bytes()).hexdigest()}')
+            (OUT/'SHA256_DURATION.tsv').write_text('\n'.join(rows),encoding='utf-8')
+            if missing: raise SystemExit('Missing exact files: '+','.join(missing))
+
+          asyncio.run(main())
+          PY
+          xvfb-run -a python /tmp/capture_exact.py
+      - name: Validate exact files
+        if: always()
+        run: |
+          cat exact_pixabay_session/CAPTURE_LOG.txt || true
+          cat exact_pixabay_session/SHA256_DURATION.tsv || true
+          for f in exact_pixabay_session/*.mp3; do
+            file "$f"
+            ffprobe -v error -show_entries format=filename,format_name,duration,size -of default=nw=1 "$f"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ghana-exact-pixabay-audio-session
+          path: exact_pixabay_session/
+          if-no-files-found: error
+          retention-days: 7
