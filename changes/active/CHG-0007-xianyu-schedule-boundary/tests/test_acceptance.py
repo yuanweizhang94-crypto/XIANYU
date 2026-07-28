@@ -14,7 +14,7 @@ def test_draft_governance_state_is_read_only() -> None:
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         text = (CHANGE_DIR / name).read_text(encoding="utf-8")
         assert f"Change ID: {CHANGE_ID}" in text
-        assert "Status: APPROVED" in text
+        assert "Status: VERIFYING" in text
 
 
 def test_approved_change_has_t7_complete_and_t8_next() -> None:
@@ -38,7 +38,7 @@ def test_t8_phase_a_binds_schedule_capability_candidate() -> None:
 def test_draft_project_state_and_runtime_absence() -> None:
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"]["id"] == CHANGE_ID
-    assert state["active_change"]["status"] == "APPROVED"
+    assert state["active_change"]["status"] == "VERIFYING"
     assert state["tasks"]["total"] == 9
     assert state["tasks"]["completed"] == 8
     assert state["tasks"]["next_task"] == "T9 Complete final PR administration"

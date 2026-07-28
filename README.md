@@ -100,6 +100,11 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - CHG-0006 later moved to `changes/archive/CHG-0006-xianyu-publish-boundary` after merge.
 - Merge requires separate authorization against exact PR HEAD.
 
+## CHG-0007 final review preparation
+
+CHG-0007 status is `VERIFYING` for final PR review preparation. T1 through T8 are complete; T9 remains incomplete until the Ready transition and final administration record finish. CAP-XY-SCHEDULE remains verified and frozen for the local deterministic Schedule boundary. Evidence Candidate SHA is `0d9cfacedc1947e518d990151225ec8a15540f76` and verification commit is `853129698995a32464a17aa93c9c9066d709cf7f`. PR #8 remains Draft until the Ready Candidate passes final CI. No Reviewer request, auto-merge, merge, close, archive, branch deletion, CHG-0008, runtime expansion, dependency change, workflow change, real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, or external queue is authorized by this preparation state.
+
+
 ## CHG-0007 T8 Schedule capability verification
 
 CAP-XY-SCHEDULE evidence paths are registered and verified. Evidence Candidate SHA: `0d9cfacedc1947e518d990151225ec8a15540f76`. Registry status is verified, active_change is null, and last_verified_commit records the Candidate SHA. Tasks are now 8 / 9 and T9 Complete final PR administration is the next executable task. PR #8 remains Draft, open, and unmerged. Verified does not authorize Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, CHG-0008, real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, or external queue behavior.

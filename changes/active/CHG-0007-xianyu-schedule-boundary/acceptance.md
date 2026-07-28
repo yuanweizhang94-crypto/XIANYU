@@ -1,6 +1,6 @@
 # CHG-0007 Acceptance
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0007-xianyu-schedule-boundary
 
 ## Draft acceptance gates
@@ -69,3 +69,8 @@ CAP-XY-SCHEDULE is registered as `implementing` for the Evidence Candidate. Exac
 ## T8 Phase B verification record
 
 CAP-XY-SCHEDULE evidence paths are registered and verified. Evidence Candidate SHA: `0d9cfacedc1947e518d990151225ec8a15540f76`. Candidate GitHub Actions for quality, tests, and security on push and pull_request events completed successfully. Registry status is verified, active_change is null, and last_verified_commit records the Candidate SHA. Verified means only the local deterministic Schedule boundary with synthetic fixtures; it does not authorize real Xianyu scheduled publishing, browser automation, Credential handling, WeCom, AI, or platform access.
+
+
+## T9 Ready Candidate record
+
+CHG-0007 is in VERIFYING for final PR review preparation. T1 through T8 are complete and T9 remains incomplete until final PR administration is recorded. CAP-XY-SCHEDULE remains verified with Evidence Candidate SHA `0d9cfacedc1947e518d990151225ec8a15540f76` and verification commit `853129698995a32464a17aa93c9c9066d709cf7f`. PR #8 remains Draft until the Ready Candidate passes CI. No Reviewer request, auto-merge, merge, archive, branch deletion, CHG-0008, real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, or external queue behavior is authorized by this preparation state.
