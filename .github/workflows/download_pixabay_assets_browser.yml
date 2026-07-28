@@ -1,0 +1,107 @@
+name: Download Pixabay Assets Browser
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/download_pixabay_assets_browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser and media tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+      - name: Capture actual Pixabay audio streams
+        shell: bash
+        run: |
+          cat > /tmp/capture.py <<'PY'
+          import asyncio, html, re
+          from pathlib import Path
+          from playwright.async_api import async_playwright
+
+          assets = {
+              'bgm_corporate.mp3': 'https://pixabay.com/music/corporate-corporate-music-562854/',
+              'sfx_whoosh.mp3': 'https://pixabay.com/sound-effects/film-special-effects-whoosh-effect-382717/',
+              'sfx_ding.mp3': 'https://pixabay.com/sound-effects/film-special-effects-notification-ping-372479/',
+              'sfx_notification.mp3': 'https://pixabay.com/sound-effects/film-special-effects-ui-ai-system-notification-537631/',
+          }
+          out=Path('pixabay_assets_browser'); out.mkdir(exist_ok=True)
+
+          async def main():
+            async with async_playwright() as p:
+              browser=await p.chromium.launch(headless=True,args=['--disable-blink-features=AutomationControlled'])
+              context=await browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/150 Safari/537.36',
+                locale='en-US',
+                viewport={'width':1440,'height':1100},
+              )
+              for filename,page_url in assets.items():
+                page=await context.new_page()
+                captured=[]
+                def on_response(resp):
+                  u=resp.url
+                  ct=(resp.headers.get('content-type') or '').lower()
+                  if 'cdn.pixabay.com' in u and ('.mp3' in u.lower() or 'audio/' in u.lower() or 'audio' in ct):
+                    captured.append(u)
+                page.on('response',on_response)
+                await page.goto(page_url,wait_until='domcontentloaded',timeout=90000)
+                await page.wait_for_timeout(7000)
+                dom_urls=await page.locator('audio, audio source').evaluate_all("els => els.flatMap(e => [e.src, e.currentSrc, e.getAttribute('src')]).filter(Boolean)")
+                content=await page.content()
+                content=html.unescape(content).replace('\\/','/').replace('\\u002F','/').replace('\\u0026','&')
+                regex_urls=re.findall(r'https://cdn\\.pixabay\\.com/(?:download/)?audio/[^\"\'<> ]+?\\.mp3(?:\\?[^\"\'<> ]*)?',content)
+                candidates=[]
+                for u in captured+dom_urls+regex_urls:
+                  u=html.unescape(u).replace('\\/','/')
+                  if u not in candidates: candidates.append(u)
+                print(filename,'candidates',len(candidates))
+                saved=False
+                for u in candidates:
+                  try:
+                    resp=await context.request.get(u,headers={'Referer':page_url},timeout=90000)
+                    body=await resp.body()
+                    ct=(resp.headers.get('content-type') or '').lower()
+                    if resp.ok and len(body)>1000 and ('audio' in ct or body[:3]==b'ID3' or body[:2] in (b'\xff\xfb',b'\xff\xf3',b'\xff\xf2')):
+                      (out/filename).write_bytes(body)
+                      print('saved',filename,len(body),u)
+                      saved=True
+                      break
+                  except Exception as exc:
+                    print('candidate error',u,exc)
+                if not saved:
+                  (out/(filename+'.html')).write_text(content,encoding='utf-8')
+                  (out/(filename+'.candidates.txt')).write_text('\n'.join(candidates),encoding='utf-8')
+                  raise RuntimeError(f'No downloadable stream for {filename}')
+                await page.close()
+              (out/'sources.txt').write_text('\n'.join(f'{k}\t{v}' for k,v in assets.items()),encoding='utf-8')
+              await browser.close()
+          asyncio.run(main())
+          PY
+          python /tmp/capture.py
+      - name: Validate audio assets
+        run: |
+          for f in pixabay_assets_browser/*.mp3; do
+            ffprobe -v error -show_entries format=filename,duration,size -of default=nw=1 "$f"
+          done
+      - name: Upload captured assets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghana-pixabay-browser-assets
+          path: pixabay_assets_browser/
+          if-no-files-found: error
+          retention-days: 7
