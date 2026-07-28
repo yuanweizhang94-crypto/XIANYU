@@ -1,6 +1,6 @@
 # XIANYU
 
-XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository state contains governance, specifications, validation scripts, tests, CI, and the initial Core application boundary. It does not provide real Xianyu publishing, message receiving, message sending, automated reply, WeCom, AI Provider, business API routes, database business logic, WebSocket, Playwright, or scheduled publishing capability.
+XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository contains governance, specifications, validation scripts, tests, CI, and Registry-verified local deterministic boundaries. Those verified capabilities are valid only within local execution and synthetic fixtures. The repository does not provide real Xianyu access, real listing publication, real message receiving or sending, Playwright or browser automation, real Credential handling, WeCom integration, AI Provider integration, or external platform side effects.
 
 ## Current change state
 
@@ -16,50 +16,66 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - Completed tasks: T1-T8.
 - Next task: `T9 Complete final PR administration`.
 - T8 capability evidence verification is complete. T9 is not authorized and has not started.
-- CAP-XY-PUBLISH remains planned and unbound.
-- CAP-XY-PUBLISH keeps empty `implementation_paths`, empty `test_paths`, null `active_change`, and null `last_verified_commit`.
+- T7 and T8 are complete. T9 requires separate project-owner authorization.
+- PR #6 remains Draft, open, and unmerged.
+- CAP-XY-PUBLISH is verified for the local deterministic Publish boundary.
+- CAP-XY-PUBLISH evidence paths are registered and verified.
+- CAP-XY-PUBLISH `implementation_paths` are registered exactly in `specs/CAPABILITY_REGISTRY.yaml`.
+- CAP-XY-PUBLISH `test_paths` are registered exactly in `specs/CAPABILITY_REGISTRY.yaml`.
+- CAP-XY-PUBLISH `active_change` is null.
+- CAP-XY-PUBLISH `last_verified_commit` is `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+- READY does not mean a real listing was published.
 - The T6 implementation performs only local deterministic publish-boundary decisions and introduces no Playwright, browser automation, real Xianyu access, listing publication, media upload, credential access, real data access, or external network access.
-- Any T7 testing, T8 evidence registration, or T9 PR administration requires new separate project-owner authorization.
-
-## CHG-0006 T5 approved publish architecture boundaries
-
-- Owner module remains `worker.publish`.
-- Future package `app/xianyu_system/worker/publish` is documented only and is not created by T5.
-- Future publish Domain responsibilities cover ListingDraft, PublishRequest, PublishValidationResult, PublishDecision, PublishAttempt, PublishOutcome, lifecycle rules, reason codes, and fail-closed invariants.
-- Future local Service orchestration may request a repository protocol, but it must not call a real platform, receive Credential material, open a browser, or invoke Playwright.
-- Future persistence and audit requirements are conceptual only; no schema, Migration, table, column, index, ORM model, or implementation file is introduced.
-- ListingDraftLifecycle is `DRAFT`, `VALIDATED`, `READY_FOR_MANUAL_REVIEW`, and `ARCHIVED`; it intentionally excludes `PUBLISHED` because the local boundary does not publish.
-- Failure classification covers `VALIDATION_ERROR`, `AUTHORIZATION_ERROR`, `RISK_BLOCKED`, `IDEMPOTENCY_CONFLICT`, `DUPLICATE_REQUEST`, `PERSISTENCE_ERROR`, `ADAPTER_ERROR`, `TIMEOUT`, `UNKNOWN_OUTCOME`, and `CANCELLED`.
-- T6 remains the next task but is not authorized and has not started.
 
 
-## CHG-0006 T6 local deterministic publish boundary
+## Historical phase record - CHG-0006 T5 approved publish architecture
 
-- The local package `app/xianyu_system/worker/publish/` now exists.
-- Runtime files are `__init__.py`, `domain.py`, `fingerprint.py`, `validation.py`, `persistence.py`, and `service.py`.
-- Migration `0005_xianyu_publish_boundary` creates local publish request, sanitized audit, and attempt-snapshot tables.
-- The Service returns deterministic local decisions only: READY, INVALID_INPUT, UNAUTHORIZED, RISK_BLOCKED, DUPLICATE, CONFLICT, or MANUAL_REVIEW.
-- READY means local readiness for a separately authorized future boundary only; it does not publish listings and does not start a PublishAttempt.
-- CAP-XY-PUBLISH evidence paths are registered and verified. Registry active_change is null and last_verified_commit records the T8 Phase A Evidence Candidate SHA.
-- T7 is the next task but is not authorized and has not started.
+This section records the state at T5 and is not the current repository state.
 
-
-## CHG-0006 T7 permanent local Publish boundary tests
-
-- T7 adds permanent unit, contract, security, migration, import-safety, and active-change acceptance coverage for the local deterministic Publish boundary.
-- New unit tests cover Publish domain normalization, media metadata canonicalization, fingerprint stability, validation fail-closed ordering, and service idempotency/duplicate/UNKNOWN/persistence-failure behavior.
-- New contract tests cover local SQLite publish persistence, Alembic migration constraints, empty downgrade, non-empty downgrade fail-closed behavior, and static/runtime security boundaries.
-- T7 does not bind CAP-XY-PUBLISH evidence; CAP-XY-PUBLISH remains planned and unbound until T8.
-- T8 is the next task but has not started in the T7 commit.
+- At the end of T5, owner module remained `worker.publish`.
+- At that historical point, package `app/xianyu_system/worker/publish` was documented only and had not been created by T5.
+- At that historical point, publish Domain responsibilities covered ListingDraft, PublishRequest, PublishValidationResult, PublishDecision, PublishAttempt, PublishOutcome, lifecycle rules, reason codes, and fail-closed invariants.
+- At that historical point, local Service orchestration could request a repository protocol, but it still could not call a real platform, receive Credential material, open a browser, or invoke Playwright.
+- At that historical point, persistence and audit requirements were conceptual only; no schema, Migration, table, column, index, ORM model, or implementation file had been introduced by T5.
+- ListingDraftLifecycle was `DRAFT`, `VALIDATED`, `READY_FOR_MANUAL_REVIEW`, and `ARCHIVED`; it intentionally excluded `PUBLISHED` because the local boundary does not publish.
+- Failure classification covered `VALIDATION_ERROR`, `AUTHORIZATION_ERROR`, `RISK_BLOCKED`, `IDEMPOTENCY_CONFLICT`, `DUPLICATE_REQUEST`, `PERSISTENCE_ERROR`, `ADAPTER_ERROR`, `TIMEOUT`, `UNKNOWN_OUTCOME`, and `CANCELLED`.
+- At that historical point, T6 was the next task.
 
 
-## CHG-0006 T8 Phase A evidence candidate
+## Historical phase record - CHG-0006 T6 local deterministic publish boundary
 
-- CAP-XY-PUBLISH is registered as `implementing` for the Phase A Evidence Candidate.
-- `active_change` is `CHG-0006-xianyu-publish-boundary`.
-- `last_verified_commit` remains null until the Candidate commit itself completes local and GitHub Actions verification.
-- Evidence paths are exact repository-relative files for the local deterministic Publish runtime and permanent tests only.
-- T8 is not complete in Phase A; T8 Phase B must record the verified Candidate SHA after Actions are green.
+This section records the state at T6 completion and is not the current repository state.
+
+- At the end of T6, the local package `app/xianyu_system/worker/publish/` existed.
+- At the end of T6, runtime files were `__init__.py`, `domain.py`, `fingerprint.py`, `validation.py`, `persistence.py`, and `service.py`.
+- At the end of T6, Migration `0005_xianyu_publish_boundary` created local publish request, sanitized audit, and attempt-snapshot tables.
+- At the end of T6, the Service returned deterministic local decisions only: READY, INVALID_INPUT, UNAUTHORIZED, RISK_BLOCKED, DUPLICATE, CONFLICT, or MANUAL_REVIEW.
+- READY meant local readiness for a separately authorized future boundary only; it did not publish listings and did not start a PublishAttempt.
+- At T6 completion, CAP-XY-PUBLISH was still planned and unbound.
+- At T6 completion, T7 was the next task and had not started.
+- This is a historical phase record; T7 and T8 are now complete.
+
+
+## Historical phase record - CHG-0006 T7 permanent Publish tests
+
+This section records the state at the T7 commit. T8 has since completed.
+
+- T7 added permanent unit, contract, security, migration, import-safety, and active-change acceptance coverage for the local deterministic Publish boundary.
+- The T7 unit tests covered Publish domain normalization, media metadata canonicalization, fingerprint stability, validation fail-closed ordering, and service idempotency/duplicate/UNKNOWN/persistence-failure behavior.
+- The T7 contract tests covered local SQLite publish persistence, Alembic migration constraints, empty downgrade, non-empty downgrade fail-closed behavior, and static/runtime security boundaries.
+- At the T7 commit, T7 did not bind CAP-XY-PUBLISH evidence; CAP-XY-PUBLISH remained planned and unbound until T8.
+- At the T7 commit, T8 was the next task and had not started.
+
+
+## Historical phase record - CHG-0006 T8 Phase A Evidence Candidate
+
+This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`. Phase B verification has since completed.
+
+- During Phase A, CAP-XY-PUBLISH was registered as `implementing` for the Evidence Candidate.
+- During Phase A, `active_change` was `CHG-0006-xianyu-publish-boundary`.
+- During Phase A, `last_verified_commit` was null until the Candidate commit itself completed local and GitHub Actions verification.
+- During Phase A, evidence paths were exact repository-relative files for the local deterministic Publish runtime and permanent tests only.
+- During Phase A, T8 was not complete; Phase B later recorded the verified Candidate SHA after Actions were green.
 
 ## Project goal
 
@@ -76,13 +92,16 @@ The final intended business path is:
 
 ## Current phase
 
-The current phase is repository baseline plus the initial Core application boundary:
+The current phase is CHG-0006 after T8 completion and before separately authorized T9 final PR administration:
 
-- Governance and fact-source rules.
-- Scope, architecture, capability, ADR, and contract placeholders.
-- Context, state generation, validation, duplicate capability detection, and security scan scripts.
-- Unit, contract, acceptance tests, and GitHub CI.
-- FastAPI application factory, typed local configuration, structured logging, SQLite/Alembic infrastructure, scheduler lifecycle boundaries, a read-only health API, and a minimal server-rendered web skeleton.
+- Governance and fact-source rules remain active.
+- Registry, generated project state, validation scripts, tests, and GitHub CI are present.
+- The repository has verified local deterministic capability evidence for its completed boundaries.
+- CAP-XY-PUBLISH is verified only for the local deterministic Publish boundary and synthetic fixtures.
+- The repository still has no real Xianyu platform operation, real listing publication, media upload, browser automation, Credential handling, external network side effect, WeCom integration, or AI Provider integration.
+- The next governance boundary is T9 final PR administration.
+- Merge remains separate from T9 and still requires later exact-HEAD project-owner authorization.
+
 
 ## Technical direction
 
@@ -623,11 +642,13 @@ CHG-0003 final PR administration is complete.
 - No close, source-branch deletion, archive, CHG-0006 creation, runtime expansion, migration semantic change, dependency change, workflow change, real Xianyu access, message sending, WeCom integration, AI Provider integration, browser Profile access, Credential access, Cookie, Token, Secret, Session Material, or real customer-data access occurred.
 
 
-## CHG-0006 T8 Phase B verification record
+## Current verification record - CHG-0006 T8 Phase B
 
 CAP-XY-PUBLISH evidence paths are registered and verified for the local deterministic Publish boundary.
 
 Evidence Candidate SHA: `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`
+
+Verification commit: `51bfefb4ca63e2c7ac0128359da1f00c62ad37e9`
 
 Candidate GitHub Actions result: quality push, quality pull_request, tests push, tests pull_request, security push, and security pull_request all completed successfully.
 
