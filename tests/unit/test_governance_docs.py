@@ -26,3 +26,27 @@ def test_change_transition_runbook_exists_and_documents_invariants() -> None:
     assert "historical audit evidence only" in text
     assert "ARCHIVED" in text
     assert "DRAFT" in text
+
+def test_chg_0008_upstream_pilot_governance_facts_are_recorded() -> None:
+    roadmap = (ROOT / "specs" / "PRODUCT_ROADMAP.yaml").read_text(encoding="utf-8")
+    upstream = (ROOT / "specs" / "UPSTREAM_REGISTRY.yaml").read_text(encoding="utf-8")
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+
+    assert "current_priority: upstream_pilot" in roadmap
+    assert "pilot_status: WAITING_FOR_OPERATOR_APPROVED_P0_SETUP" in roadmap
+    assert "recommendation: INSUFFICIENT_EVIDENCE" in roadmap
+    assert "bda1a859df63fa5f24e51398fa80a23490bb6dfc" in upstream
+    assert "AGPL-3.0" in upstream
+    assert "5ce38ab2c4236f7eaa65983ce5c2da1f2fbd09af" in upstream
+    assert "license: UNRESOLVED" in upstream
+    assert "Do not create large adapter abstractions" in agents
+
+
+def test_chg_0008_does_not_create_local_xianyu_adapter_runtime() -> None:
+    assert not (ROOT / "app" / "xianyu_system" / "adapters" / "xianyu").exists()
+    for relative in [
+        "app/xianyu_system/adapters/xianyu/models.py",
+        "app/xianyu_system/adapters/xianyu/ports.py",
+        "app/xianyu_system/adapters/xianyu/fake.py",
+    ]:
+        assert not (ROOT / relative).exists()

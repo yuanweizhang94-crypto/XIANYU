@@ -1,0 +1,27 @@
+upstreams:
+  - id: zhinianboke-xianyu-auto-reply
+    repository: zhinianboke/xianyu-auto-reply
+    local_lab_path: D:/xianyu-upstream-pilot
+    pinned_commit: bda1a859df63fa5f24e51398fa80a23490bb6dfc
+    license: AGPL-3.0
+    role: primary_pilot
+    code_imported_into_main_repository: false
+    executed_by_chg_0008_correction: false
+    static_audit_status: high_risk_requires_isolation
+    risk_flags:
+      - remote_deploy_scripts_present
+      - update_scripts_present
+      - prebuilt_image_defaults_present
+      - services_bind_to_all_interfaces_by_default
+      - default_database_and_redis_credentials_must_be_changed
+      - cookie_token_session_modules_present
+      - captcha_slider_face_verification_modules_present
+      - websocket_and_publish_delete_services_present
+  - id: cv-cat-XianYuApis
+    repository: cv-cat/XianYuApis
+    pinned_commit: 5ce38ab2c4236f7eaa65983ce5c2da1f2fbd09af
+    license: UNRESOLVED
+    license_reason: LICENSE_absent_at_pinned_commit_README_badge_not_sufficient
+    role: protocol_reference_only
+    code_imported_into_main_repository: false
+    executed_by_chg_0008_correction: false
