@@ -21,18 +21,18 @@ def test_approved_change_has_t7_complete_and_t8_next() -> None:
     tasks = (CHANGE_DIR / "tasks.md").read_text(encoding="utf-8").splitlines()
     task_lines = [line for line in tasks if line.startswith("- [ ] T") or line.startswith("- [x] T")]
     assert len(task_lines) == 9
-    assert all(line.startswith("- [x]") for line in task_lines[:7])
-    assert all(line.startswith("- [ ]") for line in task_lines[7:])
+    assert all(line.startswith("- [x]") for line in task_lines[:8])
+    assert all(line.startswith("- [ ]") for line in task_lines[8:])
 
 
 def test_t8_phase_a_binds_schedule_capability_candidate() -> None:
     registry = yaml.safe_load((ROOT / "specs" / "CAPABILITY_REGISTRY.yaml").read_text(encoding="utf-8"))
     cap = next(item for item in registry["capabilities"] if item["id"] == "CAP-XY-SCHEDULE")
-    assert cap["status"] == "implementing"
+    assert cap["status"] == "verified"
     assert cap["implementation_paths"]
     assert cap["test_paths"]
-    assert cap["active_change"] == CHANGE_ID
-    assert cap["last_verified_commit"] is None
+    assert cap["active_change"] is None
+    assert cap["last_verified_commit"] == "0d9cfacedc1947e518d990151225ec8a15540f76"
 
 
 def test_draft_project_state_and_runtime_absence() -> None:
@@ -40,9 +40,9 @@ def test_draft_project_state_and_runtime_absence() -> None:
     assert state["active_change"]["id"] == CHANGE_ID
     assert state["active_change"]["status"] == "APPROVED"
     assert state["tasks"]["total"] == 9
-    assert state["tasks"]["completed"] == 7
-    assert state["tasks"]["next_task"] == "T8 Bind capability evidence and complete two-phase verification"
-    assert state["capabilities"]["by_status"] == {"planned": 2, "implementing": 1, "verified": 7}
+    assert state["tasks"]["completed"] == 8
+    assert state["tasks"]["next_task"] == "T9 Complete final PR administration"
+    assert state["capabilities"]["by_status"] == {"planned": 2, "verified": 8}
     assert (ROOT / "app" / "xianyu_system" / "schedule").is_dir()
     assert (ROOT / "migrations" / "versions" / "0006_xianyu_schedule_boundary.py").is_file()
 

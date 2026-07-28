@@ -6,13 +6,13 @@ Provide a local deterministic one-time Schedule boundary for immediate or explic
 
 ## Registry status
 
-Registry status: implementing
+Registry status: verified
 
-Active change: `CHG-0007-xianyu-schedule-boundary`
+Active change: null
 
-Last verified commit: unset until T8 complete verification
+Last verified commit: `0d9cfacedc1947e518d990151225ec8a15540f76`
 
-This implementing state is an Evidence Candidate only. It does not mean real Xianyu scheduled publishing has occurred, and it does not authorize platform access.
+This verified state records Evidence Candidate `0d9cfacedc1947e518d990151225ec8a15540f76` only for the local deterministic Schedule boundary. It does not mean real Xianyu scheduled publishing has occurred, and it does not authorize platform access.
 
 ## Requirements
 
@@ -85,6 +85,6 @@ This implementing state is an Evidence Candidate only. It does not mean real Xia
 
 ## Verification
 
-- The capability is registered as an implementing Evidence Candidate while CHG-0007 T8 Phase A is in progress.
-- `last_verified_commit` remains null until the exact Candidate SHA has passed local and GitHub Actions verification.
-- Phase B must record the Candidate SHA before the capability can become `verified`.
+- The capability is registered as verified for the local deterministic Schedule boundary.
+- `last_verified_commit` records the exact Evidence Candidate SHA `0d9cfacedc1947e518d990151225ec8a15540f76`.
+- GitHub Actions for the Candidate completed successfully for quality, tests, and security on push and pull_request events.

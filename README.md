@@ -100,6 +100,11 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - CHG-0006 later moved to `changes/archive/CHG-0006-xianyu-publish-boundary` after merge.
 - Merge requires separate authorization against exact PR HEAD.
 
+## CHG-0007 T8 Schedule capability verification
+
+CAP-XY-SCHEDULE evidence paths are registered and verified. Evidence Candidate SHA: `0d9cfacedc1947e518d990151225ec8a15540f76`. Registry status is verified, active_change is null, and last_verified_commit records the Candidate SHA. Tasks are now 8 / 9 and T9 Complete final PR administration is the next executable task. PR #8 remains Draft, open, and unmerged. Verified does not authorize Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, CHG-0008, real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, or external queue behavior.
+
+
 ## CHG-0007 T8 Phase A Evidence Candidate
 
 CAP-XY-SCHEDULE is registered as `implementing` for the T8 Evidence Candidate. Exact implementation and test evidence paths are registered, and `last_verified_commit` remains unset until the Candidate commit is verified by local gates and GitHub Actions. Tasks remain 7 / 9 during Phase A; T8 is still the next task until Phase B completes. No real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, external queue, Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, or CHG-0008 was performed.

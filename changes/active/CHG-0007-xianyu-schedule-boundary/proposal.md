@@ -74,3 +74,8 @@ Permanent tests now cover the approved local Schedule boundary without binding C
 ## T8 Phase A evidence candidate record
 
 CAP-XY-SCHEDULE is registered as `implementing` for the Evidence Candidate. Exact implementation and test evidence paths are bound in `specs/CAPABILITY_REGISTRY.yaml` and documented in `specs/capabilities/CAP-XY-SCHEDULE.md`. `last_verified_commit` remains null until this Candidate commit completes local and GitHub Actions verification. Tasks remain 7 / 9 while Phase A is in progress; T8 is still the next task until Phase B records the verified Candidate SHA.
+
+
+## T8 Phase B verification record
+
+CAP-XY-SCHEDULE evidence paths are registered and verified. Evidence Candidate SHA: `0d9cfacedc1947e518d990151225ec8a15540f76`. Candidate GitHub Actions for quality, tests, and security on push and pull_request events completed successfully. Registry status is verified, active_change is null, and last_verified_commit records the Candidate SHA. Verified means only the local deterministic Schedule boundary with synthetic fixtures; it does not authorize real Xianyu scheduled publishing, browser automation, Credential handling, WeCom, AI, or platform access.

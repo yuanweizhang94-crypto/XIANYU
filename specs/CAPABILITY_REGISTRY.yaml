@@ -146,7 +146,7 @@ capabilities:
   last_verified_commit: 66ac5134e0f62b9b30b7423e7bebab297c5ced7a
 - id: CAP-XY-SCHEDULE
   name: Xianyu schedule
-  status: implementing
+  status: verified
   owner_module: app.schedule
   specification: specs/capabilities/CAP-XY-SCHEDULE.md
   implementation_paths:
@@ -170,8 +170,8 @@ capabilities:
   - tests/contract/test_migrations.py
   - tests/contract/test_capability_registry.py
   - changes/active/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py
-  active_change: CHG-0007-xianyu-schedule-boundary
-  last_verified_commit: null
+  active_change: null
+  last_verified_commit: 0d9cfacedc1947e518d990151225ec8a15540f76
 - id: CAP-WECOM-CS
   name: WeCom customer service
   status: planned

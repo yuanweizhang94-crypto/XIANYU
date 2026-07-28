@@ -10,14 +10,14 @@ Change ID: CHG-0007-xianyu-schedule-boundary
 - [x] T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries
 - [x] T6 Implement the approved local deterministic scheduling boundary
 - [x] T7 Add permanent unit, contract, security, migration, and active-change acceptance tests
-- [ ] T8 Bind capability evidence and complete two-phase verification
+- [x] T8 Bind capability evidence and complete two-phase verification
 - [ ] T9 Complete final PR administration
 
 ## Current task state
 
-Completed tasks: 7 / 9.
+Completed tasks: 8 / 9.
 
-Next task: T8 Bind capability evidence and complete two-phase verification.
+Next task: T9 Complete final PR administration.
 
 
 ## T1 approval record
@@ -58,3 +58,8 @@ T7 added permanent unit, contract, security, migration, import-safety, and activ
 ## T8 Phase A evidence candidate record
 
 CAP-XY-SCHEDULE is registered as `implementing` for the Evidence Candidate. Exact implementation and test evidence paths are bound in `specs/CAPABILITY_REGISTRY.yaml` and documented in `specs/capabilities/CAP-XY-SCHEDULE.md`. `last_verified_commit` remains null until this Candidate commit completes local and GitHub Actions verification. Tasks remain 7 / 9 while Phase A is in progress; T8 is still the next task until Phase B records the verified Candidate SHA.
+
+
+## T8 Phase B verification record
+
+CAP-XY-SCHEDULE evidence paths are registered and verified. Evidence Candidate SHA: `0d9cfacedc1947e518d990151225ec8a15540f76`. Candidate GitHub Actions for quality, tests, and security on push and pull_request events completed successfully. Registry status is verified, active_change is null, and last_verified_commit records the Candidate SHA. Verified means only the local deterministic Schedule boundary with synthetic fixtures; it does not authorize real Xianyu scheduled publishing or platform access.
