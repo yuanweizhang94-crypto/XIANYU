@@ -1,12 +1,53 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": null,
+  "active_change": {
+    "id": "CHG-0007-xianyu-schedule-boundary",
+    "status": "DRAFT",
+    "path": "changes/active/CHG-0007-xianyu-schedule-boundary"
+  },
   "tasks": {
-    "total": 0,
+    "total": 9,
     "completed": 0,
     "next_task": null,
-    "items": []
+    "items": [
+      {
+        "text": "T1 Obtain explicit project-owner approval for CHG-0007",
+        "completed": false
+      },
+      {
+        "text": "T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology",
+        "completed": false
+      },
+      {
+        "text": "T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries",
+        "completed": false
+      },
+      {
+        "text": "T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior",
+        "completed": false
+      },
+      {
+        "text": "T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries",
+        "completed": false
+      },
+      {
+        "text": "T6 Implement the approved local deterministic scheduling boundary",
+        "completed": false
+      },
+      {
+        "text": "T7 Add permanent unit, contract, security, migration, and active-change acceptance tests",
+        "completed": false
+      },
+      {
+        "text": "T8 Bind capability evidence and complete two-phase verification",
+        "completed": false
+      },
+      {
+        "text": "T9 Complete final PR administration",
+        "completed": false
+      }
+    ]
   },
   "capabilities": {
     "total": 10,

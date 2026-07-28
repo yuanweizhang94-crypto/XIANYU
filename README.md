@@ -1,4 +1,4 @@
-# XIANYU
+﻿# XIANYU
 
 XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository contains governance, specifications, validation scripts, tests, CI, and Registry-verified local deterministic boundaries. Those verified capabilities are valid only within local execution and synthetic fixtures. The repository does not provide real Xianyu access, real listing publication, real message receiving or sending, Playwright or browser automation, real Credential handling, WeCom integration, AI Provider integration, or external platform side effects.
 
@@ -140,7 +140,7 @@ Read these paths as the fact source, in order:
 2. `specs/PROJECT_SCOPE.md`
 3. `specs/SYSTEM_ARCHITECTURE.md`
 4. `specs/CAPABILITY_REGISTRY.yaml`
-5. `changes/active/`中动态发现的唯一活动变更目录 (the uniquely dynamically discovered active change directory)
+5. `changes/active/`涓姩鎬佸彂鐜扮殑鍞竴娲诲姩鍙樻洿鐩綍 (the uniquely dynamically discovered active change directory)
 6. `docs/adr/`
 7. `contracts/`
 8. `generated/PROJECT_STATE.json`
@@ -686,3 +686,7 @@ Tasks: 8 / 9
 Next task: T9 Complete final PR administration
 
 T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerged. Verified does not authorize Ready, reviewer request, review submission, auto-merge, merge, archive, branch deletion, CHG-0007, real Xianyu access, listing publication, media upload, Credential handling, browser automation, external platform access, platform adapter, scheduler, worker loop, retry behavior, dependency change, or workflow change.
+
+## CHG-0007 draft schedule boundary
+
+CHG-0007-xianyu-schedule-boundary is open as DRAFT for governance review only. It proposes a narrow local deterministic Schedule boundary for one-time UTC publish scheduling. DRAFT does not authorize Runtime implementation, Registry binding, Migration work, real Xianyu access, browser automation, Playwright, Credential handling, recurring scheduling, WeCom, AI, or external platform side effects.
