@@ -11,7 +11,7 @@ XIANYU is the long-lived repository for a future Xianyu operations automation sy
 - CAP-XY-REPLY remains verified.
 - Its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
 - CHG-0006-xianyu-publish-boundary is the only Active Change.
-- CHG-0006 status is `APPROVED`.
+- CHG-0006 status is `VERIFYING`.
 - CHG-0006 completed tasks: 8 / 9.
 - Completed tasks: T1-T8.
 - Next task: `T9 Complete final PR administration`.
@@ -76,6 +76,20 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - During Phase A, `last_verified_commit` was null until the Candidate commit itself completed local and GitHub Actions verification.
 - During Phase A, evidence paths were exact repository-relative files for the local deterministic Publish runtime and permanent tests only.
 - During Phase A, T8 was not complete; Phase B later recorded the verified Candidate SHA after Actions were green.
+
+
+## CHG-0006 final review preparation
+
+- CHG-0006 status is VERIFYING.
+- T1-T8 are complete.
+- T9 remains incomplete until the Ready transition and final administration record are complete.
+- CAP-XY-PUBLISH remains verified and frozen.
+- Evidence Candidate remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+- T8 Verification commit remains `51bfefb4ca63e2c7ac0128359da1f00c62ad37e9`.
+- PR #6 remains Draft until the Ready Candidate passes final CI.
+- No Reviewer request is authorized.
+- Auto-merge and Merge remain unauthorized.
+- The actual T9 Ready Candidate SHA is the SHA of the separate Phase A preparation commit created after local verification.
 
 ## Project goal
 

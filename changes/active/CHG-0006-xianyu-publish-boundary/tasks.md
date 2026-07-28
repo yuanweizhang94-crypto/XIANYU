@@ -1,6 +1,6 @@
 # CHG-0006 Tasks
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0006-xianyu-publish-boundary
 
 - [x] T1 Obtain explicit project-owner approval for CHG-0006

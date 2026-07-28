@@ -95,6 +95,7 @@ NEXT_BY_COMPLETED = {
     6: EXPECTED_TASKS[6],
     7: EXPECTED_TASKS[7],
     8: EXPECTED_TASKS[8],
+    9: None,
 }
 
 
@@ -130,7 +131,7 @@ def completed_count() -> int:
     assert len(lines) == 9
     marks = [line.startswith("- [x]") for line in lines]
     completed = sum(marks)
-    assert 1 <= completed <= 8
+    assert 1 <= completed <= 9
     assert marks == [index < completed for index in range(9)]
     assert [line[6:] for line in lines] == EXPECTED_TASKS
     return completed
@@ -171,13 +172,15 @@ def test_cap_xy_reply_evidence_is_frozen_and_points_to_archive() -> None:
     assert REPLY_ACTIVE_ACCEPTANCE not in spec_text
 
 
-def test_chg_0006_is_the_only_approved_active_change() -> None:
+def test_chg_0006_is_the_only_active_change_with_expected_status() -> None:
     active_dirs = sorted(path.name for path in ACTIVE.iterdir() if path.is_dir())
     assert active_dirs == ["CHG-0006-xianyu-publish-boundary"]
+    state_status = str(project_state()["active_change"]["status"])
+    assert state_status in {"APPROVED", "VERIFYING"}
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         path = CHG_0006 / name
         assert path.is_file()
-        assert status_of(path) == "APPROVED"
+        assert status_of(path) == state_status
         assert "Change ID: CHG-0006-xianyu-publish-boundary" in path.read_text(
             encoding="utf-8"
         )
@@ -189,7 +192,7 @@ def test_chg_0006_tasks_are_a_contiguous_prefix_with_expected_next_task() -> Non
     state = project_state()
     assert state["active_change"] == {
         "id": "CHG-0006-xianyu-publish-boundary",
-        "status": "APPROVED",
+        "status": status_of(CHG_0006 / "tasks.md"),
         "path": "changes/active/CHG-0006-xianyu-publish-boundary",
     }
     assert state["tasks"]["total"] == 9
@@ -250,7 +253,7 @@ def test_cap_xy_publish_state_matches_current_t8_phase() -> None:
             "verified": 6,
         }
     else:
-        assert completed == 8
+        assert completed >= 8
         assert publish["status"] == "verified"
         assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
         assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
@@ -267,10 +270,12 @@ def test_approved_documents_keep_publish_runtime_unapproved() -> None:
         (CHG_0006 / name).read_text(encoding="utf-8")
         for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]
     )
-    for required in [
-        "T1 is complete",
-        NEXT_BY_COMPLETED[completed],
-    ]:
+    required_governance = ["T1 is complete"]
+    if NEXT_BY_COMPLETED[completed] is not None:
+        required_governance.append(str(NEXT_BY_COMPLETED[completed]))
+    else:
+        required_governance.append("All nine tasks")
+    for required in required_governance:
         assert required in combined
     if completed >= 2:
         for required in ["ListingDraft", "PublishRequest", "PublishDecisionType"]:
@@ -312,9 +317,9 @@ def test_transition_readme_documents_final_state() -> None:
         "CAP-XY-REPLY remains verified.",
         REPLY_EVIDENCE_CANDIDATE,
         "CHG-0006-xianyu-publish-boundary is the only Active Change.",
-        "CHG-0006 status is `APPROVED`.",
+        f"CHG-0006 status is `{status_of(CHG_0006 / 'tasks.md')}`.",
         f"CHG-0006 completed tasks: {completed} / 9.",
-        f"Next task: `{NEXT_BY_COMPLETED[completed]}`.",
+        (f"Next task: `{NEXT_BY_COMPLETED[completed]}`." if NEXT_BY_COMPLETED[completed] is not None else "Next task: none."),
         (
             "T6 is not authorized and has not started."
             if completed < 6
@@ -340,9 +345,14 @@ def test_transition_readme_documents_final_state() -> None:
         "The T6 implementation performs only local deterministic publish-boundary decisions and introduces no Playwright, browser automation, real Xianyu access, listing publication, media upload, credential access, real data access, or external network access.",
     ]:
         assert required in text
-    if completed == 8:
+    if completed >= 8:
         assert PUBLISH_EVIDENCE_CANDIDATE_SHA in text
-        assert "T9 is not authorized and has not started." in text
+    if completed == 8:
+        assert "T9 remains incomplete" in text or "T9 is not authorized and has not started." in text
+        assert "PR #6 remains Draft" in text
+    if completed == 9:
+        assert "CHG-0006 final PR administration is complete." in text
+        assert "PR #6 is Ready for review, open and unmerged." in text
 
 def test_no_forbidden_transition_file_scope_or_publish_implementation() -> None:
     completed = completed_count()
@@ -435,7 +445,7 @@ def test_t6_runtime_exists_without_registry_evidence_or_platform_modules() -> No
         assert publish["active_change"] == "CHG-0006-xianyu-publish-boundary"
         assert publish["last_verified_commit"] is None
     else:
-        assert completed == 8
+        assert completed >= 8
         assert publish["status"] == "verified"
         assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
         assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
@@ -458,7 +468,7 @@ def test_project_state_and_registry_capability_totals_are_consistent() -> None:
             "verified": 6,
         }
     else:
-        assert completed == 8
+        assert completed >= 8
         assert state["capabilities"]["by_status"] == {"planned": 3, "verified": 7}
     assert sorted(registry) == sorted(item["id"] for item in state["capabilities"]["items"])
 
@@ -498,9 +508,35 @@ def test_t7_permanent_publish_tests_exist_and_registry_remains_unbound() -> None
         assert publish["active_change"] == "CHG-0006-xianyu-publish-boundary"
         assert publish["last_verified_commit"] is None
     else:
-        assert completed == 8
+        assert completed >= 8
         assert publish["status"] == "verified"
         assert publish["implementation_paths"] == EXPECTED_PUBLISH_IMPLEMENTATION_PATHS
         assert publish["test_paths"] == EXPECTED_PUBLISH_TEST_PATHS
         assert publish["active_change"] is None
         assert publish["last_verified_commit"] == PUBLISH_EVIDENCE_CANDIDATE_SHA
+
+
+
+def test_t9_governance_state_matches_review_phase() -> None:
+    completed = completed_count()
+    status = status_of(CHG_0006 / "tasks.md")
+    if completed < 8:
+        return
+    assert status in {"APPROVED", "VERIFYING"}
+    publish = registry_by_id()[PUBLISH_CAPABILITY]
+    assert publish["status"] == "verified"
+    assert publish["active_change"] is None
+    assert publish["last_verified_commit"] == PUBLISH_EVIDENCE_CANDIDATE_SHA
+    combined = "\n".join(
+        (CHG_0006 / name).read_text(encoding="utf-8")
+        for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]
+    )
+    if status == "VERIFYING" and completed == 8:
+        assert "T9 Ready Candidate" in combined
+        assert "T9 remains incomplete" in combined
+        assert project_state()["tasks"]["next_task"] == EXPECTED_TASKS[8]
+    if completed == 9:
+        assert status == "VERIFYING"
+        assert project_state()["tasks"]["next_task"] is None
+        assert "Ready for review" in combined
+        assert "Merge requires separate" in combined

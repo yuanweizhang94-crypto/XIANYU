@@ -1,6 +1,6 @@
 # CHG-0006 Design
 
-Status: APPROVED
+Status: VERIFYING
 Change ID: CHG-0006-xianyu-publish-boundary
 
 ## Draft design posture
@@ -344,3 +344,12 @@ Tasks: 8 / 9
 Next task: T9 Complete final PR administration
 
 T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerged. Verified does not authorize Ready, reviewer request, review submission, auto-merge, merge, archive, branch deletion, CHG-0007, real Xianyu access, listing publication, media upload, Credential handling, browser automation, external platform access, platform adapter, scheduler, worker loop, retry behavior, dependency change, or workflow change.
+
+
+## T9 Ready Candidate review state
+
+CHG-0006 is in VERIFYING status for PR review preparation. The local deterministic Publish boundary remains unchanged from the verified T8 evidence state.
+
+The Ready Candidate keeps T9 incomplete, keeps PROJECT_STATE next_task as T9, keeps CAP-XY-PUBLISH verified, keeps active_change null, and keeps last_verified_commit as `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+
+The Ready Candidate is a governance review state only. It introduces no Runtime, Migration, Registry, capability evidence, dependency, workflow, browser, platform, Credential, WeCom, AI Provider, scheduler, worker loop, retry, API, or Web UI change.
