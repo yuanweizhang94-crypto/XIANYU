@@ -75,7 +75,7 @@ def test_generate_state_reflects_current_repository_sources() -> None:
 
 def test_chg_0002_test_change_is_discovered_without_source_changes(tmp_path: Path) -> None:
     root = copy_state_tree(tmp_path)
-    new = seed_single_active_change(root)
+    seed_single_active_change(root)
 
     state = build_project_state(root)
     assert state["active_change"]["id"] == "CHG-0002-test-change"
