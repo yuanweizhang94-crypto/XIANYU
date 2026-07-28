@@ -1,34 +1,28 @@
-# CHG-0007 Acceptance
+# CHG-0007 Tasks
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0007-xianyu-schedule-boundary
 
-## Draft acceptance gates
+- [x] T1 Obtain explicit project-owner approval for CHG-0007
+- [x] T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology
+- [x] T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries
+- [x] T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior
+- [x] T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries
+- [x] T6 Implement the approved local deterministic scheduling boundary
+- [x] T7 Add permanent unit, contract, security, migration, and active-change acceptance tests
+- [x] T8 Bind capability evidence and complete two-phase verification
+- [x] T9 Complete final PR administration
 
-1. Exactly one Active Change exists: CHG-0007-xianyu-schedule-boundary.
-2. proposal.md, design.md, tasks.md, and acceptance.md are DRAFT.
-3. Exactly nine tasks exist.
-4. Completed tasks are 0 / 9.
-5. next_task is null while status is DRAFT.
-6. CAP-XY-SCHEDULE remains planned and unbound.
-7. app/xianyu_system/schedule does not exist in DRAFT.
-8. Migration 0006 does not exist in DRAFT.
-9. Core scheduler remains unchanged.
-10. Capability counts remain planned = 3 and verified = 7.
-11. No real Xianyu access, browser, Playwright, Credential, WeCom, AI, Redis, Celery, recurring schedule, or external side effect is introduced.
+## Current task state
 
-## Final acceptance target
+Completed tasks: 9 / 9.
 
-CHG-0007 is complete only after T1-T9, local deterministic Schedule Runtime, tests, CAP-XY-SCHEDULE evidence, PR Ready, merge, post-merge archive, archive CI, and safe branch cleanup are complete.
+Next task: null.
 
 
 ## T1 approval record
 
-This instruction is the explicit project-owner authorization for CHG-0007 T1 through T9, executed in order.
-
-T6 may implement only the approved local deterministic Schedule boundary. It does not authorize real Xianyu access, browser automation, Playwright, Credential handling, WeCom, AI, operations-console work, recurring schedules, Redis, Celery, or external queues.
-
-Merge, archive, and branch deletion remain gated by the later exact CI, PR, merge, post-merge, and archive checks in this change.
+Project-owner approval authorizes T1-T9 for CHG-0007 only, in order. Runtime, merge, archive, and branch deletion remain gated by their later checks.
 
 
 ## T2 terminology decision
@@ -58,7 +52,7 @@ T6 implemented the approved local deterministic Schedule boundary: pure domain t
 
 ## T7 permanent test evidence
 
-T7 added permanent unit, contract, security, migration, import-safety, and active-change acceptance coverage for the local deterministic Schedule boundary. The permanent evidence covers Schedule domain normalization, deterministic fingerprinting, validator fail-closed behavior, ScheduleService idempotency, conflict, cancellation, dispatch, misfire behavior, APScheduler DateTrigger registration through the existing Core scheduler, schedule table registration, migration lineage, offline SQL, and absence of real platform or integration side effects. CAP-XY-SCHEDULE remains planned and unbound until T8 evidence binding.
+T7 added permanent unit, contract, security, migration, import-safety, and active-change acceptance coverage for the local deterministic Schedule boundary. Coverage includes Schedule domain normalization, deterministic fingerprinting, validator fail-closed behavior, ScheduleService idempotency, conflict, cancellation, dispatch, misfire behavior, APScheduler DateTrigger registration, schedule table registration, migration lineage, offline SQL, and absence of real platform or integration side effects. CAP-XY-SCHEDULE remains planned and unbound until T8 evidence binding.
 
 
 ## T8 Phase A evidence candidate record
@@ -68,7 +62,7 @@ CAP-XY-SCHEDULE is registered as `implementing` for the Evidence Candidate. Exac
 
 ## T8 Phase B verification record
 
-CAP-XY-SCHEDULE evidence paths are registered and verified. Evidence Candidate SHA: `0d9cfacedc1947e518d990151225ec8a15540f76`. Candidate GitHub Actions for quality, tests, and security on push and pull_request events completed successfully. Registry status is verified, active_change is null, and last_verified_commit records the Candidate SHA. Verified means only the local deterministic Schedule boundary with synthetic fixtures; it does not authorize real Xianyu scheduled publishing, browser automation, Credential handling, WeCom, AI, or platform access.
+CAP-XY-SCHEDULE evidence paths are registered and verified. Evidence Candidate SHA: `0d9cfacedc1947e518d990151225ec8a15540f76`. Candidate GitHub Actions for quality, tests, and security on push and pull_request events completed successfully. Registry status is verified, active_change is null, and last_verified_commit records the Candidate SHA. Verified means only the local deterministic Schedule boundary with synthetic fixtures; it does not authorize real Xianyu scheduled publishing or platform access.
 
 
 ## T9 Ready Candidate record
@@ -79,3 +73,8 @@ CHG-0007 is in VERIFYING for final PR review preparation. T1 through T8 are comp
 ## T9 final PR administration record
 
 CHG-0007 final PR administration is complete. All nine tasks are complete. T9 Ready Candidate SHA is `af79c16d1ab373ad713bb51fdff9b09f0b9dce96`. CAP-XY-SCHEDULE remains verified and frozen. Evidence Candidate SHA is `0d9cfacedc1947e518d990151225ec8a15540f76` and T8 verification commit is `853129698995a32464a17aa93c9c9066d709cf7f`. Candidate, verification, and Ready Candidate GitHub Actions for quality, tests, and security on push and pull_request events completed successfully. PR #8 remains Draft until this final administration commit is pushed and its exact HEAD CI is green, after which the PR may be changed to Ready for review. No Reviewer was manually requested. Auto-merge and merge remain unauthorized until exact final PR HEAD gates pass. CHG-0007 remains under `changes/active/` until the PR is merged. No close, source-branch deletion, archive, CHG-0008 creation, runtime expansion, dependency change, workflow change, real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, external queue, Cookie, Token, Secret, Session Material, or real customer-data access occurred.
+
+
+## Post-merge archive record
+
+CHG-0007 is archived after PR #8 merged into `main` through normal two-parent merge commit `4da2dbea8da9ec80819d04906e987e5856653ae9`. Merged feature HEAD was `4d1a56c1e1138f00d4623790cca2b5c578bbd4bb`. Evidence Candidate SHA remains `0d9cfacedc1947e518d990151225ec8a15540f76`, T8 verification commit remains `853129698995a32464a17aa93c9c9066d709cf7f`, and T9 Ready Candidate SHA remains `af79c16d1ab373ad713bb51fdff9b09f0b9dce96`. Merged-main quality, tests, and security push workflows completed successfully. The active acceptance test blob was preserved during archive: `d5881c74aef833c32e87fce7b40ec39d5ef685e1`. CAP-XY-SCHEDULE remains verified only for the local deterministic one-time Schedule boundary; active_change remains null and last_verified_commit remains the Evidence Candidate SHA.

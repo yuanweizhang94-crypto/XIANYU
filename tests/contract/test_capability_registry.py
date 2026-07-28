@@ -240,7 +240,7 @@ EXPECTED_CAPABILITY_PATHS = {
             "tests/contract/test_schedule_security.py",
             "tests/contract/test_migrations.py",
             "tests/contract/test_capability_registry.py",
-            "changes/active/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py",
+            "changes/archive/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py",
         ],
     },
 }

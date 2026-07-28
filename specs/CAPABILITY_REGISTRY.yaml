@@ -169,7 +169,7 @@ capabilities:
   - tests/contract/test_schedule_security.py
   - tests/contract/test_migrations.py
   - tests/contract/test_capability_registry.py
-  - changes/active/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py
+  - changes/archive/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py
   active_change: null
   last_verified_commit: 0d9cfacedc1947e518d990151225ec8a15540f76
 - id: CAP-WECOM-CS

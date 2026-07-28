@@ -1,6 +1,6 @@
 # CHG-0007 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0007-xianyu-schedule-boundary
 
 ## Draft design posture
@@ -77,3 +77,8 @@ CHG-0007 is in VERIFYING for final PR review preparation. T1 through T8 are comp
 ## T9 final PR administration record
 
 CHG-0007 final PR administration is complete. All nine tasks are complete. T9 Ready Candidate SHA is `af79c16d1ab373ad713bb51fdff9b09f0b9dce96`. CAP-XY-SCHEDULE remains verified and frozen. Evidence Candidate SHA is `0d9cfacedc1947e518d990151225ec8a15540f76` and T8 verification commit is `853129698995a32464a17aa93c9c9066d709cf7f`. Candidate, verification, and Ready Candidate GitHub Actions for quality, tests, and security on push and pull_request events completed successfully. PR #8 remains Draft until this final administration commit is pushed and its exact HEAD CI is green, after which the PR may be changed to Ready for review. No Reviewer was manually requested. Auto-merge and merge remain unauthorized until exact final PR HEAD gates pass. CHG-0007 remains under `changes/active/` until the PR is merged. No close, source-branch deletion, archive, CHG-0008 creation, runtime expansion, dependency change, workflow change, real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, external queue, Cookie, Token, Secret, Session Material, or real customer-data access occurred.
+
+
+## Post-merge archive record
+
+CHG-0007 is archived after PR #8 merged into `main` through normal two-parent merge commit `4da2dbea8da9ec80819d04906e987e5856653ae9`. Merged feature HEAD was `4d1a56c1e1138f00d4623790cca2b5c578bbd4bb`. Evidence Candidate SHA remains `0d9cfacedc1947e518d990151225ec8a15540f76`, T8 verification commit remains `853129698995a32464a17aa93c9c9066d709cf7f`, and T9 Ready Candidate SHA remains `af79c16d1ab373ad713bb51fdff9b09f0b9dce96`. Merged-main quality, tests, and security push workflows completed successfully. The active acceptance test blob was preserved during archive: `d5881c74aef833c32e87fce7b40ec39d5ef685e1`. CAP-XY-SCHEDULE remains verified only for the local deterministic one-time Schedule boundary; active_change remains null and last_verified_commit remains the Evidence Candidate SHA.

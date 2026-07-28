@@ -49,7 +49,7 @@ This verified state records Evidence Candidate `0d9cfacedc1947e518d990151225ec8a
 - `tests/contract/test_schedule_security.py`
 - `tests/contract/test_migrations.py`
 - `tests/contract/test_capability_registry.py`
-- `changes/active/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py`
+- `changes/archive/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py`
 
 ## Scenarios
 
@@ -88,3 +88,8 @@ This verified state records Evidence Candidate `0d9cfacedc1947e518d990151225ec8a
 - The capability is registered as verified for the local deterministic Schedule boundary.
 - `last_verified_commit` records the exact Evidence Candidate SHA `0d9cfacedc1947e518d990151225ec8a15540f76`.
 - GitHub Actions for the Candidate completed successfully for quality, tests, and security on push and pull_request events.
+
+
+## Post-merge archive verification
+
+CHG-0007 is archived after PR #8 merged via normal two-parent merge commit `4da2dbea8da9ec80819d04906e987e5856653ae9`. CAP-XY-SCHEDULE remains verified only for the local deterministic Schedule boundary. The acceptance evidence path now points to `changes/archive/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py`, and the historical acceptance blob is `d5881c74aef833c32e87fce7b40ec39d5ef685e1`.

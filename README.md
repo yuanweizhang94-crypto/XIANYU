@@ -100,6 +100,13 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - CHG-0006 later moved to `changes/archive/CHG-0006-xianyu-publish-boundary` after merge.
 - Merge requires separate authorization against exact PR HEAD.
 
+## CHG-0007 archived Schedule boundary
+
+CHG-0007 is complete and archived. PR #8 merged into `main` through normal two-parent merge commit `4da2dbea8da9ec80819d04906e987e5856653ae9`. CAP-XY-SCHEDULE remains verified only for local deterministic one-time scheduling with synthetic fixtures, and last_verified_commit remains Evidence Candidate `0d9cfacedc1947e518d990151225ec8a15540f76`. The repository still has no real Xianyu operation, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, or external queue behavior.
+
+The next recommended separately authorized project is a supervised real Xianyu integration feasibility spike before WeCom and AI. This roadmap note does not create or authorize CHG-0008.
+
+
 ## CHG-0007 final PR administration
 
 CHG-0007 final PR administration is complete. CHG-0007 status is `VERIFYING`, all nine tasks are complete, and CAP-XY-SCHEDULE remains verified for the local deterministic Schedule boundary. Evidence Candidate SHA is `0d9cfacedc1947e518d990151225ec8a15540f76`, verification commit is `853129698995a32464a17aa93c9c9066d709cf7f`, and T9 Ready Candidate SHA is `af79c16d1ab373ad713bb51fdff9b09f0b9dce96`. PR #8 remains Draft until the final administration commit passes CI and is then changed to Ready for review. No Reviewer was manually requested. Auto-merge and merge remain unauthorized until exact final PR HEAD gates pass. CHG-0007 remains under `changes/active/` until the PR is merged.

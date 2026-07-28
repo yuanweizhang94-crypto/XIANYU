@@ -52,3 +52,8 @@ After CHG-0007 is merged and archived, the next separately authorized project-ow
 ## CHG-0007 final PR administration
 
 CHG-0007 final PR administration is complete. CAP-XY-SCHEDULE remains verified only for local deterministic one-time Schedule behavior with synthetic fixtures. PR #8 remains Draft until the final administration commit passes CI and the Ready transition is performed. Merge, archive, branch deletion, CHG-0008 creation, real Xianyu access, real scheduled publishing, browser automation, Credential handling, WeCom, AI, Redis, Celery, recurring schedules, and external queue behavior remain unauthorized until their separate gates or future approvals.
+
+
+## CHG-0007 archived Schedule boundary
+
+CHG-0007 is complete and archived after PR #8 merged through normal two-parent merge commit `4da2dbea8da9ec80819d04906e987e5856653ae9`. CAP-XY-SCHEDULE is verified only for local deterministic one-time Schedule behavior with synthetic fixtures. The repository has local Account, Message, Reply, Publish, and Schedule boundaries, but they remain deterministic local logic and cannot operate the real Xianyu platform. The next separately authorized project-owner decision should prioritize a supervised real Xianyu integration feasibility spike before WeCom and AI. That future spike should be low-risk, single-account, human-supervised, fail-closed, and should stop at CAPTCHA, face verification, platform verification, or risk controls. This roadmap note does not create or authorize CHG-0008.

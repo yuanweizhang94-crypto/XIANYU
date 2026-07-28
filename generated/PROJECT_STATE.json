@@ -1,53 +1,12 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": {
-    "id": "CHG-0007-xianyu-schedule-boundary",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0007-xianyu-schedule-boundary"
-  },
+  "active_change": null,
   "tasks": {
-    "total": 9,
-    "completed": 9,
+    "total": 0,
+    "completed": 0,
     "next_task": null,
-    "items": [
-      {
-        "text": "T1 Obtain explicit project-owner approval for CHG-0007",
-        "completed": true
-      },
-      {
-        "text": "T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology",
-        "completed": true
-      },
-      {
-        "text": "T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries",
-        "completed": true
-      },
-      {
-        "text": "T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior",
-        "completed": true
-      },
-      {
-        "text": "T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries",
-        "completed": true
-      },
-      {
-        "text": "T6 Implement the approved local deterministic scheduling boundary",
-        "completed": true
-      },
-      {
-        "text": "T7 Add permanent unit, contract, security, migration, and active-change acceptance tests",
-        "completed": true
-      },
-      {
-        "text": "T8 Bind capability evidence and complete two-phase verification",
-        "completed": true
-      },
-      {
-        "text": "T9 Complete final PR administration",
-        "completed": true
-      }
-    ]
+    "items": []
   },
   "capabilities": {
     "total": 10,
@@ -252,7 +211,7 @@
           "tests/contract/test_schedule_security.py",
           "tests/contract/test_migrations.py",
           "tests/contract/test_capability_registry.py",
-          "changes/active/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py"
+          "changes/archive/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "0d9cfacedc1947e518d990151225ec8a15540f76"
