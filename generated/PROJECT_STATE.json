@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 5,
-    "next_task": "T6 Implement the approved local deterministic scheduling boundary",
+    "completed": 6,
+    "next_task": "T7 Add permanent unit, contract, security, migration, and active-change acceptance tests",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0007",
@@ -33,7 +33,7 @@
       },
       {
         "text": "T6 Implement the approved local deterministic scheduling boundary",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T7 Add permanent unit, contract, security, migration, and active-change acceptance tests",

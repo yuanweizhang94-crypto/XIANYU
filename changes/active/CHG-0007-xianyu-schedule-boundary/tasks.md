@@ -8,16 +8,16 @@ Change ID: CHG-0007-xianyu-schedule-boundary
 - [x] T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries
 - [x] T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior
 - [x] T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries
-- [ ] T6 Implement the approved local deterministic scheduling boundary
+- [x] T6 Implement the approved local deterministic scheduling boundary
 - [ ] T7 Add permanent unit, contract, security, migration, and active-change acceptance tests
 - [ ] T8 Bind capability evidence and complete two-phase verification
 - [ ] T9 Complete final PR administration
 
 ## Current task state
 
-Completed tasks: 5 / 9.
+Completed tasks: 6 / 9.
 
-Next task: T6 Implement the approved local deterministic scheduling boundary.
+Next task: T7 Add permanent unit, contract, security, migration, and active-change acceptance tests.
 
 
 ## T1 approval record
@@ -43,3 +43,8 @@ Validation accepts only IMMEDIATE and RUN_AT_UTC one-time schedules. run_at must
 ## T5 ownership and persistence decision
 
 Schedule Repository is the business fact source. It owns schedule records and audit events. Lifecycle states are PENDING, CLAIMED, DISPATCHED, CANCELLED, MISFIRED, FAILED, and NEEDS_MANUAL_REVIEW. Persistence uses local SQLAlchemy tables in migration 0006. Concurrency uses atomic claim predicates. Failures are recorded as local audit facts. APScheduler never becomes the fact source.
+
+
+## T6 implementation record
+
+T6 implemented the approved local deterministic Schedule boundary: pure domain types, deterministic fingerprinting, validation, SQLAlchemy repository facts, local ScheduleService dispatch, APScheduler DateTrigger adapter, and migration 0006. It reuses PublishService explicitly and does not modify Core scheduler or Publish modules. No real Xianyu, browser, Playwright, Credential, WeCom, AI, Redis, Celery, recurring schedule, or external queue was added.
