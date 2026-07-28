@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 1,
-    "next_task": "T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology",
+    "completed": 2,
+    "next_task": "T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0007",
@@ -17,7 +17,7 @@
       },
       {
         "text": "T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries",

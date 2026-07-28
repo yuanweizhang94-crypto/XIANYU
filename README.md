@@ -695,3 +695,8 @@ CHG-0007-xianyu-schedule-boundary is open as DRAFT for governance review only. I
 ## CHG-0007 approval record
 
 CHG-0007-xianyu-schedule-boundary is APPROVED by the project owner for ordered T1-T9 execution. The approval remains limited to local deterministic scheduling and does not authorize real Xianyu access, browser automation, Playwright, Credential handling, recurring scheduling, WeCom, AI, or CHG-0008.
+
+
+## T2 terminology decision
+
+Schedule Request means a local request to run exactly one Publish boundary call either immediately or at an explicit UTC run_at time. Trigger is IMMEDIATE or RUN_AT_UTC. Schedule Decision is the deterministic validation result. Dispatch is the local atomic claim of a due schedule. UTC is mandatory for all stored instants. Grace window is a finite misfire allowance in seconds; outside grace the item becomes MISFIRED and is not published. Cancellation is a terminal local state before claim.
