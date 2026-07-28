@@ -805,10 +805,10 @@ def test_custom_lifespan_can_explicitly_run_alembic_upgrade(tmp_path: Path) -> N
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         assert get_current_revision(app.state.database) is None
         upgrade_database(app.state.database)
-        assert get_current_revision(app.state.database) == "0004_xianyu_reply_boundary"
+        assert get_current_revision(app.state.database) == "0005_xianyu_publish_boundary"
         events.append("explicit-migration")
         yield
-        assert get_current_revision(app.state.database) == "0004_xianyu_reply_boundary"
+        assert get_current_revision(app.state.database) == "0005_xianyu_publish_boundary"
 
     app = create_application(
         lifespan=lifespan,

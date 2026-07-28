@@ -1,6 +1,6 @@
 # CHG-0005 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 Change ID: CHG-0005-xianyu-reply-boundary
 
 ## Design state
@@ -767,3 +767,21 @@ Tasks are now 8 / 9. T9 Complete final PR administration is the next executable 
 - Any further repository modification requires explicit correction authorization.
 - Merge requires separate explicit authorization against an exact PR head.
 - Archive and next-change creation occur only after successful merge.
+
+## Archive transition record
+
+PR #5: merged.
+
+Merged feature HEAD: `c4f7a3a3d14e34e5ebdaf6abd79587d45137f587`.
+
+Merge commit: `f00156045d75e632d71ade640a85a4c522568158`.
+
+Merge method: normal two-parent merge commit.
+
+Merged-main quality/tests/security: success.
+
+CHG-0005 is complete and archived. CAP-XY-REPLY remains `verified`; its Evidence Candidate remains `5724d164619c64e93295595b3acdd1429d24e3e0`.
+
+This archive transition does not re-verify CAP-XY-REPLY, does not modify Runtime behavior, and does not change the eight registered implementation paths. The twelve verification paths are preserved; only the CHG-0005 acceptance evidence path moved from `changes/active/` to `changes/archive/`.
+
+This archive transition does not authorize real message sending, Xianyu access, publishing, browser automation, WeCom integration, AI Provider integration, credential access, external network behavior, or real data access.

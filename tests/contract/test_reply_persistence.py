@@ -44,6 +44,7 @@ from xianyu_system.worker.message.transport import SyntheticMessageDelivery
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 REPLY_REVISION = "0004_xianyu_reply_boundary"
+PUBLISH_REVISION = "0005_xianyu_publish_boundary"
 MESSAGE_REVISION = "0003_xianyu_message_boundary"
 PROFILE_ALIAS = "reply-persistence-profile"
 ACCOUNT_REFERENCE = "reply-persistence-account"
@@ -287,14 +288,14 @@ def test_empty_downgrade_and_nonempty_downgrade_fail_closed(tmp_path: Path) -> N
         assert get_current_revision(resources) == MESSAGE_REVISION
         assert "xianyu_reply_rules" not in inspect(resources.engine).get_table_names()
         upgrade_database(resources)
-        assert get_current_revision(resources) == REPLY_REVISION
+        assert get_current_revision(resources) == PUBLISH_REVISION
         profile_id, _conversation_id, _message_id = seed_owner_message(resources)
         with resources.session_factory() as session:
             ReplyTemplateRepository(session).add_template(template(profile_id))
             session.commit()
         with pytest.raises(RuntimeError):
             downgrade_database(resources, revision=MESSAGE_REVISION)
-        assert get_current_revision(resources) == REPLY_REVISION
+        assert get_current_revision(resources) == PUBLISH_REVISION
         assert count_rows(resources, "xianyu_reply_templates") == 1
     finally:
         dispose_database(resources)

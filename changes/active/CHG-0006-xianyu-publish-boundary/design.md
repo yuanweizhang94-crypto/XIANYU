@@ -1,50 +1,99 @@
-# CAP-XY-PUBLISH
+# CHG-0006 Design
 
-## Purpose
+Status: VERIFYING
+Change ID: CHG-0006-xianyu-publish-boundary
 
-Define publishing boundary without invoking Playwright or publishing listings.
+## Draft design posture
 
-## Requirements
+This document records unresolved design topics for a future local Xianyu publishing boundary.
 
-- Status remains planned.
-- Define behavior and boundaries only.
-- Do not implement runtime code before a later approved change.
+No Runtime design is approved.
 
-## Scenarios
+No Playwright or external platform behavior is approved.
 
-- Serve as requirement and acceptance input.
-- Serve as ownership input for duplicate capability checks.
+Historical pre-T6 implementation posture: none.
 
-## Failure behavior
+## Pending terminology
 
-- Stop when permission, credential, specification, or risk state is uncertain.
-- Do not guess missing business behavior.
+The following terms remain pending and require later approval before implementation:
 
-## Security boundaries
+- Listing Draft.
+- Publish Request.
+- Publish Decision.
+- Validation Result.
+- Publish Attempt.
+- Publish Outcome.
+- Publish uncertainty state.
+- Publish audit event.
 
-- Do not hold real Cookie, Token, Secret, customer data, or browser credentials.
-- Do not bypass platform verification or risk controls.
+## Pending ownership questions
 
-## Out of scope
+- Which module owns local publishing-boundary domain types.
+- Which future adapter owns platform-specific behavior.
+- How Account, Schedule, Media, Browser, and Platform Adapter boundaries remain separated.
+- Which component may construct synthetic publish requests.
 
-- Runtime implementation is out of scope for CHG-0001.
-- External platform or account access is out of scope for CHG-0001.
+## Pending permission and risk-control boundaries
 
-## Verification
+- Required authorization states.
+- Fail-closed behavior for missing permission.
+- Risk-control categories and non-bypass requirements.
+- Credential and browser-profile exclusion rules.
+- Real-account and real-platform exclusion rules.
 
-- The capability exists in the registry with status planned.
-- The specification path is unique.
-- No conflicting implementation path exists.
+## Pending listing-draft validation questions
 
-## CHG-0006 T1 approval record
+- Required and optional field names.
+- Title, description, category, price, stock, location, and media metadata boundaries.
+- Synthetic fixture constraints.
+- Field normalization rules.
+- Unsupported and ambiguous input handling.
 
-CHG-0006 is APPROVED for sequential governance and design tasks T1 through T5. T1 is complete.
+## Pending idempotency and uncertainty questions
 
-CAP-XY-PUBLISH remains planned, unbound, without implementation paths, without test paths, and without a verified commit.
+- Idempotency-key ownership.
+- Duplicate request handling.
+- Conflict handling.
+- Unknown publish result handling.
+- Retry, no-retry, and manual-review states.
 
-T6 implementation, Runtime, capability binding, Registry evidence, Ready transition, Reviewer request, Auto-merge, and Merge are not authorized.
+## Pending persistence, lifecycle, audit, and failure questions
 
-## CHG-0006 T2 approved terminology
+- Whether any persistence is required in a later approved phase.
+- Lifecycle state names.
+- Failure classification.
+- Sanitized audit fields.
+- Observability boundaries that do not reveal sensitive input.
+
+## Pending browser/platform adapter boundary
+
+Any future browser or platform adapter boundary requires separate approval.
+
+This DRAFT does not approve Playwright, browser automation, real Xianyu access, login, listing creation, media upload, or network behavior.
+
+## Pending test strategy
+
+Future testing strategy remains unresolved and may include only synthetic fixtures unless separately approved.
+
+Migration requirements are unresolved. No database schema is approved.
+
+## Explicit non-approval
+
+No module, database schema, API, Worker, Service, Repository, Scheduler, browser implementation, platform adapter, dependency, or workflow is approved by this DRAFT.
+
+## T1 approved design posture
+
+CHG-0006 status is APPROVED for sequential governance and design tasks only.
+
+T1 approves entry into T2 through T5 design tasks, with each task completed and committed independently.
+
+Historical pre-T6 implementation posture: none.
+
+No Runtime design or implementation is approved.
+
+T2 is the current next executable task.
+
+## T2 approved terminology and local data contracts
 
 ### ListingDraft
 
@@ -102,10 +151,7 @@ A local DTO carrying only approved non-secret state: `authorization_state`, `ris
 
 It must not contain Cookie, Token, Secret, Password, Session Material, browser Profile, Playwright object, HTTP client, platform page, or real customer data.
 
-
-T2 records terminology only. CAP-XY-PUBLISH remains planned and unbound.
-
-## CHG-0006 T3 approved safety boundaries
+## T3 approved permission, credential, risk-control, and platform boundaries
 
 ### PublishAuthorizationState
 
@@ -145,10 +191,7 @@ Any future platform adapter must be separately authorized and must remain outsid
 
 Missing, denied, unknown, blocked, expired, unavailable, verification-required, or ambiguous permission or risk state must fail closed. It must not be interpreted as permission to publish or permission to continue to platform behavior.
 
-
-T3 records design constraints only. CAP-XY-PUBLISH remains planned and unbound.
-
-## CHG-0006 T4 approved validation behavior
+## T4 approved validation, idempotency, duplicate, and uncertainty behavior
 
 ### Deterministic validation order
 
@@ -197,22 +240,19 @@ A local PublishDecision may be `READY` only when the synthetic fixture is confir
 
 `READY` still does not authorize publication.
 
-
-T4 records design constraints only. CAP-XY-PUBLISH remains planned and unbound.
-
-## CHG-0006 T5 approved architecture boundaries
+## T5 approved ownership, persistence, lifecycle, audit, and failure boundaries
 
 ### Ownership boundary
 
-The owner module remains `worker.publish`.
+The owner module remains `worker.publish`, matching the capability Registry ownership for CAP-XY-PUBLISH.
 
-A future Python package may be recorded as `app/xianyu_system/worker/publish`, but this task creates no package, module, Domain, Service, Repository, Worker, Adapter, schema, or Migration.
+A future Python package may be recorded as `app/xianyu_system/worker/publish`, following the existing worker package convention, but this task creates no package, module, Domain, Service, Repository, Worker, Adapter, schema, or Migration.
 
 ### Future publish domain responsibilities
 
 A future publish domain may own ListingDraft, PublishRequest, PublishValidationResult, PublishDecision, PublishAttempt, PublishOutcome, lifecycle rules, reason codes, and fail-closed invariants.
 
-### Future application/service boundary
+### Future application and service boundary
 
 A future application or local Service boundary may orchestrate local validation and request a repository protocol. It must not call a real platform, receive Credential material, open a browser, invoke Playwright, or infer platform state.
 
@@ -254,78 +294,35 @@ Validation errors are not retried. Authorization and risk errors are not bypasse
 
 All retry, scheduler, and background-worker behavior requires future separate authorization and is not implemented by CHG-0006 T1-T5.
 
-T5 records architecture constraints only. CAP-XY-PUBLISH remains planned and unbound, with null active_change, empty implementation_paths, empty test_paths, and null last_verified_commit.
+## T6 implementation record
 
-## CHG-0006 T6 implementation record
+T6 implements the approved local deterministic publishing boundary. The actual package is `app/xianyu_system/worker/publish/`.
 
-A local deterministic implementation now exists under `app/xianyu_system/worker/publish/`.
+Actual Domain types include ListingDraft, PublishRequest, PublishEvaluationContext, ValidationIssue, PublishValidationResult, PublishDecision, PublishAttemptSnapshot, PublishDecisionType, PublishReasonCode, PublishAuthorizationState, PublishRiskState, ListingDraftLifecycle, PublishRequestLifecycle, PublishAttemptLifecycle, PublishOutcomeType, and PublishFailureCategory.
 
-Implemented runtime files:
+Actual validation is provided by `PublishValidator` and follows the approved fail-closed order: request shape, synthetic-fixture validation, required-field validation through domain invariants, field normalization and fingerprinting, authorization validation, risk-state validation, idempotency validation, duplicate detection, uncertainty-state validation, and local READY decision.
 
-- `app/xianyu_system/worker/publish/__init__.py`
-- `app/xianyu_system/worker/publish/domain.py`
-- `app/xianyu_system/worker/publish/fingerprint.py`
-- `app/xianyu_system/worker/publish/validation.py`
-- `app/xianyu_system/worker/publish/persistence.py`
-- `app/xianyu_system/worker/publish/service.py`
-- `migrations/versions/0005_xianyu_publish_boundary.py`
+Actual fingerprinting is provided by `compute_publish_fingerprint`, using sorted JSON, SHA-256, explicit Decimal canonicalization, UTC-normalized timestamps through Domain construction, and bounded recursive media metadata canonicalization. It excludes request_id, idempotency_key, requested_at, correlation_id, created_at, and updated_at.
 
-The implementation includes Domain types, deterministic validation, canonical SHA-256 fingerprinting, a local Repository, local persistence tables, local Service orchestration, sanitized audit records, and read-only attempt snapshots for UNKNOWN outcome detection.
+Actual Repository and local persistence are provided by `PublishRepository` and `persistence.py`. They store local request decisions, sanitized audit events, and read-only attempt snapshots for UNKNOWN outcome detection. They do not store full title, full description, full media metadata, Credential material, raw platform responses, real personal data, or real customer data.
 
-Registry status remains `planned`. The capability remains unbound. Registry `implementation_paths`, `test_paths`, `active_change`, and `last_verified_commit` remain empty or null. Evidence has not been registered. T7 will add dedicated publish tests, and T8 remains responsible for evidence registration and capability verification.
+Actual Service is `PublishService`. It returns READY only as local readiness for a separately authorized future boundary. It handles idempotency replay, idempotency conflict, duplicate draft detection, UNKNOWN outcome manual review, and persistence failure fail-closed behavior. It does not start a real PublishAttempt, create an IN_PROGRESS attempt, generate SUCCEEDED outcomes, retry automatically, call an Adapter, or execute platform behavior.
 
-The implementation has no real platform behavior. It does not publish listings, start a PublishAttempt, call Playwright, start a browser, access Xianyu, upload media, perform external network access, accept Credential material, or infer real platform state. READY remains a local decision only.
+Actual Migration is `migrations/versions/0005_xianyu_publish_boundary.py`, chained after `0004_xianyu_reply_boundary`. Downgrade is allowed only when publish tables are empty.
 
-## CHG-0006 T7 permanent test record
+There is no Platform Adapter, browser adapter, Xianyu client, API, Web UI, Scheduler, worker loop, retry worker, media uploader, Credential resolver, account login, Playwright use, browser startup, external network access, real Xianyu access, listing publication, media upload, Credential handling, or real-data handling.
 
-T7 adds permanent local deterministic Publish boundary test coverage. The capability remains `planned` and unbound until T8 records exact evidence paths and complete verification.
+T7 is the next task but is not authorized and has not started. T8 remains responsible for capability evidence registration and verification.
 
-T7 test coverage includes:
+## T7 completion record
 
-- `tests/unit/test_publish_domain.py`
-- `tests/unit/test_publish_fingerprint.py`
-- `tests/unit/test_publish_validation.py`
-- `tests/unit/test_publish_service.py`
-- `tests/contract/test_publish_persistence.py`
-- `tests/contract/test_publish_security.py`
-- `tests/unit/test_import_safety.py`
-- `tests/contract/test_migrations.py`
-- `changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`
+T7 is complete. Permanent local Publish boundary tests now cover domain normalization, fingerprint stability, validation fail-closed ordering, service idempotency/duplicate/UNKNOWN/persistence-failure behavior, local SQLite persistence contracts, migration constraints, security boundaries, import safety, and active-change acceptance.
 
-No platform publication, browser automation, media upload, external network behavior, Credential handling, scheduler, worker loop, or capability evidence binding is introduced by T7.
+CAP-XY-PUBLISH remains planned and unbound until T8. T7 coverage includes test_publish_domain.py, test_publish_fingerprint.py, test_publish_validation.py, test_publish_service.py, test_publish_persistence.py, and test_publish_security.py. T8 is the next task and has not started in the T7 commit.
 
-## CHG-0006 T8 Phase A evidence candidate
+## T8 Phase A evidence candidate record
 
-Registry status: implementing
-
-Active change: `CHG-0006-xianyu-publish-boundary`
-
-Last verified commit: unset until T8 complete verification
-
-Implementation evidence paths:
-
-- `app/xianyu_system/worker/publish/__init__.py`
-- `app/xianyu_system/worker/publish/domain.py`
-- `app/xianyu_system/worker/publish/fingerprint.py`
-- `app/xianyu_system/worker/publish/validation.py`
-- `app/xianyu_system/worker/publish/persistence.py`
-- `app/xianyu_system/worker/publish/service.py`
-- `migrations/versions/0005_xianyu_publish_boundary.py`
-
-Test evidence paths:
-
-- `tests/unit/test_publish_domain.py`
-- `tests/unit/test_publish_fingerprint.py`
-- `tests/unit/test_publish_validation.py`
-- `tests/unit/test_publish_service.py`
-- `tests/unit/test_import_safety.py`
-- `tests/contract/test_publish_persistence.py`
-- `tests/contract/test_publish_security.py`
-- `tests/contract/test_migrations.py`
-- `tests/contract/test_capability_registry.py`
-- `changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py`
-
-This Phase A candidate registers exact local deterministic Publish evidence paths only. It does not record `last_verified_commit` and does not mark CAP-XY-PUBLISH verified until the Candidate commit completes local and GitHub Actions verification.
+T8 Phase A registers CAP-XY-PUBLISH as `implementing` with exact local deterministic Publish implementation and test evidence paths. `active_change` is `CHG-0006-xianyu-publish-boundary`; `last_verified_commit` remains null until the Phase A Candidate commit has completed local verification and GitHub Actions. T8 remains incomplete until Phase B records the verified Candidate SHA.
 
 
 ## CHG-0006 T8 Phase B verification record
@@ -347,3 +344,23 @@ Tasks: 8 / 9
 Next task: T9 Complete final PR administration
 
 T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerged. Verified does not authorize Ready, reviewer request, review submission, auto-merge, merge, archive, branch deletion, CHG-0007, real Xianyu access, listing publication, media upload, Credential handling, browser automation, external platform access, platform adapter, scheduler, worker loop, retry behavior, dependency change, or workflow change.
+
+
+## T9 Ready Candidate review state
+
+CHG-0006 is in VERIFYING status for PR review preparation. The local deterministic Publish boundary remains unchanged from the verified T8 evidence state.
+
+The Ready Candidate keeps T9 incomplete, keeps PROJECT_STATE next_task as T9, keeps CAP-XY-PUBLISH verified, keeps active_change null, and keeps last_verified_commit as `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`.
+
+The Ready Candidate is a governance review state only. It introduces no Runtime, Migration, Registry, capability evidence, dependency, workflow, browser, platform, Credential, WeCom, AI Provider, scheduler, worker loop, retry, API, or Web UI change.
+
+
+## T9 final review state
+
+CHG-0006 remains in VERIFYING status for project-owner review. All nine CHG-0006 tasks are complete, and there is no next active task inside CHG-0006 before separate exact-HEAD merge authorization.
+
+T9 Ready Candidate SHA is `52e389e804ca24f144c6c1bd73cc21b1ba21d4cb`. PR #6 is Ready for review, open, and unmerged. No Reviewer was manually requested, and auto-merge is disabled.
+
+The local deterministic Publish boundary remains unchanged from the verified T8 evidence state. CAP-XY-PUBLISH remains verified, active_change remains null, and last_verified_commit remains `66ac5134e0f62b9b30b7423e7bebab297c5ced7a`. Merge, close, archive, branch deletion, CHG-0007, Runtime, Migration semantics, Registry, evidence paths, dependency, workflow, browser, platform, Credential, WeCom, AI Provider, scheduler, worker loop, retry, API, and Web UI changes remain outside T9.
+
+Merge requires separate explicit authorization against the exact current PR HEAD.

@@ -2,9 +2,9 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0005-xianyu-reply-boundary",
+    "id": "CHG-0006-xianyu-publish-boundary",
     "status": "VERIFYING",
-    "path": "changes/active/CHG-0005-xianyu-reply-boundary"
+    "path": "changes/active/CHG-0006-xianyu-publish-boundary"
   },
   "tasks": {
     "total": 9,
@@ -12,27 +12,27 @@
     "next_task": null,
     "items": [
       {
-        "text": "T1 Obtain explicit project-owner approval for CHG-0005",
+        "text": "T1 Obtain explicit project-owner approval for CHG-0006",
         "completed": true
       },
       {
-        "text": "T2 Finalize reply rule, template, and decision terminology",
+        "text": "T2 Finalize listing, publish request, attempt, and outcome terminology",
         "completed": true
       },
       {
-        "text": "T3 Approve authorization, risk-control, and content-safety boundaries",
+        "text": "T3 Approve permission, credential, risk-control, and platform boundaries",
         "completed": true
       },
       {
-        "text": "T4 Approve matching, precedence, fallback, and escalation boundaries",
+        "text": "T4 Approve validation, idempotency, duplicate, and uncertainty boundaries",
         "completed": true
       },
       {
-        "text": "T5 Approve ownership, persistence, lifecycle, and failure boundaries",
+        "text": "T5 Approve ownership, persistence, lifecycle, audit, and failure boundaries",
         "completed": true
       },
       {
-        "text": "T6 Implement only the approved local fixed-script reply boundary",
+        "text": "T6 Implement only the separately approved local publishing boundary",
         "completed": true
       },
       {
@@ -52,8 +52,8 @@
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 4,
-      "verified": 6
+      "planned": 3,
+      "verified": 7
     },
     "items": [
       {
@@ -190,7 +190,7 @@
           "tests/contract/test_migrations.py",
           "tests/contract/test_core_runtime.py",
           "tests/contract/test_capability_registry.py",
-          "changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py"
+          "changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py"
         ],
         "active_change": null,
         "last_verified_commit": "5724d164619c64e93295595b3acdd1429d24e3e0"
@@ -198,13 +198,32 @@
       {
         "id": "CAP-XY-PUBLISH",
         "name": "Xianyu publish",
-        "status": "planned",
+        "status": "verified",
         "owner_module": "worker.publish",
         "specification": "specs/capabilities/CAP-XY-PUBLISH.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/worker/publish/__init__.py",
+          "app/xianyu_system/worker/publish/domain.py",
+          "app/xianyu_system/worker/publish/fingerprint.py",
+          "app/xianyu_system/worker/publish/validation.py",
+          "app/xianyu_system/worker/publish/persistence.py",
+          "app/xianyu_system/worker/publish/service.py",
+          "migrations/versions/0005_xianyu_publish_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_publish_domain.py",
+          "tests/unit/test_publish_fingerprint.py",
+          "tests/unit/test_publish_validation.py",
+          "tests/unit/test_publish_service.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_publish_persistence.py",
+          "tests/contract/test_publish_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py"
+        ],
         "active_change": null,
-        "last_verified_commit": null
+        "last_verified_commit": "66ac5134e0f62b9b30b7423e7bebab297c5ced7a"
       },
       {
         "id": "CAP-XY-SCHEDULE",

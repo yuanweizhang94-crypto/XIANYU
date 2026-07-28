@@ -158,7 +158,7 @@ Test paths:
 - `tests/contract/test_migrations.py`
 - `tests/contract/test_core_runtime.py`
 - `tests/contract/test_capability_registry.py`
-- `changes/active/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py`
+- `changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py`
 
 Candidate registration records evidence only. Verification remains incomplete until the real Candidate SHA is recorded in the T8 Verification Record.
 
@@ -174,3 +174,17 @@ Last verified commit: `5724d164619c64e93295595b3acdd1429d24e3e0`
 CAP-XY-REPLY is now verified after complete local verification and GitHub Actions verification of the exact Candidate commit. The implementation and test paths remain exactly the same as the T8 evidence candidate. `active_change` is null and `last_verified_commit` records the Candidate SHA.
 
 T8 is complete. T9 final PR administration is the next executable task. Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, and CHG-0006 remain unauthorized until separately approved.
+
+## Archive transition
+
+CHG-0005 was merged through PR #5 and is archived.
+
+- Merge commit: `f00156045d75e632d71ade640a85a4c522568158`.
+- Merged feature head: `c4f7a3a3d14e34e5ebdaf6abd79587d45137f587`.
+- Historical acceptance evidence moved to `changes/archive/CHG-0005-xianyu-reply-boundary/tests/test_acceptance.py`.
+
+Archiving changes only the historical acceptance-evidence location. It does not change Runtime behavior, migration behavior, capability status, implementation paths, verification semantics, `active_change`, or `last_verified_commit`.
+
+CAP-XY-REPLY remains `verified` with Evidence Candidate `5724d164619c64e93295595b3acdd1429d24e3e0`.
+
+CHG-0006 is DRAFT only and does not extend CAP-XY-REPLY.

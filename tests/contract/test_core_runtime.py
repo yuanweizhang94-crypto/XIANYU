@@ -27,6 +27,9 @@ BUSINESS_METADATA_TABLES = {
     "xianyu_reply_rules",
     "xianyu_reply_conditions",
     "xianyu_reply_audit_events",
+    "xianyu_publish_requests",
+    "xianyu_publish_audit_events",
+    "xianyu_publish_attempt_snapshots",
 }
 
 

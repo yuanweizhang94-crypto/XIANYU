@@ -24,6 +24,10 @@ IMPORT_MODULES = [
     "xianyu_system.worker.message",
     "xianyu_system.worker.message.domain",
     "xianyu_system.worker.message.transport",
+    "xianyu_system.worker.publish",
+    "xianyu_system.worker.publish.domain",
+    "xianyu_system.worker.publish.fingerprint",
+    "xianyu_system.worker.publish.validation",
     "xianyu_system.reply",
     "xianyu_system.reply.domain",
 ]
@@ -143,6 +147,22 @@ after = {
         and "SyntheticMessageDelivery"
         in sys.modules["xianyu_system.worker.message"].__all__
     ),
+    "publish_modules": sorted(
+        name
+        for name in sys.modules
+        if name.startswith("xianyu_system.worker.publish")
+    ),
+    "publish_persistence_loaded": (
+        "xianyu_system.worker.publish.persistence" in sys.modules
+    ),
+    "publish_service_loaded": (
+        "xianyu_system.worker.publish.service" in sys.modules
+    ),
+    "publish_public_surface": (
+        "xianyu_system.worker.publish" in sys.modules
+        and "ListingDraft" in sys.modules["xianyu_system.worker.publish"].__all__
+        and "PublishService" in sys.modules["xianyu_system.worker.publish"].__all__
+    ),
     "reply_modules": sorted(
         name
         for name in sys.modules
@@ -209,6 +229,15 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
     )
     reply_init_bytes.decode("utf-8")
 
+
+    publish_init_path = ROOT / "app" / "xianyu_system" / "worker" / "publish" / "__init__.py"
+    publish_init_bytes = publish_init_path.read_bytes()
+    assert not publish_init_bytes.startswith(b"\xef\xbb\xbf")
+    assert publish_init_bytes.startswith(
+        b'"""Lazy public surface for the local deterministic Publish boundary.'
+    )
+    publish_init_bytes.decode("utf-8")
+
     report = run_import_probe(tmp_path, IMPORT_MODULES)
 
     assert report["after"]["imported"] == IMPORT_MODULES
@@ -238,6 +267,13 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
     assert "xianyu_system.worker.message.transport" in report["after"]["message_modules"]
     assert "xianyu_system.worker.message.service" not in report["after"]["message_modules"]
     assert "xianyu_system.worker.message.persistence" not in report["after"]["message_modules"]
+    assert report["after"]["publish_persistence_loaded"] is False
+    assert report["after"]["publish_service_loaded"] is False
+    assert report["after"]["publish_public_surface"] is True
+    assert "xianyu_system.worker.publish" in report["after"]["publish_modules"]
+    assert "xianyu_system.worker.publish.domain" in report["after"]["publish_modules"]
+    assert "xianyu_system.worker.publish.persistence" not in report["after"]["publish_modules"]
+    assert "xianyu_system.worker.publish.service" not in report["after"]["publish_modules"]
     assert report["after"]["reply_persistence_loaded"] is False
     assert report["after"]["reply_service_loaded"] is False
     assert report["after"]["reply_public_surface"] is True
