@@ -21,6 +21,10 @@ def copy_state_tree(tmp_path: Path) -> Path:
     for name in ["changes", "specs", "contracts"]:
         shutil.copytree(ROOT / name, root / name, ignore=shutil.ignore_patterns("__pycache__"))
     (root / "VERSION").write_text((ROOT / "VERSION").read_text(encoding="utf-8"), encoding="utf-8")
+    active_root = root / "changes" / "active"
+    if active_root.exists():
+        shutil.rmtree(active_root)
+    active_root.mkdir(parents=True, exist_ok=True)
     return root
 
 

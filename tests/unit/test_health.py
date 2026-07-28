@@ -39,6 +39,11 @@ PUBLISH_TABLES = {
     "xianyu_publish_attempt_snapshots",
 }
 
+SCHEDULE_TABLES = {
+    "xianyu_schedule_requests",
+    "xianyu_schedule_audit_events",
+}
+
 EXPECTED_TOP_LEVEL = {"status", "service", "version", "environment", "database", "scheduler"}
 EXPECTED_DATABASE = {"status", "connected", "journal_mode"}
 EXPECTED_SCHEDULER = {"status", "running", "job_count", "timezone"}
@@ -260,11 +265,11 @@ def test_health_endpoint_does_not_run_migrations_or_write_database(tmp_path: Pat
         with resources.engine.connect() as connection:
             assert connection.execute(text("SELECT 1")).scalar_one() == 1
 
-    assert before_revision == after_revision == "0005_xianyu_publish_boundary"
+    assert before_revision == after_revision == "0006_xianyu_schedule_boundary"
     assert (
         before_tables
         == after_tables
-        == {"alembic_version", "xianyu_account_profiles", *MESSAGE_TABLES, *REPLY_TABLES, *PUBLISH_TABLES}
+        == {"alembic_version", "xianyu_account_profiles", *MESSAGE_TABLES, *REPLY_TABLES, *PUBLISH_TABLES, *SCHEDULE_TABLES}
     )
 
 

@@ -1,18 +1,59 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": null,
+  "active_change": {
+    "id": "CHG-0007-xianyu-schedule-boundary",
+    "status": "VERIFYING",
+    "path": "changes/active/CHG-0007-xianyu-schedule-boundary"
+  },
   "tasks": {
-    "total": 0,
-    "completed": 0,
+    "total": 9,
+    "completed": 9,
     "next_task": null,
-    "items": []
+    "items": [
+      {
+        "text": "T1 Obtain explicit project-owner approval for CHG-0007",
+        "completed": true
+      },
+      {
+        "text": "T2 Finalize schedule request, trigger, decision, dispatch, UTC, and grace-window terminology",
+        "completed": true
+      },
+      {
+        "text": "T3 Approve Core scheduler reuse, Publish coupling, permission, credential, and platform boundaries",
+        "completed": true
+      },
+      {
+        "text": "T4 Approve validation, idempotency, duplicate, cancellation, misfire, and uncertainty behavior",
+        "completed": true
+      },
+      {
+        "text": "T5 Approve ownership, persistence, lifecycle, audit, concurrency, and failure boundaries",
+        "completed": true
+      },
+      {
+        "text": "T6 Implement the approved local deterministic scheduling boundary",
+        "completed": true
+      },
+      {
+        "text": "T7 Add permanent unit, contract, security, migration, and active-change acceptance tests",
+        "completed": true
+      },
+      {
+        "text": "T8 Bind capability evidence and complete two-phase verification",
+        "completed": true
+      },
+      {
+        "text": "T9 Complete final PR administration",
+        "completed": true
+      }
+    ]
   },
   "capabilities": {
     "total": 10,
     "by_status": {
-      "planned": 3,
-      "verified": 7
+      "planned": 2,
+      "verified": 8
     },
     "items": [
       {
@@ -187,13 +228,34 @@
       {
         "id": "CAP-XY-SCHEDULE",
         "name": "Xianyu schedule",
-        "status": "planned",
+        "status": "verified",
         "owner_module": "app.schedule",
         "specification": "specs/capabilities/CAP-XY-SCHEDULE.md",
-        "implementation_paths": [],
-        "test_paths": [],
+        "implementation_paths": [
+          "app/xianyu_system/schedule/__init__.py",
+          "app/xianyu_system/schedule/domain.py",
+          "app/xianyu_system/schedule/fingerprint.py",
+          "app/xianyu_system/schedule/validation.py",
+          "app/xianyu_system/schedule/persistence.py",
+          "app/xianyu_system/schedule/service.py",
+          "app/xianyu_system/schedule/apscheduler_adapter.py",
+          "migrations/versions/0006_xianyu_schedule_boundary.py"
+        ],
+        "test_paths": [
+          "tests/unit/test_schedule_domain.py",
+          "tests/unit/test_schedule_fingerprint.py",
+          "tests/unit/test_schedule_validation.py",
+          "tests/unit/test_schedule_service.py",
+          "tests/unit/test_schedule_apscheduler_adapter.py",
+          "tests/unit/test_import_safety.py",
+          "tests/contract/test_schedule_persistence.py",
+          "tests/contract/test_schedule_security.py",
+          "tests/contract/test_migrations.py",
+          "tests/contract/test_capability_registry.py",
+          "changes/active/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py"
+        ],
         "active_change": null,
-        "last_verified_commit": null
+        "last_verified_commit": "0d9cfacedc1947e518d990151225ec8a15540f76"
       },
       {
         "id": "CAP-WECOM-CS",

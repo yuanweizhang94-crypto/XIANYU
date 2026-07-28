@@ -28,6 +28,10 @@ IMPORT_MODULES = [
     "xianyu_system.worker.publish.domain",
     "xianyu_system.worker.publish.fingerprint",
     "xianyu_system.worker.publish.validation",
+    "xianyu_system.schedule",
+    "xianyu_system.schedule.domain",
+    "xianyu_system.schedule.fingerprint",
+    "xianyu_system.schedule.validation",
     "xianyu_system.reply",
     "xianyu_system.reply.domain",
 ]
@@ -163,6 +167,22 @@ after = {
         and "ListingDraft" in sys.modules["xianyu_system.worker.publish"].__all__
         and "PublishService" in sys.modules["xianyu_system.worker.publish"].__all__
     ),
+    "schedule_modules": sorted(
+        name
+        for name in sys.modules
+        if name.startswith("xianyu_system.schedule")
+    ),
+    "schedule_persistence_loaded": (
+        "xianyu_system.schedule.persistence" in sys.modules
+    ),
+    "schedule_service_loaded": (
+        "xianyu_system.schedule.service" in sys.modules
+    ),
+    "schedule_public_surface": (
+        "xianyu_system.schedule" in sys.modules
+        and "ScheduleRequest" in sys.modules["xianyu_system.schedule"].__all__
+        and "ScheduleService" in sys.modules["xianyu_system.schedule"].__all__
+    ),
     "reply_modules": sorted(
         name
         for name in sys.modules
@@ -238,6 +258,14 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
     )
     publish_init_bytes.decode("utf-8")
 
+    schedule_init_path = ROOT / "app" / "xianyu_system" / "schedule" / "__init__.py"
+    schedule_init_bytes = schedule_init_path.read_bytes()
+    assert not schedule_init_bytes.startswith(b"\xef\xbb\xbf")
+    assert schedule_init_bytes.startswith(
+        b'"""Lazy public surface for the local deterministic Schedule boundary.'
+    )
+    schedule_init_bytes.decode("utf-8")
+
     report = run_import_probe(tmp_path, IMPORT_MODULES)
 
     assert report["after"]["imported"] == IMPORT_MODULES
@@ -274,6 +302,15 @@ def test_core_module_imports_are_runtime_side_effect_free(tmp_path: Path) -> Non
     assert "xianyu_system.worker.publish.domain" in report["after"]["publish_modules"]
     assert "xianyu_system.worker.publish.persistence" not in report["after"]["publish_modules"]
     assert "xianyu_system.worker.publish.service" not in report["after"]["publish_modules"]
+    assert report["after"]["schedule_persistence_loaded"] is False
+    assert report["after"]["schedule_service_loaded"] is False
+    assert report["after"]["schedule_public_surface"] is True
+    assert "xianyu_system.schedule" in report["after"]["schedule_modules"]
+    assert "xianyu_system.schedule.domain" in report["after"]["schedule_modules"]
+    assert "xianyu_system.schedule.fingerprint" in report["after"]["schedule_modules"]
+    assert "xianyu_system.schedule.validation" in report["after"]["schedule_modules"]
+    assert "xianyu_system.schedule.persistence" not in report["after"]["schedule_modules"]
+    assert "xianyu_system.schedule.service" not in report["after"]["schedule_modules"]
     assert report["after"]["reply_persistence_loaded"] is False
     assert report["after"]["reply_service_loaded"] is False
     assert report["after"]["reply_public_surface"] is True

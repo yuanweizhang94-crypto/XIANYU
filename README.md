@@ -100,6 +100,33 @@ This was the Phase A Candidate state at commit `66ac5134e0f62b9b30b7423e7bebab29
 - CHG-0006 later moved to `changes/archive/CHG-0006-xianyu-publish-boundary` after merge.
 - Merge requires separate authorization against exact PR HEAD.
 
+## CHG-0007 final PR administration
+
+CHG-0007 final PR administration is complete. CHG-0007 status is `VERIFYING`, all nine tasks are complete, and CAP-XY-SCHEDULE remains verified for the local deterministic Schedule boundary. Evidence Candidate SHA is `0d9cfacedc1947e518d990151225ec8a15540f76`, verification commit is `853129698995a32464a17aa93c9c9066d709cf7f`, and T9 Ready Candidate SHA is `af79c16d1ab373ad713bb51fdff9b09f0b9dce96`. PR #8 remains Draft until the final administration commit passes CI and is then changed to Ready for review. No Reviewer was manually requested. Auto-merge and merge remain unauthorized until exact final PR HEAD gates pass. CHG-0007 remains under `changes/active/` until the PR is merged.
+
+
+## CHG-0007 final review preparation
+
+CHG-0007 status is `VERIFYING` for final PR review preparation. T1 through T8 are complete; T9 remains incomplete until the Ready transition and final administration record finish. CAP-XY-SCHEDULE remains verified and frozen for the local deterministic Schedule boundary. Evidence Candidate SHA is `0d9cfacedc1947e518d990151225ec8a15540f76` and verification commit is `853129698995a32464a17aa93c9c9066d709cf7f`. PR #8 remains Draft until the Ready Candidate passes final CI. No Reviewer request, auto-merge, merge, close, archive, branch deletion, CHG-0008, runtime expansion, dependency change, workflow change, real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, or external queue is authorized by this preparation state.
+
+
+## CHG-0007 T8 Schedule capability verification
+
+CAP-XY-SCHEDULE evidence paths are registered and verified. Evidence Candidate SHA: `0d9cfacedc1947e518d990151225ec8a15540f76`. Registry status is verified, active_change is null, and last_verified_commit records the Candidate SHA. Tasks are now 8 / 9 and T9 Complete final PR administration is the next executable task. PR #8 remains Draft, open, and unmerged. Verified does not authorize Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, CHG-0008, real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, or external queue behavior.
+
+
+## CHG-0007 T8 Phase A Evidence Candidate
+
+CAP-XY-SCHEDULE is registered as `implementing` for the T8 Evidence Candidate. Exact implementation and test evidence paths are registered, and `last_verified_commit` remains unset until the Candidate commit is verified by local gates and GitHub Actions. Tasks remain 7 / 9 during Phase A; T8 is still the next task until Phase B completes. No real Xianyu access, real scheduled publishing, browser automation, Playwright, Credential handling, WeCom, AI, Redis, Celery, recurring schedule, external queue, Ready transition, reviewer request, auto-merge, merge, archive, branch deletion, or CHG-0008 was performed.
+
+
+## CHG-0007 T7 permanent Schedule tests
+
+T7 added permanent unit, contract, security, migration, import-safety, and active-change acceptance coverage for the local deterministic Schedule boundary. Coverage includes one-time IMMEDIATE and RUN_AT_UTC requests, UTC normalization, deterministic fingerprints, idempotency replay, conflict detection, cancellation, atomic dispatch claim, finite misfire grace, local PublishService coupling, APScheduler DateTrigger registration through the existing in-memory Core scheduler, migration 0006 lineage, and security scans proving no real Xianyu, browser, Playwright, Credential, WeCom, AI, Redis, Celery, recurring schedule, or external queue behavior was introduced.
+
+Tasks are now 7 / 9. T8 Bind capability evidence and complete two-phase verification is the next executable task. CAP-XY-SCHEDULE remains planned and unbound until T8.
+
+
 ## Project goal
 
 The final intended business path is:
@@ -140,7 +167,7 @@ Read these paths as the fact source, in order:
 2. `specs/PROJECT_SCOPE.md`
 3. `specs/SYSTEM_ARCHITECTURE.md`
 4. `specs/CAPABILITY_REGISTRY.yaml`
-5. `changes/active/`中动态发现的唯一活动变更目录 (the uniquely dynamically discovered active change directory)
+5. `changes/active/`涓姩鎬佸彂鐜扮殑鍞竴娲诲姩鍙樻洿鐩綍 (the uniquely dynamically discovered active change directory)
 6. `docs/adr/`
 7. `contracts/`
 8. `generated/PROJECT_STATE.json`
@@ -686,3 +713,37 @@ Tasks: 8 / 9
 Next task: T9 Complete final PR administration
 
 T9 is not authorized and has not started. PR #6 remains Draft, open, and unmerged. Verified does not authorize Ready, reviewer request, review submission, auto-merge, merge, archive, branch deletion, CHG-0007, real Xianyu access, listing publication, media upload, Credential handling, browser automation, external platform access, platform adapter, scheduler, worker loop, retry behavior, dependency change, or workflow change.
+
+## CHG-0007 draft schedule boundary
+
+CHG-0007-xianyu-schedule-boundary is open as DRAFT for governance review only. It proposes a narrow local deterministic Schedule boundary for one-time UTC publish scheduling. DRAFT does not authorize Runtime implementation, Registry binding, Migration work, real Xianyu access, browser automation, Playwright, Credential handling, recurring scheduling, WeCom, AI, or external platform side effects.
+
+
+## CHG-0007 approval record
+
+CHG-0007-xianyu-schedule-boundary is APPROVED by the project owner for ordered T1-T9 execution. The approval remains limited to local deterministic scheduling and does not authorize real Xianyu access, browser automation, Playwright, Credential handling, recurring scheduling, WeCom, AI, or CHG-0008.
+
+
+## T2 terminology decision
+
+Schedule Request means a local request to run exactly one Publish boundary call either immediately or at an explicit UTC run_at time. Trigger is IMMEDIATE or RUN_AT_UTC. Schedule Decision is the deterministic validation result. Dispatch is the local atomic claim of a due schedule. UTC is mandatory for all stored instants. Grace window is a finite misfire allowance in seconds; outside grace the item becomes MISFIRED and is not published. Cancellation is a terminal local state before claim.
+
+
+## T3 safety boundary decision
+
+CHG-0007 reuses xianyu_system.core.scheduler without modifying it. APScheduler MemoryJobStore is only an in-process wakeup adapter. Publish coupling is explicit through the existing local PublishService interface and never duplicates Publish validation or DTOs. No permissions, Credentials, browser Profile, Playwright, real Xianyu platform session, WeCom, AI, network request, Redis, Celery, or external queue is introduced.
+
+
+## T4 deterministic decision rules
+
+Validation accepts only IMMEDIATE and RUN_AT_UTC one-time schedules. run_at must be timezone-aware UTC when provided. Idempotency key and deterministic fingerprint prevent duplicates. Cancellation is allowed only before dispatch claim. Atomic claim prevents duplicate dispatch. Due schedules outside the finite grace window become MISFIRED. Any uncertain Publish result is recorded for manual review and does not retry automatically.
+
+
+## T5 ownership and persistence decision
+
+Schedule Repository is the business fact source. It owns schedule records and audit events. Lifecycle states are PENDING, CLAIMED, DISPATCHED, CANCELLED, MISFIRED, FAILED, and NEEDS_MANUAL_REVIEW. Persistence uses local SQLAlchemy tables in migration 0006. Concurrency uses atomic claim predicates. Failures are recorded as local audit facts. APScheduler never becomes the fact source.
+
+
+## CHG-0007 T6 local Schedule Runtime
+
+T6 implemented the approved local deterministic Schedule boundary: pure domain types, deterministic fingerprinting, validation, SQLAlchemy repository facts, local ScheduleService dispatch, APScheduler DateTrigger adapter, and migration 0006. It reuses PublishService explicitly and does not modify Core scheduler or Publish modules. No real Xianyu, browser, Playwright, Credential, WeCom, AI, Redis, Celery, recurring schedule, or external queue was added.

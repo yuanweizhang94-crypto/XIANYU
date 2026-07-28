@@ -15,6 +15,10 @@ ROOT = Path(__file__).resolve().parents[2]
 def copy_change_tree(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
     shutil.copytree(ROOT / "changes", root / "changes", ignore=shutil.ignore_patterns("__pycache__"))
+    active_root = root / "changes" / "active"
+    if active_root.exists():
+        shutil.rmtree(active_root)
+    active_root.mkdir(parents=True, exist_ok=True)
     return root
 
 
