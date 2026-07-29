@@ -754,3 +754,18 @@ Schedule Repository is the business fact source. It owns schedule records and au
 ## CHG-0007 T6 local Schedule Runtime
 
 T6 implemented the approved local deterministic Schedule boundary: pure domain types, deterministic fingerprinting, validation, SQLAlchemy repository facts, local ScheduleService dispatch, APScheduler DateTrigger adapter, and migration 0006. It reuses PublishService explicitly and does not modify Core scheduler or Publish modules. No real Xianyu, browser, Playwright, Credential, WeCom, AI, Redis, Celery, recurring schedule, or external queue was added.
+
+
+## CHG-0008 upstream integration foundation draft
+
+CHG-0008 is created as a governance and clean-room adapter foundation change. It may document product roadmap, anti-drift rules, pinned upstream audit facts, integration maturity, and an offline synthetic Xianyu adapter contract. It does not authorize real Xianyu login, real network access, browser automation, Credential handling, upstream code import, WeCom, AI, dependency changes, workflow changes, or CHG-0009.
+
+## CHG-0008 upstream pilot anti-drift rules
+
+- Before adding a new Xianyu capability, check existing Account, Message, Reply, Publish, and Schedule boundaries and reuse their facts instead of reimplementing them.
+- Do not create large adapter abstractions, fake sessions, mapping DTOs, or new runtimes only because they may be useful later.
+- Pin upstream repositories to exact commits before audit or execution; never silently follow floating main or master.
+- Do not copy upstream source code, deployment scripts, protocol constants, signing logic, decryption logic, or Cookie examples into this repository.
+- Local verified capability means deterministic local evidence only; it does not mean live Xianyu operation works.
+- Stop on CAPTCHA, slider, face verification, device verification, risk-control prompts, unknown outcomes, or uncertain permissions.
+- CHG-0008 is an upstream pilot governance and evidence change. It must not create CHG-0009 or `app/xianyu_system/adapters/xianyu/` without later pilot evidence proving a specific interface is needed.

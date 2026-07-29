@@ -57,3 +57,18 @@ CHG-0007 final PR administration is complete. CAP-XY-SCHEDULE remains verified o
 ## CHG-0007 archived Schedule boundary
 
 CHG-0007 is complete and archived after PR #8 merged through normal two-parent merge commit `4da2dbea8da9ec80819d04906e987e5856653ae9`. CAP-XY-SCHEDULE is verified only for local deterministic one-time Schedule behavior with synthetic fixtures. The repository has local Account, Message, Reply, Publish, and Schedule boundaries, but they remain deterministic local logic and cannot operate the real Xianyu platform. The next separately authorized project-owner decision should prioritize a supervised real Xianyu integration feasibility spike before WeCom and AI. That future spike should be low-risk, single-account, human-supervised, fail-closed, and should stop at CAPTCHA, face verification, platform verification, or risk controls. This roadmap note does not create or authorize CHG-0008.
+
+
+## CHG-0008 upstream integration foundation draft
+
+CHG-0008 is created as a governance and clean-room adapter foundation change. It may document product roadmap, anti-drift rules, pinned upstream audit facts, integration maturity, and an offline synthetic Xianyu adapter contract. It does not authorize real Xianyu login, real network access, browser automation, Credential handling, upstream code import, WeCom, AI, dependency changes, workflow changes, or CHG-0009.
+
+## CHG-0008 upstream pilot anti-drift rules
+
+- Before adding a new Xianyu capability, check existing Account, Message, Reply, Publish, and Schedule boundaries and reuse their facts instead of reimplementing them.
+- Do not create large adapter abstractions, fake sessions, mapping DTOs, or new runtimes only because they may be useful later.
+- Pin upstream repositories to exact commits before audit or execution; never silently follow floating main or master.
+- Do not copy upstream source code, deployment scripts, protocol constants, signing logic, decryption logic, or Cookie examples into this repository.
+- Local verified capability means deterministic local evidence only; it does not mean live Xianyu operation works.
+- Stop on CAPTCHA, slider, face verification, device verification, risk-control prompts, unknown outcomes, or uncertain permissions.
+- CHG-0008 is an upstream pilot governance and evidence change. It must not create CHG-0009 or `app/xianyu_system/adapters/xianyu/` without later pilot evidence proving a specific interface is needed.
