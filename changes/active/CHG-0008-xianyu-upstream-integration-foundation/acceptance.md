@@ -18,8 +18,8 @@ Status: IMPLEMENTING
 - P0 later executed only the isolated localhost upstream pilot startup path after operator approval.
 - Remote scripts and prebuilt upstream application images are not used by this change.
 - P0-P7 statuses are recorded truthfully.
-- Without a dedicated test account and operator participation, real Xianyu verification remains blocked.
-- Recommendation remains `INSUFFICIENT_EVIDENCE` until supervised pilot results exist.
+- Dedicated test-account P1 login was performed only with operator participation and remains limited to local pilot evidence.
+- Recommendation remains `INSUFFICIENT_EVIDENCE` until P2-P7 supervised pilot results exist.
 
 ## P0 acceptance evidence
 
@@ -32,16 +32,36 @@ Status: IMPLEMENTING
 - Pilot services: mysql, redis, backend-web, frontend.
 - Administrator default password: replaced.
 - Network: localhost-only.
-- Real Xianyu connection: not performed.
-- Cookie / Token / Session / Profile: not processed.
-- P1 manual scan login: waiting for explicit operator approval.
+- Real Xianyu connection: not performed during P0.
+- Cookie / Token / Session / Profile: not processed during P0.
+- P1 manual scan login: PASSED after explicit operator approval.
+
+## P1 acceptance evidence
+
+- P1 = PASSED.
+- Login method: supervised QR scan.
+- Account type: dedicated test account controlled by the project owner.
+- Operator action: project owner manually scanned and personally completed official mobile-side verification.
+- Credential storage: local Pilot database only.
+- Credential values: not recorded.
+- Face or identity data: not collected, read, output, or recorded.
+- Risk-control bypass: none.
+- Additional risk verification after completion: none visible in the local UI.
+- Message listener: not started.
+- Scheduler: not started.
+- Messages received: none verified in this stage.
+- Messages sent: none.
+- Listings published: none.
+- Listings deleted: none.
+- Automatic action occurred: false.
+- Draft PR remains Draft; P2 is waiting for explicit operator approval.
 
 ## P0-P7 current status
 
 - P0 system startup: PASSED, isolated localhost-only startup completed.
-- P1 manual scan login: WAITING_FOR_OPERATOR_APPROVAL, requires explicit operator approval and a dedicated supervised test account.
-- P2 online state: BLOCKED by P1.
-- P3 read-only message verification: BLOCKED by P1 and a second controlled test account/message source.
+- P1 manual scan login: PASSED, supervised dedicated test-account QR login completed.
+- P2 online state: WAITING_FOR_OPERATOR_APPROVAL.
+- P3 read-only message verification: BLOCKED by P2 and a second controlled test account/message source.
 - P4 manually confirmed reply: BLOCKED by P3.
 - P5 manually confirmed test listing: BLOCKED by P4 and explicit low-risk test listing assets.
 - P6 test listing cleanup: BLOCKED by P5.

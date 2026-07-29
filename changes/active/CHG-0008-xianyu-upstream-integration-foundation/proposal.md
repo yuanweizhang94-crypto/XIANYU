@@ -35,10 +35,10 @@ P0 is PASSED for localhost-only upstream startup evidence. Docker Desktop data w
 
 The C drive free space increased from 8.15 GiB before the migration to 16.25 GiB after the migration. Docker containers, images, volumes, and networks were preserved. The isolated pilot runs only MySQL, Redis, backend-web, and frontend. The administrator default password has been replaced. Backend and frontend are localhost-only. No real Xianyu connection, QR login, Cookie, Token, Session, Profile, message sending, item publishing, WebSocket, scheduler, crawler, Playwright, Patchright, Chromium, or browser process was executed for P0.
 
-P1 manual scan login remains waiting for explicit operator approval and must not start without a separate authorization.
+P1 manual scan login was executed only after explicit operator approval. The project owner used a dedicated supervised test account, completed the official mobile-side verification flow personally, and no verification data was collected or recorded by the repository. The login result is PASSED. P2 online state is WAITING_FOR_OPERATOR_APPROVAL and must not start without a separate authorization.
 
 ## Progress
 
 Completed tasks: 6 / 9
 Next task: T7 Execute supervised account P1-P3 only with a dedicated test account
-Pilot status: WAITING_FOR_OPERATOR_APPROVED_P1_LOGIN
+Pilot status: WAITING_FOR_OPERATOR_APPROVED_P2_ONLINE

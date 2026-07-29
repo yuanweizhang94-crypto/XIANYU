@@ -16,4 +16,8 @@ Status: IMPLEMENTING
 
 Completed tasks: 6 / 9
 Next task: T7 Execute supervised account P1-P3 only with a dedicated test account
-Pilot status: WAITING_FOR_OPERATOR_APPROVED_P1_LOGIN
+Pilot status: WAITING_FOR_OPERATOR_APPROVED_P2_ONLINE
+
+## T7 partial evidence
+
+P1 result: PASSED after supervised QR scan with a dedicated test account. P2 online state remains WAITING_FOR_OPERATOR_APPROVAL and must not start without separate authorization. P3 remains blocked by P2 and a controlled message source.

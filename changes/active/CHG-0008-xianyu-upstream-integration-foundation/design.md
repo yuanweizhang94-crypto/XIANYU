@@ -40,6 +40,16 @@ Docker data migration preserved the existing Docker environment: containers, ima
 
 The P0 service exposure remains localhost-only: backend-web is bound to `127.0.0.1:18089`, frontend is bound to `127.0.0.1:19000`, and MySQL and Redis have no host port mappings. P0 did not start WebSocket, scheduler, crawler, promotion, updater, Playwright, Patchright, Chromium, or any browser process. It did not connect to real Xianyu and did not process Cookie, Token, Session, Profile, message sending, or item publishing.
 
+## P1 supervised login evidence
+
+P1 used the pinned upstream local source and the existing localhost-only pilot UI at `http://127.0.0.1:19000/accounts`. The real code path was `frontend` account management to `backend-web` QR login APIs. The QR image was generated locally by `backend-web` using the upstream QR login manager and was displayed only in the local browser UI.
+
+The project owner manually scanned with a dedicated test account and completed the official mobile-side verification personally. No face data, identity document data, Cookie value, Token value, Session value, password, QR content, or complete account identifier is recorded in this repository, Git history, PR text, or chat.
+
+P1 read-only result: account record created, login state success, credential stored in the local Pilot database, strict log heuristics did not find complete credential output, message listener was not running, automatic action logs remained empty, and no additional risk verification prompt remained visible after the owner completed the official mobile-side verification.
+
+P1 did not start WebSocket, scheduler, crawler, promotion, updater, message receiving, message sending, auto-reply, item publishing, item deletion, or item scheduling. P2 online state remains waiting for explicit operator approval.
+
 ## Progress
 
 Completed tasks: 6 / 9
