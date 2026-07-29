@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0008-xianyu-upstream-integration-foundation",
-    "status": "IMPLEMENTING",
+    "status": "VERIFYING",
     "path": "changes/active/CHG-0008-xianyu-upstream-integration-foundation"
   },
   "tasks": {
     "total": 9,
-    "completed": 6,
-    "next_task": "T7 Execute supervised account P1-P3 only with a dedicated test account",
+    "completed": 9,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0008",
@@ -37,15 +37,15 @@
       },
       {
         "text": "T7 Execute supervised account P1-P3 only with a dedicated test account",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T8 Execute supervised manual operation P4-P7 only after P1-P3 pass",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T9 Record pilot conclusion and final PR administration",
-        "completed": false
+        "completed": true
       }
     ]
   },

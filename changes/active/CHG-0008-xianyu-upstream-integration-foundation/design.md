@@ -1,5 +1,5 @@
 Change ID: CHG-0008-xianyu-upstream-integration-foundation
-Status: IMPLEMENTING
+Status: VERIFYING
 # Design
 
 ## Repository split
@@ -36,7 +36,7 @@ Stop immediately on CAPTCHA, slider, face verification, device verification, ris
 
 P0 used Docker Desktop managed storage on the D drive. The accepted actual Docker Desktop WSL data location is `D:\Administrator\Documents\DockerDesktopWSL`. The previously planned empty directory `D:\DockerDesktopData` is not treated as the authoritative location and is not required for P0 acceptance.
 
-Docker data migration preserved the existing Docker environment: containers, images, volumes, and networks remained intact. The unrelated `sub2api`, `sub2api-redis`, and `sub2api-postgres` services remained healthy after recovery. The isolated pilot environment recovered with only `mysql`, `redis`, `backend-web`, and `frontend` services.
+Docker data migration preserved the existing Docker environment: containers, images, volumes, and networks remained intact. The unrelated `sub2api`, `sub2api-redis`, and `sub2api-postgres` services remained healthy after recovery. The isolated pilot environment recovered with `mysql`, `redis`, `backend-web`, and `frontend` services. WebSocket was added later only for the supervised online validation stage.
 
 The P0 service exposure remains localhost-only: backend-web is bound to `127.0.0.1:18089`, frontend is bound to `127.0.0.1:19000`, and MySQL and Redis have no host port mappings. P0 did not start WebSocket, scheduler, crawler, promotion, updater, Playwright, Patchright, Chromium, or any browser process. It did not connect to real Xianyu and did not process Cookie, Token, Session, Profile, message sending, or item publishing.
 
@@ -48,9 +48,25 @@ The project owner manually scanned with a dedicated test account and completed t
 
 P1 read-only result: account record created, login state success, credential stored in the local Pilot database, strict log heuristics did not find complete credential output, message listener was not running, automatic action logs remained empty, and no additional risk verification prompt remained visible after the owner completed the official mobile-side verification.
 
-P1 did not start WebSocket, scheduler, crawler, promotion, updater, message receiving, message sending, auto-reply, item publishing, item deletion, or item scheduling. P2 online state remains waiting for explicit operator approval.
+## P2-P6 supervised online evidence
+
+P2 built and started `xianyu_pilot_websocket` from pinned local upstream source only. It is exposed only on `127.0.0.1:18090`; MySQL and Redis still have no host port mappings. The WebSocket health endpoint reported `running`, database connectivity reported `connected`, and connection statistics reported one total instance and one connected instance. A controlled stop/start recovery remained healthy.
+
+P3 received a controlled inbound test message from a second owner-controlled account. The marker was recorded locally, but `process_status` stayed `skipped`, `reply_mode` stayed `none`, `reply_strategy` stayed `none`, no reply text was produced, and no non-empty send result was recorded.
+
+P4 observed the project owner's manual reply from the official client. Local records increased to two message observations, both skipped with no reply text and no send result. This confirms observation without automated reply.
+
+P5 used operator attestation for a manually published controlled test listing. The Pilot did not create publish logs, listing monitor rows, crawler rows, order rows, risk rows, automatic reply text, or non-empty send results.
+
+P6 used operator attestation for cleanup by manually taking the test listing off sale. This was delisting, not deletion. The Pilot did not create delete, publish, listing monitor, crawler, order, risk, notification, or automatic message side effects.
+
+P7 one-time schedule was not executed in CHG-0008. No scheduler, crawler, promotion, updater, or automatic platform action was started.
+
+## Adoption boundary
+
+The selected conclusion is `WRAP`. The pinned upstream can remain a supervised external Pilot reference for future wrapper design, but CHG-0008 does not copy upstream code, does not import upstream runtime into `D:/xianyu`, and does not authorize automatic live Xianyu operation. Any future wrapper or runtime adoption requires a separate active change with fresh owner authorization and explicit credential, operation, and platform-risk gates.
 
 ## Progress
 
-Completed tasks: 6 / 9
-Next task: T7 Execute supervised account P1-P3 only with a dedicated test account
+Completed tasks: 9 / 9
+Next task: null
