@@ -1,12 +1,49 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": null,
+  "active_change": {
+    "id": "CHG-0010-xianyu-automatic-reply-mvp",
+    "status": "IMPLEMENTING",
+    "path": "changes/active/CHG-0010-xianyu-automatic-reply-mvp"
+  },
   "tasks": {
-    "total": 0,
-    "completed": 0,
+    "total": 8,
+    "completed": 8,
     "next_task": null,
-    "items": []
+    "items": [
+      {
+        "text": "T1 Record owner direction correction and automatic-reply scope",
+        "completed": true
+      },
+      {
+        "text": "T2 Define deterministic autoreply configuration and safety gates",
+        "completed": true
+      },
+      {
+        "text": "T3 Implement autoreply worker, state, idempotency, and CLI",
+        "completed": true
+      },
+      {
+        "text": "T4 Add unit, security, and acceptance coverage",
+        "completed": true
+      },
+      {
+        "text": "T5 Add quickstart documentation",
+        "completed": true
+      },
+      {
+        "text": "T6 Run complete local verification",
+        "completed": true
+      },
+      {
+        "text": "T7 Execute supervised real automatic reply validation",
+        "completed": true
+      },
+      {
+        "text": "T8 Publish PR and complete final administration",
+        "completed": true
+      }
+    ]
   },
   "capabilities": {
     "total": 10,
