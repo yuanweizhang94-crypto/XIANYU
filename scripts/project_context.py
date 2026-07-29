@@ -42,6 +42,15 @@ def required_reading(root: Path, state: dict[str, object]) -> list[str]:
         "specs/SYSTEM_ARCHITECTURE.md",
         "specs/CAPABILITY_REGISTRY.yaml",
     ]
+    items.extend(
+        entry
+        for entry in [
+            "docs/UPSTREAM_CAPABILITY_MATRIX.md",
+            "docs/LOCAL_COMPONENT_DISPOSITION.md",
+            "docs/UPSTREAM_FIRST_POLICY.md",
+        ]
+        if (root / entry).exists()
+    )
     active_change = state.get("active_change")
     if isinstance(active_change, dict):
         active_path = str(active_change["path"])

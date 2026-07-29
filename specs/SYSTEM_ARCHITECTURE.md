@@ -42,3 +42,11 @@ CHG-0008 selected `WRAP` after supervised upstream Pilot evidence. The architect
 ## CHG-0009 wrapper MVP architecture
 
 The CHG-0009 architecture keeps `D:/xianyu` as the owner of business rules, manual confirmation, idempotency, audit, and CLI operations while `D:/xianyu-upstream-pilot` remains the owner of login, Cookie, Token, Session, browser Profile, WebSocket, and platform protocol behavior. The wrapper is localhost-only and fail-closed for writes.
+
+## CHG-0011 upstream-first execution architecture
+
+The architecture now treats the pinned `zhinianboke/xianyu-auto-reply` deployment at `D:/xianyu-upstream-pilot` as the Xianyu business app and execution engine. It owns account login, Cookie/session/Profile handling inside the Pilot environment, WebSocket connection, online chat, keyword reply, default reply, product-specific reply, AI reply, conversation context, intent and bargain behavior, and real message send execution.
+
+`D:/xianyu` is the control layer. It owns repository governance, safety policy, validation scripts, capability evidence, redacted diagnostics, operational wrappers, monitoring checks, backup/restore orchestration, upgrade governance, and PR/change enforcement. It must not describe upstream as merely a transport connector, and it must not describe local code as the automatic-reply brain when pinned upstream has the equivalent capability.
+
+The formal automatic-reply sole executor is the upstream native automatic-reply service after CHG-0012/CHG-0013 validation. The CHG-0010 local deterministic autoreply worker is frozen and deprecated; it must not run concurrently with upstream native automatic reply and must not be expanded into a second production executor.

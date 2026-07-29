@@ -1,20 +1,20 @@
-product_goal: product_template_to_human_transfer
-current_priority: upstream_wrapper_mvp
-current_change: CHG-0009-xianyu-upstream-wrapper-mvp
-last_completed_change: CHG-0008-xianyu-upstream-integration-foundation
-last_completed_pr: 9
-last_completed_merge_commit: e7a9205dfeafd8b5e0f617f1855ecc4a33d6441c
+product_goal: upstream_native_multi_account_autoreply_with_operations_control
+current_priority: upstream_first_product_direction_freeze
+current_change: CHG-0011-upstream-first-product-direction-freeze
+last_completed_change: CHG-0010-xianyu-automatic-reply-mvp
+last_completed_pr: 11
+last_completed_merge_commit: d7e6d4c12ed47a47cabba43a65e19939e21028f8
 pilot_status: P2_P6_PASSED_WITH_OPERATOR_DELISTED_CLEANUP
 next_minimum_action: implement_minimal_localhost_upstream_wrapper_mvp
 anti_drift_rules:
-  - check_existing_capabilities_before_new_development
-  - do_not_reimplement_account_message_reply_publish_schedule
-  - do_not_build_large_abstractions_without_real_pilot_evidence
-  - pin_upstream_commits_before_audit_or_execution
-  - do_not_treat_local_verified_as_live_xianyu_available
-  - stop_on_captcha_face_verification_device_verification_or_risk_control
-  - run_minimum_real_closed_loop_before_rewrite_decisions
-  - keep_cookie_token_session_and_browser_profile_out_of_main_repository
+- check_existing_capabilities_before_new_development
+- do_not_reimplement_account_message_reply_publish_schedule
+- do_not_build_large_abstractions_without_real_pilot_evidence
+- pin_upstream_commits_before_audit_or_execution
+- do_not_treat_local_verified_as_live_xianyu_available
+- stop_on_captcha_face_verification_device_verification_or_risk_control
+- run_minimum_real_closed_loop_before_rewrite_decisions
+- keep_cookie_token_session_and_browser_profile_out_of_main_repository
 pilot_levels:
   P0_system_startup: PASSED
   P1_manual_scan_login: PASSED
@@ -25,10 +25,72 @@ pilot_levels:
   P6_manual_cleanup: PASSED_OPERATOR_DELISTED_NOT_DELETED
   P7_one_time_schedule: NOT_EXECUTED
 recommendation: WRAP
-allowed_next_change: CHG-0009-xianyu-upstream-wrapper-mvp
+allowed_next_change: CHG-0012-validate-upstream-native-multi-account-fixed-template-reply
 allowed_future_recommendations:
-  - ADOPT
-  - WRAP
-  - REPLACE_GRADUALLY
-  - INSUFFICIENT_EVIDENCE
+- ADOPT
+- WRAP
+- REPLACE_GRADUALLY
+- INSUFFICIENT_EVIDENCE
 wrapper_mvp_status: IMPLEMENTING
+direction_freeze:
+  status: IMPLEMENTING
+  pinned_upstream_path: D:/xianyu-upstream-pilot
+  pinned_upstream_sha: bda1a859df63fa5f24e51398fa80a23490bb6dfc
+  business_app_and_execution_engine: zhinianboke/xianyu-auto-reply pinned deployment
+  control_layer: D:/xianyu safety/governance/operations/validation
+  formal_autoreply_executor: upstream_native_after_CHG-0012_CHG-0013_validation
+  local_autoreply_worker: FREEZE_AND_DEPRECATE
+  no_chg_0012_created_by_chg_0011: true
+upstream_first_priority:
+- ADOPT_UPSTREAM
+- CONFIGURE_UPSTREAM
+- PATCH_UPSTREAM
+- WRAP_FOR_OPERATIONS
+- BUILD_LOCAL_EXCEPTION
+locked_phases:
+- phase: 1
+  change: CHG-0012
+  scope: validate_configure_upstream_native_multi_account_fixed_template_reply
+  allowed:
+  - add_second_dedicated_test_account_through_upstream_native_UI
+  - validate_two_accounts_independent_login_and_connection
+  - configure_different_rules_through_upstream_native_keyword_page
+  - validate_per_account_rules_default_replies_product_specific_replies_and_pause
+  - confirm_only_upstream_native_sender_runs
+  forbidden:
+  - modify_local_autoreply_rule_engine
+  - copy_upstream_rules_into_yaml
+  - create_second_autoreply_worker
+  - create_keyword_API_adapter_layer
+- phase: 2
+  change: CHG-0013
+  scope: validate_configure_upstream_native_multi_account_AI_reply
+  allowed:
+  - use_upstream_native_AI_settings_page
+  - configure_project_owner_selected_OpenAI_compatible_API
+  - validate_per_account_model_prompt_context
+  - validate_priority_keyword_then_AI_then_default
+  - validate_account_context_isolation
+  - validate_disabling_AI_stops_model_calls
+  - validate_safe_degradation_on_API_failure
+  forbidden:
+  - create_local_AIReplyEngine
+  - create_local_context_database
+  - copy_upstream_prompt_logic
+  - create_second_AI_settings_UI
+- phase: 3
+  change: CHG-0014
+  scope: upstream_operations_monitoring_backup_restore_upgrade
+- phase: 4
+  change: CHG-0015
+  scope: evaluate_retire_duplicate_local_autoreply_worker
+chg_0012_created: false
+historical_chg_0008:
+  current_priority: upstream_wrapper_mvp
+  pilot_status: P2_P6_PASSED_WITH_OPERATOR_DELISTED_CLEANUP
+  pilot_levels:
+    P0_system_startup: PASSED
+    P1_manual_scan_login: PASSED
+    P6_manual_cleanup: PASSED_OPERATOR_DELISTED_NOT_DELETED
+  recommendation: WRAP
+  allowed_next_change: CHG-0009-xianyu-upstream-wrapper-mvp

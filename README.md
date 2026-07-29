@@ -1,5 +1,19 @@
 # XIANYU
 
+
+## Current direction freeze - CHG-0011
+
+XIANYU is now locked to an upstream-first product direction. The pinned `zhinianboke/xianyu-auto-reply` deployment is the business application and execution engine. `D:/xianyu` is the safety, governance, operations, validation, and release-control layer.
+
+Future work must adopt, configure, or patch pinned upstream capabilities before building anything local. The formal automatic-reply executor is the upstream native executor after CHG-0012/CHG-0013 validation. The CHG-0010 local autoreply worker is frozen and deprecated, and no two automatic-reply send executors may run simultaneously.
+
+Pinned upstream evidence and locked roadmap are recorded in:
+
+- `docs/UPSTREAM_CAPABILITY_MATRIX.md`
+- `docs/LOCAL_COMPONENT_DISPOSITION.md`
+- `docs/UPSTREAM_FIRST_POLICY.md`
+- `specs/PRODUCT_ROADMAP.yaml`
+
 XIANYU is the long-lived repository for a future Xianyu operations automation system. The current repository contains governance, specifications, validation scripts, tests, CI, and Registry-verified local deterministic boundaries. Those verified capabilities are valid only within local execution and synthetic fixtures. The repository does not provide real Xianyu access, real listing publication, real message receiving or sending, Playwright or browser automation, real Credential handling, WeCom integration, AI Provider integration, or external platform side effects.
 
 ## Current change state
