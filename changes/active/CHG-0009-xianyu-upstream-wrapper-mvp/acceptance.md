@@ -56,4 +56,4 @@ Next task: Ready for project-owner review
 
 - T8 supervised live Wrapper validation passed: listener controlled through `D:/xianyu` Wrapper, live WebSocket connectivity was confirmed, the corrected unique inbound test message matched once from `CHAT_NEW_API`, the confirmed Wrapper reply succeeded once, the duplicate attempt was rejected locally, credentials remained local, no automatic actions occurred, sub2api remained unaffected, and the listener was stopped afterward.
 
-- T9 Draft PR administration completed: PR #10 was created, branch was pushed, initial GitHub Actions `quality`, `tests`, and `security` passed, and CHG-0009 remains unmerged for project-owner review.
+- T9 Draft PR administration completed: PR #10 was created, branch was pushed, GitHub Actions `quality`, `tests`, and `security` passed, the PR was transitioned to Ready for review, and CHG-0009 remains unmerged for project-owner review.

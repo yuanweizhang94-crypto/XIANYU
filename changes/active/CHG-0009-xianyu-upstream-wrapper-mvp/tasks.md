@@ -33,4 +33,4 @@ Live supervised validation passed through the `D:/xianyu` Wrapper. The listener 
 
 ## T9 evidence
 
-Draft PR #10 was created at `https://github.com/yuanweizhang94-crypto/XIANYU/pull/10` from branch `feat/CHG-0009-xianyu-upstream-wrapper-mvp` targeting `main`. The initial PR head `4c35da83f8d54545b4036c964300bd701b41d435` passed GitHub Actions `quality`, `tests`, and `security`. The PR remains Draft during final administrative record update and is not merged.
+Draft PR #10 was created at `https://github.com/yuanweizhang94-crypto/XIANYU/pull/10` from branch `feat/CHG-0009-xianyu-upstream-wrapper-mvp` targeting `main`. The initial PR head `4c35da83f8d54545b4036c964300bd701b41d435` passed GitHub Actions `quality`, `tests`, and `security`. The PR was created as Draft, then transitioned to Ready for review after final CI passed, and is not merged.

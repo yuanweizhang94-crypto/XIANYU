@@ -43,3 +43,4 @@ def test_chg_0009_wrapper_boundaries_are_fail_closed() -> None:
     assert "docker compose --project-name xianyu_pilot" in text
     assert "must not operate mysql, redis, backend-web, frontend, sub2api" in text
     assert "PR #10" in text
+    assert "Ready for review" in text
