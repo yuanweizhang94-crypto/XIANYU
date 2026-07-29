@@ -38,3 +38,7 @@ This change writes architecture only. It does not implement the capabilities abo
 ## CHG-0008 wrapper decision
 
 CHG-0008 selected `WRAP` after supervised upstream Pilot evidence. The architecture direction is not to vendor or rewrite upstream protocol code. Future integration should use a narrow localhost-only wrapper around the independent upstream Pilot service while keeping Cookie, Token, Session, browser Profile, and platform protocol details outside `D:/xianyu`.
+
+## CHG-0009 wrapper MVP architecture
+
+The CHG-0009 architecture keeps `D:/xianyu` as the owner of business rules, manual confirmation, idempotency, audit, and CLI operations while `D:/xianyu-upstream-pilot` remains the owner of login, Cookie, Token, Session, browser Profile, WebSocket, and platform protocol behavior. The wrapper is localhost-only and fail-closed for writes.

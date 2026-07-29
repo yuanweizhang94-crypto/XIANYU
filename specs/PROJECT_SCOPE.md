@@ -76,3 +76,7 @@ CHG-0008 is created as a governance and clean-room adapter foundation change. It
 ## CHG-0008 archived upstream integration foundation
 
 CHG-0008 is archived after PR #9 merged through normal two-parent merge commit `e7a9205dfeafd8b5e0f617f1855ecc4a33d6441c`. The upstream Pilot produced supervised P0-P6 evidence and the decision `WRAP`. The next separately authorized step may create CHG-0009 for a minimal localhost-only upstream wrapper. CHG-0008 itself does not make live Xianyu operation generally available in the main repository.
+
+## CHG-0009 upstream wrapper MVP
+
+CHG-0009 is authorized to implement a minimal localhost-only wrapper around the independently running upstream Pilot. Scope is limited to health, account status, listener control, recent inbound message observation, and one manually confirmed test reply. It does not authorize product publishing, delisting, orders, refunds, ratings, scheduler, crawler, promotion, updater, AI automatic replies, automatic delivery, public services, or copying upstream source code.

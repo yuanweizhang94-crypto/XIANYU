@@ -1,12 +1,53 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": null,
+  "active_change": {
+    "id": "CHG-0009-xianyu-upstream-wrapper-mvp",
+    "status": "IMPLEMENTING",
+    "path": "changes/active/CHG-0009-xianyu-upstream-wrapper-mvp"
+  },
   "tasks": {
-    "total": 0,
-    "completed": 0,
+    "total": 9,
+    "completed": 9,
     "next_task": null,
-    "items": []
+    "items": [
+      {
+        "text": "T1 Record owner approval and executable wrapper scope",
+        "completed": true
+      },
+      {
+        "text": "T2 Audit pinned upstream localhost API surface",
+        "completed": true
+      },
+      {
+        "text": "T3 Define Wrapper contracts, configuration, and safety boundaries",
+        "completed": true
+      },
+      {
+        "text": "T4 Implement minimal localhost Wrapper and CLI",
+        "completed": true
+      },
+      {
+        "text": "T5 Add unit, contract, security, and acceptance coverage",
+        "completed": true
+      },
+      {
+        "text": "T6 Add operator quickstart documentation",
+        "completed": true
+      },
+      {
+        "text": "T7 Run complete local verification",
+        "completed": true
+      },
+      {
+        "text": "T8 Execute supervised real Wrapper message loop",
+        "completed": true
+      },
+      {
+        "text": "T9 Publish Draft PR and complete final administration",
+        "completed": true
+      }
+    ]
   },
   "capabilities": {
     "total": 10,
