@@ -1,5 +1,5 @@
-Change ID: CHG-0009-xianyu-upstream-wrapper-mvp
-Status: IMPLEMENTING
+﻿Change ID: CHG-0009-xianyu-upstream-wrapper-mvp
+Status: ARCHIVED
 # Acceptance
 
 ## Scope gates
