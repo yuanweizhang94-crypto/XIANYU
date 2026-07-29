@@ -42,8 +42,8 @@ Status: IMPLEMENTING
 
 ## Progress
 
-Completed tasks: 7 / 8
-Next task: T8 Publish PR and complete final administration
+Completed tasks: 8 / 8
+Next task: None
 
 - T2-T5 implementation evidence: configuration, worker, local process state, CLI, example config, quickstart, and 30 unit tests were added without upstream source changes or credential leakage.
 
@@ -52,3 +52,6 @@ Next task: T8 Publish PR and complete final administration
 
 
 - T7 live validation evidence: supervised dedicated-test automatic reply passed with inbound match count = 1, rule match count = 1, automatic reply result = SUCCESS, platform ACK count = 1, duplicate reply count = 0, extra reply count = 0, historical messages replied = 0, other conversations affected = 0, no per-message manual confirmation, worker stopped, owned listener stopped, and local config restored to disabled.
+
+
+- T8 publication evidence: Draft PR #11 was created at `https://github.com/yuanweizhang94-crypto/XIANYU/pull/11`, the CHG-0010 branch was pushed, PR documentation includes the required automatic-reply scope and safety boundaries, CHG-0010 remains unmerged, auto-merge was not enabled, and CHG-0011 was not created.

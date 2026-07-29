@@ -9,12 +9,12 @@ Status: IMPLEMENTING
 - [x] T5 Add quickstart documentation
 - [x] T6 Run complete local verification
 - [x] T7 Execute supervised real automatic reply validation
-- [ ] T8 Publish PR and complete final administration
+- [x] T8 Publish PR and complete final administration
 
 ## Current progress
 
-Completed tasks: 7 / 8
-Next task: T8 Publish PR and complete final administration
+Completed tasks: 8 / 8
+Next task: None
 
 ## T1 evidence
 
@@ -50,3 +50,13 @@ Supervised live automatic reply validation passed on the dedicated test account 
 - A second polling window kept platform ACK count at 1, confirming idempotency prevented duplicate sends.
 - The worker was stopped, its owned listener was stopped, and local test config was restored to `enabled: false`.
 - No credentials, full account identifiers, full conversation identifiers, Cookie, Token, Session, or Authorization values were printed or committed.
+
+
+## T8 evidence
+
+Final PR administration completed for CHG-0010:
+
+- Draft PR #11 was created: `https://github.com/yuanweizhang94-crypto/XIANYU/pull/11`.
+- The branch `feat/CHG-0010-xianyu-automatic-reply-mvp` was pushed to GitHub.
+- The PR documents automatic reply behavior without per-message manual selection, deterministic rule configuration, startup watermark, idempotency, UNKNOWN no-retry handling, cooldowns, rate limits, credential boundaries, background process management, live supervised validation, disabled default, and non-goals.
+- CHG-0010 remains unmerged. No auto-merge was enabled. No CHG-0011 was created.

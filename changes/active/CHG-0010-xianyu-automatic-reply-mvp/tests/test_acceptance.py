@@ -29,7 +29,7 @@ def test_chg_0010_tasks_are_ordered() -> None:
     assert len(lines) == 8
     assert lines[0] == "- [x] T1 Record owner direction correction and automatic-reply scope"
     assert lines[1] == "- [x] T2 Define deterministic autoreply configuration and safety gates"
-    assert lines[-1] == "- [ ] T8 Publish PR and complete final administration"
+    assert lines[-1] == "- [x] T8 Publish PR and complete final administration"
 
 
 def test_chg_0010_safety_boundaries_are_fail_closed() -> None:

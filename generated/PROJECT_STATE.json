@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 8,
-    "completed": 7,
-    "next_task": "T8 Publish PR and complete final administration",
+    "completed": 8,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Record owner direction correction and automatic-reply scope",
@@ -41,7 +41,7 @@
       },
       {
         "text": "T8 Publish PR and complete final administration",
-        "completed": false
+        "completed": true
       }
     ]
   },
