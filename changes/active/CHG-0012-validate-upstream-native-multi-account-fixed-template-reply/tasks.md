@@ -1,52 +1,63 @@
 Change ID: CHG-0012-validate-upstream-native-multi-account-fixed-template-reply
-Status: DRAFT
+Status: APPROVED
 # Tasks
 
-- [ ] T1 Complete owner approval matrix.
-- [ ] T2 Define total two-account text-message cap.
-- [ ] T3 Add uncertainty-based fail-closed stop conditions.
-- [ ] T4 Define verifiable native autoreply stop criteria.
-- [ ] T5 Define verifiable WebSocket stop criteria.
-- [ ] T6 Define no-further-send confirmation.
-- [ ] T7 Define stop-command failure behavior.
-- [ ] T8 Check scheduler/restart/reconnect reactivation risk.
-- [ ] T9 Define masked evidence and report requirements.
-- [ ] T10 Strengthen acceptance tests.
+- [x] T1 Complete owner approval matrix.
+- [x] T2 Define total two-account text-message cap.
+- [x] T3 Add uncertainty-based fail-closed stop conditions.
+- [x] T4 Define verifiable native autoreply stop criteria.
+- [x] T5 Define verifiable WebSocket stop criteria.
+- [x] T6 Define no-further-send confirmation.
+- [x] T7 Define stop-command failure behavior.
+- [x] T8 Check scheduler/restart/reconnect reactivation risk.
+- [x] T9 Define masked evidence and report requirements.
+- [x] T10 Strengthen acceptance tests.
 - [ ] T11 Run all repository validation.
 
 ## Current progress
 
-Completed tasks: 0 / 11
-Next task: None while status is DRAFT.
+Completed tasks: 10 / 11
+Next task: T11 Run all repository validation.
 
-## DRAFT-only allowed work
+## APPROVED allowed work
 
-- Documentation.
-- Static code audit.
-- Configuration audit.
-- Upstream UI/API/service/data model search.
-- Safety test plan.
-- Reuse decision.
-- Duplicate-risk analysis.
-- Component ownership and retirement plan.
+- Documentation and generated project state updates for the approved validation matrix.
+- Static code audit and runtime safety gates.
+- Upstream native UI/API configuration of temporary test rules after approval PR merge.
+- Starting and stopping only the approved pinned upstream `websocket` compose service.
+- One-at-a-time controlled text trigger messages between ACCOUNT-A and ACCOUNT-B through the upstream online-chat path.
+- Redacted evidence capture, cleanup, quiet period, and validation report.
 
-## Prohibited in DRAFT
+## Always prohibited
 
 - Business code changes.
 - Upstream source changes.
-- WebSocket startup.
-- Native autoreply startup.
+- WebSocket startup outside the approved command and approved validation window.
+- Native autoreply startup outside the approved upstream native executor.
 - Local worker startup.
 - Real account addition.
 - Scan login.
 - CAPTCHA or verification flow.
-- Platform message sending.
+- Platform message sending outside the approved online-chat trigger path and approved cap.
 - Item, order, refund, shipping, or rating operations.
-- Commit, push, PR creation, or GitHub state changes.
+- AI reply, image reply, prompt/context reply, bargain, or CHG-0013 implementation.
 
 ## Upstream capability audit
 
 T1 and T2 must use pinned upstream static evidence for account, keyword, default reply, product-specific reply, message filter, pause, delay, duplicate protection, WebSocket, native sender, and log surfaces.
+
+## Approved run
+
+- Run ID: `CHG12-20260730-0237-FE2R`
+- Test accounts: `ACCOUNT-A` and `ACCOUNT-B`
+- Controlled counterpart: accounts are mutual controlled counterparts.
+- TEST-ITEM-1: existing item owned by `ACCOUNT-B`.
+- Trigger path: `frontend/src/pages/chat-new/ChatNew.tsx` -> `frontend/src/api/chatNew.ts` -> `POST /api/v1/chat-new/send-message/{account_id}` -> `IMClient.send_text_message`.
+- Start command: `Set-Location D:\xianyu-upstream-pilot; docker compose -f .\.pilot\docker-compose.pilot.yml up -d websocket`
+- Stop command: `Set-Location D:\xianyu-upstream-pilot; docker compose -f .\.pilot\docker-compose.pilot.yml stop websocket`
+- Quiet period: 120 seconds.
+- Normal target outbound count: <= 9.
+- Hard cap: 12 total outbound text autoreplies.
 
 ## Pinned upstream evidence
 
