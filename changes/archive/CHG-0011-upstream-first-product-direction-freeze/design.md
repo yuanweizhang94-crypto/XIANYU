@@ -1,25 +1,26 @@
 Change ID: CHG-0011-upstream-first-product-direction-freeze
-Status: VERIFYING
-# Proposal
+Status: ARCHIVED
+# Design
 
-## Title
+## Direction freeze
 
-CHG-0011 upstream-first product direction freeze
+The architecture owner split is now explicit:
 
-## Owner approval
+- `zhinianboke/xianyu-auto-reply` pinned deployment is the business app and execution engine for Xianyu account login, Cookies, WebSocket, online chat, keyword reply, default reply, product-specific reply, AI reply, context, intent, bargain handling, and message send execution.
+- `D:/xianyu` is the control layer for safety, governance, operational wrappers, validation, release checks, secret scanning, backup/restore orchestration, and upgrade governance.
 
-The project owner authorized a governance-only product direction freeze after CHG-0010. The explicit direction is upstream-first: pinned `zhinianboke/xianyu-auto-reply` is the business application and execution engine, while this repository owns safety, governance, operations, validation, and release control. The project owner also authorized stopping the current local autoreply worker before starting this change.
+Future feature work must use the priority order documented in `docs/UPSTREAM_FIRST_POLICY.md`.
 
-## Goal
+## Governance implementation
 
-Document the pinned upstream capability inventory, classify existing local overlap, lock the product roadmap to upstream-native validation phases, and mechanically prevent future changes from entering implementation without upstream audit and reuse decisions.
+The validator enforces upstream-first fields on the single active change. It fails closed when required fields are missing, when a reuse decision is absent or invalid, when `BUILD_LOCAL_EXCEPTION` lacks an ADR reference, or when an upstream-adopt decision is combined with a local rewrite plan.
 
-## Non-goals
+## Documentation implementation
 
-- No new autoreply engine, keyword engine, AI reply engine, context store, multi-account scheduler, Web UI, business API, product operation, order operation, delivery operation, or refund operation.
-- No platform messages, no test sends, no listener restart, no scheduler, no crawler, no promotion, no updater.
-- No upstream checkout, pull, upgrade, source modification, source copy, image pull, or remote deployment script.
-- No CHG-0012 creation.
+- `docs/UPSTREAM_CAPABILITY_MATRIX.md` records pinned-upstream evidence and decisions.
+- `docs/LOCAL_COMPONENT_DISPOSITION.md` records the final disposition of CHG-0009/CHG-0010 local overlap.
+- `docs/UPSTREAM_FIRST_POLICY.md` records the decision hierarchy and exception criteria.
+- `AGENTS.md`, `README.md`, `specs/PROJECT_SCOPE.md`, `specs/SYSTEM_ARCHITECTURE.md`, and `specs/PRODUCT_ROADMAP.yaml` carry the permanent product direction.
 
 ## Upstream capability audit
 

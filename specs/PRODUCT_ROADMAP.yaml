@@ -1,11 +1,11 @@
 product_goal: upstream_native_multi_account_autoreply_with_operations_control
-current_priority: upstream_first_product_direction_freeze
-current_change: CHG-0011-upstream-first-product-direction-freeze
-last_completed_change: CHG-0010-xianyu-automatic-reply-mvp
-last_completed_pr: 11
-last_completed_merge_commit: d7e6d4c12ed47a47cabba43a65e19939e21028f8
+current_priority: validate_upstream_native_multi_account_fixed_template_reply
+current_change: null
+last_completed_change: CHG-0011-upstream-first-product-direction-freeze
+last_completed_pr: 12
+last_completed_merge_commit: 7f52613438ad6c5929e3fd08fe93d212f56e2342
 pilot_status: P2_P6_PASSED_WITH_OPERATOR_DELISTED_CLEANUP
-next_minimum_action: implement_minimal_localhost_upstream_wrapper_mvp
+next_minimum_action: create_CHG-0012_only_after_separate_authorization
 anti_drift_rules:
 - check_existing_capabilities_before_new_development
 - do_not_reimplement_account_message_reply_publish_schedule
@@ -33,7 +33,7 @@ allowed_future_recommendations:
 - INSUFFICIENT_EVIDENCE
 wrapper_mvp_status: IMPLEMENTING
 direction_freeze:
-  status: IMPLEMENTING
+  status: ARCHIVED
   pinned_upstream_path: D:/xianyu-upstream-pilot
   pinned_upstream_sha: bda1a859df63fa5f24e51398fa80a23490bb6dfc
   business_app_and_execution_engine: zhinianboke/xianyu-auto-reply pinned deployment
@@ -41,6 +41,7 @@ direction_freeze:
   formal_autoreply_executor: upstream_native_after_CHG-0012_CHG-0013_validation
   local_autoreply_worker: FREEZE_AND_DEPRECATE
   no_chg_0012_created_by_chg_0011: true
+  archive_path: changes/archive/CHG-0011-upstream-first-product-direction-freeze
 upstream_first_priority:
 - ADOPT_UPSTREAM
 - CONFIGURE_UPSTREAM

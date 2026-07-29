@@ -1,28 +1,31 @@
 Change ID: CHG-0011-upstream-first-product-direction-freeze
-Status: VERIFYING
-# Tasks
+Status: ARCHIVED
+# Acceptance
 
-- [x] T1 Stop local autoreply worker and owned listener
-- [x] T2 Verify pinned upstream SHA and audit real implementation files
-- [x] T3 Create upstream capability matrix and local component disposition
-- [x] T4 Add upstream-first policy to repository governance docs
-- [x] T5 Enforce upstream audit and reuse decision in Change validation
-- [x] T6 Add validator unit coverage for duplicate-development gates
-- [x] T7 Run complete verification, PR, merge, archive, and final state sync
+## Acceptance criteria
 
-## Current progress
+- The current local autoreply worker and owned listener are stopped.
+- Pinned upstream evidence is based on `D:/xianyu-upstream-pilot` at `bda1a859df63fa5f24e51398fa80a23490bb6dfc`.
+- The repository contains a capability matrix, local component disposition, and upstream-first policy.
+- Repository governance requires upstream audit, pinned evidence, local search, reuse decision, duplicate-risk analysis, owner, and retirement plan before implementation.
+- `BUILD_LOCAL_EXCEPTION` requires evidence and an accepted ADR.
+- A change that adopts upstream cannot plan a local rewrite.
+- The roadmap locks CHG-0012 through CHG-0015 without creating CHG-0012.
+- Complete local verification and GitHub Actions pass before Ready/merge.
+- The change is merged, archived, and final state has zero active changes.
+- No platform messages are sent by CHG-0011.
 
-Completed tasks: 7 / 7
-Next task: None
+## Verification commands
 
-## Evidence
-
-- The previously running local autoreply worker was stopped before this active change was created.
-- The owned listener stopped with the local worker.
-- Pinned upstream HEAD was verified as `bda1a859df63fa5f24e51398fa80a23490bb6dfc`.
-- No platform message was sent by this change.
-- No upstream tracked source was modified.
-- No CHG-0012 was created.
+- `python scripts/generate_state.py`
+- `python scripts/project_context.py`
+- `python scripts/validate_change.py`
+- `python scripts/verify_repository.py`
+- `python -m pytest -W error`
+- `python -m ruff check .`
+- `python scripts/security_scan.py`
+- `python -m mypy app/xianyu_system`
+- `git diff --check`
 
 ## Upstream capability audit
 
@@ -63,20 +66,3 @@ Not applicable. No `BUILD_LOCAL_EXCEPTION` is requested by CHG-0011.
 ## Retirement plan for overlapping local code
 
 CHG-0010 local autoreply worker is frozen and deprecated by policy. CHG-0015 is reserved for evaluating and retiring duplicate local autoreply worker behavior after upstream native fixed-template and AI reply validation passes.
-
-
-## T7 local verification evidence
-
-Local verification passed before PR publication:
-
-- `python scripts/generate_state.py` passed and `generated/PROJECT_STATE.json` was normalized to repository LF line endings.
-- `python scripts/project_context.py` passed.
-- `python scripts/validate_change.py` passed.
-- `python scripts/verify_repository.py` passed with 566 tests.
-- `python -m pytest -W error` passed with 566 tests.
-- `python -m ruff check .` passed.
-- `python scripts/security_scan.py` passed.
-- `python -m mypy app/xianyu_system` passed.
-- `git diff --check` passed.
-
-PR merge and archive will be recorded after GitHub PR completion.

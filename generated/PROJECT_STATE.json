@@ -1,45 +1,12 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": {
-    "id": "CHG-0011-upstream-first-product-direction-freeze",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0011-upstream-first-product-direction-freeze"
-  },
+  "active_change": null,
   "tasks": {
-    "total": 7,
-    "completed": 7,
+    "total": 0,
+    "completed": 0,
     "next_task": null,
-    "items": [
-      {
-        "text": "T1 Stop local autoreply worker and owned listener",
-        "completed": true
-      },
-      {
-        "text": "T2 Verify pinned upstream SHA and audit real implementation files",
-        "completed": true
-      },
-      {
-        "text": "T3 Create upstream capability matrix and local component disposition",
-        "completed": true
-      },
-      {
-        "text": "T4 Add upstream-first policy to repository governance docs",
-        "completed": true
-      },
-      {
-        "text": "T5 Enforce upstream audit and reuse decision in Change validation",
-        "completed": true
-      },
-      {
-        "text": "T6 Add validator unit coverage for duplicate-development gates",
-        "completed": true
-      },
-      {
-        "text": "T7 Run complete verification, PR, merge, archive, and final state sync",
-        "completed": true
-      }
-    ]
+    "items": []
   },
   "capabilities": {
     "total": 10,
