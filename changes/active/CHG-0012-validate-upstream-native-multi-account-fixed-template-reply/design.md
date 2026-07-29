@@ -1,12 +1,12 @@
 Change ID: CHG-0012-validate-upstream-native-multi-account-fixed-template-reply
-Status: DRAFT
+Status: APPROVED
 # Design
 
 ## Validation architecture
 
 CHG-0012 validates pinned upstream native fixed-template automatic reply in a controlled way. `D:/xianyu-upstream-pilot` remains the business app and execution engine. `D:/xianyu` remains the control layer for planning, safety gates, status verification, redacted evidence, and repository validation.
 
-This DRAFT creates no runtime path and no business code. It records how a later approved execution phase must validate upstream-native behavior without creating a parallel implementation.
+This APPROVED change creates no local runtime path and no business code. It authorizes one controlled live validation phase using pinned upstream native UI/API/service paths, without creating a parallel implementation.
 
 ## Static evidence model
 
@@ -15,7 +15,7 @@ The validation plan uses four evidence groups:
 1. Pinned source evidence: exact SHA and upstream files for accounts, keywords, default replies, message filters, WebSocket, auto reply, and logs.
 2. Local overlap evidence: current local wrapper and CHG-0010 worker disposition.
 3. Runtime status evidence: Docker service status, ports, wrapper listener status, local worker status, and process scan.
-4. Live validation evidence: only after separate owner approval of a masked test matrix.
+4. Live validation evidence: only for approved run `CHG12-20260730-0237-FE2R`, using masked identifiers and redacted evidence.
 
 ## Upstream UI/API/service/data model evidence
 
@@ -36,6 +36,7 @@ Pinned upstream evidence to audit before execution:
 | Reply delay | account delay controls | `XYAccount.reply_delay_seconds`, upstream delay load path |
 | Duplicate protection | logs and default-reply records | default reply record and duplicate-message log fields |
 | Autoreply logs | `frontend/src/pages/autoReplyLogs/AutoReplyLogs.tsx`, `backend-web/app/api/routes/auto_reply_logs.py` | `common/models/auto_reply_message_log.py`, upstream log services |
+| Controlled trigger send | `frontend/src/pages/chat-new/ChatNew.tsx`, `frontend/src/api/chatNew.ts` | `backend-web/app/api/routes/chat_new.py`, `backend-web/app/services/chat_new/im_client.py` |
 
 ## Execution-state gate
 
@@ -52,9 +53,9 @@ Before any later live validation starts, the operator must confirm all of the fo
 
 If any state is unknown, validation must fail closed.
 
-## Live validation safety gate
+## Approved live validation safety gate
 
-This DRAFT does not authorize live validation. Before real validation starts, the project owner must separately approve a test matrix containing:
+The project owner approved one controlled validation matrix for run `CHG12-20260730-0237-FE2R`. Before real validation starts, the operator must confirm the matrix still matches runtime state:
 
 1. Test account A masked identifier.
 2. Test account B masked identifier.
@@ -83,6 +84,48 @@ The owner approval record must be complete before any live platform validation s
 - Image messages are not approved by default and require separate approval.
 - Missing any required field blocks validation from starting.
 - Any change to approved content requires reapproval; old approval must not be reused.
+
+Approved account and item scope:
+
+- `ACCOUNT-A` and `ACCOUNT-B` are dedicated controlled test accounts and each other's controlled counterpart.
+- Both accounts must be connected and active through upstream native account/chat APIs.
+- `TEST-ITEM-1` is an existing item owned by `ACCOUNT-B`; no full item title or full item id may be recorded.
+- Only one target account may have autoreply enabled for a scenario. The opposite account is paused/disabled and may only send the trigger text.
+
+Approved trigger send path:
+
+- Frontend page component: `frontend/src/pages/chat-new/ChatNew.tsx`, `sendMessageText`.
+- Frontend API client: `frontend/src/api/chatNew.ts`, `sendTextMessage(accountId, cid, toUserId, text)`.
+- Backend route: `POST /api/v1/chat-new/send-message/{account_id}`.
+- Request schema: `SendMessageRequest` with `cid`, `toUserId`, and `text`.
+- Backend service: `backend-web/app/services/chat_new/im_client.py`, `IMClient.send_text_message`.
+- Text-only constraint: use only the text route; do not call `sendImageMessage` or any image upload route.
+- Send granularity: exactly one request per approved trigger message; no batch send or broadcast.
+- Authorization: use current upstream logged-in session through the existing app/API; do not read or print Cookie or Token.
+- Non-business constraint: do not invoke order, item mutation, refund, shipping, rating, publish, blacklist, recall, image, AI, or admin mutation paths.
+
+Approved run parameters:
+
+| Field | Value |
+|---|---|
+| Run ID | `CHG12-20260730-0237-FE2R` |
+| ACCOUNT-A keyword | `AKEY-CHG12-20260730-0237-FE2R` |
+| ACCOUNT-B keyword | `BKEY-CHG12-20260730-0237-FE2R` |
+| default-A unmatched input | `AUNMATCHED-CHG12-20260730-0237-FE2R` |
+| default-B unmatched input | `BUNMATCHED-CHG12-20260730-0237-FE2R` |
+| product keyword | `PRODUCT-CHG12-20260730-0237-FE2R` |
+| variable keyword | `VARIABLE-CHG12-20260730-0237-FE2R` |
+| filter keyword | `FILTER-CHG12-20260730-0237-FE2R` |
+| resume keyword | `RESUME-CHG12-20260730-0237-FE2R` |
+| dedup keyword | `DEDUP-CHG12-20260730-0237-FE2R` |
+| ACCOUNT-A keyword reply | `账号A固定回复测试成功-CHG12-20260730-0237-FE2R` |
+| ACCOUNT-B keyword reply | `账号B固定回复测试成功-CHG12-20260730-0237-FE2R` |
+| ACCOUNT-A default reply | `账号A默认回复测试成功-CHG12-20260730-0237-FE2R` |
+| ACCOUNT-B default reply | `账号B默认回复测试成功-CHG12-20260730-0237-FE2R` |
+| product-specific reply | `商品专属回复测试成功-CHG12-20260730-0237-FE2R` |
+| variable replacement reply | `变量替换测试成功-CHG12-20260730-0237-FE2R-{send_message}` |
+| pause/resume reply | `暂停恢复测试成功-CHG12-20260730-0237-FE2R` |
+| delay/dedup reply | `延迟去重测试成功-CHG12-20260730-0237-FE2R` |
 
 Rules for any later live validation:
 

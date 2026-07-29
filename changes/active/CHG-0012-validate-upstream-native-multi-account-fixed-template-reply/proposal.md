@@ -1,5 +1,5 @@
 Change ID: CHG-0012-validate-upstream-native-multi-account-fixed-template-reply
-Status: DRAFT
+Status: APPROVED
 # Proposal
 
 ## Title
@@ -8,7 +8,9 @@ Validate upstream native multi-account fixed-template autoreply
 
 ## Owner approval
 
-The project owner authorized creation of this DRAFT after local notebook verification passed on 2026-07-29. This DRAFT does not authorize live platform validation, WebSocket startup, native autoreply startup, account addition, scan login, message sending, commit, push, PR creation, or GitHub state changes.
+The project owner authorized creation of the original DRAFT after local notebook verification passed on 2026-07-29.
+
+On 2026-07-30 Asia/Shanghai, the project owner approved controlled live validation for this Change using the matrix in `acceptance.md`. The approved executor is upstream native automatic reply only. The approved trigger path is the pinned upstream online-chat text-message path. The approval does not authorize AI reply, image reply, item/order/refund/shipping/rating operations, local sender creation, CHG-0010 worker startup, or any production enablement using test content.
 
 ## Goal
 
@@ -23,10 +25,10 @@ The preferred reuse decision for this change is `CONFIGURE_UPSTREAM`: validate a
 
 - No business code changes in `D:/xianyu`.
 - No upstream source modification.
-- No WebSocket startup.
-- No automatic reply startup.
+- No WebSocket startup outside the approved CHG-0012 live validation window and approved `websocket` compose service.
+- No automatic reply startup outside the approved CHG-0012 live validation window and approved upstream native executor.
 - No login, scan-code login, CAPTCHA handling, account addition, item, order, refund, shipping, rating, or platform operation.
-- No message sending.
+- No message sending except approved one-at-a-time controlled text trigger messages between ACCOUNT-A and ACCOUNT-B through the upstream online-chat path.
 - No AI provider configuration, AI model call, prompt, context, intent recognition, bargain test, CHG-0013, local keyword matcher, local YAML production rules, local autoreply worker extension, local multi-account scheduler, local account database, local Cookie vault, local WebSocket parser, local default reply engine, local product-specific reply engine, local image reply executor, local AIReplyEngine, second API adapter, second UI, second production audit, or second dedup system.
 
 ## Proposed validation scope
@@ -54,7 +56,34 @@ When this Change is later approved for execution, the validation plan must cover
 19. Only the upstream native sender runs.
 20. The local CHG-0010 worker remains stopped.
 
-Image keyword reply is limited to static audit and configuration availability in this DRAFT. Any real image send smoke test requires separate project-owner approval.
+Image keyword reply is limited to static audit and configuration availability in this Change. Real image sends are denied for this validation round.
+
+## Approved live validation run
+
+- Run ID: `CHG12-20260730-0237-FE2R`
+- Account aliases: `ACCOUNT-A` and `ACCOUNT-B`; full account identifiers must not be written in repository evidence or reports.
+- Controlled counterpart: `ACCOUNT-A` and `ACCOUNT-B` are each other's controlled test counterpart.
+- TEST-ITEM-1: an existing item owned by `ACCOUNT-B`, referenced only as `TEST-ITEM-1`.
+- Test window: starts after the approval PR is merged and local `main` is synced; maximum duration is 4 hours from that synced-main start time.
+- Normal target outbound autoreply count: <= 9.
+- Hard outbound autoreply cap: 12 total text replies across both accounts and all cases.
+- Quiet period: 120 seconds after cleanup.
+- Image sends: denied.
+- Unknown state: stop, fail closed, no retry.
+
+Approved start command:
+
+```powershell
+Set-Location D:\xianyu-upstream-pilot
+docker compose -f .\.pilot\docker-compose.pilot.yml up -d websocket
+```
+
+Approved stop command:
+
+```powershell
+Set-Location D:\xianyu-upstream-pilot
+docker compose -f .\.pilot\docker-compose.pilot.yml stop websocket
+```
 
 ## Upstream capability audit
 

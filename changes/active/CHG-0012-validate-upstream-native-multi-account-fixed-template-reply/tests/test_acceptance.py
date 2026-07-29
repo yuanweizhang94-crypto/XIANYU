@@ -42,11 +42,11 @@ def assert_ordered(text: str, phrases: list[str], context: str) -> None:
     assert positions == sorted(positions), f"{context} phrases are not in required order"
 
 
-def test_chg_0012_draft_documents_exist_and_match_identity() -> None:
+def test_chg_0012_approved_documents_exist_and_match_identity() -> None:
     for name in CHANGE_FILES:
         text = read_doc(name)
         assert f"Change ID: {CHANGE_ID}" in text
-        assert "Status: DRAFT" in text
+        assert "Status: APPROVED" in text
 
 
 def test_chg_0012_uses_pinned_upstream_native_configuration_path() -> None:
@@ -188,6 +188,37 @@ def test_chg_0012_owner_approval_matrix_contains_all_required_fields() -> None:
             "Missing any required field blocks validation from starting",
         ],
         "owner-approved live matrix",
+    )
+
+
+def test_chg_0012_records_approved_live_run_matrix_and_safe_send_path() -> None:
+    text = read_change_text()
+    assert_phrases(
+        text,
+        [
+            "CHG12-20260730-0237-FE2R",
+            "ACCOUNT-A",
+            "ACCOUNT-B",
+            "TEST-ITEM-1",
+            "AKEY-CHG12-20260730-0237-FE2R",
+            "BKEY-CHG12-20260730-0237-FE2R",
+            "PRODUCT-CHG12-20260730-0237-FE2R",
+            "VARIABLE-CHG12-20260730-0237-FE2R",
+            "FILTER-CHG12-20260730-0237-FE2R",
+            "RESUME-CHG12-20260730-0237-FE2R",
+            "DEDUP-CHG12-20260730-0237-FE2R",
+            "账号A固定回复测试成功-CHG12-20260730-0237-FE2R",
+            "账号B固定回复测试成功-CHG12-20260730-0237-FE2R",
+            "商品专属回复测试成功-CHG12-20260730-0237-FE2R",
+            "frontend/src/pages/chat-new/ChatNew.tsx",
+            "frontend/src/api/chatNew.ts",
+            "POST /api/v1/chat-new/send-message/{account_id}",
+            "SendMessageRequest",
+            "IMClient.send_text_message",
+            "12 total outbound text autoreplies",
+            "Image-send approval, when applicable: denied",
+        ],
+        "approved live run matrix",
     )
 
 

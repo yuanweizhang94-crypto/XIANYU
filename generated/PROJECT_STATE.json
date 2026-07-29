@@ -3,53 +3,53 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0012-validate-upstream-native-multi-account-fixed-template-reply",
-    "status": "DRAFT",
+    "status": "APPROVED",
     "path": "changes/active/CHG-0012-validate-upstream-native-multi-account-fixed-template-reply"
   },
   "tasks": {
     "total": 11,
-    "completed": 0,
-    "next_task": null,
+    "completed": 10,
+    "next_task": "T11 Run all repository validation.",
     "items": [
       {
         "text": "T1 Complete owner approval matrix.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T2 Define total two-account text-message cap.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T3 Add uncertainty-based fail-closed stop conditions.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T4 Define verifiable native autoreply stop criteria.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T5 Define verifiable WebSocket stop criteria.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T6 Define no-further-send confirmation.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T7 Define stop-command failure behavior.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T8 Check scheduler/restart/reconnect reactivation risk.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T9 Define masked evidence and report requirements.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T10 Strengthen acceptance tests.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T11 Run all repository validation.",

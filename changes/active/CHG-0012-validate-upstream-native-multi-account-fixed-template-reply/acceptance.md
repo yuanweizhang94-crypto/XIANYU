@@ -1,10 +1,9 @@
 Change ID: CHG-0012-validate-upstream-native-multi-account-fixed-template-reply
-Status: DRAFT
+Status: APPROVED
 # Acceptance
 
-## DRAFT acceptance criteria
+## APPROVED acceptance criteria
 
-- The Change exists only as DRAFT documentation.
 - The scope validates and configures upstream native multi-account fixed-template automatic reply.
 - The reuse decision is `CONFIGURE_UPSTREAM`.
 - The pinned upstream SHA is recorded.
@@ -18,12 +17,13 @@ Status: DRAFT
 - Stop and rollback plans are documented.
 - No business code is modified.
 - No generated file is manually edited.
-- No WebSocket, automatic reply worker, account login, scan login, item/order/refund/shipping/rating operation, or message send is executed.
-- No commit, push, PR, or GitHub state change is performed.
+- Owner approval for run `CHG12-20260730-0237-FE2R` is recorded.
+- The approved validation uses only upstream native configuration and online-chat text trigger APIs.
+- No account login, scan login, item/order/refund/shipping/rating operation, AI reply, image reply, local sender, or upstream source change is authorized.
 
 ## Future executable acceptance criteria
 
-When the project owner separately approves moving this Change into an executable status, acceptance must require:
+For the approved executable validation, acceptance requires:
 
 1. Two dedicated test accounts independently exist through upstream native UI.
 2. Account A and account B login states are independent.
@@ -48,25 +48,25 @@ When the project owner separately approves moving this Change into an executable
 
 ## Required owner-approved live matrix
 
-No real validation may start until the project owner separately approves:
+Real validation may start only for the approved matrix below after this approval PR is merged and local `main` is synced:
 
-- Test account A masked identifier.
-- Test account B masked identifier.
-- Controlled counterpart identity.
-- Test time window.
-- Test keywords.
-- Expected reply for each test case.
-- Expected send count for each test case.
-- Total approved text-message send cap.
-- Native autoreply start command.
-- Native autoreply stop command.
-- Native WebSocket start command.
-- Native WebSocket stop command.
-- Rollback method.
-- Masked log/evidence location.
-- Risk stop conditions.
-- Sole-executor confirmation.
-- Image-send approval, when applicable.
+- Test account A masked identifier: `ACCOUNT-A`.
+- Test account B masked identifier: `ACCOUNT-B`.
+- Controlled counterpart identity: `ACCOUNT-A` and `ACCOUNT-B` are each other's controlled test counterpart.
+- Test time window: starts after approval PR merge and local `main` sync; maximum duration 4 hours from that synced-main start time.
+- Test keywords: listed in the approved run matrix below.
+- Expected reply for each test case: listed in the approved run matrix below.
+- Expected send count for each test case: listed in the approved run matrix below.
+- Total approved text-message send cap: 12 total outbound text autoreplies across both accounts and all cases.
+- Native autoreply start command: `Set-Location D:\xianyu-upstream-pilot; docker compose -f .\.pilot\docker-compose.pilot.yml up -d websocket`.
+- Native autoreply stop command: `Set-Location D:\xianyu-upstream-pilot; docker compose -f .\.pilot\docker-compose.pilot.yml stop websocket`.
+- Native WebSocket start command: `Set-Location D:\xianyu-upstream-pilot; docker compose -f .\.pilot\docker-compose.pilot.yml up -d websocket`.
+- Native WebSocket stop command: `Set-Location D:\xianyu-upstream-pilot; docker compose -f .\.pilot\docker-compose.pilot.yml stop websocket`.
+- Rollback method: pause/disable both accounts, stop `websocket`, verify 18090 stopped, verify no sender/reconnect risk, delete only run-id temporary rules, restore pre-test config, preserve masked evidence.
+- Masked log/evidence location: `changes/active/CHG-0012-validate-upstream-native-multi-account-fixed-template-reply/evidence/CHG12-20260730-0237-FE2R-masked-report.md` when the completion phase records results.
+- Risk stop conditions: the full list in this acceptance file.
+- Sole-executor confirmation: upstream native automatic reply only; CHG-0010 local worker must remain stopped; wrapper listener must remain stopped.
+- Image-send approval, when applicable: denied.
 
 The matrix is complete only when:
 
@@ -76,6 +76,29 @@ The matrix is complete only when:
 - No real Cookie, Token, phone number, complete account name, complete session ID, or other secret is recorded.
 - Missing any required field blocks validation from starting.
 - Changed approval content is reapproved before use.
+
+## Approved run matrix
+
+- Run ID: `CHG12-20260730-0237-FE2R`.
+- `TEST-ITEM-1` is an existing item owned by `ACCOUNT-B`.
+- Use the upstream online-chat text path only: `frontend/src/pages/chat-new/ChatNew.tsx` -> `frontend/src/api/chatNew.ts` -> `POST /api/v1/chat-new/send-message/{account_id}` -> `backend-web/app/services/chat_new/im_client.py::IMClient.send_text_message`.
+- `SendMessageRequest` fields are `cid`, `toUserId`, and `text`.
+- Text trigger sends must use the current logged-in upstream session and must not print Cookie, Token, full account id, full item id, full session id, nickname, phone number, or real customer message body.
+
+| # | Target autoreply account | Trigger sender | Trigger text | Expected reply | Expected outbound autoreply count | Stop condition |
+|---|---|---|---|---|---:|---|
+| 1 | ACCOUNT-A | ACCOUNT-B | `AKEY-CHG12-20260730-0237-FE2R` | `账号A固定回复测试成功-CHG12-20260730-0237-FE2R` | 1 | wrong account, wrong session, wrong text, or duplicate reply |
+| 2 | ACCOUNT-A | ACCOUNT-B | `BKEY-CHG12-20260730-0237-FE2R` | no reply | 0 | any outbound autoreply |
+| 3 | ACCOUNT-A | ACCOUNT-B | `AUNMATCHED-CHG12-20260730-0237-FE2R` | `账号A默认回复测试成功-CHG12-20260730-0237-FE2R` | 1 | wrong default reply or duplicate reply |
+| 4 | ACCOUNT-A | ACCOUNT-B | approved repeat of A default/reply_once input | first approved reply only; repeat must not create a second reply | <= 1 | reply_once repeats unexpectedly |
+| 5 | ACCOUNT-B | ACCOUNT-A | `BKEY-CHG12-20260730-0237-FE2R` | `账号B固定回复测试成功-CHG12-20260730-0237-FE2R` | 1 | wrong account, wrong session, wrong text, or duplicate reply |
+| 6 | ACCOUNT-B | ACCOUNT-A | `AKEY-CHG12-20260730-0237-FE2R` | no reply | 0 | any outbound autoreply |
+| 7 | ACCOUNT-B | ACCOUNT-A | `BUNMATCHED-CHG12-20260730-0237-FE2R` | `账号B默认回复测试成功-CHG12-20260730-0237-FE2R` | 1 | wrong default reply or duplicate reply |
+| 8 | ACCOUNT-B | ACCOUNT-A | `PRODUCT-CHG12-20260730-0237-FE2R` in the `TEST-ITEM-1` conversation | `商品专属回复测试成功-CHG12-20260730-0237-FE2R` | 1 | wrong item, wrong account, wrong text, or duplicate reply |
+| 9 | ACCOUNT-B | ACCOUNT-A | `VARIABLE-CHG12-20260730-0237-FE2R` | `变量替换测试成功-CHG12-20260730-0237-FE2R-VARIABLE-CHG12-20260730-0237-FE2R` using upstream `{send_message}` formatting | 1 | raw placeholder remains or text mismatch |
+| 10 | ACCOUNT-B | ACCOUNT-A | `FILTER-CHG12-20260730-0237-FE2R` | no reply | 0 | any outbound autoreply |
+| 11 | ACCOUNT-B | ACCOUNT-A | `RESUME-CHG12-20260730-0237-FE2R` | pause phase: no reply; resumed phase: `暂停恢复测试成功-CHG12-20260730-0237-FE2R` | 1 | reply during pause or no reply after resume |
+| 12 | ACCOUNT-B | ACCOUNT-A | `DEDUP-CHG12-20260730-0237-FE2R` sent twice in approved order | `延迟去重测试成功-CHG12-20260730-0237-FE2R` once after approved 2-5 second delay | 1 | early reply, duplicate reply, or more than one reply |
 
 ## Text-message send cap
 
