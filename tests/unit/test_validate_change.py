@@ -11,6 +11,45 @@ from scripts.validate_change import validate_change
 
 ROOT = Path(__file__).resolve().parents[2]
 
+UPSTREAM_FIRST_BLOCK = """
+
+## Upstream capability audit
+
+Pinned upstream implementation was searched.
+
+## Pinned upstream evidence
+
+Pinned upstream SHA evidence is recorded.
+
+## Existing local implementation search
+
+Local implementation paths were searched.
+
+## Reuse decision
+
+Decision: WRAP_FOR_OPERATIONS
+
+## Duplicate implementation risk
+
+No duplicate implementation is planned.
+
+## Why upstream cannot satisfy the requirement
+
+Not applicable for this governance test.
+
+## Approved exception ADR
+
+Not applicable because no BUILD_LOCAL_EXCEPTION is requested.
+
+## Component owner
+
+The control layer owns governance.
+
+## Retirement plan for overlapping local code
+
+No overlapping production code is added.
+"""
+
 
 def copy_change_tree(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
@@ -42,6 +81,7 @@ def seed_single_active_change(
             "CHG-0006-xianyu-publish-boundary", change_id
         )
         text = re.sub(r"^Status: .+$", f"Status: {status}", text, flags=re.MULTILINE)
+        text = text.rstrip() + UPSTREAM_FIRST_BLOCK + "\n"
         path.write_text(text, encoding="utf-8")
     return target
 
@@ -68,6 +108,66 @@ def test_single_active_change_is_allowed(tmp_path: Path) -> None:
     root = copy_change_tree(tmp_path)
     active = seed_single_active_change(root)
     assert discover_active_change(root) == active
+    assert validate_change(root) == []
+
+
+def test_missing_upstream_audit_field_fails(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    change_dir = seed_single_active_change(root)
+    for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
+        path = change_dir / name
+        text = path.read_text(encoding="utf-8")
+        path.write_text(
+            text.replace("## Upstream capability audit", "## Removed audit field"),
+            encoding="utf-8",
+        )
+
+    errors = validate_change(root)
+    assert any("missing upstream-first change fields" in error for error in errors)
+
+
+def test_missing_reuse_decision_fails(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    change_dir = seed_single_active_change(root)
+    for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
+        path = change_dir / name
+        text = path.read_text(encoding="utf-8")
+        text = re.sub(r"(?m)^Decision: WRAP_FOR_OPERATIONS$", "Decision omitted", text)
+        path.write_text(text, encoding="utf-8")
+
+    errors = validate_change(root)
+    assert any("missing reuse decision" in error for error in errors)
+
+
+def test_build_local_exception_without_adr_fails(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    change_dir = seed_single_active_change(root)
+    for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
+        path = change_dir / name
+        text = path.read_text(encoding="utf-8")
+        text = text.replace("Decision: WRAP_FOR_OPERATIONS", "Decision: BUILD_LOCAL_EXCEPTION")
+        path.write_text(text, encoding="utf-8")
+
+    errors = validate_change(root)
+    assert any("BUILD_LOCAL_EXCEPTION requires approved exception ADR" in error for error in errors)
+
+
+def test_adopt_upstream_with_local_rewrite_plan_fails(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    change_dir = seed_single_active_change(root)
+    proposal = change_dir / "proposal.md"
+    text = proposal.read_text(encoding="utf-8")
+    text = text.replace("Decision: WRAP_FOR_OPERATIONS", "Decision: ADOPT_UPSTREAM")
+    text += "\nLocal rewrite plan: yes\n"
+    proposal.write_text(text, encoding="utf-8")
+
+    errors = validate_change(root)
+    assert any("ADOPT_UPSTREAM change must not plan local rewrite" in error for error in errors)
+
+
+def test_complete_upstream_first_change_passes(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    seed_single_active_change(root)
     assert validate_change(root) == []
 
 

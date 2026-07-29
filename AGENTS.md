@@ -33,3 +33,13 @@ These rules apply to any AI or automation agent and are not specific to one vend
 - Local verified capability means deterministic local evidence only; it does not mean live Xianyu operation works.
 - Stop on CAPTCHA, slider, face verification, device verification, risk-control prompts, unknown outcomes, or uncertain permissions.
 - CHG-0008 is an upstream pilot governance and evidence change. It must not create CHG-0009 or `app/xianyu_system/adapters/xianyu/` without later pilot evidence proving a specific interface is needed.
+
+## Upstream-first product direction
+
+- Before creating or implementing any feature, search both `D:/xianyu` and the pinned upstream checkout at `D:/xianyu-upstream-pilot`.
+- If pinned upstream has an equivalent capability, the Change must `ADOPT_UPSTREAM`, `CONFIGURE_UPSTREAM`, or `PATCH_UPSTREAM` instead of creating a parallel implementation in this repository.
+- `WRAP_FOR_OPERATIONS` is allowed only for safety, governance, operations, validation, monitoring, backup, restore, diagnostics, and upgrade control around the upstream engine.
+- `BUILD_LOCAL_EXCEPTION` is the last resort and requires pinned upstream evidence, local search evidence, duplicate-risk analysis, a referenced approved ADR, project-owner approval, component ownership, and a retirement or upstream-contribution plan.
+- Two automatic-reply send executors must never run at the same time.
+- The formal automatic-reply sole executor must be explicit in architecture documentation before any live automatic reply validation.
+- A Change without a capability matrix reference and reuse decision must not enter `IMPLEMENTING`.

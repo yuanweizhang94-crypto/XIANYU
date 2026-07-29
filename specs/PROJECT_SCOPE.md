@@ -80,3 +80,9 @@ CHG-0008 is archived after PR #9 merged through normal two-parent merge commit `
 ## CHG-0009 upstream wrapper MVP
 
 CHG-0009 is authorized to implement a minimal localhost-only wrapper around the independently running upstream Pilot. Scope is limited to health, account status, listener control, recent inbound message observation, and one manually confirmed test reply. It does not authorize product publishing, delisting, orders, refunds, ratings, scheduler, crawler, promotion, updater, AI automatic replies, automatic delivery, public services, or copying upstream source code.
+
+## CHG-0011 upstream-first product direction freeze
+
+The final product direction is locked to upstream-first execution. The pinned `zhinianboke/xianyu-auto-reply` deployment is the business application and execution engine for multi-account Xianyu login, online chat, keyword/default/product-specific replies, AI replies, context, intent, bargain handling, and real message send execution. `D:/xianyu` is the safety, governance, operations, validation, monitoring, backup/restore, and upgrade-control layer.
+
+Future business feature changes must first use the capability matrix and the decision hierarchy in `docs/UPSTREAM_FIRST_POLICY.md`. Equivalent upstream capabilities must be adopted, configured, or patched instead of rebuilt locally. CHG-0012 is not created by this section; the roadmap only reserves it for validating upstream native multi-account fixed-template reply behavior.
