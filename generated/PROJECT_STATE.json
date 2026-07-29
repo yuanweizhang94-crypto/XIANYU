@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 8,
-    "next_task": "T9 Publish Draft PR and complete final administration",
+    "completed": 9,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Record owner approval and executable wrapper scope",
@@ -45,7 +45,7 @@
       },
       {
         "text": "T9 Publish Draft PR and complete final administration",
-        "completed": false
+        "completed": true
       }
     ]
   },

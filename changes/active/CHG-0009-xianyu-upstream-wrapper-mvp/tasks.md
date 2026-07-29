@@ -10,12 +10,12 @@ Status: IMPLEMENTING
 - [x] T6 Add operator quickstart documentation
 - [x] T7 Run complete local verification
 - [x] T8 Execute supervised real Wrapper message loop
-- [ ] T9 Publish Draft PR and complete final administration
+- [x] T9 Publish Draft PR and complete final administration
 
 ## Current progress
 
-Completed tasks: 8 / 9
-Next task: T9 Publish Draft PR and complete final administration
+Completed tasks: 9 / 9
+Next task: Ready for project-owner review
 
 ## T1-T6 evidence
 
@@ -29,3 +29,8 @@ Local verification passed: `python scripts/validate_change.py`, `python -m ruff 
 ## T8 evidence
 
 Live supervised validation passed through the `D:/xianyu` Wrapper. The listener was started and stopped only through the whitelisted Wrapper command for `xianyu_pilot` websocket. The listener API reported healthy and connected, the account state remained logged in, and no platform risk verification was triggered. The corrected unique inbound test message `XIANYU-WRAPPER-TEST-20260729-1544-R9X6` matched exactly once from `CHAT_NEW_API`. The authorized acknowledgement `XIANYU-WRAPPER-ACK-20260729-1544-R9X6` was sent once through the Wrapper and observed exactly once as outbound. A duplicate attempt with identical parameters was rejected locally before a second platform delivery. All credentials remained local in ignored configuration, no authentication values were printed, sub2api remained unaffected, and automated business actions remained disabled.
+
+
+## T9 evidence
+
+Draft PR #10 was created at `https://github.com/yuanweizhang94-crypto/XIANYU/pull/10` from branch `feat/CHG-0009-xianyu-upstream-wrapper-mvp` targeting `main`. The initial PR head `4c35da83f8d54545b4036c964300bd701b41d435` passed GitHub Actions `quality`, `tests`, and `security`. The PR remains Draft during final administrative record update and is not merged.

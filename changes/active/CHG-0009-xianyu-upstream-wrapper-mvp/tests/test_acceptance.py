@@ -31,7 +31,7 @@ def test_chg_0009_tasks_are_ordered() -> None:
     assert lines[5] == "- [x] T6 Add operator quickstart documentation"
     assert lines[6] == "- [x] T7 Run complete local verification"
     assert lines[7] == "- [x] T8 Execute supervised real Wrapper message loop"
-    assert lines[-1] == "- [ ] T9 Publish Draft PR and complete final administration"
+    assert lines[-1] == "- [x] T9 Publish Draft PR and complete final administration"
 
 
 def test_chg_0009_wrapper_boundaries_are_fail_closed() -> None:
@@ -42,3 +42,4 @@ def test_chg_0009_wrapper_boundaries_are_fail_closed() -> None:
     assert "must not be retried automatically" in text
     assert "docker compose --project-name xianyu_pilot" in text
     assert "must not operate mysql, redis, backend-web, frontend, sub2api" in text
+    assert "PR #10" in text

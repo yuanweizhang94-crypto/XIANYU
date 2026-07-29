@@ -42,8 +42,8 @@ Status: IMPLEMENTING
 
 ## Progress
 
-Completed tasks: 8 / 9
-Next task: T9 Publish Draft PR and complete final administration
+Completed tasks: 9 / 9
+Next task: Ready for project-owner review
 
 ## Implementation evidence
 
@@ -55,3 +55,5 @@ Next task: T9 Publish Draft PR and complete final administration
 - T6 operator quickstart is documented in `docs/XIANYU_WRAPPER_QUICKSTART.md`.
 
 - T8 supervised live Wrapper validation passed: listener controlled through `D:/xianyu` Wrapper, live WebSocket connectivity was confirmed, the corrected unique inbound test message matched once from `CHAT_NEW_API`, the confirmed Wrapper reply succeeded once, the duplicate attempt was rejected locally, credentials remained local, no automatic actions occurred, sub2api remained unaffected, and the listener was stopped afterward.
+
+- T9 Draft PR administration completed: PR #10 was created, branch was pushed, initial GitHub Actions `quality`, `tests`, and `security` passed, and CHG-0009 remains unmerged for project-owner review.
