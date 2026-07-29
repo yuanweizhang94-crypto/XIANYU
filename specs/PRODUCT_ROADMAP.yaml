@@ -1,11 +1,11 @@
 product_goal: product_template_to_human_transfer
 current_priority: upstream_wrapper_mvp
-current_change: null
+current_change: CHG-0009-xianyu-upstream-wrapper-mvp
 last_completed_change: CHG-0008-xianyu-upstream-integration-foundation
 last_completed_pr: 9
 last_completed_merge_commit: e7a9205dfeafd8b5e0f617f1855ecc4a33d6441c
 pilot_status: P2_P6_PASSED_WITH_OPERATOR_DELISTED_CLEANUP
-next_minimum_action: create_CHG_0009_xianyu_upstream_wrapper_mvp
+next_minimum_action: implement_minimal_localhost_upstream_wrapper_mvp
 anti_drift_rules:
   - check_existing_capabilities_before_new_development
   - do_not_reimplement_account_message_reply_publish_schedule
@@ -31,3 +31,4 @@ allowed_future_recommendations:
   - WRAP
   - REPLACE_GRADUALLY
   - INSUFFICIENT_EVIDENCE
+wrapper_mvp_status: IMPLEMENTING
