@@ -32,7 +32,15 @@ A dedicated test account is required before P1-P7. It must not be a main operati
 
 Stop immediately on CAPTCHA, slider, face verification, device verification, risk-control prompts, unknown send/publish outcome, duplicate message, duplicate publish risk, public exposure requirement, unchangeable default credentials, Cookie log leakage, or any need to modify existing `D:/xianyu` business modules.
 
+## P0 runtime evidence
+
+P0 used Docker Desktop managed storage on the D drive. The accepted actual Docker Desktop WSL data location is `D:\Administrator\Documents\DockerDesktopWSL`. The previously planned empty directory `D:\DockerDesktopData` is not treated as the authoritative location and is not required for P0 acceptance.
+
+Docker data migration preserved the existing Docker environment: containers, images, volumes, and networks remained intact. The unrelated `sub2api`, `sub2api-redis`, and `sub2api-postgres` services remained healthy after recovery. The isolated pilot environment recovered with only `mysql`, `redis`, `backend-web`, and `frontend` services.
+
+The P0 service exposure remains localhost-only: backend-web is bound to `127.0.0.1:18089`, frontend is bound to `127.0.0.1:19000`, and MySQL and Redis have no host port mappings. P0 did not start WebSocket, scheduler, crawler, promotion, updater, Playwright, Patchright, Chromium, or any browser process. It did not connect to real Xianyu and did not process Cookie, Token, Session, Profile, message sending, or item publishing.
+
 ## Progress
 
-Completed tasks: 5 / 9
-Next task: T6 Execute local isolated P0 startup only after operator approves upstream runtime setup
+Completed tasks: 6 / 9
+Next task: T7 Execute supervised account P1-P3 only with a dedicated test account

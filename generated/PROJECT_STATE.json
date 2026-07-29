@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 9,
-    "completed": 5,
-    "next_task": "T6 Execute local isolated P0 startup only after operator approves upstream runtime setup",
+    "completed": 6,
+    "next_task": "T7 Execute supervised account P1-P3 only with a dedicated test account",
     "items": [
       {
         "text": "T1 Obtain explicit project-owner approval for CHG-0008",
@@ -33,7 +33,7 @@
       },
       {
         "text": "T6 Execute local isolated P0 startup only after operator approves upstream runtime setup",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T7 Execute supervised account P1-P3 only with a dedicated test account",

@@ -14,16 +14,32 @@ Status: IMPLEMENTING
 - Reference upstream is pinned to `5ce38ab2c4236f7eaa65983ce5c2da1f2fbd09af`.
 - Reference upstream license status is UNRESOLVED due absent LICENSE at pinned commit.
 - Upstream code is not copied into `D:/xianyu`.
-- Upstream code is not executed by this correction commit.
-- Remote scripts and prebuilt images are not used by this correction commit.
+- The initial correction commit did not execute upstream code.
+- P0 later executed only the isolated localhost upstream pilot startup path after operator approval.
+- Remote scripts and prebuilt upstream application images are not used by this change.
 - P0-P7 statuses are recorded truthfully.
 - Without a dedicated test account and operator participation, real Xianyu verification remains blocked.
 - Recommendation remains `INSUFFICIENT_EVIDENCE` until supervised pilot results exist.
 
+## P0 acceptance evidence
+
+- P0 = PASSED.
+- Docker Desktop WSL data actual location: `D:\Administrator\Documents\DockerDesktopWSL`.
+- Docker data migration result: Docker data successfully moved from C drive to D drive.
+- C drive free before migration: 8.15 GiB.
+- C drive free after migration: 16.25 GiB.
+- Docker resources preserved: containers, images, volumes, and networks.
+- Pilot services: mysql, redis, backend-web, frontend.
+- Administrator default password: replaced.
+- Network: localhost-only.
+- Real Xianyu connection: not performed.
+- Cookie / Token / Session / Profile: not processed.
+- P1 manual scan login: waiting for explicit operator approval.
+
 ## P0-P7 current status
 
-- P0 system startup: NOT_STARTED, waiting for operator-approved local runtime setup.
-- P1 manual scan login: BLOCKED, no dedicated supervised test account provided in this turn.
+- P0 system startup: PASSED, isolated localhost-only startup completed.
+- P1 manual scan login: WAITING_FOR_OPERATOR_APPROVAL, requires explicit operator approval and a dedicated supervised test account.
 - P2 online state: BLOCKED by P1.
 - P3 read-only message verification: BLOCKED by P1 and a second controlled test account/message source.
 - P4 manually confirmed reply: BLOCKED by P3.
@@ -33,5 +49,5 @@ Status: IMPLEMENTING
 
 ## Progress
 
-Completed tasks: 5 / 9
-Next task: T6 Execute local isolated P0 startup only after operator approves upstream runtime setup
+Completed tasks: 6 / 9
+Next task: T7 Execute supervised account P1-P3 only with a dedicated test account

@@ -18,7 +18,7 @@ def test_chg_0008_records_direction_correction_without_adapter_runtime() -> None
     text = combined_change_text()
     assert "Direction correction record" in text
     assert "stop manufacturing large adapter abstractions" in text
-    assert "WAITING_FOR_OPERATOR_APPROVED_P0_SETUP" in text
+    assert "WAITING_FOR_OPERATOR_APPROVED_P1_LOGIN" in text
     assert not (ROOT / "app" / "xianyu_system" / "adapters" / "xianyu").exists()
     for forbidden in [
         "FakeXianyuSessionAdapter",
@@ -34,8 +34,10 @@ def test_chg_0008_has_pinned_upstream_and_truthful_pilot_statuses() -> None:
     assert "AGPL-3.0" in text
     assert "5ce38ab2c4236f7eaa65983ce5c2da1f2fbd09af" in text
     assert "UNRESOLVED" in text
-    assert "P0 system startup: NOT_STARTED" in text
-    assert "P1 manual scan login: BLOCKED" in text
+    assert "P0 system startup: PASSED" in text
+    assert "P1 manual scan login: WAITING_FOR_OPERATOR_APPROVAL" in text
+    assert "D:\\Administrator\\Documents\\DockerDesktopWSL" in text
+    assert "Administrator default password: replaced" in text
     assert "Recommendation remains `INSUFFICIENT_EVIDENCE`" in text
 
 
@@ -49,4 +51,5 @@ def test_chg_0008_tasks_are_ordered_and_stop_before_supervised_account() -> None
         "- [x] T4 Define isolated deployment, test-account, credential, and live-operation boundaries",
         "- [x] T5 Record P0-P7 supervised pilot checklist and stop conditions",
     ]
-    assert lines[5].startswith("- [ ] T6 Execute local isolated P0 startup")
+    assert lines[5].startswith("- [x] T6 Execute local isolated P0 startup")
+    assert lines[6].startswith("- [ ] T7 Execute supervised account P1-P3")

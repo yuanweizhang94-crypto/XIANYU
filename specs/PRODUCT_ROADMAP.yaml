@@ -1,8 +1,8 @@
 product_goal: product_template_to_human_transfer
 current_priority: upstream_pilot
 current_change: CHG-0008-xianyu-upstream-integration-foundation
-pilot_status: WAITING_FOR_OPERATOR_APPROVED_P0_SETUP
-next_minimum_action: review_and_approve_localhost_only_upstream_runtime_setup
+pilot_status: WAITING_FOR_OPERATOR_APPROVED_P1_LOGIN
+next_minimum_action: approve_p1_manual_scan_login_with_dedicated_test_account
 anti_drift_rules:
   - check_existing_capabilities_before_new_development
   - do_not_reimplement_account_message_reply_publish_schedule
@@ -12,8 +12,8 @@ anti_drift_rules:
   - stop_on_captcha_face_verification_device_verification_or_risk_control
   - run_minimum_real_closed_loop_before_rewrite_decisions
 pilot_levels:
-  P0_system_startup: NOT_STARTED
-  P1_manual_scan_login: BLOCKED
+  P0_system_startup: PASSED
+  P1_manual_scan_login: WAITING_FOR_OPERATOR_APPROVAL
   P2_online_state: BLOCKED
   P3_read_only_message: BLOCKED
   P4_manual_confirmed_reply: BLOCKED

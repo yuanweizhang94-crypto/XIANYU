@@ -29,8 +29,16 @@ Use pinned public upstream projects in an isolated local lab to determine whethe
 
 The main repository records governance facts, upstream audit facts, deployment boundaries, and the P0-P7 checklist. It does not run live Xianyu, does not store Cookie material, does not copy upstream code, and does not create CHG-0009.
 
+## P0 isolated startup result
+
+P0 is PASSED for localhost-only upstream startup evidence. Docker Desktop data was moved from the C drive to the D drive through Docker Desktop managed storage. The actual Docker Desktop WSL data location is `D:\Administrator\Documents\DockerDesktopWSL`.
+
+The C drive free space increased from 8.15 GiB before the migration to 16.25 GiB after the migration. Docker containers, images, volumes, and networks were preserved. The isolated pilot runs only MySQL, Redis, backend-web, and frontend. The administrator default password has been replaced. Backend and frontend are localhost-only. No real Xianyu connection, QR login, Cookie, Token, Session, Profile, message sending, item publishing, WebSocket, scheduler, crawler, Playwright, Patchright, Chromium, or browser process was executed for P0.
+
+P1 manual scan login remains waiting for explicit operator approval and must not start without a separate authorization.
+
 ## Progress
 
-Completed tasks: 5 / 9
-Next task: T6 Execute local isolated P0 startup only after operator approves upstream runtime setup
-Pilot status: WAITING_FOR_OPERATOR_APPROVED_P0_SETUP
+Completed tasks: 6 / 9
+Next task: T7 Execute supervised account P1-P3 only with a dedicated test account
+Pilot status: WAITING_FOR_OPERATOR_APPROVED_P1_LOGIN

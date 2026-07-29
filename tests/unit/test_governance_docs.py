@@ -33,7 +33,9 @@ def test_chg_0008_upstream_pilot_governance_facts_are_recorded() -> None:
     agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
 
     assert "current_priority: upstream_pilot" in roadmap
-    assert "pilot_status: WAITING_FOR_OPERATOR_APPROVED_P0_SETUP" in roadmap
+    assert "pilot_status: WAITING_FOR_OPERATOR_APPROVED_P1_LOGIN" in roadmap
+    assert "P0_system_startup: PASSED" in roadmap
+    assert "P1_manual_scan_login: WAITING_FOR_OPERATOR_APPROVAL" in roadmap
     assert "recommendation: INSUFFICIENT_EVIDENCE" in roadmap
     assert "bda1a859df63fa5f24e51398fa80a23490bb6dfc" in upstream
     assert "AGPL-3.0" in upstream
