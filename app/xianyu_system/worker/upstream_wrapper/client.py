@@ -49,7 +49,16 @@ def _default_http(method: str, url: str, payload: Json | None, timeout: float, h
 
 
 def _default_runner(args: list[str], cwd: Path | None, stdin: str | None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(args, cwd=cwd, input=stdin, text=True, capture_output=True, check=False)
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    return subprocess.run(
+        args,
+        cwd=cwd,
+        input=stdin,
+        text=True,
+        capture_output=True,
+        check=False,
+        creationflags=creationflags,
+    )
 
 
 class UpstreamWrapper:

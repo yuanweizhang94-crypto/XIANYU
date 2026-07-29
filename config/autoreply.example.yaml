@@ -1,0 +1,38 @@
+enabled: false
+mode: disabled
+poll_seconds: 5
+state_dir: .local/autoreply
+
+account_allowlist:
+  - "<local-account-reference>"
+
+allowed_message_types:
+  - text
+
+conversation_cooldown_seconds: 30
+max_replies_per_conversation_per_hour: 10
+max_replies_per_account_per_hour: 100
+
+rules:
+  - id: availability
+    contains:
+      - "还在吗"
+      - "还有吗"
+      - "在吗"
+    reply: "您好，在的，商品目前仍可咨询。"
+  - id: shipping
+    contains:
+      - "包邮吗"
+      - "怎么发货"
+      - "什么快递"
+    reply: "您好，发货方式和运费请以商品页面说明为准。"
+  - id: price
+    contains:
+      - "最低多少"
+      - "多少钱"
+      - "能便宜吗"
+    reply: "您好，当前价格请以商品页面标价为准。"
+
+fallback:
+  enabled: true
+  reply: "您好，消息已经收到，我会尽快为您确认。"
