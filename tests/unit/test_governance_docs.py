@@ -31,12 +31,21 @@ def test_chg_0008_upstream_pilot_governance_facts_are_recorded() -> None:
     roadmap = (ROOT / "specs" / "PRODUCT_ROADMAP.yaml").read_text(encoding="utf-8")
     upstream = (ROOT / "specs" / "UPSTREAM_REGISTRY.yaml").read_text(encoding="utf-8")
     agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    archived_acceptance = (
+        ROOT / "changes" / "archive" / "CHG-0008-xianyu-upstream-integration-foundation" / "acceptance.md"
+    ).read_text(encoding="utf-8")
 
-    assert "current_priority: upstream_pilot" in roadmap
-    assert "pilot_status: WAITING_FOR_OPERATOR_APPROVED_P1_LOGIN" in roadmap
+    assert "current_priority: upstream_wrapper_mvp" in roadmap
+    assert "pilot_status: P2_P6_PASSED_WITH_OPERATOR_DELISTED_CLEANUP" in roadmap
     assert "P0_system_startup: PASSED" in roadmap
-    assert "P1_manual_scan_login: WAITING_FOR_OPERATOR_APPROVAL" in roadmap
-    assert "recommendation: INSUFFICIENT_EVIDENCE" in roadmap
+    assert "P1_manual_scan_login: PASSED" in roadmap
+    assert "P6_manual_cleanup: PASSED_OPERATOR_DELISTED_NOT_DELETED" in roadmap
+    assert "recommendation: WRAP" in roadmap
+    assert "allowed_next_change: CHG-0009-xianyu-upstream-wrapper-mvp" in roadmap
+    assert "Status: ARCHIVED" in archived_acceptance
+    assert "P2 online state: PASSED" in archived_acceptance
+    assert "P6 test listing cleanup: PASSED as operator-delisted cleanup, not deletion" in archived_acceptance
+    assert "Final recommendation: `WRAP`" in archived_acceptance
     assert "bda1a859df63fa5f24e51398fa80a23490bb6dfc" in upstream
     assert "AGPL-3.0" in upstream
     assert "5ce38ab2c4236f7eaa65983ce5c2da1f2fbd09af" in upstream

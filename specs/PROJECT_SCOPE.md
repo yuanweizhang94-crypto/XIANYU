@@ -72,3 +72,7 @@ CHG-0008 is created as a governance and clean-room adapter foundation change. It
 - Local verified capability means deterministic local evidence only; it does not mean live Xianyu operation works.
 - Stop on CAPTCHA, slider, face verification, device verification, risk-control prompts, unknown outcomes, or uncertain permissions.
 - CHG-0008 is an upstream pilot governance and evidence change. It must not create CHG-0009 or `app/xianyu_system/adapters/xianyu/` without later pilot evidence proving a specific interface is needed.
+
+## CHG-0008 archived upstream integration foundation
+
+CHG-0008 is archived after PR #9 merged through normal two-parent merge commit `e7a9205dfeafd8b5e0f617f1855ecc4a33d6441c`. The upstream Pilot produced supervised P0-P6 evidence and the decision `WRAP`. The next separately authorized step may create CHG-0009 for a minimal localhost-only upstream wrapper. CHG-0008 itself does not make live Xianyu operation generally available in the main repository.

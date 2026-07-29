@@ -1,5 +1,5 @@
 Change ID: CHG-0008-xianyu-upstream-integration-foundation
-Status: VERIFYING
+Status: ARCHIVED
 # Acceptance
 
 ## Corrected CHG-0008 acceptance
@@ -152,3 +152,11 @@ The upstream is promising as an isolated supervised Pilot reference, but CHG-000
 
 Completed tasks: 9 / 9
 Next task: null
+
+## Post-merge archive record
+
+CHG-0008 is archived after PR #9 merged into `main` through normal two-parent merge commit `e7a9205dfeafd8b5e0f617f1855ecc4a33d6441c`. Merged feature HEAD was `28220961586f4ea0008636d59635a39f6b44684d`.
+
+The archived result preserves the supervised upstream Pilot evidence: P0 startup passed, P1 supervised login passed, P2 WebSocket online validation passed, P3 read-only message receiving passed, P4 manual reply observation passed, P5 manual test listing publication passed by operator attestation and side-effect audit, P6 cleanup passed as operator-delisted cleanup rather than deletion, and P7 one-time schedule was not executed.
+
+The final recommendation remains `WRAP`. CHG-0008 did not copy upstream code into `D:/xianyu`, did not commit Cookie, Token, Session, browser Profile, account secrets, message bodies, or credential values, did not adopt the upstream runtime into the main repository, did not enable scheduler, crawler, promotion, updater, automatic reply, automatic delivery, automatic publishing, or automatic deletion, and did not create CHG-0009 before archive. The next separately authorized change may create CHG-0009-xianyu-upstream-wrapper-mvp from latest `main` to wrap only the narrow supervised upstream behavior proven by CHG-0008.

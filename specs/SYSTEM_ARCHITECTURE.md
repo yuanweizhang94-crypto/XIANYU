@@ -34,3 +34,7 @@ This change writes architecture only. It does not implement the capabilities abo
 - Local verified capability means deterministic local evidence only; it does not mean live Xianyu operation works.
 - Stop on CAPTCHA, slider, face verification, device verification, risk-control prompts, unknown outcomes, or uncertain permissions.
 - CHG-0008 is an upstream pilot governance and evidence change. It must not create CHG-0009 or `app/xianyu_system/adapters/xianyu/` without later pilot evidence proving a specific interface is needed.
+
+## CHG-0008 wrapper decision
+
+CHG-0008 selected `WRAP` after supervised upstream Pilot evidence. The architecture direction is not to vendor or rewrite upstream protocol code. Future integration should use a narrow localhost-only wrapper around the independent upstream Pilot service while keeping Cookie, Token, Session, browser Profile, and platform protocol details outside `D:/xianyu`.

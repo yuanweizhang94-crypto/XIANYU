@@ -106,6 +106,12 @@ CHG-0007 is complete and archived. PR #8 merged into `main` through normal two-p
 
 The next recommended separately authorized project is a supervised real Xianyu integration feasibility spike before WeCom and AI. This roadmap note does not create or authorize CHG-0008.
 
+## CHG-0008 archived upstream integration foundation
+
+CHG-0008 is complete and archived. PR #9 merged into `main` through normal two-parent merge commit `e7a9205dfeafd8b5e0f617f1855ecc4a33d6441c`. The final recommendation is `WRAP`: keep the pinned upstream as an isolated supervised Pilot reference and create only a narrow local wrapper in a later change. P0-P6 passed with a dedicated test account; P6 cleanup was operator-delisted, not deletion; P7 one-time schedule was not executed. No upstream source code, Cookie, Token, Session, browser Profile, credential value, message body, scheduler, crawler, promotion, updater, automatic reply, automatic publishing, or automatic deletion entered the main repository.
+
+The next separately authorized change may be `CHG-0009-xianyu-upstream-wrapper-mvp`, created from latest `main`, to implement a minimal localhost-only wrapper for health, account status, listener control, recent inbound message observation, and one manually confirmed test reply.
+
 
 ## CHG-0007 final PR administration
 
