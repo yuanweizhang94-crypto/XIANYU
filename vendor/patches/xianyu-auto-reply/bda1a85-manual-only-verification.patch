@@ -1,0 +1,251 @@
+﻿diff --git a/common/services/captcha/manual_verification.py b/common/services/captcha/manual_verification.py
+new file mode 100644
+index 0000000..32ac42b
+--- /dev/null
++++ b/common/services/captcha/manual_verification.py
+@@ -0,0 +1,128 @@
++"""Manual-only platform verification helper.
++
++This mode opens the official verification URL in a visible local browser and
++waits for the account owner to complete the page. It never moves the mouse,
++types, clicks, drags, injects trajectories, or calls a remote solver.
++"""
++from __future__ import annotations
++
++import os
++import time
++from http.cookiejar import Cookie
++from typing import Dict, Iterable
++from urllib.parse import urlparse
++
++from loguru import logger
++
++from common.utils.xianyu_utils import trans_cookies
++
++_ALLOWED_HOST_SUFFIXES = (
++    ".goofish.com",
++    ".taobao.com",
++    ".tmall.com",
++    ".alibaba.com",
++    "goofish.com",
++    "taobao.com",
++    "tmall.com",
++    "alibaba.com",
++)
++_ALLOWED_COOKIE_NAMES = {"x5sec"}
++
++
++def is_manual_only_enabled() -> bool:
++    return str(os.getenv("CAPTCHA_MANUAL_ONLY", "")).strip().lower() in {
++        "1",
++        "true",
++        "yes",
++        "on",
++    }
++
++
++def manual_timeout_seconds(default: int = 300) -> int:
++    raw = str(os.getenv("CAPTCHA_MANUAL_TIMEOUT_SECONDS", default)).strip()
++    try:
++        value = int(raw)
++    except ValueError:
++        value = default
++    return max(30, min(value, 300))
++
++
++def _host_allowed(url: str) -> bool:
++    host = (urlparse(url).hostname or "").lower()
++    return any(host == suffix or host.endswith(suffix) for suffix in _ALLOWED_HOST_SUFFIXES)
++
++
++def _allowed_cookie(name: str) -> bool:
++    normalized = name.strip().lower()
++    return normalized in _ALLOWED_COOKIE_NAMES or normalized.startswith("x5")
++
++
++def _existing_cookie_payloads(cookies_str: str) -> list[dict[str, object]]:
++    payloads: list[dict[str, object]] = []
++    cookies = trans_cookies(cookies_str or "")
++    for name, value in cookies.items():
++        if not name:
++            continue
++        for domain in (".goofish.com", ".taobao.com", ".tmall.com"):
++            payloads.append({"name": name, "value": value, "domain": domain, "path": "/"})
++    return payloads
++
++
++def _extract_allowed(cookies: Iterable[dict[str, object] | Cookie]) -> Dict[str, str]:
++    extracted: Dict[str, str] = {}
++    for cookie in cookies:
++        if isinstance(cookie, Cookie):
++            name = cookie.name
++            value = cookie.value
++        else:
++            name = str(cookie.get("name") or "")
++            value = str(cookie.get("value") or "")
++        if name and value and _allowed_cookie(name):
++            extracted[name] = value
++    return extracted
++
++
++def run_manual_verification(
++    user_id: str,
++    url: str,
++    *,
++    existing_cookies_str: str = "",
++    browser_timeout: int = 300,
++) -> tuple[bool, Dict[str, str] | None]:
++    """Open the official verification page and wait for owner-completed x5 cookies."""
++    if not _host_allowed(url):
++        logger.warning(f"[manual-verification] account={user_id} blocked non-official verification host")
++        return False, None
++
++    timeout = min(manual_timeout_seconds(browser_timeout), browser_timeout if browser_timeout else 300)
++    logger.warning(
++        f"[manual-verification] account={user_id} opening visible official verification page; "
++        f"owner action required within {timeout} seconds"
++    )
++
++    from playwright.sync_api import sync_playwright
++
++    started = time.monotonic()
++    with sync_playwright() as playwright:
++        browser = playwright.chromium.launch(headless=False)
++        context = browser.new_context()
++        try:
++            payloads = _existing_cookie_payloads(existing_cookies_str)
++            if payloads:
++                context.add_cookies(payloads)
++            page = context.new_page()
++            page.goto(url, wait_until="domcontentloaded", timeout=min(timeout, 60) * 1000)
++            while time.monotonic() - started <= timeout:
++                cookies = _extract_allowed(context.cookies())
++                if cookies:
++                    logger.info(
++                        f"[manual-verification] account={user_id} owner-completed page produced "
++                        f"{len(cookies)} allowed cookie fields"
++                    )
++                    return True, cookies
++                page.wait_for_timeout(1000)
++            logger.warning(f"[manual-verification] account={user_id} timed out waiting for owner completion")
++            return False, None
++        finally:
++            context.close()
++            browser.close()
+diff --git a/common/services/captcha/orchestrator.py b/common/services/captcha/orchestrator.py
+index 5d1c1e6..a24841e 100644
+--- a/common/services/captcha/orchestrator.py
++++ b/common/services/captcha/orchestrator.py
+@@ -21,6 +21,10 @@ from common.services.captcha.drissionpage_slider import (
+     run_drissionpage_verification,
+     DRISSIONPAGE_AVAILABLE,
+ )
++from common.services.captcha.manual_verification import (
++    is_manual_only_enabled,
++    run_manual_verification,
++)
+ 
+ 
+ def _has_x5sec(cookies: Optional[Dict[str, str]]) -> bool:
+@@ -168,6 +172,17 @@ def run_slider_verification_with_fallback(
+         (是否成功, cookies 字典 | None, 通过引擎 | None)
+         通过引擎取值：'playwright'（主引擎）/ 'drissionpage'（兜底引擎）/ 'real_mouse'（真实鼠标）/ 'remote'（远程接口）/ None（未成功）
+     """
++    if is_manual_only_enabled():
++        ok, manual_cookies = run_manual_verification(
++            user_id,
++            url,
++            existing_cookies_str=existing_cookies_str,
++            browser_timeout=max(browser_timeout, 300),
++        )
++        if ok and _has_x5sec(manual_cookies):
++            return True, manual_cookies, "manual"
++        return False, None, "manual"
++
+     # -1. 远程过滑块（可选，由全局配置 remote_config 触发）：
+     #     已配置则优先调远程接口求解；超时/网络不可用 → 回退本机逻辑；
+     #     非超时（远程有返回，无论成败）→ 直接采用远程结果，不回退。
+diff --git a/websocket/app/core/config.py b/websocket/app/core/config.py
+index 410c21f..18247cf 100644
+--- a/websocket/app/core/config.py
++++ b/websocket/app/core/config.py
+@@ -49,6 +49,14 @@ class WebSocketConfig(BaseConfig):
+     captcha_drissionpage_headless: bool = Field(
+         default=True, alias="CAPTCHA_DRISSIONPAGE_HEADLESS"
+     )
++
++    # Manual-only official verification mode. When enabled, captcha orchestration
++    # opens a visible local browser and waits for the owner; it does not use
++    # automated slider, real_mouse, DrissionPage, or remote solving.
++    captcha_manual_only: bool = Field(default=False, alias="CAPTCHA_MANUAL_ONLY")
++    captcha_manual_timeout_seconds: int = Field(
++        default=300, alias="CAPTCHA_MANUAL_TIMEOUT_SECONDS"
++    )
+     
+     # 服务间通信URL
+     backend_web_service_url: str = Field(
+diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
+index 4864a47..d271f73 100644
+--- a/websocket/app/services/xianyu/cookie_token_manager.py
++++ b/websocket/app/services/xianyu/cookie_token_manager.py
+@@ -23,6 +23,7 @@ from common.db.session import async_session_maker
+ from common.models.system_setting import SystemSetting
+ from common.models.token_cache import TokenCache
+ from common.services.im_token_api import extract_im_access_token, request_im_token
++from common.services.account_cookie_service import merge_account_cookie_fields
+ from common.services.risk_control_log_query_service import (
+     check_account_processing_risk_control_log,
+     get_account_risk_control_lock,
+@@ -718,7 +719,10 @@ class CookieTokenManager:
+                 if success and cookies:
+                     logger.info(f"【{self.cookie_id}】滑块验证成功，获取到新的cookies")
+                     # 打印滑块验证返回的全部cookies
+-                    logger.warning(f"【{self.cookie_id}】滑块验证返回的全部cookies: {cookies}")
++                    if captcha_engine == "manual":
++                        logger.info(f"【{self.cookie_id}】手动验证返回 {len(cookies)} 个Cookie字段，不打印值")
++                    else:
++                        logger.warning(f"【{self.cookie_id}】滑块验证返回的全部cookies: {cookies}")
+                     
+                     # 更新风控日志为成功状态
+                     captcha_duration = time.time() - captcha_start_time
+@@ -729,6 +733,7 @@ class CookieTokenManager:
+                                 'drissionpage': '兜底引擎(DrissionPage)',
+                                 'real_mouse': '真人鼠标引擎(RealMouse)',
+                                 'remote': '远程接口(Remote)',
++                                'manual': '手动验证(Manual)',
+                                 'playwright': '主引擎(Playwright)',
+                             }
+                             engine_label = engine_label_map.get(captcha_engine, '主引擎(Playwright)')
+@@ -800,10 +805,28 @@ class CookieTokenManager:
+                         self.cookies_str = cookies_str
+                         self.cookies = updated_cookies
+                         
+-                        # 打印更新后的x5sec值
+-                        logger.warning(f"【{self.cookie_id}】准备保存到数据库的x5sec: {updated_cookies.get('x5sec', '无')}")
+-
+-                        await self.update_config_cookies()
++                        if captcha_engine == "manual":
++                            account_record = await self._load_account_record()
++                            if not account_record:
++                                raise RuntimeError("manual verification account row not found")
++                            saved_cookies_str = await merge_account_cookie_fields(
++                                int(account_record.id),
++                                self.cookie_id,
++                                x5sec_cookies,
++                            )
++                            if not saved_cookies_str:
++                                raise RuntimeError("manual verification cookie merge failed")
++                            self.cookies_str = saved_cookies_str
++                            self.cookies = trans_cookies(saved_cookies_str)
++                            cookies_str = saved_cookies_str
++                            logger.info(
++                                f"【{self.cookie_id}】手动验证Cookie已通过账号Cookie服务合并: "
++                                f"{len(x5sec_cookies)} 个字段"
++                            )
++                        else:
++                            # 打印更新后的x5sec值
++                            logger.warning(f"【{self.cookie_id}】准备保存到数据库的x5sec: {updated_cookies.get('x5sec', '无')}")
++                            await self.update_config_cookies()
+                         logger.info(f"【{self.cookie_id}】滑块验证成功后，数据库cookies已自动更新")
+                         logger.info(f"【{self.cookie_id}】滑块验证成功: 新增{new_cookie_count}个x5, 更新{updated_cookie_count}个x5")
+ 
