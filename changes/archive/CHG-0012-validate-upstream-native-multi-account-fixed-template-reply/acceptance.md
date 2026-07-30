@@ -1,5 +1,5 @@
 Change ID: CHG-0012-validate-upstream-native-multi-account-fixed-template-reply
-Status: APPROVED
+Status: ARCHIVED
 # Acceptance
 
 ## APPROVED acceptance criteria
@@ -224,3 +224,86 @@ Not applicable. No local build exception is requested.
 ## Retirement plan for overlapping local code
 
 CHG-0010 local worker remains frozen/deprecated. CHG-0015 remains the retirement evaluation phase after upstream native validation.
+
+## Final closeout acceptance verdict
+
+Acceptance verdict:
+
+`BLOCKED_BY_PLATFORM_VERIFICATION_GAP`
+
+Blocking cause:
+
+`PLATFORM_MANUAL_VERIFICATION_CAPABILITY_GAP`
+
+CHG-0012 is archived without claiming live validation success, production readiness, or validation failure of the upstream fixed-template reply capability.
+
+Live capabilities verified:
+
+- Pinned upstream identity.
+- Static multi-account configuration evidence.
+- Static fixed-template reply capability evidence.
+- Websocket service build/start/health capability.
+- Backend-to-websocket control URL correction.
+- Account task creation.
+- CHG-0010 local worker stopped.
+- No second sender observed.
+- Safety cap, cleanup, and fail-closed procedure.
+- No automatic replies produced during attempted validation.
+- Repository verification passed.
+
+Live capabilities unverified:
+
+- Keyword reply live result.
+- Account isolation live result.
+- Default reply.
+- `reply_once`.
+- Product-specific reply.
+- Variables.
+- Filtering.
+- Pause/resume.
+- Delay.
+- Duplicate protection.
+- Live logs.
+- Production activation.
+
+Evidence report records:
+
+- `MESSAGE_SERVICE_RESTART_DID_NOT_RECOVER`
+- `WEBSOCKET_RUNNING_ACCOUNTS_DISCONNECTED`
+- `TOKEN PATH DIAGNOSTIC`
+- `NATIVE TOKEN STAGE REPORT`
+- `ONLINE CHAT AND TOKEN VERIFICATION REPORT`
+- `MANUAL VERIFICATION CAPABILITY AUDIT`
+
+Redaction constraints honored:
+
+- No Cookie values.
+- No Token values.
+- No Device ID values.
+- No original account identifiers.
+- No complete verification URL or punish URL.
+- No customer message body.
+- No raw platform response body.
+
+Configuration correction:
+
+- WebSocket control URL mismatch was confirmed.
+- Pilot `.pilot` configuration was corrected locally.
+- Original configuration backup is stored outside the repository.
+- `.pilot` files are not submitted.
+- No secret values are included.
+
+Rollback state:
+
+- Websocket remains stopped.
+- Formal rules do not exist.
+- Local worker remains stopped.
+- Follow-up work must first complete an independent manual verification handoff Change.
+
+Forbidden conclusions:
+
+- Not `PASSED`.
+- Not `LIVE_VALIDATION_PASSED`.
+- Not `VALIDATION_FAILED`.
+- Not `READY_FOR_PRODUCTION`.
+- Not `PRODUCTION_AUTOREPLY_ENABLED`.
