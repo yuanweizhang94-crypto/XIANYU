@@ -1,0 +1,137 @@
+Change ID: CHG-0016-local-only-manual-platform-verification-handoff
+Status: DRAFT
+# Acceptance
+
+## DRAFT acceptance
+
+This DRAFT is acceptable when:
+
+- The Change status is `DRAFT`.
+- Reuse decision is `WRAP_FOR_OPERATIONS`.
+- Upstream pinned/latest evidence is recorded.
+- Local historical search evidence is recorded.
+- No manual verification implementation is added.
+- No runtime, frontend, backend route, browser helper, dependency, Docker service, database migration, or upstream tracked source file is added.
+- No platform verification is started.
+- No Token API is called.
+- No Cookie or token cache is changed.
+- No websocket, scheduler, or CHG-0010 worker is started.
+- No message is sent.
+- Threat model covers the required risks.
+- Test plan covers unit, structure, fake-browser, local integration, and separately approved live validation.
+
+## Future implementation acceptance
+
+An implementation Change must prove:
+
+1. Owner scope blocks cross-account handoff.
+2. One task per account and one task globally are enforced.
+3. Verification URL is memory-only, single-use, not logged, and expires within five minutes.
+4. Browser is visible and uses an isolated temporary profile.
+5. Programmatic mouse, keyboard, click, drag, trajectory, Playwright solver, DrissionPage solver, real_mouse, and remote solver calls are structurally absent.
+6. Browser host allowlist blocks arbitrary URL navigation.
+7. Cookie values are never logged or returned.
+8. Only allowed Cookie delta fields are merged.
+9. Wrong-account Cookie write is blocked.
+10. Complete without expected Cookie delta is blocked.
+11. Cookie merge uses upstream account service and does not write directly to the database.
+12. Token recovery returns to upstream native online-chat and automatic-reply Token flows.
+13. The bridge does not create or copy IM Tokens.
+14. The bridge does not send messages.
+15. Unknown state fails closed.
+
+## Test plan
+
+Unit tests:
+
+- owner scope.
+- task state transitions.
+- TTL expiry.
+- cancel.
+- one-task-per-account.
+- URL host allowlist.
+- URL never logged.
+- Cookie value never logged.
+- unknown state fail closed.
+- no automatic browser interaction.
+- allowed Cookie delta.
+- rejected Cookie field.
+- wrong-account write blocked.
+- complete without expected Cookie blocked.
+- direct DB write absent.
+
+Structure tests must forbid imports or calls to:
+
+- `solve_slider`.
+- trajectory generator.
+- `pyautogui`.
+- DrissionPage solver.
+- remote captcha client.
+- message sender.
+
+Fake browser tests:
+
+- open called once.
+- mouse functions never called.
+- keyboard functions never called.
+- click never called.
+- drag never called.
+- Cookie delta returned.
+- timeout cleanup.
+- cancel cleanup.
+
+Integration tests:
+
+- local fake official verification page only.
+- owner manually completes simulated task.
+- expected fake Cookie delta appears.
+- upstream account service merge called once.
+- Token client not implemented by bridge.
+- no message send.
+
+Live platform validation:
+
+- Future separate approval only.
+- ACCOUNT-A only.
+- One attempt.
+- Owner manual operation.
+- No automated interaction.
+- No messages.
+- Online chat recovery before automatic reply recovery.
+- CHG-0012 business matrix resumes only after the manual handoff is proven.
+
+## Upstream capability audit
+
+Evidence is recorded in `evidence/upstream-audit.md`.
+
+## Pinned upstream evidence
+
+Pinned upstream SHA: `bda1a859df63fa5f24e51398fa80a23490bb6dfc`.
+
+## Existing local implementation search
+
+No reusable local manual bridge exists.
+
+## Reuse decision
+
+Decision: WRAP_FOR_OPERATIONS
+
+## Duplicate implementation risk
+
+High if this Change creates a second sender, Token client, websocket, automatic reply executor, or browser solver. DRAFT acceptance forbids those outcomes.
+
+## Why upstream cannot satisfy the requirement
+
+Upstream lacks a pure manual local handoff and only provides automated or remote-solving verification paths.
+
+## Approved exception ADR
+
+Not applicable.
+
+## Component owner
+
+Upstream remains business runtime owner. The handoff is operations-only.
+
+## Retirement plan for overlapping local code
+
+Keep CHG-0010 frozen/deprecated and do not expand it.
