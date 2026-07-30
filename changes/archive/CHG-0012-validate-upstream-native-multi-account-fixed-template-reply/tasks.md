@@ -1,5 +1,5 @@
 Change ID: CHG-0012-validate-upstream-native-multi-account-fixed-template-reply
-Status: APPROVED
+Status: ARCHIVED
 # Tasks
 
 - [x] T1 Complete owner approval matrix.
@@ -12,12 +12,12 @@ Status: APPROVED
 - [x] T8 Check scheduler/restart/reconnect reactivation risk.
 - [x] T9 Define masked evidence and report requirements.
 - [x] T10 Strengthen acceptance tests.
-- [ ] T11 Run all repository validation.
+- [x] T11 Run all repository validation.
 
 ## Current progress
 
-Completed tasks: 10 / 11
-Next task: T11 Run all repository validation.
+Completed tasks: 11 / 11
+Next task: null
 
 ## APPROVED allowed work
 
@@ -92,3 +92,30 @@ Upstream owns native business execution. `D:/xianyu` owns safety gates, evidence
 ## Retirement plan for overlapping local code
 
 Keep CHG-0010 `FREEZE_AND_DEPRECATE`; evaluate retirement in CHG-0015 after CHG-0012 and CHG-0013.
+
+## Closeout tasks
+
+- [x] T12 Record message service restart did not recover live validation.
+- [x] T13 Record websocket running with accounts disconnected before token recovery.
+- [x] T14 Record token-path diagnostic conclusion.
+- [x] T15 Record native token stage report.
+- [x] T16 Record online-chat and token verification report.
+- [x] T17 Record manual verification capability audit.
+- [x] T18 Confirm runtime stop state.
+- [x] T19 Archive CHG-0012 with `BLOCKED_BY_PLATFORM_VERIFICATION_GAP`.
+
+## Final closeout status
+
+CHG-0012 is archived because live validation is blocked by `PLATFORM_MANUAL_VERIFICATION_CAPABILITY_GAP`.
+
+This closeout did not:
+
+- Start websocket.
+- Start scheduler.
+- Start CHG-0010 local worker.
+- Start browser automation.
+- Request a platform Token.
+- Log in any account.
+- Send any message.
+- Modify upstream tracked source.
+- Add business implementation.

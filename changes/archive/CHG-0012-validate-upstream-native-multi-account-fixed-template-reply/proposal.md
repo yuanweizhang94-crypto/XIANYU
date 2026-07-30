@@ -1,5 +1,5 @@
 Change ID: CHG-0012-validate-upstream-native-multi-account-fixed-template-reply
-Status: APPROVED
+Status: ARCHIVED
 # Proposal
 
 ## Title
@@ -149,3 +149,67 @@ Not applicable. No `BUILD_LOCAL_EXCEPTION` is requested or allowed by this DRAFT
 ## Retirement plan for overlapping local code
 
 CHG-0010 local autoreply worker remains `FREEZE_AND_DEPRECATE`. It may be used only as historical evidence or later owner-approved controlled diagnostic comparison. It must not be restored as the formal executor. CHG-0015 remains the planned retirement evaluation after CHG-0012 and CHG-0013 validation.
+
+## Closeout summary
+
+CHG-0012 is archived without production activation. The feature was not judged failed. Live validation was blocked by the platform verification precondition:
+
+`PLATFORM_MANUAL_VERIFICATION_CAPABILITY_GAP`
+
+The final acceptance verdict is:
+
+`BLOCKED_BY_PLATFORM_VERIFICATION_GAP`
+
+Validated evidence:
+
+- Pinned upstream identity was confirmed at `bda1a859df63fa5f24e51398fa80a23490bb6dfc`.
+- Pinned upstream remained detached at the approved pilot checkout.
+- Multi-account configuration isolation has static upstream evidence.
+- Upstream native fixed-template reply capability exists in source evidence.
+- The websocket service can be built, started, and health checked.
+- Backend-to-websocket control URL mismatch was confirmed and corrected in the local pilot `.pilot` configuration.
+- Account tasks can be created.
+- CHG-0010 local worker remained stopped.
+- No second sender was observed.
+- Safety caps, cleanup flow, and fail-closed handling were effective.
+- No attempted validation produced an automatic reply.
+- Repository verification passed after closeout.
+
+Unverified live capabilities:
+
+- Keyword reply live result.
+- Account isolation live result.
+- Default reply.
+- `reply_once`.
+- Product-specific reply.
+- Variables.
+- Filtering.
+- Pause/resume.
+- Delay.
+- Duplicate protection.
+- Live logs.
+- Production activation.
+
+Root cause:
+
+- The upstream IM Token API returned an official platform verification requirement.
+- The account login itself remained valid; there was no evidence requiring relogin.
+- Pinned upstream only provides automated slider handling through browser automation, DrissionPage, real_mouse, or remote solver paths.
+- Current safety authorization forbids automated solving and remote solving.
+- Pinned upstream, latest upstream, and local historical research did not contain a reusable pure manual verification handoff.
+- Therefore CHG-0012 live validation cannot continue until an independent manual verification handoff Change is designed, approved, and implemented.
+
+Final runtime safety state:
+
+- Websocket remains stopped.
+- Port 18090 is not listening.
+- Scheduler remains stopped.
+- Local worker reports `running=False`.
+- CHG12 keyword rules: 0.
+- CHG12 filters: 0.
+- Enabled default replies: 0.
+- Autoreply logs: 0.
+- ACCOUNT-A processing risk rows: 0.
+- Browser/captcha automation process count: 0.
+- Messages sent by CHG-0012 validation: 0.
+- Upstream tracked source remained unchanged.
