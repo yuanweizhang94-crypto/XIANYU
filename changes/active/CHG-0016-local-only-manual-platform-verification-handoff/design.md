@@ -1,10 +1,10 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: DRAFT
+Status: IMPLEMENTING
 # Design
 
 ## Scope
 
-This DRAFT designs a local-only manual platform verification handoff. It does not implement the handoff.
+This Change implements a local-only manual platform verification handoff as a default-off upstream patch plus a CHG-0009 operations wrapper.
 
 The intended runtime owner split is:
 
@@ -220,7 +220,10 @@ Local historical search found no reusable manual bridge. Existing local worker p
 
 ## Reuse decision
 
-Decision: WRAP_FOR_OPERATIONS
+Decision: PATCH_UPSTREAM
+
+The upstream patch is recorded at `vendor/patches/xianyu-auto-reply/bda1a85-manual-only-verification.patch`.
+The local wrapper only manages the host process lifecycle for the patched upstream websocket listener.
 
 ## Duplicate implementation risk
 
@@ -232,7 +235,7 @@ Existing upstream paths automate the verification or call remote services. They 
 
 ## Approved exception ADR
 
-Not applicable. No build exception is requested in this DRAFT.
+Not applicable. No build exception is requested.
 
 ## Component owner
 

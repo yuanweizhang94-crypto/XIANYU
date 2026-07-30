@@ -1,26 +1,27 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: DRAFT
+Status: IMPLEMENTING
 # Acceptance
 
-## DRAFT acceptance
+## IMPLEMENTING acceptance
 
-This DRAFT is acceptable when:
+This implementation is acceptable when:
 
-- The Change status is `DRAFT`.
-- Reuse decision is `WRAP_FOR_OPERATIONS`.
+- The Change status is `IMPLEMENTING` or `VERIFYING`.
+- Reuse decision is `PATCH_UPSTREAM`.
 - Upstream pinned/latest evidence is recorded.
 - Local historical search evidence is recorded.
-- No manual verification implementation is added.
-- No runtime, frontend, backend route, browser helper, dependency, Docker service, database migration, or upstream tracked source file is added.
-- No platform verification is started.
-- No Token API is called.
-- No Cookie or token cache is changed.
+- The upstream patch artifact is recorded with pinned base SHA and SHA256.
+- CHG-0009 wrapper starts and stops only the host patched upstream websocket process.
+- Docker websocket and host manual-listener are mutually exclusive.
+- No second IM, Token, WebSocket, sender, or automatic reply executor is created.
+- No automated page interaction or remote solver is added.
+- Default replies remain disabled pending owner decision after ignored backup.
 - No websocket, scheduler, or CHG-0010 worker is started.
 - No message is sent.
 - Threat model covers the required risks.
 - Test plan covers unit, structure, fake-browser, local integration, and separately approved live validation.
 
-## Future implementation acceptance
+## Implementation acceptance
 
 An implementation Change must prove:
 
@@ -114,11 +115,11 @@ No reusable local manual bridge exists.
 
 ## Reuse decision
 
-Decision: WRAP_FOR_OPERATIONS
+Decision: PATCH_UPSTREAM
 
 ## Duplicate implementation risk
 
-High if this Change creates a second sender, Token client, websocket, automatic reply executor, or browser solver. DRAFT acceptance forbids those outcomes.
+High if this Change creates a second sender, Token client, websocket, automatic reply executor, or browser solver. Acceptance forbids those outcomes.
 
 ## Why upstream cannot satisfy the requirement
 

@@ -1,5 +1,5 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: DRAFT
+Status: IMPLEMENTING
 # Upstream Evidence
 
 ## Summary
@@ -46,7 +46,7 @@ Status: DRAFT
 
 ## Reuse decision
 
-Decision: WRAP_FOR_OPERATIONS
+Decision: PATCH_UPSTREAM
 
 ## Duplicate implementation risk
 

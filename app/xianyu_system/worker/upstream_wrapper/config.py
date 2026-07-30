@@ -56,6 +56,8 @@ class UpstreamWrapperConfig:
     read_retries: int = 1
     audit_path: Path = Path(".local/upstream-wrapper-audit.jsonl")
     pilot_root: Path = Path("D:/xianyu-upstream-pilot")
+    manual_upstream_root: Path = Path("D:/xianyu-upstream-manual-chg0016")
+    manual_listener_pid_path: Path = Path(".local/chg0016-manual-listener.pid.json")
 
     def __post_init__(self) -> None:
         _require_loopback(self.backend_base_url)
@@ -94,4 +96,12 @@ class UpstreamWrapperConfig:
             read_retries=read_retries,
             audit_path=Path(value("XIANYU_WRAPPER_AUDIT_PATH", ".local/upstream-wrapper-audit.jsonl") or ".local/upstream-wrapper-audit.jsonl"),
             pilot_root=Path(value("XIANYU_UPSTREAM_PILOT_ROOT", "D:/xianyu-upstream-pilot") or "D:/xianyu-upstream-pilot"),
+            manual_upstream_root=Path(
+                value("XIANYU_MANUAL_UPSTREAM_ROOT", "D:/xianyu-upstream-manual-chg0016")
+                or "D:/xianyu-upstream-manual-chg0016"
+            ),
+            manual_listener_pid_path=Path(
+                value("XIANYU_MANUAL_LISTENER_PID_PATH", ".local/chg0016-manual-listener.pid.json")
+                or ".local/chg0016-manual-listener.pid.json"
+            ),
         )

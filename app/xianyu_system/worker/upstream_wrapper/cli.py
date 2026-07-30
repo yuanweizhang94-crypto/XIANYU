@@ -60,6 +60,24 @@ def _cmd_listener(args: argparse.Namespace) -> int:
     return 0 if result.state.value == "SUCCESS" else 1
 
 
+def _cmd_manual_listener(args: argparse.Namespace) -> int:
+    wrapper = _wrapper()
+    if args.manual_listener_command == "status":
+        print(f"manual_listener_status={wrapper.manual_listener_status()}")
+        return 0
+    if args.manual_listener_command == "start":
+        result = wrapper.start_manual_listener()
+    elif args.manual_listener_command == "stop":
+        result = wrapper.stop_manual_listener()
+    else:
+        raise UpstreamWrapperError("unknown manual listener command")
+    print(f"state={result.state.value}")
+    print(f"operation_id={result.operation_id}")
+    if result.detail:
+        print(f"detail={result.detail}")
+    return 0 if result.state.value == "SUCCESS" else 1
+
+
 def _cmd_messages(args: argparse.Namespace) -> int:
     events = _wrapper().list_recent_inbound_events(limit=args.limit, match_text=args.match_text)
     for event in events:
@@ -104,6 +122,11 @@ def build_parser() -> argparse.ArgumentParser:
     listener_sub = listener.add_subparsers(dest="listener_command", required=True)
     for command in ["status", "start", "stop"]:
         listener_sub.add_parser(command).set_defaults(func=_cmd_listener)
+
+    manual_listener = sub.add_parser("manual-listener")
+    manual_listener_sub = manual_listener.add_subparsers(dest="manual_listener_command", required=True)
+    for command in ["status", "start", "stop"]:
+        manual_listener_sub.add_parser(command).set_defaults(func=_cmd_manual_listener)
 
     messages = sub.add_parser("messages")
     messages.add_argument("--limit", type=int, default=20)

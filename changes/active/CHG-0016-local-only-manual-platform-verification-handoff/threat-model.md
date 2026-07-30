@@ -1,5 +1,5 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: DRAFT
+Status: IMPLEMENTING
 # Threat Model
 
 ## Threats and controls
@@ -37,7 +37,7 @@ No local manual bridge was found.
 
 ## Reuse decision
 
-Decision: WRAP_FOR_OPERATIONS
+Decision: PATCH_UPSTREAM
 
 ## Duplicate implementation risk
 

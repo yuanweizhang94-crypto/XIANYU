@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0016-local-only-manual-platform-verification-handoff",
-    "status": "DRAFT",
+    "status": "IMPLEMENTING",
     "path": "changes/active/CHG-0016-local-only-manual-platform-verification-handoff"
   },
   "tasks": {
-    "total": 6,
-    "completed": 5,
-    "next_task": null,
+    "total": 13,
+    "completed": 10,
+    "next_task": "T11 Update PR #17, wait for CI, and merge.",
     "items": [
       {
         "text": "T1 Create DRAFT proposal.",
@@ -32,7 +32,35 @@
         "completed": true
       },
       {
-        "text": "T6 Await project-owner review before implementation approval.",
+        "text": "T6 Project-owner implementation approval recorded.",
+        "completed": true
+      },
+      {
+        "text": "T7 Disable the two enabled default replies after ignored backup to establish zero automatic-send baseline.",
+        "completed": true
+      },
+      {
+        "text": "T8 Create upstream patch worktree from pinned SHA and implement manual-only mode.",
+        "completed": true
+      },
+      {
+        "text": "T9 Implement CHG-0009 host manual-listener wrapper lifecycle.",
+        "completed": true
+      },
+      {
+        "text": "T10 Run local verification.",
+        "completed": true
+      },
+      {
+        "text": "T11 Update PR #17, wait for CI, and merge.",
+        "completed": false
+      },
+      {
+        "text": "T12 Run controlled owner manual validation without sending messages.",
+        "completed": false
+      },
+      {
+        "text": "T13 Cleanup and close Change.",
         "completed": false
       }
     ]

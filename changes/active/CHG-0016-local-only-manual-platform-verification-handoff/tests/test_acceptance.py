@@ -11,27 +11,26 @@ def read_doc(name: str) -> str:
     return (CHANGE_DIR / name).read_text(encoding="utf-8")
 
 
-def test_change_documents_are_draft() -> None:
+def test_change_documents_are_implementing() -> None:
     for name in CHANGE_FILES:
         text = read_doc(name)
         assert f"Change ID: {CHANGE_ID}" in text
-        assert "Status: DRAFT" in text
+        assert "Status: IMPLEMENTING" in text
 
 
-def test_reuse_decision_is_operations_wrapper() -> None:
+def test_reuse_decision_is_patch_upstream() -> None:
     text = "\n\n".join(read_doc(name) for name in CHANGE_FILES)
-    assert "Decision: WRAP_FOR_OPERATIONS" in text
+    assert "Decision: PATCH_UPSTREAM" in text
+    assert "CHG-0009 remains" in text
     assert "Decision: BUILD_LOCAL_EXCEPTION" not in text
 
 
-def test_draft_forbids_runtime_implementation() -> None:
+def test_implementation_forbids_unsafe_runtime_paths() -> None:
     acceptance = read_doc("acceptance.md")
     for required in [
-        "No manual verification implementation is added.",
-        "No runtime, frontend, backend route, browser helper, dependency, Docker service, database migration, or upstream tracked source file is added.",
-        "No platform verification is started.",
-        "No Token API is called.",
-        "No Cookie or token cache is changed.",
+        "No second IM, Token, WebSocket, sender, or automatic reply executor is created.",
+        "No automated page interaction or remote solver is added.",
+        "Default replies remain disabled pending owner decision after ignored backup.",
         "No websocket, scheduler, or CHG-0010 worker is started.",
         "No message is sent.",
     ]:
@@ -57,7 +56,17 @@ def test_evidence_and_threat_model_exist() -> None:
     assert (CHANGE_DIR / "threat-model.md").is_file()
 
 
-def test_no_runtime_files_created_by_change() -> None:
+def test_patch_artifact_is_recorded_by_change() -> None:
+    assert (
+        ROOT
+        / "vendor"
+        / "patches"
+        / "xianyu-auto-reply"
+        / "bda1a85-manual-only-verification.patch"
+    ).is_file()
+
+
+def test_change_file_set_is_explicit() -> None:
     changed_files = [
         path.relative_to(CHANGE_DIR).as_posix()
         for path in CHANGE_DIR.rglob("*")

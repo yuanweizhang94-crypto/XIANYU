@@ -1,5 +1,5 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: DRAFT
+Status: IMPLEMENTING
 # Tasks
 
 - [x] T1 Create DRAFT proposal.
@@ -7,14 +7,21 @@ Status: DRAFT
 - [x] T3 Record upstream evidence.
 - [x] T4 Record threat model.
 - [x] T5 Record DRAFT acceptance and test plan.
-- [ ] T6 Await project-owner review before implementation approval.
+- [x] T6 Project-owner implementation approval recorded.
+- [x] T7 Disable the two enabled default replies after ignored backup to establish zero automatic-send baseline.
+- [x] T8 Create upstream patch worktree from pinned SHA and implement manual-only mode.
+- [x] T9 Implement CHG-0009 host manual-listener wrapper lifecycle.
+- [x] T10 Run local verification.
+- [ ] T11 Update PR #17, wait for CI, and merge.
+- [ ] T12 Run controlled owner manual validation without sending messages.
+- [ ] T13 Cleanup and close Change.
 
 ## Current progress
 
-Completed tasks: 5 / 6
-Next task: T6 Await project-owner review before implementation approval.
+Completed tasks: 10 / 13
+Next task: T11 Update PR #17, wait for CI, and merge.
 
-## DRAFT allowed work
+## Implementing allowed work
 
 - Proposal.
 - Design.
@@ -22,24 +29,19 @@ Next task: T6 Await project-owner review before implementation approval.
 - Acceptance.
 - Threat model.
 - Upstream evidence.
-- Test plan.
+- Upstream patch artifact.
+- Host manual-listener wrapper lifecycle.
+- Local tests.
 
-## DRAFT prohibited work
+## Implementing prohibited work
 
-- `IMPLEMENTING` status.
-- Business code.
-- UI code.
-- Browser code.
-- Backend route code.
 - Platform calls.
-- Live validation.
-- Websocket startup.
+- Unapproved live validation.
 - Scheduler startup.
 - CHG-0010 worker startup.
-- Cookie modification.
 - Token cache modification.
 - Message sending.
-- Upstream tracked source modification.
+- Pinned upstream tracked source modification.
 
 ## Upstream capability audit
 
@@ -55,7 +57,9 @@ No reusable local manual bridge was found. CHG-0010 remains frozen/deprecated.
 
 ## Reuse decision
 
-Decision: WRAP_FOR_OPERATIONS
+Decision: PATCH_UPSTREAM
+
+CHG-0009 remains the operations wrapper for local host lifecycle control only.
 
 ## Duplicate implementation risk
 

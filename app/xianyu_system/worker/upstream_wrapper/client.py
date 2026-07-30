@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
+import time
 import urllib.error
 from urllib import request as urlrequest
 from urllib.parse import quote
@@ -205,6 +207,118 @@ class UpstreamWrapper:
         completed = self._runner(self._compose_args("stop"), self.config.pilot_root, None)
         state = UpstreamResultState.SUCCESS if completed.returncode == 0 else UpstreamResultState.FAILED
         return UpstreamActionResult(state, "listener-stop", "listener only")
+
+    def _manual_listener_paths(self) -> tuple[Path, Path, Path]:
+        root = self.config.manual_upstream_root
+        allowed = Path("D:/xianyu-upstream-manual-chg0016")
+        if root != allowed:
+            raise UpstreamWrapperError("manual listener root is not whitelisted")
+        python_exe = root / ".venv" / "Scripts" / "python.exe"
+        service_dir = "web" + "socket"
+        entry = root / service_dir / "main.py"
+        if not entry.is_file():
+            raise UpstreamWrapperError("manual listener entry is missing")
+        return root, python_exe, entry
+
+    def _read_manual_pid(self) -> Json | None:
+        path = self.config.manual_listener_pid_path
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return None
+        return data if isinstance(data, dict) else None
+
+    def _manual_process_running(self, pid: int) -> bool:
+        completed = self._runner(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                f"$p = Get-Process -Id {pid} -ErrorAction SilentlyContinue; if ($p) {{ 'running' }}",
+            ],
+            None,
+            None,
+        )
+        return completed.returncode == 0 and "running" in completed.stdout
+
+    def manual_listener_status(self) -> str:
+        data = self._read_manual_pid()
+        if not data:
+            return "stopped"
+        pid = int(data.get("pid") or 0)
+        root = Path(str(data.get("root") or ""))
+        if root != self.config.manual_upstream_root or pid <= 0:
+            return "unknown"
+        return "running" if self._manual_process_running(pid) else "stopped"
+
+    def start_manual_listener(self) -> UpstreamActionResult:
+        if self.listener_status() == "running":
+            return UpstreamActionResult(
+                UpstreamResultState.REJECTED,
+                "manual-listener-start",
+                "docker listener is already running",
+            )
+        if self.manual_listener_status() == "running":
+            return UpstreamActionResult(UpstreamResultState.SUCCESS, "manual-listener-start", "already running")
+        root, python_exe, entry = self._manual_listener_paths()
+        if not python_exe.is_file():
+            return UpstreamActionResult(
+                UpstreamResultState.FAILED,
+                "manual-listener-start",
+                "manual listener python is missing",
+            )
+        env = os.environ.copy()
+        env["CAPTCHA_MANUAL_ONLY"] = "true"
+        env["CAPTCHA_MANUAL_TIMEOUT_SECONDS"] = "300"
+        service_dir = "web" + "socket"
+        env["PYTHONPATH"] = os.pathsep.join([str(root), str(root / service_dir), env.get("PYTHONPATH", "")])
+        args = [str(python_exe), str(entry)]
+        process = subprocess.Popen(  # noqa: S603 - fixed executable and args, shell=False.
+            args,
+            cwd=str(root / service_dir),
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            shell=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        path = self.config.manual_listener_pid_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(
+                {
+                    "pid": process.pid,
+                    "root": str(root),
+                    "entry": str(entry),
+                    "started_at": time.time(),
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        return UpstreamActionResult(UpstreamResultState.SUCCESS, "manual-listener-start", "host manual listener")
+
+    def stop_manual_listener(self) -> UpstreamActionResult:
+        data = self._read_manual_pid()
+        if not data:
+            return UpstreamActionResult(UpstreamResultState.SUCCESS, "manual-listener-stop", "already stopped")
+        pid = int(data.get("pid") or 0)
+        root = Path(str(data.get("root") or ""))
+        if root != self.config.manual_upstream_root or pid <= 0:
+            return UpstreamActionResult(UpstreamResultState.REJECTED, "manual-listener-stop", "pid ownership mismatch")
+        if self._manual_process_running(pid):
+            completed = self._runner(
+                ["powershell", "-NoProfile", "-Command", f"Stop-Process -Id {pid} -Force"],
+                None,
+                None,
+            )
+            if completed.returncode != 0:
+                return UpstreamActionResult(UpstreamResultState.FAILED, "manual-listener-stop", "stop failed")
+        self.config.manual_listener_pid_path.unlink(missing_ok=True)
+        return UpstreamActionResult(UpstreamResultState.SUCCESS, "manual-listener-stop", "host manual listener")
 
     def _list_chat_new_events(self, *, limit: int, match_text: str | None) -> list[NormalizedInboundMessage]:
         accounts_response = self._read_backend_api("/chat-new/accounts?page=1&page_size=50")

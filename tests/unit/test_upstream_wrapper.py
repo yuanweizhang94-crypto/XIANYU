@@ -53,6 +53,8 @@ class FakeRuntime:
             assert stdin is not None
             stdout = self.account_rows if "FROM xy_accounts" in stdin else self.message_rows
             return subprocess.CompletedProcess(args, 0, stdout, "")
+        if args[:3] == ["powershell", "-NoProfile", "-Command"]:
+            return subprocess.CompletedProcess(args, 0, "running\n", "")
         raise AssertionError(f"unexpected args {args}")
 
 
@@ -175,6 +177,28 @@ def test_listener_commands_only_target_service(tmp_path: Path) -> None:
     assert "sub2api" not in flattened
     assert " down " not in f" {flattened} "
     assert " prune " not in f" {flattened} "
+
+
+def test_manual_listener_start_rejects_when_docker_listener_running(tmp_path: Path) -> None:
+    runtime = FakeRuntime()
+    result = wrapper(runtime, tmp_path).start_manual_listener()
+    assert result.state is UpstreamResultState.REJECTED
+    assert "docker listener is already running" in result.detail
+
+
+def test_manual_listener_status_uses_owned_pid_file(tmp_path: Path) -> None:
+    runtime = FakeRuntime()
+    cfg = UpstreamWrapperConfig(
+        audit_path=tmp_path / "audit.jsonl",
+        manual_listener_pid_path=tmp_path / "manual-listener.pid.json",
+    )
+    cfg.manual_listener_pid_path.write_text(
+        '{"pid": 1234, "root": "D:/xianyu-upstream-manual-chg0016"}',
+        encoding="utf-8",
+    )
+    client = UpstreamWrapper(cfg, http=runtime.http, runner=runtime.runner)
+    assert client.manual_listener_status() == "running"
+    assert any(call[:3] == ["powershell", "-NoProfile", "-Command"] for call in runtime.runner_calls)
 
 
 def test_reply_without_confirm_is_rejected(tmp_path: Path) -> None:

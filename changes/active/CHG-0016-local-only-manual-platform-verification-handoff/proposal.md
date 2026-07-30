@@ -1,5 +1,5 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: DRAFT
+Status: IMPLEMENTING
 # Proposal
 
 ## Title
@@ -28,12 +28,10 @@ Design a local-only manual verification handoff that:
 
 ## Non-goals
 
-- No implementation in this DRAFT.
-- No UI code.
-- No backend route code.
-- No browser helper code.
+- No second UI, IM, Token, WebSocket, sender, or automatic-reply executor.
+- No automated platform verification interaction.
 - No dependency, Docker service, migration, or runtime configuration.
-- No login, relogin, Token API call, websocket start, scheduler start, CHG-0010 worker start, Playwright, Patchright, DrissionPage, real_mouse, remote solving, automated click, automated drag, automated keyboard input, Cookie write, message send, item/order/refund/shipping/rating operation, or live platform validation.
+- No login, relogin, scheduler start, CHG-0010 worker start, Patchright, DrissionPage, real_mouse, remote solving, automated click, automated drag, automated keyboard input, message send, item/order/refund/shipping/rating operation, or unapproved live platform validation.
 - No AI reply design or implementation.
 
 ## Upstream capability audit
@@ -46,7 +44,7 @@ Pinned upstream and latest upstream were audited before this DRAFT:
 - Upstream Issues and PRs related to slider, Token, and verification were reviewed.
 - Local historical research found no reusable manual bridge.
 
-This DRAFT must preserve upstream-first ownership and must not use repeated local development to make validation appear successful.
+This implementation must preserve upstream-first ownership and must not use repeated local development to make validation appear successful.
 
 ## Pinned upstream evidence
 
@@ -68,9 +66,9 @@ Local history and documents were searched after upstream evidence:
 
 ## Reuse decision
 
-Decision: WRAP_FOR_OPERATIONS
+Decision: PATCH_UPSTREAM
 
-The handoff is an operational safety wrapper around upstream native verification and Token recovery. It must not replace upstream online chat, automatic reply, Token acquisition, WebSocket, fixed reply, or sender ownership.
+The executable solution is a small auditable upstream patch for a default-off manual-only verification mode. CHG-0009 remains a `WRAP_FOR_OPERATIONS` lifecycle wrapper for starting and stopping the patched upstream listener on the local Windows host. The handoff must not replace upstream online chat, automatic reply, Token acquisition, WebSocket, fixed reply, or sender ownership.
 
 ## Duplicate implementation risk
 
@@ -94,7 +92,7 @@ Pinned upstream and latest upstream do not provide a pure manual local handoff f
 
 ## Approved exception ADR
 
-Not applicable. This DRAFT does not request `BUILD_LOCAL_EXCEPTION` and does not implement runtime code.
+Not applicable. This Change uses `PATCH_UPSTREAM`, not `BUILD_LOCAL_EXCEPTION`.
 
 ## Component owner
 
