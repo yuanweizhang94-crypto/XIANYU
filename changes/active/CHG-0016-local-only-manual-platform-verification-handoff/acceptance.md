@@ -11,6 +11,24 @@ This implementation is acceptable when:
 - Upstream pinned/latest evidence is recorded.
 - Local historical search evidence is recorded.
 - The upstream patch artifact is recorded with pinned base SHA and SHA256.
+- The upstream patch artifact is Git parseable with
+  `git apply --numstat --unidiff-zero`.
+- The upstream patch artifact passes `git apply --check --unidiff-zero` against
+  a clean pinned upstream SHA worktree.
+- The upstream patch artifact is a deterministic Git-generated zero-context
+  patch produced with `--unified=0`.
+- The upstream patch artifact contains no context lines inside hunks.
+- The upstream patch artifact contains no added payload with trailing spaces or
+  tabs.
+- The upstream patch artifact passes clean pinned-SHA `git apply --check` with
+  `--whitespace=error-all` and `--unidiff-zero`.
+- The applied upstream source passes `git diff --check`.
+- Applied Git blobs match build Git blobs 5/5.
+- Git-canonical content is identical for all five target files. Raw
+  working-tree byte differences are permitted only when proven to be CRLF/LF
+  expansion differences under upstream text attributes, with matching BOM,
+  matching trailing newline, no lone CR, canonical LF comparison 5/5, and
+  staged Git blob comparison 5/5.
 - CHG-0009 wrapper starts and stops only the host patched upstream websocket process.
 - Docker websocket and host manual-listener are mutually exclusive.
 - No second IM, Token, WebSocket, sender, or automatic reply executor is created.

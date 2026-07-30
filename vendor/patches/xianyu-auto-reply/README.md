@@ -5,9 +5,64 @@
 - Base upstream repository: `zhinianboke/xianyu-auto-reply`
 - Base pinned SHA: `bda1a859df63fa5f24e51398fa80a23490bb6dfc`
 - Patch file: `bda1a85-manual-only-verification.patch`
-- Patch SHA256: `56882BDF50E8DE81B273B774F24FC3F46B1719D6C8DC97881B027D5F2F0EA5AB`
+- Patch SHA256: `E5791692B69D95157A2249EF6B4C04F71A65C8513412B1A87C70EFF03D117FFE`
 - Local patch worktree: `D:/xianyu-upstream-manual-chg0016`
-- Patch apply check: `git apply --check --unidiff-zero <patch-file>`
+- Patch apply check: `git apply --check --whitespace=error-all --unidiff-zero <patch-file>`
+
+## Artifact Format
+
+Git-generated zero-context unified diff.
+
+Generation command:
+
+```text
+git diff --cached --binary --full-index --no-ext-diff
+--unified=0 --src-prefix=a/ --dst-prefix=b/ HEAD
+```
+
+Reason:
+
+The pinned upstream source contains unchanged whitespace-bearing context lines.
+Including those lines in a vendor patch causes repository whitespace checks to
+inspect upstream baseline formatting rather than the five-file change itself.
+
+Safety:
+
+- patch hunks are never hand-edited;
+- the patch applies only with `--unidiff-zero`;
+- clean pinned-SHA apply check is mandatory;
+- `--whitespace=error-all` is mandatory;
+- applied-source `git diff --check` is mandatory;
+- Git blob equivalence must be 5/5;
+- exact target file set must remain five files.
+
+## Artifact Generation
+
+Generated from the staged five-file Git diff in a disposable worktree at the
+pinned upstream SHA. Patch hunks must not be hand-edited.
+
+## Parseability gate
+
+`git apply --numstat --unidiff-zero <patch>`
+
+## Clean apply gate
+
+`git apply --check --whitespace=error-all --unidiff-zero <patch>`
+
+## Equivalence gate
+
+The staged Git blob IDs after clean application must match the staged Git blob
+IDs used to generate the patch for all five files.
+
+## Working-tree note
+
+Raw byte hashes may differ on Windows only because text=auto can expand LF and
+CRLF differently. Such a difference is acceptable only when:
+
+- canonical CRLF-to-LF comparison is 5/5;
+- BOM and trailing-newline state match;
+- no lone CR exists;
+- staged Git blob comparison is 5/5.
 
 ## Modified upstream files
 
