@@ -1,5 +1,5 @@
 Change ID: CHG-0012-validate-upstream-native-multi-account-fixed-template-reply
-Status: APPROVED
+Status: ARCHIVED
 # Design
 
 ## Validation architecture
@@ -356,3 +356,39 @@ Upstream owns business execution. `D:/xianyu` owns validation governance and ope
 ## Retirement plan for overlapping local code
 
 CHG-0010 local worker remains frozen/deprecated. CHG-0015 will evaluate retirement after upstream native fixed-template and AI reply validation.
+
+## Closeout design finding
+
+CHG-0012 is closed as archived documentation and evidence only. It does not authorize production automatic reply.
+
+The blocked root cause is:
+
+`PLATFORM_MANUAL_VERIFICATION_CAPABILITY_GAP`
+
+Closeout evidence summary:
+
+1. `MESSAGE_SERVICE_RESTART_DID_NOT_RECOVER`: the system restart path did not produce stable connected account state for live validation.
+2. `WEBSOCKET_RUNNING_ACCOUNTS_DISCONNECTED`: websocket container startup and health were possible, but account connection state stayed blocked before real reply validation.
+3. `TOKEN PATH DIAGNOSTIC`: online chat and automatic reply use separate token caches and the failure was in token acquisition, not a local CHG-0010 sender path.
+4. `NATIVE TOKEN STAGE REPORT`: both target accounts could create upstream tasks but token refresh encountered platform verification before websocket connection could be validated.
+5. `ONLINE CHAT AND TOKEN VERIFICATION REPORT`: ACCOUNT-A online-chat Token API returned `FAIL_SYS_USER_VALIDATE`; login remained valid and relogin was not evidenced.
+6. `MANUAL VERIFICATION CAPABILITY AUDIT`: pinned upstream, latest upstream, and local history contain automated slider paths but no pure manual local handoff suitable for the approved safety constraints.
+
+Configuration correction record:
+
+- WebSocket control URL mismatch was confirmed.
+- The local pilot `.pilot` compose configuration was corrected.
+- The original pilot configuration backup is outside the repository.
+- `.pilot` files remain untracked and are not part of this closeout.
+- No secret values are recorded in repository evidence.
+
+Rollback and stop state:
+
+- Upstream websocket remains stopped.
+- Formal test rules do not exist.
+- CHG-0010 local worker remains stopped.
+- No further CHG-0012 live validation may run until an independent manual verification handoff Change is completed.
+
+Design conclusion:
+
+The upstream native fixed-template reply design remains the intended executor path. The missing piece is not a second sender, matcher, token client, or websocket. The missing piece is an owner-controlled, local-only manual platform verification handoff that can safely return to upstream native token refresh after official verification succeeds.
