@@ -42,6 +42,8 @@ def test_chg0016_patch_keeps_cookie_and_url_boundary_strict() -> None:
     manual_added = _added_patch_text_for("common/services/captcha/manual_verification.py")
 
     assert "_ALLOWED_INITIAL_HOST = \"h5api.m.goofish.com\"" in added
+    assert "if parsed.port not in (None, 443):" in manual_added
+    assert "test_invalid_initial_url_does_not_consume_one_shot" in added
     assert "VERIFICATION_REDIRECT_BLOCKED" in added
     assert "_ALLOWED_COOKIE_NAMES = {\"x5sec\"}" in added
     assert "startswith(\"x5\")" not in manual_added
