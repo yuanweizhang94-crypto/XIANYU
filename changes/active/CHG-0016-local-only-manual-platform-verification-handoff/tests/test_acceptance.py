@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 
@@ -88,6 +89,49 @@ def test_patch_artifact_parseability_repair_is_documented() -> None:
     assert "--unified=0" in acceptance
     assert "Applied Git blobs match build Git blobs 5/5." in acceptance
     assert "Git-canonical content is identical for all five target files." in acceptance
+
+
+def test_t11_repair_cycle_is_closed_and_t12_is_next() -> None:
+    tasks = read_doc("tasks.md")
+
+    assert "- [x] T11 Repair live manual verification defects" in tasks
+    assert "- [ ] T12 Run controlled owner manual validation without sending messages." in tasks
+    assert "Completed tasks: 11 / 13" in tasks
+    assert "Next task: T12 Run controlled owner manual validation without sending messages." in tasks
+
+
+def test_t11_exact_repair_evidence_is_recorded() -> None:
+    docs = "\n\n".join([read_doc("tasks.md"), read_doc("acceptance.md")])
+
+    for required in [
+        "c0e78c341fd7a4d401396be6b9e71c2ff47ff4d7",
+        "c7bf9a52e795ee7f472c68d426b7bd44c79a88ed",
+        "92e14642beb4bbdfa513e305474a37ee08135dad",
+        "c72c146f088b661bc9584364a9eecbddbfe27321",
+        "84b1fdf376d3fa08199d85fac472cb502cbb0ea7",
+        "bb023f67c860125c5ec6043192e372d7fd9d52c2",
+        "08c0021c672a86cc10d80b30c62217c1fc27d691",
+        "64db9f099d65341a9e118fbca07bfb5be6e5b89b",
+        "174fac36b92f87b25d669a5a3ad80c59983a37d2",
+        "E5791692B69D95157A2249EF6B4C04F71A65C8513412B1A87C70EFF03D117FFE",
+        "WORKTREE_EOL_NORMALIZATION_ONLY",
+    ]:
+        assert required in docs
+
+
+def test_generated_state_advances_only_to_t12() -> None:
+    state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    tasks = state["tasks"]
+
+    assert state["active_change"]["id"] == CHANGE_ID
+    assert state["active_change"]["status"] == "IMPLEMENTING"
+    assert tasks["total"] == 13
+    assert tasks["completed"] == 11
+    assert tasks["next_task"] == "T12 Run controlled owner manual validation without sending messages."
+
+    task_items = {task["text"].split(" ", 1)[0]: task for task in tasks["items"]}
+    assert task_items["T12"]["completed"] is False
+    assert task_items["T13"]["completed"] is False
 
 
 def test_change_file_set_is_explicit() -> None:

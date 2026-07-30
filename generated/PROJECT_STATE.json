@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 13,
-    "completed": 10,
-    "next_task": "T11 Repair live manual verification defects, open repair PR, wait for CI, and merge.",
+    "completed": 11,
+    "next_task": "T12 Run controlled owner manual validation without sending messages.",
     "items": [
       {
         "text": "T1 Create DRAFT proposal.",
@@ -53,7 +53,7 @@
       },
       {
         "text": "T11 Repair live manual verification defects, open repair PR, wait for CI, and merge.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T12 Run controlled owner manual validation without sending messages.",
