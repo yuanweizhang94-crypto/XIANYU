@@ -2,6 +2,21 @@
 
 These rules apply to any AI or automation agent and are not specific to one vendor or model.
 
+## Highest delivery priority: smallest safe solution, no duplicate development
+
+- After safety, legality, credentials, permissions, and explicit project-owner boundaries, the highest delivery priority is to complete the user's stated business outcome with the smallest proven, reversible change.
+- Before editing code or configuration, write a three-line execution contract in the active work record: `User outcome`, `Confirmed blocker`, and `Smallest success test`. Work outside that contract is forbidden unless new evidence makes expansion unavoidable.
+- Use this order: existing native path -> configuration correction -> minimal defect fix -> reuse a proven local component -> new component as the last resort.
+- Fix only confirmed defects. Do not add speculative architecture, generic abstractions, unrelated hardening, cleanup, or future-facing features during a repair.
+- Do not add a new service, helper, bridge, UI, API, table, model, dependency, runtime, worker, sender, or execution owner when an existing path can be corrected.
+- Do not repeat an upstream audit, local-history audit, or root-cause investigation that is already recorded and still valid. Re-open it only when new evidence directly contradicts the recorded conclusion.
+- Do not create a parallel Change, PR, implementation, fallback runtime, or temporary executor for the same blocker.
+- Use one controlled reproduction, then targeted tests for the confirmed defect. Run full repository validation only after the targeted test passes. Repeated live retries are forbidden.
+- Stop at the first new blocker. Report the exact evidence and the smallest next action; do not improvise another layer of development.
+- Any unavoidable scope expansion or new runtime component requires explicit project-owner approval and recorded evidence explaining why configuration, an existing function, or a minimal patch cannot solve the problem.
+- Documentation, CI success, or a merged PR does not prove the user's business outcome. Do not mark work complete while the original blocker still exists.
+- Progress reports must use plain language: what is blocked, what exact change is being made, what result was observed, and whether the owner must act.
+
 ## Required behavior
 
 - Do not rely on old chats, model memory, or external memory.
