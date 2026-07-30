@@ -6,6 +6,35 @@ Change: CHG-0011-upstream-first-product-direction-freeze
 
 The original upstream project is the product application and business execution engine. This repository is the safety, governance, operations, validation, evidence, and release-control layer. Development must not drift into rebuilding capabilities that upstream already provides.
 
+## Highest-priority minimum-change and time-protection gate
+
+After safety, legality, credentials, permissions, and explicit project-owner boundaries, the first priority is to deliver the user's stated business outcome with the smallest proven and reversible intervention.
+
+Before any design, repair, implementation, or validation work begins, the active work record must state:
+
+- `User outcome`: the concrete result the user is waiting for;
+- `Confirmed blocker`: the single current fact preventing that result;
+- `Minimal intervention`: the smallest existing path, configuration change, or defect fix that can remove the blocker;
+- `Smallest success test`: the shortest safe test that proves the blocker is removed;
+- `Stop condition`: the first result that requires stopping rather than expanding scope.
+
+The following rules are mandatory:
+
+1. Correct an existing path before creating a new path.
+2. Prefer configuration over source changes, and a minimal patch over a wrapper or new component.
+3. Repair only confirmed defects. Do not combine a repair with unrelated refactoring, architecture cleanup, generic hardening, future features, or aesthetic redesign.
+4. Do not create a new service, helper, bridge, UI, API, model, table, dependency, runtime, worker, sender, or execution owner unless recorded evidence proves that the existing path cannot be corrected.
+5. More than one new runtime component, or any new execution owner, requires explicit project-owner approval before implementation.
+6. Do not repeat an upstream or local-history audit that is already recorded and remains valid. New evidence must directly contradict the prior conclusion before the audit is reopened.
+7. Do not create parallel Changes, PRs, fallbacks, temporary executors, or alternate implementations for the same blocker.
+8. Use one controlled reproduction, then targeted tests for the confirmed defect. Repeated live retries are forbidden. Full validation follows only after targeted tests pass.
+9. Stop at the first new blocker and report the exact evidence plus the smallest next action. Do not improvise another platform or abstraction.
+10. A merged PR, completed documentation, or green CI is not completion when the original user outcome is still blocked.
+11. When an implementation proves too broad or introduces a new failure mode, reduce it in the same Change. Do not answer a narrow defect by creating another architecture layer.
+12. Time waste caused by repeated investigation, duplicate implementation, unnecessary scope growth, or speculative development is a governance failure and must be corrected before more code is added.
+
+For a runtime defect, the default allowed scope is one existing execution path and the tests needed to prove its repair. Any larger scope must document why the smaller options failed and must receive explicit project-owner approval.
+
 ## Mandatory evidence order
 
 Before any Xianyu feature is designed, implemented, repaired, or live-validated, the change owner must follow this order:
