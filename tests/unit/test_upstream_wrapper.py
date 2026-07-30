@@ -59,8 +59,26 @@ class FakeRuntime:
 
 
 class FakeProcess:
-    def __init__(self, pid: int = 4321) -> None:
+    def __init__(self, pid: int = 4321, *, returncodes: list[int | None] | None = None) -> None:
         self.pid = pid
+        self.returncodes = returncodes or [None]
+        self.polls = 0
+        self.terminated = False
+        self.killed = False
+
+    def poll(self) -> int | None:
+        index = min(self.polls, len(self.returncodes) - 1)
+        self.polls += 1
+        return self.returncodes[index]
+
+    def terminate(self) -> None:
+        self.terminated = True
+
+    def kill(self) -> None:
+        self.killed = True
+
+    def wait(self, timeout: float | None = None) -> int:
+        return 0
 
 
 class StoppedRuntime(FakeRuntime):
@@ -85,6 +103,39 @@ class ManualListenerWrapperForTest(UpstreamWrapper):
 
     def _manual_listener_paths(self) -> tuple[Path, Path, Path]:
         return self._test_manual_paths
+
+
+class ManualListenerStartupRuntime(StoppedRuntime):
+    def __init__(self, health_failures: int = 0) -> None:
+        super().__init__()
+        self.health_failures = health_failures
+        self.health_calls = 0
+
+    def http(
+        self,
+        method: str,
+        url: str,
+        payload: dict[str, Any] | None,
+        timeout: float,
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        if url.endswith("/health"):
+            self.health_calls += 1
+            if self.health_calls <= self.health_failures:
+                raise TimeoutError
+            return {"success": True, "code": 200, "data": {"status": "running"}}
+        return super().http(method, url, payload, timeout, headers)
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.value = 0.0
+
+    def __call__(self) -> float:
+        return self.value
+
+    def sleep(self, seconds: float) -> None:
+        self.value += seconds
 
 
 def config(tmp_path: Path, *, allow_live_writes: bool = False) -> UpstreamWrapperConfig:
@@ -231,7 +282,7 @@ def test_manual_listener_status_uses_owned_pid_file(tmp_path: Path) -> None:
 
 
 def test_manual_listener_start_forces_manual_only_safe_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    runtime = StoppedRuntime()
+    runtime = ManualListenerStartupRuntime()
     upstream_root = tmp_path / "upstream"
     python_exe = upstream_root / ".venv" / "Scripts" / "python.exe"
     entry = upstream_root / "websocket" / "main.py"
@@ -261,6 +312,7 @@ def test_manual_listener_start_forces_manual_only_safe_env(tmp_path: Path, monke
         http=runtime.http,
         runner=runtime.runner,
         popen=fake_popen,
+        sleep=lambda _: None,
         manual_paths=(upstream_root, python_exe, entry),
     )
 
@@ -279,8 +331,103 @@ def test_manual_listener_start_forces_manual_only_safe_env(tmp_path: Path, monke
     assert "CAPTCHA_REMOTE_SERVICE_URL" not in env
     assert "CAPTCHA_REMOTE_SECRET_KEY" not in env
     assert "REMOTE_TOKEN_URL" not in env
+    assert env["MYSQL_HOST"] == "127.0.0.1"
+    assert env["MYSQL_PORT"] == "13306"
+    assert env["REDIS_HOST"] == "127.0.0.1"
+    assert env["REDIS_PORT"] == "16379"
+    assert env["WEBSOCKET_PORT"] == "18090"
     pid_data = (tmp_path / "manual-listener.pid.json").read_text(encoding="utf-8")
     assert "CHG-0016-manual-listener.log" in pid_data
+
+
+def test_manual_listener_start_fails_when_process_exits_and_cleans_pid(tmp_path: Path) -> None:
+    runtime = ManualListenerStartupRuntime()
+    upstream_root = tmp_path / "upstream"
+    python_exe = upstream_root / ".venv" / "Scripts" / "python.exe"
+    entry = upstream_root / "websocket" / "main.py"
+    python_exe.parent.mkdir(parents=True)
+    entry.parent.mkdir(parents=True)
+    python_exe.write_text("", encoding="utf-8")
+    entry.write_text("", encoding="utf-8")
+    log_path = Path("D:/xianyu/.local/logs/CHG-0016-manual-listener.log")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text("password=placeholder\nTraceback\nasyncmy OperationalError\n", encoding="utf-8")
+    pid_path = tmp_path / "manual-listener.pid.json"
+    process = FakeProcess(returncodes=[1])
+
+    client = ManualListenerWrapperForTest(
+        UpstreamWrapperConfig(audit_path=tmp_path / "audit.jsonl", manual_listener_pid_path=pid_path),
+        http=runtime.http,
+        runner=runtime.runner,
+        popen=lambda *args, **kwargs: process,
+        sleep=lambda _: None,
+        manual_paths=(upstream_root, python_exe, entry),
+    )
+
+    result = client.start_manual_listener()
+
+    assert result.state is UpstreamResultState.FAILED
+    assert result.detail == "DATABASE_CONNECTION_ERROR"
+    assert "placeholder" not in result.detail.lower()
+    assert not pid_path.exists()
+
+
+def test_manual_listener_start_timeout_stops_own_process_and_cleans_pid(tmp_path: Path) -> None:
+    runtime = ManualListenerStartupRuntime(health_failures=100)
+    upstream_root = tmp_path / "upstream"
+    python_exe = upstream_root / ".venv" / "Scripts" / "python.exe"
+    entry = upstream_root / "websocket" / "main.py"
+    python_exe.parent.mkdir(parents=True)
+    entry.parent.mkdir(parents=True)
+    python_exe.write_text("", encoding="utf-8")
+    entry.write_text("", encoding="utf-8")
+    pid_path = tmp_path / "manual-listener.pid.json"
+    process = FakeProcess(returncodes=[None] * 100)
+    clock = FakeClock()
+
+    client = ManualListenerWrapperForTest(
+        UpstreamWrapperConfig(audit_path=tmp_path / "audit.jsonl", manual_listener_pid_path=pid_path),
+        http=runtime.http,
+        runner=runtime.runner,
+        popen=lambda *args, **kwargs: process,
+        sleep=clock.sleep,
+        clock=clock,
+        manual_paths=(upstream_root, python_exe, entry),
+    )
+
+    result = client.start_manual_listener()
+
+    assert result.state is UpstreamResultState.FAILED
+    assert result.detail == "STARTUP_HEALTH_TIMEOUT"
+    assert process.terminated is True
+    assert process.killed is False
+    assert not pid_path.exists()
+    assert runtime.health_calls >= 1
+
+
+def test_manual_listener_start_waits_for_health_before_success(tmp_path: Path) -> None:
+    runtime = ManualListenerStartupRuntime(health_failures=2)
+    upstream_root = tmp_path / "upstream"
+    python_exe = upstream_root / ".venv" / "Scripts" / "python.exe"
+    entry = upstream_root / "websocket" / "main.py"
+    python_exe.parent.mkdir(parents=True)
+    entry.parent.mkdir(parents=True)
+    python_exe.write_text("", encoding="utf-8")
+    entry.write_text("", encoding="utf-8")
+
+    client = ManualListenerWrapperForTest(
+        UpstreamWrapperConfig(audit_path=tmp_path / "audit.jsonl", manual_listener_pid_path=tmp_path / "pid.json"),
+        http=runtime.http,
+        runner=runtime.runner,
+        popen=lambda *args, **kwargs: FakeProcess(returncodes=[None] * 10),
+        sleep=lambda _: None,
+        manual_paths=(upstream_root, python_exe, entry),
+    )
+
+    result = client.start_manual_listener()
+
+    assert result.state is UpstreamResultState.SUCCESS
+    assert runtime.health_calls == 3
 
 
 def test_local_runtime_log_directory_is_gitignored() -> None:

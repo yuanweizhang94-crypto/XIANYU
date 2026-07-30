@@ -19,6 +19,9 @@ This implementation is acceptable when:
 - Host manual-listener startup forces `AUTO_START_WEBSOCKET=false`.
 - Host manual-listener startup disables DrissionPage fallback and remote
   captcha/Token environment inheritance.
+- Host manual-listener startup maps Pilot MySQL and Redis to host loopback
+  ports and waits for `/health` before reporting success.
+- Failed or timed-out manual-listener startup removes stale PID state.
 - Manual verification browser launch is process-wide single-shot.
 - Existing same `x5sec` Cookie is not treated as success.
 - Manual success retries upstream native Token at most once; repeated platform
