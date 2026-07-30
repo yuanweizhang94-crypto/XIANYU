@@ -136,6 +136,31 @@ Live platform validation:
 - Online chat recovery before automatic reply recovery.
 - CHG-0012 business matrix resumes only after the manual handoff is proven.
 
+## T11 repair closure acceptance
+
+T11 closure is complete only because:
+
+- PR #19, PR #20, PR #21, and PR #22 were merged at their recorded exact HEADs.
+- All four merge commits are ancestors of current main.
+- Applicable Actions succeeded.
+- Repository artifact identity is verified from the Git blob, not from a
+  platform-dependent working-tree checkout.
+- Artifact Git blob SHA is
+  `174fac36b92f87b25d669a5a3ad80c59983a37d2`.
+- Artifact Git blob SHA256 is
+  `E5791692B69D95157A2249EF6B4C04F71A65C8513412B1A87C70EFF03D117FFE`.
+- Windows raw worktree SHA differences are accepted only after canonical
+  CRLF-to-LF bytes equal the repository Git blob, with matching BOM, matching
+  trailing newline and no lone CR.
+- No service, account, browser, platform, AI or message operation occurred.
+- T12 remains separately authorized.
+
+T11 closure main:
+`64db9f099d65341a9e118fbca07bfb5be6e5b89b`.
+
+Final artifact SHA256:
+`E5791692B69D95157A2249EF6B4C04F71A65C8513412B1A87C70EFF03D117FFE`.
+
 ## Upstream capability audit
 
 Evidence is recorded in `evidence/upstream-audit.md`.
