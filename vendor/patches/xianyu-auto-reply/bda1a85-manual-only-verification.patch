@@ -1,6 +1,6 @@
 diff --git a/common/services/captcha/manual_verification.py b/common/services/captcha/manual_verification.py
 new file mode 100644
-index 0000000..cef9827
+index 0000000000000000000000000000000000000000..cef9827e2000df44903e7523048e6d718809f61f
 --- /dev/null
 +++ b/common/services/captcha/manual_verification.py
 @@ -0,0 +1,231 @@
@@ -236,33 +236,18 @@ index 0000000..cef9827
 +                playwright_cm.__exit__(None, None, None)
 +            shutil.rmtree(profile_dir, ignore_errors=True)
 diff --git a/common/services/captcha/orchestrator.py b/common/services/captcha/orchestrator.py
-index 5d1c1e6..b49b921 100644
+index 5d1c1e64d8bc93bfa6e2c361a7b3f25eb5a9bb01..b49b92140af75545bab693abe7312c7024904d0a 100644
 --- a/common/services/captcha/orchestrator.py
 +++ b/common/services/captcha/orchestrator.py
-@@ -21,6 +21,10 @@ from common.services.captcha.drissionpage_slider import (
-     run_drissionpage_verification,
-     DRISSIONPAGE_AVAILABLE,
- )
+@@ -23,0 +24,4 @@ from common.services.captcha.drissionpage_slider import (
 +from common.services.captcha.manual_verification import (
 +    is_manual_only_enabled,
 +    run_manual_verification,
 +)
-
-
- def _has_x5sec(cookies: Optional[Dict[str, str]]) -> bool:
-@@ -29,7 +33,7 @@ def _has_x5sec(cookies: Optional[Dict[str, str]]) -> bool:
-         return False
-     for name in cookies:
-         name_lower = str(name).lower()
+@@ -32 +36 @@ def _has_x5sec(cookies: Optional[Dict[str, str]]) -> bool:
 -        if name_lower.startswith("x5") or "x5sec" in name_lower:
 +        if name_lower == "x5sec":
-             return True
-     return False
-
-@@ -168,6 +172,17 @@ def run_slider_verification_with_fallback(
-         (是否成功, cookies 字典 | None, 通过引擎 | None)
-         通过引擎取值：'playwright'（主引擎）/ 'drissionpage'（兜底引擎）/ 'real_mouse'（真实鼠标）/ 'remote'（远程接口）/ None（未成功）
-     """
+@@ -170,0 +175,11 @@ def run_slider_verification_with_fallback(
 +    if is_manual_only_enabled():
 +        ok, manual_cookies, manual_status = run_manual_verification(
 +            user_id,
@@ -274,12 +259,9 @@ index 5d1c1e6..b49b921 100644
 +            return True, manual_cookies, "manual"
 +        return False, None, manual_status
 +
-     # -1. 远程过滑块（可选，由全局配置 remote_config 触发）：
-     #     已配置则优先调远程接口求解；超时/网络不可用 → 回退本机逻辑；
-     #     非超时（远程有返回，无论成败）→ 直接采用远程结果，不回退。
 diff --git a/tests/test_manual_verification.py b/tests/test_manual_verification.py
 new file mode 100644
-index 0000000..38595e9
+index 0000000000000000000000000000000000000000..38595e9f77e7f8f2cd1c03c7c09025e10231e51c
 --- /dev/null
 +++ b/tests/test_manual_verification.py
 @@ -0,0 +1,354 @@
@@ -638,13 +620,10 @@ index 0000000..38595e9
 +
 +    assert manual.manual_verification_state_snapshot() == {"state": "IDLE", "browser_launch_count": 0}
 diff --git a/websocket/app/core/config.py b/websocket/app/core/config.py
-index 410c21f..579949b 100644
+index 410c21f47d796e05de49767bc239340abc805123..579949bcaff16ce63798e3f05f7ba92c1d382258 100644
 --- a/websocket/app/core/config.py
 +++ b/websocket/app/core/config.py
-@@ -49,6 +49,15 @@ class WebSocketConfig(BaseConfig):
-     captcha_drissionpage_headless: bool = Field(
-         default=True, alias="CAPTCHA_DRISSIONPAGE_HEADLESS"
-     )
+@@ -51,0 +52,9 @@ class WebSocketConfig(BaseConfig):
 +
 +    # Manual-only official verification mode. When enabled, captcha orchestration
 +    # opens a visible local browser and waits for the owner; it does not use
@@ -654,41 +633,17 @@ index 410c21f..579949b 100644
 +    captcha_manual_timeout_seconds: int = Field(
 +        default=300, alias="CAPTCHA_MANUAL_TIMEOUT_SECONDS"
 +    )
-
-     # 服务间通信URL
-     backend_web_service_url: str = Field(
 diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
-index 4864a47..d23c8a1 100644
+index 4864a47039181db8fd303258ba898d4c56d18fae..d23c8a1cb09a9dc42064fd001f0169c07d2108cb 100644
 --- a/websocket/app/services/xianyu/cookie_token_manager.py
 +++ b/websocket/app/services/xianyu/cookie_token_manager.py
-@@ -16,6 +16,7 @@ import random
- import time
- import aiohttp
- from typing import Optional
+@@ -18,0 +19 @@ from typing import Optional
 +from urllib.parse import urlparse
- from loguru import logger
- from sqlalchemy import select
-
-@@ -23,6 +24,7 @@ from common.db.session import async_session_maker
- from common.models.system_setting import SystemSetting
- from common.models.token_cache import TokenCache
- from common.services.im_token_api import extract_im_access_token, request_im_token
+@@ -25,0 +27 @@ from common.services.im_token_api import extract_im_access_token, request_im_tok
 +from common.services.account_cookie_service import merge_account_cookie_fields
- from common.services.risk_control_log_query_service import (
-     check_account_processing_risk_control_log,
-     get_account_risk_control_lock,
-@@ -58,6 +60,7 @@ class CookieTokenManager:
-         self._startup_expired_cache_available = True
-         self._last_cache_lookup_succeeded = True
-         self._cached_token_in_use: str | None = None
+@@ -60,0 +63 @@ class CookieTokenManager:
 +        self._manual_token_retry_consumed = False
-
-     # ==================== 属性代理 ====================
-
-@@ -613,7 +616,13 @@ class CookieTokenManager:
-                 logger.info(f"【{self.cookie_id}】未找到验证URL，认为不需要滑块验证")
-                 return None
-
+@@ -616 +619,7 @@ class CookieTokenManager:
 -            logger.info(f"【{self.cookie_id}】验证URL: {verification_url}")
 +            verification_host = (urlparse(str(verification_url)).hostname or "unavailable").lower()
 +            verification_host_category = (
@@ -697,67 +652,31 @@ index 4864a47..d23c8a1 100644
 +                else "blocked_or_unknown"
 +            )
 +            logger.info(f"【{self.cookie_id}】验证URL host category: {verification_host_category}")
-
-             # 同账号的“检查处理中状态 + 创建日志”使用同一临界区，避免并发重复滑块。
-             log_id = None
-@@ -629,7 +638,7 @@ class CookieTokenManager:
-                     log_id = db_manager.add_risk_control_log(
-                         cookie_id=self.cookie_id,
-                         event_type='slider_captcha',
+@@ -632 +641 @@ class CookieTokenManager:
 -                        event_description=f'触发场景: Token刷新, URL: {verification_url}',
 +                        event_description='Token refresh platform verification required; URL withheld',
-                         processing_status='processing'
-                     )
-                     if log_id:
-@@ -682,6 +691,8 @@ class CookieTokenManager:
-                         *slider_args,
-                         slider_mode=selected_slider_mode,
-                     )
+@@ -684,0 +694,2 @@ class CookieTokenManager:
 +                if not success and isinstance(captcha_engine, str) and captcha_engine.startswith("manual"):
 +                    self.last_token_refresh_status = captcha_engine
-
-                 # 重取链接时发现 token 已可用（风控解除，无需滑块）：直接采用，跳过滑块结果处理。
-                 # 合并接口可能下发的刷新 cookie，并返回 cookies_str，让上层 refresh_token
-@@ -717,8 +728,14 @@ class CookieTokenManager:
-
-                 if success and cookies:
-                     logger.info(f"【{self.cookie_id}】滑块验证成功，获取到新的cookies")
+@@ -719,0 +731,3 @@ class CookieTokenManager:
 +                    if captcha_engine == "manual":
 +                        self.last_token_refresh_status = "manual_verification_succeeded"
 +                        self._manual_token_retry_consumed = True
-                     # 打印滑块验证返回的全部cookies
+@@ -721 +735,4 @@ class CookieTokenManager:
 -                    logger.warning(f"【{self.cookie_id}】滑块验证返回的全部cookies: {cookies}")
 +                    if captcha_engine == "manual":
 +                        logger.info(f"【{self.cookie_id}】手动验证返回 {len(cookies)} 个Cookie字段，不打印值")
 +                    else:
 +                        logger.warning(f"【{self.cookie_id}】滑块验证返回的全部cookies: {cookies}")
-
-                     # 更新风控日志为成功状态
-                     captcha_duration = time.time() - captcha_start_time
-@@ -729,6 +746,7 @@ class CookieTokenManager:
-                                 'drissionpage': '兜底引擎(DrissionPage)',
-                                 'real_mouse': '真人鼠标引擎(RealMouse)',
-                                 'remote': '远程接口(Remote)',
+@@ -731,0 +749 @@ class CookieTokenManager:
 +                                'manual': '手动验证(Manual)',
-                                 'playwright': '主引擎(Playwright)',
-                             }
-                             engine_label = engine_label_map.get(captcha_engine, '主引擎(Playwright)')
-@@ -749,7 +767,10 @@ class CookieTokenManager:
-
-                     for cookie_name, cookie_value in cookies.items():
-                         cookie_name_lower = cookie_name.lower()
+@@ -752 +770,4 @@ class CookieTokenManager:
 -                        if cookie_name_lower.startswith('x5') or 'x5sec' in cookie_name_lower:
 +                        if captcha_engine == "manual":
 +                            if cookie_name_lower == 'x5sec':
 +                                x5sec_cookies[cookie_name] = cookie_value
 +                        elif cookie_name_lower.startswith('x5') or 'x5sec' in cookie_name_lower:
-                             x5sec_cookies[cookie_name] = cookie_value
-
-                     logger.info(f"【{self.cookie_id}】找到{len(x5sec_cookies)}个x5相关cookies")
-@@ -800,10 +821,28 @@ class CookieTokenManager:
-                         self.cookies_str = cookies_str
-                         self.cookies = updated_cookies
-
+@@ -803,4 +824,22 @@ class CookieTokenManager:
 -                        # 打印更新后的x5sec值
 -                        logger.warning(f"【{self.cookie_id}】准备保存到数据库的x5sec: {updated_cookies.get('x5sec', '无')}")
 -
@@ -784,13 +703,7 @@ index 4864a47..d23c8a1 100644
 +                            # 打印更新后的x5sec值
 +                            logger.warning(f"【{self.cookie_id}】准备保存到数据库的x5sec: {updated_cookies.get('x5sec', '无')}")
 +                            await self.update_config_cookies()
-                         logger.info(f"【{self.cookie_id}】滑块验证成功后，数据库cookies已自动更新")
-                         logger.info(f"【{self.cookie_id}】滑块验证成功: 新增{new_cookie_count}个x5, 更新{updated_cookie_count}个x5")
-
-@@ -1111,6 +1150,14 @@ class CookieTokenManager:
-
-             # 检查是否需要滑块验证
-             if self.need_captcha_verification(res_json):
+@@ -1113,0 +1153,8 @@ class CookieTokenManager:
 +                if captcha_retry_count > 0 and self._manual_token_retry_consumed:
 +                    logger.warning(
 +                        f"【{self.cookie_id}】手动验证后Token接口仍要求平台验证，"
@@ -799,6 +712,3 @@ index 4864a47..d23c8a1 100644
 +                    self.last_token_refresh_status = "manual_verification_not_accepted"
 +                    self.current_token = None
 +                    return None
-                 logger.warning(f"【{self.cookie_id}】检测到需要滑块验证，开始处理...")
-
-                 try:

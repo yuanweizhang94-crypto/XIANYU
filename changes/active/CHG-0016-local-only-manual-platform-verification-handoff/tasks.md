@@ -47,6 +47,40 @@ Manual-listener startup blocker:
 - Repair branch:
   `fix/CHG-0016-local-only-manual-platform-verification-handoff/manual-listener-startup`.
 
+Patch artifact parseability repair:
+
+- Initial blocker: `PATCH_ARTIFACT_CORRUPT`.
+- Secondary diagnostic: `RAW_WORKTREE_HASH_MISMATCH_0_OF_5`.
+- Verified cause: `WORKTREE_EOL_NORMALIZATION_ONLY`.
+- Repair blocker: `PATCH_ARTIFACT_REPAIR_BLOCKED_BY_DIFF_CHECK`.
+- Final root cause: the default-context Git patch copied unchanged
+  whitespace-bearing upstream context lines into the vendor artifact. Generic
+  repository diff checking then reported those representation lines. No defect
+  was found in the five patched Git blobs.
+- Minimal repair: regenerate the artifact directly from the staged Git index
+  using `--unified=0`. Do not modify patched upstream source. Do not hand-edit
+  patch hunks. Do not add a whitespace exemption.
+- Artifact equivalence proof:
+  - Git parseable.
+  - clean apply check passed.
+  - canonical LF comparison 5/5.
+  - staged Git blob comparison 5/5.
+  - target tests passed.
+- Zero-context artifact proof:
+  - Artifact is a deterministic Git-generated zero-context patch.
+  - Artifact contains no context lines inside hunks.
+  - Artifact contains no added payload with trailing spaces or tabs.
+  - Artifact passes `git apply --numstat --unidiff-zero`.
+  - Artifact passes clean pinned-SHA `git apply --check` with
+    `--whitespace=error-all` and `--unidiff-zero`.
+  - Applied upstream source passes `git diff --check`.
+  - Applied Git blobs match build Git blobs 5/5.
+- Git-canonical content identical for all five target files.
+- Raw working-tree byte differences are permitted only when proven to be
+  CRLF/LF expansion differences under upstream text attributes, with matching
+  BOM, matching trailing newline, no lone CR, canonical LF comparison 5/5, and
+  staged Git blob comparison 5/5.
+
 ## Implementing allowed work
 
 - Proposal.

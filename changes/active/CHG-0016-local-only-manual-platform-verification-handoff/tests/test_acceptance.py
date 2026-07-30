@@ -66,6 +66,30 @@ def test_patch_artifact_is_recorded_by_change() -> None:
     ).is_file()
 
 
+def test_patch_artifact_parseability_repair_is_documented() -> None:
+    tasks = read_doc("tasks.md")
+    acceptance = read_doc("acceptance.md")
+
+    for required in [
+        "PATCH_ARTIFACT_CORRUPT",
+        "RAW_WORKTREE_HASH_MISMATCH_0_OF_5",
+        "WORKTREE_EOL_NORMALIZATION_ONLY",
+        "PATCH_ARTIFACT_REPAIR_BLOCKED_BY_DIFF_CHECK",
+        "deterministic Git-generated zero-context patch",
+        "contains no context lines inside hunks",
+        "contains no added payload with trailing spaces or tabs",
+        "staged Git blob comparison 5/5",
+    ]:
+        assert required in tasks
+
+    assert "git apply --numstat --unidiff-zero" in acceptance
+    assert "git apply --check --unidiff-zero" in acceptance
+    assert "--whitespace=error-all" in acceptance
+    assert "--unified=0" in acceptance
+    assert "Applied Git blobs match build Git blobs 5/5." in acceptance
+    assert "Git-canonical content is identical for all five target files." in acceptance
+
+
 def test_change_file_set_is_explicit() -> None:
     changed_files = [
         path.relative_to(CHANGE_DIR).as_posix()
