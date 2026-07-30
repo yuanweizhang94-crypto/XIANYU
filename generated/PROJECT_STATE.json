@@ -9,7 +9,7 @@
   "tasks": {
     "total": 13,
     "completed": 10,
-    "next_task": "T11 Update PR #17, wait for CI, and merge.",
+    "next_task": "T11 Repair live manual verification defects, open repair PR, wait for CI, and merge.",
     "items": [
       {
         "text": "T1 Create DRAFT proposal.",
@@ -52,7 +52,7 @@
         "completed": true
       },
       {
-        "text": "T11 Update PR #17, wait for CI, and merge.",
+        "text": "T11 Repair live manual verification defects, open repair PR, wait for CI, and merge.",
         "completed": false
       },
       {

@@ -58,6 +58,35 @@ class FakeRuntime:
         raise AssertionError(f"unexpected args {args}")
 
 
+class FakeProcess:
+    def __init__(self, pid: int = 4321) -> None:
+        self.pid = pid
+
+
+class StoppedRuntime(FakeRuntime):
+    def runner(self, args: list[str], cwd: Path | None, stdin: str | None) -> subprocess.CompletedProcess[str]:
+        self.runner_calls.append(args)
+        if args[:2] == ["docker", "ps"]:
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if args[:3] == ["powershell", "-NoProfile", "-Command"]:
+            return subprocess.CompletedProcess(args, 0, "", "")
+        return super().runner(args, cwd, stdin)
+
+
+class ManualListenerWrapperForTest(UpstreamWrapper):
+    def __init__(
+        self,
+        *args: Any,
+        manual_paths: tuple[Path, Path, Path],
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self._test_manual_paths = manual_paths
+
+    def _manual_listener_paths(self) -> tuple[Path, Path, Path]:
+        return self._test_manual_paths
+
+
 def config(tmp_path: Path, *, allow_live_writes: bool = False) -> UpstreamWrapperConfig:
     return UpstreamWrapperConfig(
         allow_live_writes=allow_live_writes,
@@ -199,6 +228,63 @@ def test_manual_listener_status_uses_owned_pid_file(tmp_path: Path) -> None:
     client = UpstreamWrapper(cfg, http=runtime.http, runner=runtime.runner)
     assert client.manual_listener_status() == "running"
     assert any(call[:3] == ["powershell", "-NoProfile", "-Command"] for call in runtime.runner_calls)
+
+
+def test_manual_listener_start_forces_manual_only_safe_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runtime = StoppedRuntime()
+    upstream_root = tmp_path / "upstream"
+    python_exe = upstream_root / ".venv" / "Scripts" / "python.exe"
+    entry = upstream_root / "websocket" / "main.py"
+    python_exe.parent.mkdir(parents=True)
+    entry.parent.mkdir(parents=True)
+    python_exe.write_text("", encoding="utf-8")
+    entry.write_text("", encoding="utf-8")
+    popen_calls: list[dict[str, Any]] = []
+
+    monkeypatch.setenv("CAPTCHA_REMOTE_SERVICE_URL", "https://solver.invalid")
+    monkeypatch.setenv("CAPTCHA_REMOTE_SECRET_KEY", "redacted")
+    monkeypatch.setenv("REMOTE_TOKEN_URL", "https://token.invalid")
+    monkeypatch.setenv("AUTO_START_WEBSOCKET", "true")
+
+    def fake_popen(*args: Any, **kwargs: Any) -> FakeProcess:
+        popen_calls.append({"args": args, "kwargs": kwargs})
+        assert kwargs["stdout"] is not subprocess.DEVNULL
+        assert kwargs["stderr"] is not subprocess.DEVNULL
+        return FakeProcess()
+
+    cfg = UpstreamWrapperConfig(
+        audit_path=tmp_path / "audit.jsonl",
+        manual_listener_pid_path=tmp_path / "manual-listener.pid.json",
+    )
+    client = ManualListenerWrapperForTest(
+        cfg,
+        http=runtime.http,
+        runner=runtime.runner,
+        popen=fake_popen,
+        manual_paths=(upstream_root, python_exe, entry),
+    )
+
+    result = client.start_manual_listener()
+
+    assert result.state is UpstreamResultState.SUCCESS
+    assert len(popen_calls) == 1
+    env = popen_calls[0]["kwargs"]["env"]
+    assert env["AUTO_START_WEBSOCKET"] == "false"
+    assert env["CAPTCHA_MANUAL_ONLY"] == "true"
+    assert env["CAPTCHA_MANUAL_ONE_SHOT"] == "true"
+    assert env["CAPTCHA_MANUAL_TIMEOUT_SECONDS"] == "300"
+    assert env["CAPTCHA_DRISSIONPAGE_FALLBACK_ENABLED"] == "false"
+    assert env["CAPTCHA_DRISSIONPAGE_HEADLESS"] == "true"
+    assert env["BROWSER_HEADLESS"] == "false"
+    assert "CAPTCHA_REMOTE_SERVICE_URL" not in env
+    assert "CAPTCHA_REMOTE_SECRET_KEY" not in env
+    assert "REMOTE_TOKEN_URL" not in env
+    pid_data = (tmp_path / "manual-listener.pid.json").read_text(encoding="utf-8")
+    assert "CHG-0016-manual-listener.log" in pid_data
+
+
+def test_local_runtime_log_directory_is_gitignored() -> None:
+    assert ".local/" in Path(".gitignore").read_text(encoding="utf-8").splitlines()
 
 
 def test_reply_without_confirm_is_rejected(tmp_path: Path) -> None:

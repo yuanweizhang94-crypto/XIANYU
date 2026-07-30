@@ -16,6 +16,15 @@ This implementation is acceptable when:
 - No second IM, Token, WebSocket, sender, or automatic reply executor is created.
 - No automated page interaction or remote solver is added.
 - Default replies remain disabled pending owner decision after ignored backup.
+- Host manual-listener startup forces `AUTO_START_WEBSOCKET=false`.
+- Host manual-listener startup disables DrissionPage fallback and remote
+  captcha/Token environment inheritance.
+- Manual verification browser launch is process-wide single-shot.
+- Existing same `x5sec` Cookie is not treated as success.
+- Manual success retries upstream native Token at most once; repeated platform
+  verification becomes `manual_verification_not_accepted`.
+- Host manual-listener logs are written to ignored local logs instead of being
+  discarded.
 - No websocket, scheduler, or CHG-0010 worker is started.
 - No message is sent.
 - Threat model covers the required risks.
@@ -80,6 +89,11 @@ Fake browser tests:
 - Cookie delta returned.
 - timeout cleanup.
 - cancel cleanup.
+- second call after any terminal state does not open a browser.
+- concurrent accounts open at most one browser.
+- existing same `x5sec` does not pass.
+- changed/new exact `x5sec` passes.
+- unsafe initial URL or unknown redirect fails closed.
 
 Integration tests:
 

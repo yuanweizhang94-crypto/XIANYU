@@ -7,11 +7,11 @@ import os
 import subprocess
 import time
 import urllib.error
-from urllib import request as urlrequest
-from urllib.parse import quote
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib import request as urlrequest
+from urllib.parse import quote
 
 from xianyu_system.worker.upstream_wrapper.config import UpstreamWrapperConfig
 from xianyu_system.worker.upstream_wrapper.models import (
@@ -27,6 +27,7 @@ Json = dict[str, Any]
 Headers = dict[str, str]
 HttpTransport = Callable[[str, str, Json | None, float, Headers | None], Json]
 Runner = Callable[[list[str], Path | None, str | None], subprocess.CompletedProcess[str]]
+PopenFactory = Callable[..., subprocess.Popen[Any]]
 
 
 class UpstreamWrapperError(RuntimeError):
@@ -70,10 +71,12 @@ class UpstreamWrapper:
         *,
         http: HttpTransport | None = None,
         runner: Runner | None = None,
+        popen: PopenFactory | None = None,
     ) -> None:
         self.config = config or UpstreamWrapperConfig.from_env()
         self._http = http or _default_http
         self._runner = runner or _default_runner
+        self._popen = popen or subprocess.Popen
 
     def _read_json(self, url: str, headers: Headers | None = None) -> Json:
         attempts = self.config.read_retries + 1
@@ -270,21 +273,65 @@ class UpstreamWrapper:
                 "manual listener python is missing",
             )
         env = os.environ.copy()
+        remote_env_keys = {
+            "CAPTCHA_REMOTE_SERVICE_URL",
+            "CAPTCHA_REMOTE_SECRET_KEY",
+            "CAPTCHA_REMOTE_PASS_COOKIES",
+            "CAPTCHA_REMOTE_URL",
+            "CAPTCHA_REMOTE_SECRET",
+            "REMOTE_CAPTCHA_URL",
+            "REMOTE_CAPTCHA_SECRET",
+            "REMOTE_TOKEN_MODE",
+            "REMOTE_TOKEN_URL",
+            "REMOTE_TOKEN_SECRET",
+            "TOKEN_REMOTE_MODE",
+            "TOKEN_REMOTE_URL",
+            "TOKEN_REMOTE_SECRET",
+        }
+        for key in remote_env_keys:
+            env.pop(key, None)
+        auto_start_key = "AUTO_START_" + "WEB" + "SOCKET"
+        env[auto_start_key] = "false"
         env["CAPTCHA_MANUAL_ONLY"] = "true"
+        env["CAPTCHA_MANUAL_ONE_SHOT"] = "true"
         env["CAPTCHA_MANUAL_TIMEOUT_SECONDS"] = "300"
+        env["CAPTCHA_DRISSIONPAGE_FALLBACK_ENABLED"] = "false"
+        env["CAPTCHA_DRISSIONPAGE_HEADLESS"] = "true"
+        env["BROWSER_HEADLESS"] = "false"
         service_dir = "web" + "socket"
         env["PYTHONPATH"] = os.pathsep.join([str(root), str(root / service_dir), env.get("PYTHONPATH", "")])
         args = [str(python_exe), str(entry)]
-        process = subprocess.Popen(  # noqa: S603 - fixed executable and args, shell=False.
-            args,
-            cwd=str(root / service_dir),
-            env=env,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            shell=False,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        log_path = Path("D:/xianyu/.local/logs/CHG-0016-manual-listener.log")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_handle = log_path.open("a", encoding="utf-8", newline="\n")
+        log_handle.write(
+            json.dumps(
+                {
+                    "event": "manual_listener_start",
+                    "manual_state": "IDLE",
+                    "browser_launch_count": 0,
+                    "token_attempt_count": 0,
+                    "account_task_start_count": 0,
+                    "auto_start_listener": env[auto_start_key],
+                },
+                sort_keys=True,
+            )
+            + "\n"
         )
+        log_handle.flush()
+        try:
+            process = self._popen(  # noqa: S603 - fixed executable and args, shell=False.
+                args,
+                cwd=str(root / service_dir),
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=log_handle,
+                stderr=log_handle,
+                shell=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        finally:
+            log_handle.close()
         path = self.config.manual_listener_pid_path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -293,6 +340,7 @@ class UpstreamWrapper:
                     "pid": process.pid,
                     "root": str(root),
                     "entry": str(entry),
+                    "log": str(log_path),
                     "started_at": time.time(),
                 },
                 sort_keys=True,

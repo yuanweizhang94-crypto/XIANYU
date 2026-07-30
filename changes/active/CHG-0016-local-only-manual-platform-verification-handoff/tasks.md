@@ -12,14 +12,29 @@ Status: IMPLEMENTING
 - [x] T8 Create upstream patch worktree from pinned SHA and implement manual-only mode.
 - [x] T9 Implement CHG-0009 host manual-listener wrapper lifecycle.
 - [x] T10 Run local verification.
-- [ ] T11 Update PR #17, wait for CI, and merge.
+- [ ] T11 Repair live manual verification defects, open repair PR, wait for CI, and merge.
 - [ ] T12 Run controlled owner manual validation without sending messages.
 - [ ] T13 Cleanup and close Change.
 
 ## Current progress
 
 Completed tasks: 10 / 13
-Next task: T11 Update PR #17, wait for CI, and merge.
+Next task: T11 Repair live manual verification defects, open repair PR, wait for CI, and merge.
+
+Current live defect marker: `MANUAL_VERIFICATION_REPEATED_BROWSER_LAUNCH`.
+
+Required repair roots:
+
+- `AUTO_START_WEBSOCKET_NOT_DISABLED`.
+- `EXISTING_X5_COOKIE_FALSE_SUCCESS`.
+- `MANUAL_BROWSER_NOT_SINGLE_SHOT`.
+- `MANUAL_LISTENER_LOGS_DISCARDED`.
+
+Requested short repair branch created:
+`fix/CHG-0016-manual-verification-single-shot`.
+
+Governance-compatible repair PR branch:
+`fix/CHG-0016-local-only-manual-platform-verification-handoff/manual-verification-single-shot`.
 
 ## Implementing allowed work
 
