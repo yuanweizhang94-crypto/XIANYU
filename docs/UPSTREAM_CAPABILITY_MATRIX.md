@@ -16,6 +16,21 @@ Audit type: static source audit plus prior supervised Pilot evidence. No platfor
 
 `ADOPT_UPSTREAM`, `CONFIGURE_UPSTREAM`, `PATCH_UPSTREAM`, `WRAP_FOR_OPERATIONS`, `BUILD_LOCAL_EXCEPTION`, `RETIRE_LOCAL_OVERLAP`, `UNVERIFIED`, `OUT_OF_SCOPE`.
 
+## Mandatory matrix maintenance and validation rule
+
+This matrix is a baseline inventory, not a substitute for fresh upstream research.
+
+Before development, repair, or validation of any row:
+
+1. Read the original upstream feature description and intended user workflow first. Use README/docs, UI text, API descriptions, release notes, issues, and commits where available.
+2. Re-check the pinned upstream SHA and record exact UI, route, service, model, worker, scheduler, test, configuration, and log evidence relevant to the task.
+3. Confirm whether the deployed pinned SHA contains the described behavior. Newer upstream behavior must be marked separately and must not be represented as deployed.
+4. Use the upstream-native workflow for the first implementation and validation plan.
+5. Consult prior `D:/xianyu` implementations, archived Changes, ADRs, experiments, tests, and research only when upstream has no corresponding capability or does not address the observed problem.
+6. Update this matrix when evidence, upstream SHA, ownership, reuse decision, validation status, or forbidden duplicate implementation changes.
+
+Every active Change that references this matrix must also record upstream feature-description evidence, the pinned code path, the native workflow, expected status/log evidence, the reuse decision, and duplicate-development risk. A row marked present does not authorize a parallel local implementation. A row marked not present is invalid unless the searched documentation and source areas are recorded.
+
 ## Matrix
 
 | Capability | Product requirement | Pinned upstream evidence | Upstream UI/API | Upstream execution service | Current live verification | Existing `D:/xianyu` overlap | Decision | Capability owner | Next validation | Forbidden duplicate implementation |
