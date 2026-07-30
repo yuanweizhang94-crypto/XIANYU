@@ -36,6 +36,17 @@ Requested short repair branch created:
 Governance-compatible repair PR branch:
 `fix/CHG-0016-local-only-manual-platform-verification-handoff/manual-verification-single-shot`.
 
+Manual-listener startup blocker:
+
+- Safe category: `DATABASE_CONNECTION_ERROR`.
+- Exact failing component: patched upstream host websocket lifespan database
+  startup check.
+- Root cause: host manual-listener inherited container/default MySQL settings
+  and attempted `localhost:3306`; Pilot MySQL is exposed to Windows host on
+  loopback port `13306`.
+- Repair branch:
+  `fix/CHG-0016-local-only-manual-platform-verification-handoff/manual-listener-startup`.
+
 ## Implementing allowed work
 
 - Proposal.

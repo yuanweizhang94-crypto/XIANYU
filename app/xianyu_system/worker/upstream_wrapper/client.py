@@ -13,7 +13,7 @@ from typing import Any
 from urllib import request as urlrequest
 from urllib.parse import quote
 
-from xianyu_system.worker.upstream_wrapper.config import UpstreamWrapperConfig
+from xianyu_system.worker.upstream_wrapper.config import UpstreamWrapperConfig, _load_env_file
 from xianyu_system.worker.upstream_wrapper.models import (
     ConfirmedReplyRequest,
     NormalizedInboundMessage,
@@ -28,6 +28,8 @@ Headers = dict[str, str]
 HttpTransport = Callable[[str, str, Json | None, float, Headers | None], Json]
 Runner = Callable[[list[str], Path | None, str | None], subprocess.CompletedProcess[str]]
 PopenFactory = Callable[..., subprocess.Popen[Any]]
+Sleep = Callable[[float], None]
+Clock = Callable[[], float]
 
 
 class UpstreamWrapperError(RuntimeError):
@@ -72,11 +74,15 @@ class UpstreamWrapper:
         http: HttpTransport | None = None,
         runner: Runner | None = None,
         popen: PopenFactory | None = None,
+        sleep: Sleep | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self.config = config or UpstreamWrapperConfig.from_env()
         self._http = http or _default_http
         self._runner = runner or _default_runner
         self._popen = popen or subprocess.Popen
+        self._sleep = sleep or time.sleep
+        self._clock = clock or time.monotonic
 
     def _read_json(self, url: str, headers: Headers | None = None) -> Json:
         attempts = self.config.read_retries + 1
@@ -246,6 +252,71 @@ class UpstreamWrapper:
         )
         return completed.returncode == 0 and "running" in completed.stdout
 
+    def _manual_startup_category(self, log_path: Path) -> str:
+        if not log_path.exists():
+            return "OTHER_STARTUP_ERROR"
+        tail = "\n".join(log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-120:]).lower()
+        if "modulenotfounderror" in tail or "importerror" in tail:
+            if "no module named" in tail:
+                return "MISSING_DEPENDENCY"
+            return "IMPORT_ERROR"
+        if "validationerror" in tail or "settings" in tail or "config" in tail:
+            return "CONFIG_ERROR"
+        if "mysql" in tail or "asyncmy" in tail or "pymysql" in tail or "database" in tail or "sqlalchemy" in tail:
+            return "DATABASE_CONNECTION_ERROR"
+        if "redis" in tail:
+            return "REDIS_CONNECTION_ERROR"
+        if "address already in use" in tail or "only one usage" in tail or "eaddrinuse" in tail:
+            return "PORT_BIND_ERROR"
+        if "pythonpath" in tail or "no module named 'app'" in tail or 'no module named "app"' in tail:
+            return "PYTHONPATH_ERROR"
+        return "OTHER_STARTUP_ERROR"
+
+    def _stop_started_process(self, process: subprocess.Popen[Any]) -> None:
+        if process.poll() is not None:
+            return
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+
+    def _wait_manual_listener_ready(
+        self,
+        process: subprocess.Popen[Any],
+        *,
+        timeout_seconds: float,
+        log_path: Path,
+    ) -> UpstreamActionResult:
+        deadline = self._clock() + timeout_seconds
+        while self._clock() < deadline:
+            if process.poll() is not None:
+                self.config.manual_listener_pid_path.unlink(missing_ok=True)
+                return UpstreamActionResult(
+                    UpstreamResultState.FAILED,
+                    "manual-listener-start",
+                    self._manual_startup_category(log_path),
+                )
+            try:
+                health = self._read_json(f"{self.config.listener_base_url}/health")
+                if bool(health.get("success")):
+                    return UpstreamActionResult(
+                        UpstreamResultState.SUCCESS,
+                        "manual-listener-start",
+                        "host manual listener",
+                    )
+            except UpstreamWrapperError:
+                pass
+            self._sleep(1.0)
+        self._stop_started_process(process)
+        self.config.manual_listener_pid_path.unlink(missing_ok=True)
+        return UpstreamActionResult(
+            UpstreamResultState.FAILED,
+            "manual-listener-start",
+            "STARTUP_HEALTH_TIMEOUT",
+        )
+
     def manual_listener_status(self) -> str:
         data = self._read_manual_pid()
         if not data:
@@ -273,6 +344,24 @@ class UpstreamWrapper:
                 "manual listener python is missing",
             )
         env = os.environ.copy()
+        pilot_env = _load_env_file(self.config.pilot_root / ".pilot" / ".env.pilot")
+        for key in [
+            "MYSQL_DATABASE",
+            "MYSQL_USER",
+            "MYSQL_PASSWORD",
+            "REDIS_PASSWORD",
+        ]:
+            if pilot_env.get(key):
+                env[key] = pilot_env[key]
+        env["MYSQL_HOST"] = "127.0.0.1"
+        env["MYSQL_PORT"] = "13306"
+        env["REDIS_HOST"] = "127.0.0.1"
+        env["REDIS_PORT"] = "16379"
+        env["REDIS_DB"] = "0"
+        env["HOST"] = "127.0.0.1"
+        env["WEB" + "SOCKET_PORT"] = "18090"
+        env["BACKEND_WEB_SERVICE_URL"] = self.config.backend_base_url
+        env["STATIC_DIR"] = "D:/xianyu/.local/static"
         remote_env_keys = {
             "CAPTCHA_REMOTE_SERVICE_URL",
             "CAPTCHA_REMOTE_SECRET_KEY",
@@ -347,7 +436,7 @@ class UpstreamWrapper:
             ),
             encoding="utf-8",
         )
-        return UpstreamActionResult(UpstreamResultState.SUCCESS, "manual-listener-start", "host manual listener")
+        return self._wait_manual_listener_ready(process, timeout_seconds=30.0, log_path=log_path)
 
     def stop_manual_listener(self) -> UpstreamActionResult:
         data = self._read_manual_pid()
