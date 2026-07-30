@@ -117,6 +117,34 @@ Browser requirements:
 - Official verification host allowlist.
 - Profile closed and deleted after completion.
 
+## Live Defect Repair
+
+Controlled owner validation exposed
+`MANUAL_VERIFICATION_REPEATED_BROWSER_LAUNCH`.
+
+Root causes:
+
+- `AUTO_START_WEBSOCKET_NOT_DISABLED`.
+- `EXISTING_X5_COOKIE_FALSE_SUCCESS`.
+- `MANUAL_BROWSER_NOT_SINGLE_SHOT`.
+- `MANUAL_LISTENER_LOGS_DISCARDED`.
+
+Repair boundary:
+
+- Keep CHG-0016 in `IMPLEMENTING`.
+- Do not restart live validation until fake-browser, static, and repository
+  tests pass and the repair PR is merged.
+- Force host manual-listener startup to set `AUTO_START_WEBSOCKET=false`.
+- Enforce process-wide one-shot manual browser launch state:
+  `IDLE/RUNNING/SUCCEEDED/FAILED/TIMED_OUT/CANCELLED/CONSUMED`.
+- Require exact new or changed `x5sec` after the page leaves the
+  verification/punish state.
+- Retry upstream native Token once after manual success. If the platform still
+  requires verification, set `manual_verification_not_accepted` and fail closed
+  without opening another browser.
+- Store only sanitized local listener logs under the ignored path
+  `D:/xianyu/.local/logs/CHG-0016-manual-listener.log`.
+
 ## Cookie merge
 
 Requirements:

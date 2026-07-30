@@ -1,38 +1,42 @@
-﻿diff --git a/common/services/captcha/manual_verification.py b/common/services/captcha/manual_verification.py
+diff --git a/common/services/captcha/manual_verification.py b/common/services/captcha/manual_verification.py
 new file mode 100644
-index 0000000..32ac42b
+index 0000000..09971b8
 --- /dev/null
 +++ b/common/services/captcha/manual_verification.py
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,231 @@
 +"""Manual-only platform verification helper.
 +
-+This mode opens the official verification URL in a visible local browser and
++This mode opens the official verification URL in one visible local browser and
 +waits for the account owner to complete the page. It never moves the mouse,
-+types, clicks, drags, injects trajectories, or calls a remote solver.
++types, clicks, drags, injects trajectories, uses DrissionPage, or calls a
++remote solver.
 +"""
 +from __future__ import annotations
 +
++import ipaddress
 +import os
++import shutil
++import tempfile
++import threading
 +import time
 +from http.cookiejar import Cookie
-+from typing import Dict, Iterable
++from typing import Any, Callable, Dict, Iterable
 +from urllib.parse import urlparse
 +
 +from loguru import logger
 +
 +from common.utils.xianyu_utils import trans_cookies
 +
-+_ALLOWED_HOST_SUFFIXES = (
-+    ".goofish.com",
-+    ".taobao.com",
-+    ".tmall.com",
-+    ".alibaba.com",
-+    "goofish.com",
-+    "taobao.com",
-+    "tmall.com",
-+    "alibaba.com",
-+)
++_ALLOWED_INITIAL_HOST = "h5api.m.goofish.com"
 +_ALLOWED_COOKIE_NAMES = {"x5sec"}
++_VERIFICATION_MARKERS = ("punish", "x5secdata", "captcha", "verify", "verification", "baxia")
++_STATE_LOCK = threading.Lock()
++_STATE = "IDLE"
++_BROWSER_LAUNCH_COUNT = 0
++_TERMINAL_STATES = {"SUCCEEDED", "FAILED", "TIMED_OUT", "CANCELLED", "CONSUMED"}
++
++PlaywrightFactory = Callable[[], Any]
++Clock = Callable[[], float]
 +
 +
 +def is_manual_only_enabled() -> bool:
@@ -53,14 +57,70 @@ index 0000000..32ac42b
 +    return max(30, min(value, 300))
 +
 +
++def reset_manual_verification_state_for_tests() -> None:
++    global _BROWSER_LAUNCH_COUNT, _STATE
++    with _STATE_LOCK:
++        _STATE = "IDLE"
++        _BROWSER_LAUNCH_COUNT = 0
++
++
++def manual_verification_state_snapshot() -> dict[str, object]:
++    with _STATE_LOCK:
++        return {"state": _STATE, "browser_launch_count": _BROWSER_LAUNCH_COUNT}
++
++
++def _try_begin() -> tuple[bool, str]:
++    global _STATE
++    with _STATE_LOCK:
++        if _STATE != "IDLE":
++            if _STATE == "RUNNING":
++                return False, "manual_verification_busy_or_consumed"
++            if _STATE in _TERMINAL_STATES:
++                _STATE = "CONSUMED"
++            return False, "manual_already_consumed"
++        _STATE = "RUNNING"
++        return True, "running"
++
++
++def _mark_browser_launch() -> None:
++    global _BROWSER_LAUNCH_COUNT
++    with _STATE_LOCK:
++        _BROWSER_LAUNCH_COUNT += 1
++
++
++def _finish(state: str, status: str) -> str:
++    global _STATE
++    with _STATE_LOCK:
++        _STATE = state
++    return status
++
++
 +def _host_allowed(url: str) -> bool:
-+    host = (urlparse(url).hostname or "").lower()
-+    return any(host == suffix or host.endswith(suffix) for suffix in _ALLOWED_HOST_SUFFIXES)
++    if len(url) > 2048:
++        return False
++    parsed = urlparse(url)
++    if parsed.scheme.lower() != "https":
++        return False
++    if parsed.username or parsed.password:
++        return False
++    if parsed.port is not None:
++        return False
++    host = (parsed.hostname or "").lower()
++    if not host or host != _ALLOWED_INITIAL_HOST:
++        return False
++    try:
++        ipaddress.ip_address(host)
++        return False
++    except ValueError:
++        return True
++
++
++def _safe_host_category(url: str) -> str:
++    return "allowed_goofish_h5api" if _host_allowed(url) else "blocked"
 +
 +
 +def _allowed_cookie(name: str) -> bool:
-+    normalized = name.strip().lower()
-+    return normalized in _ALLOWED_COOKIE_NAMES or normalized.startswith("x5")
++    return name.strip().lower() in _ALLOWED_COOKIE_NAMES
 +
 +
 +def _existing_cookie_payloads(cookies_str: str) -> list[dict[str, object]]:
@@ -69,8 +129,7 @@ index 0000000..32ac42b
 +    for name, value in cookies.items():
 +        if not name:
 +            continue
-+        for domain in (".goofish.com", ".taobao.com", ".tmall.com"):
-+            payloads.append({"name": name, "value": value, "domain": domain, "path": "/"})
++        payloads.append({"name": name, "value": value, "domain": ".goofish.com", "path": "/"})
 +    return payloads
 +
 +
@@ -84,8 +143,20 @@ index 0000000..32ac42b
 +            name = str(cookie.get("name") or "")
 +            value = str(cookie.get("value") or "")
 +        if name and value and _allowed_cookie(name):
-+            extracted[name] = value
++            extracted[name.lower()] = value
 +    return extracted
++
++
++def _left_verification_page(url: str) -> bool:
++    parsed = urlparse(url)
++    observed = f"{parsed.hostname or ''}{parsed.path or ''}".lower()
++    return bool(observed) and not any(marker in observed for marker in _VERIFICATION_MARKERS)
++
++
++def _default_playwright_factory() -> Any:
++    from playwright.sync_api import sync_playwright
++
++    return sync_playwright()
 +
 +
 +def run_manual_verification(
@@ -94,65 +165,91 @@ index 0000000..32ac42b
 +    *,
 +    existing_cookies_str: str = "",
 +    browser_timeout: int = 300,
-+) -> tuple[bool, Dict[str, str] | None]:
-+    """Open the official verification page and wait for owner-completed x5 cookies."""
++    playwright_factory: PlaywrightFactory | None = None,
++    clock: Clock = time.monotonic,
++) -> tuple[bool, Dict[str, str] | None, str]:
++    """Open one official verification page and wait for a new x5sec Cookie."""
++    begin_ok, begin_status = _try_begin()
++    if not begin_ok:
++        logger.warning(
++            f"[manual-verification] state={begin_status} "
++            f"browser_launch_count={manual_verification_state_snapshot()['browser_launch_count']}"
++        )
++        return False, None, begin_status
++
 +    if not _host_allowed(url):
-+        logger.warning(f"[manual-verification] account={user_id} blocked non-official verification host")
-+        return False, None
++        logger.warning("[manual-verification] host_category=blocked result=VERIFICATION_REDIRECT_BLOCKED")
++        return False, None, _finish("FAILED", "VERIFICATION_REDIRECT_BLOCKED")
 +
 +    timeout = min(manual_timeout_seconds(browser_timeout), browser_timeout if browser_timeout else 300)
 +    logger.warning(
-+        f"[manual-verification] account={user_id} opening visible official verification page; "
-+        f"owner action required within {timeout} seconds"
++        f"[manual-verification] state=RUNNING host_category={_safe_host_category(url)} "
++        f"owner_action_required=true timeout_seconds={timeout}"
 +    )
 +
-+    from playwright.sync_api import sync_playwright
++    factory = playwright_factory or _default_playwright_factory
++    started = clock()
++    profile_dir = tempfile.mkdtemp(prefix="xianyu-manual-verification-")
++    context = None
++    playwright_cm = None
++    try:
++        playwright_cm = factory()
++        playwright = playwright_cm.__enter__()
++        _mark_browser_launch()
++        context = playwright.chromium.launch_persistent_context(
++            user_data_dir=profile_dir,
++            headless=False,
++            args=[],
++        )
++        payloads = _existing_cookie_payloads(existing_cookies_str)
++        if payloads:
++            context.add_cookies(payloads)
++        baseline = _extract_allowed(context.cookies()).get("x5sec")
++        page = context.new_page()
++        page.goto(url, wait_until="domcontentloaded", timeout=min(timeout, 60) * 1000)
 +
-+    started = time.monotonic()
-+    with sync_playwright() as playwright:
-+        browser = playwright.chromium.launch(headless=False)
-+        context = browser.new_context()
++        while clock() - started <= timeout:
++            if hasattr(page, "is_closed") and page.is_closed():
++                logger.warning("[manual-verification] state=CANCELLED")
++                return False, None, _finish("CANCELLED", "manual_verification_cancelled")
++            current_url = str(getattr(page, "url", "") or "")
++            if current_url and not _host_allowed(current_url):
++                logger.warning("[manual-verification] host_category=blocked result=VERIFICATION_REDIRECT_BLOCKED")
++                return False, None, _finish("FAILED", "VERIFICATION_REDIRECT_BLOCKED")
++            x5sec = _extract_allowed(context.cookies()).get("x5sec")
++            if x5sec and x5sec != baseline and current_url and _left_verification_page(current_url):
++                logger.info("[manual-verification] state=SUCCEEDED cookie_field_count=1")
++                return True, {"x5sec": x5sec}, _finish("SUCCEEDED", "manual_verification_succeeded")
++            page.wait_for_timeout(1000)
++
++        logger.warning("[manual-verification] state=TIMED_OUT")
++        return False, None, _finish("TIMED_OUT", "manual_verification_timed_out")
++    except Exception as exc:
++        logger.warning(f"[manual-verification] state=FAILED error_class={type(exc).__name__}")
++        return False, None, _finish("FAILED", "manual_verification_failed")
++    finally:
 +        try:
-+            payloads = _existing_cookie_payloads(existing_cookies_str)
-+            if payloads:
-+                context.add_cookies(payloads)
-+            page = context.new_page()
-+            page.goto(url, wait_until="domcontentloaded", timeout=min(timeout, 60) * 1000)
-+            while time.monotonic() - started <= timeout:
-+                cookies = _extract_allowed(context.cookies())
-+                if cookies:
-+                    logger.info(
-+                        f"[manual-verification] account={user_id} owner-completed page produced "
-+                        f"{len(cookies)} allowed cookie fields"
-+                    )
-+                    return True, cookies
-+                page.wait_for_timeout(1000)
-+            logger.warning(f"[manual-verification] account={user_id} timed out waiting for owner completion")
-+            return False, None
++            if context is not None:
++                context.close()
 +        finally:
-+            context.close()
-+            browser.close()
++            if playwright_cm is not None:
++                playwright_cm.__exit__(None, None, None)
++            shutil.rmtree(profile_dir, ignore_errors=True)
 diff --git a/common/services/captcha/orchestrator.py b/common/services/captcha/orchestrator.py
-index 5d1c1e6..a24841e 100644
+index 5d1c1e6..b49b921 100644
 --- a/common/services/captcha/orchestrator.py
 +++ b/common/services/captcha/orchestrator.py
-@@ -21,6 +21,10 @@ from common.services.captcha.drissionpage_slider import (
-     run_drissionpage_verification,
-     DRISSIONPAGE_AVAILABLE,
- )
+@@ -23,0 +24,4 @@ from common.services.captcha.drissionpage_slider import (
 +from common.services.captcha.manual_verification import (
 +    is_manual_only_enabled,
 +    run_manual_verification,
 +)
- 
- 
- def _has_x5sec(cookies: Optional[Dict[str, str]]) -> bool:
-@@ -168,6 +172,17 @@ def run_slider_verification_with_fallback(
-         (是否成功, cookies 字典 | None, 通过引擎 | None)
-         通过引擎取值：'playwright'（主引擎）/ 'drissionpage'（兜底引擎）/ 'real_mouse'（真实鼠标）/ 'remote'（远程接口）/ None（未成功）
-     """
+@@ -32 +36 @@ def _has_x5sec(cookies: Optional[Dict[str, str]]) -> bool:
+-        if name_lower.startswith("x5") or "x5sec" in name_lower:
++        if name_lower == "x5sec":
+@@ -170,0 +175,11 @@ def run_slider_verification_with_fallback(
 +    if is_manual_only_enabled():
-+        ok, manual_cookies = run_manual_verification(
++        ok, manual_cookies, manual_status = run_manual_verification(
 +            user_id,
 +            url,
 +            existing_cookies_str=existing_cookies_str,
@@ -160,66 +257,366 @@ index 5d1c1e6..a24841e 100644
 +        )
 +        if ok and _has_x5sec(manual_cookies):
 +            return True, manual_cookies, "manual"
-+        return False, None, "manual"
++        return False, None, manual_status
 +
-     # -1. 远程过滑块（可选，由全局配置 remote_config 触发）：
-     #     已配置则优先调远程接口求解；超时/网络不可用 → 回退本机逻辑；
-     #     非超时（远程有返回，无论成败）→ 直接采用远程结果，不回退。
+diff --git a/tests/test_manual_verification.py b/tests/test_manual_verification.py
+new file mode 100644
+index 0000000..cc5d99c
+--- /dev/null
++++ b/tests/test_manual_verification.py
+@@ -0,0 +1,294 @@
++from __future__ import annotations
++
++import threading
++import importlib.util
++import sys
++import types
++from pathlib import Path
++
++import pytest
++
++logger_module = types.ModuleType("loguru")
++logger_module.logger = types.SimpleNamespace(info=lambda *args, **kwargs: None, warning=lambda *args, **kwargs: None)
++sys.modules.setdefault("loguru", logger_module)
++
++xianyu_utils = types.ModuleType("common.utils.xianyu_utils")
++
++
++def trans_cookies(raw: str) -> dict[str, str]:
++    cookies: dict[str, str] = {}
++    for part in raw.split(";"):
++        if "=" in part:
++            name, value = part.split("=", 1)
++            cookies[name.strip()] = value.strip()
++    return cookies
++
++
++xianyu_utils.trans_cookies = trans_cookies
++sys.modules.setdefault("common", types.ModuleType("common"))
++sys.modules.setdefault("common.utils", types.ModuleType("common.utils"))
++sys.modules["common.utils.xianyu_utils"] = xianyu_utils
++
++spec = importlib.util.spec_from_file_location(
++    "manual_verification_under_test",
++    Path(__file__).resolve().parents[1] / "common" / "services" / "captcha" / "manual_verification.py",
++)
++assert spec and spec.loader
++manual = importlib.util.module_from_spec(spec)
++sys.modules["manual_verification_under_test"] = manual
++spec.loader.exec_module(manual)
++
++
++class FakeClock:
++    def __init__(self) -> None:
++        self.value = 0.0
++
++    def __call__(self) -> float:
++        return self.value
++
++    def advance(self, seconds: float) -> None:
++        self.value += seconds
++
++
++class FakePage:
++    def __init__(self, context: "FakeContext", clock: FakeClock, *, redirect_url: str | None = None) -> None:
++        self._context = context
++        self._clock = clock
++        self._redirect_url = redirect_url
++        self.url = ""
++        self.closed = False
++
++    def goto(self, url: str, **_: object) -> None:
++        self.url = self._redirect_url or url
++
++    def wait_for_timeout(self, milliseconds: int) -> None:
++        self._context.polls += 1
++        if self._context.new_x5sec_after_poll is not None and self._context.polls >= 1:
++            self._context.current_cookies = [{"name": "x5sec", "value": self._context.new_x5sec_after_poll}]
++            self.url = "https://h5api.m.goofish.com/home"
++        self._clock.advance(milliseconds / 1000)
++
++    def is_closed(self) -> bool:
++        return self.closed
++
++
++class FakeContext:
++    def __init__(
++        self,
++        clock: FakeClock,
++        *,
++        initial_cookies: list[dict[str, str]] | None = None,
++        new_x5sec_after_poll: str | None = None,
++        redirect_url: str | None = None,
++    ) -> None:
++        self._clock = clock
++        self.current_cookies = initial_cookies or []
++        self.new_x5sec_after_poll = new_x5sec_after_poll
++        self.redirect_url = redirect_url
++        self.polls = 0
++        self.closed = False
++
++    def add_cookies(self, cookies: list[dict[str, object]]) -> None:
++        self.current_cookies = [
++            {"name": str(cookie["name"]), "value": str(cookie["value"])}
++            for cookie in cookies
++            if cookie.get("name") == "x5sec"
++        ]
++
++    def cookies(self) -> list[dict[str, str]]:
++        return self.current_cookies
++
++    def new_page(self) -> FakePage:
++        return FakePage(self, self._clock, redirect_url=self.redirect_url)
++
++    def close(self) -> None:
++        self.closed = True
++
++
++class FakeChromium:
++    def __init__(self, context: FakeContext) -> None:
++        self._context = context
++        self.launch_count = 0
++
++    def launch_persistent_context(self, **kwargs: object) -> FakeContext:
++        assert kwargs["headless"] is False
++        assert "user_data_dir" in kwargs
++        self.launch_count += 1
++        return self._context
++
++
++class FakePlaywright:
++    def __init__(self, chromium: FakeChromium) -> None:
++        self.chromium = chromium
++
++
++class FakePlaywrightContextManager:
++    def __init__(self, chromium: FakeChromium) -> None:
++        self._playwright = FakePlaywright(chromium)
++
++    def __enter__(self) -> FakePlaywright:
++        return self._playwright
++
++    def __exit__(self, *_: object) -> None:
++        return None
++
++
++def fake_factory(chromium: FakeChromium):
++    def _factory() -> FakePlaywrightContextManager:
++        return FakePlaywrightContextManager(chromium)
++
++    return _factory
++
++
++@pytest.fixture(autouse=True)
++def reset_state() -> None:
++    manual.reset_manual_verification_state_for_tests()
++
++
++def test_changed_x5sec_after_leaving_verification_page_succeeds() -> None:
++    clock = FakeClock()
++    context = FakeContext(clock, new_x5sec_after_poll="new-x5sec")
++    chromium = FakeChromium(context)
++
++    ok, cookies, status = manual.run_manual_verification(
++        "ACCOUNT-A",
++        "https://h5api.m.goofish.com/punish?redacted",
++        existing_cookies_str="x5sec=old-x5sec",
++        browser_timeout=30,
++        playwright_factory=fake_factory(chromium),
++        clock=clock,
++    )
++
++    assert ok is True
++    assert cookies == {"x5sec": "new-x5sec"}
++    assert status == "manual_verification_succeeded"
++    assert manual.manual_verification_state_snapshot()["browser_launch_count"] == 1
++    assert context.closed is True
++
++
++def test_existing_same_x5sec_is_not_success_and_second_call_does_not_launch() -> None:
++    clock = FakeClock()
++    context = FakeContext(clock)
++    chromium = FakeChromium(context)
++
++    ok, cookies, status = manual.run_manual_verification(
++        "ACCOUNT-A",
++        "https://h5api.m.goofish.com/punish?redacted",
++        existing_cookies_str="x5sec=same",
++        browser_timeout=30,
++        playwright_factory=fake_factory(chromium),
++        clock=clock,
++    )
++    assert ok is False
++    assert cookies is None
++    assert status == "manual_verification_timed_out"
++    assert chromium.launch_count == 1
++
++    second = manual.run_manual_verification(
++        "ACCOUNT-B",
++        "https://h5api.m.goofish.com/punish?redacted",
++        browser_timeout=30,
++        playwright_factory=fake_factory(chromium),
++        clock=clock,
++    )
++    assert second == (False, None, "manual_already_consumed")
++    assert chromium.launch_count == 1
++
++
++def test_rejects_x5_prefix_cookies_other_than_exact_x5sec() -> None:
++    clock = FakeClock()
++    context = FakeContext(clock, initial_cookies=[{"name": "x5token", "value": "wrong"}])
++    chromium = FakeChromium(context)
++
++    ok, cookies, status = manual.run_manual_verification(
++        "ACCOUNT-A",
++        "https://h5api.m.goofish.com/punish?redacted",
++        browser_timeout=30,
++        playwright_factory=fake_factory(chromium),
++        clock=clock,
++    )
++
++    assert ok is False
++    assert cookies is None
++    assert status == "manual_verification_timed_out"
++
++
++@pytest.mark.parametrize(
++    "url",
++    [
++        "http://h5api.m.goofish.com/punish",
++        "https://user:pass@h5api.m.goofish.com/punish",
++        "https://127.0.0.1/punish",
++        "https://h5api.m.goofish.com:8443/punish",
++        "https://login.taobao.com/punish",
++    ],
++)
++def test_unsafe_initial_urls_fail_before_browser_launch(url: str) -> None:
++    ok, cookies, status = manual.run_manual_verification("ACCOUNT-A", url, browser_timeout=30)
++
++    assert ok is False
++    assert cookies is None
++    assert status == "VERIFICATION_REDIRECT_BLOCKED"
++    assert manual.manual_verification_state_snapshot()["browser_launch_count"] == 0
++
++
++def test_unknown_redirect_fails_closed_after_single_launch() -> None:
++    clock = FakeClock()
++    context = FakeContext(clock, redirect_url="https://example.invalid/after")
++    chromium = FakeChromium(context)
++
++    ok, cookies, status = manual.run_manual_verification(
++        "ACCOUNT-A",
++        "https://h5api.m.goofish.com/punish?redacted",
++        browser_timeout=30,
++        playwright_factory=fake_factory(chromium),
++        clock=clock,
++    )
++
++    assert ok is False
++    assert cookies is None
++    assert status == "VERIFICATION_REDIRECT_BLOCKED"
++    assert chromium.launch_count == 1
++
++
++def test_concurrent_calls_launch_at_most_one_browser() -> None:
++    clock = FakeClock()
++    context = FakeContext(clock)
++    chromium = FakeChromium(context)
++    barrier = threading.Barrier(2)
++    results: list[tuple[bool, dict[str, str] | None, str]] = []
++
++    def run_once(account: str) -> None:
++        barrier.wait()
++        results.append(
++            manual.run_manual_verification(
++                account,
++                "https://h5api.m.goofish.com/punish?redacted",
++                browser_timeout=30,
++                playwright_factory=fake_factory(chromium),
++                clock=clock,
++            )
++        )
++
++    t1 = threading.Thread(target=run_once, args=("ACCOUNT-A",))
++    t2 = threading.Thread(target=run_once, args=("ACCOUNT-B",))
++    t1.start()
++    t2.start()
++    t1.join()
++    t2.join()
++
++    assert chromium.launch_count <= 1
++    assert {result[2] for result in results} <= {
++        "manual_verification_timed_out",
++        "manual_verification_busy_or_consumed",
++        "manual_already_consumed",
++    }
++
++
++def test_process_restart_resets_single_shot_state_for_new_process() -> None:
++    manual.run_manual_verification("ACCOUNT-A", "https://login.taobao.com/punish", browser_timeout=30)
++    assert manual.manual_verification_state_snapshot()["state"] == "FAILED"
++
++    manual.reset_manual_verification_state_for_tests()
++
++    assert manual.manual_verification_state_snapshot() == {"state": "IDLE", "browser_launch_count": 0}
 diff --git a/websocket/app/core/config.py b/websocket/app/core/config.py
-index 410c21f..18247cf 100644
+index 410c21f..579949b 100644
 --- a/websocket/app/core/config.py
 +++ b/websocket/app/core/config.py
-@@ -49,6 +49,14 @@ class WebSocketConfig(BaseConfig):
-     captcha_drissionpage_headless: bool = Field(
-         default=True, alias="CAPTCHA_DRISSIONPAGE_HEADLESS"
-     )
+@@ -51,0 +52,9 @@ class WebSocketConfig(BaseConfig):
 +
 +    # Manual-only official verification mode. When enabled, captcha orchestration
 +    # opens a visible local browser and waits for the owner; it does not use
 +    # automated slider, real_mouse, DrissionPage, or remote solving.
 +    captcha_manual_only: bool = Field(default=False, alias="CAPTCHA_MANUAL_ONLY")
++    captcha_manual_one_shot: bool = Field(default=True, alias="CAPTCHA_MANUAL_ONE_SHOT")
 +    captcha_manual_timeout_seconds: int = Field(
 +        default=300, alias="CAPTCHA_MANUAL_TIMEOUT_SECONDS"
 +    )
-     
-     # 服务间通信URL
-     backend_web_service_url: str = Field(
 diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
-index 4864a47..d271f73 100644
+index 4864a47..d23c8a1 100644
 --- a/websocket/app/services/xianyu/cookie_token_manager.py
 +++ b/websocket/app/services/xianyu/cookie_token_manager.py
-@@ -23,6 +23,7 @@ from common.db.session import async_session_maker
- from common.models.system_setting import SystemSetting
- from common.models.token_cache import TokenCache
- from common.services.im_token_api import extract_im_access_token, request_im_token
+@@ -18,0 +19 @@ from typing import Optional
++from urllib.parse import urlparse
+@@ -25,0 +27 @@ from common.services.im_token_api import extract_im_access_token, request_im_tok
 +from common.services.account_cookie_service import merge_account_cookie_fields
- from common.services.risk_control_log_query_service import (
-     check_account_processing_risk_control_log,
-     get_account_risk_control_lock,
-@@ -718,7 +719,10 @@ class CookieTokenManager:
-                 if success and cookies:
-                     logger.info(f"【{self.cookie_id}】滑块验证成功，获取到新的cookies")
-                     # 打印滑块验证返回的全部cookies
+@@ -60,0 +63 @@ class CookieTokenManager:
++        self._manual_token_retry_consumed = False
+@@ -616 +619,7 @@ class CookieTokenManager:
+-            logger.info(f"【{self.cookie_id}】验证URL: {verification_url}")
++            verification_host = (urlparse(str(verification_url)).hostname or "unavailable").lower()
++            verification_host_category = (
++                "allowed_goofish_h5api"
++                if verification_host == "h5api.m.goofish.com"
++                else "blocked_or_unknown"
++            )
++            logger.info(f"【{self.cookie_id}】验证URL host category: {verification_host_category}")
+@@ -632 +641 @@ class CookieTokenManager:
+-                        event_description=f'触发场景: Token刷新, URL: {verification_url}',
++                        event_description='Token refresh platform verification required; URL withheld',
+@@ -684,0 +694,2 @@ class CookieTokenManager:
++                if not success and isinstance(captcha_engine, str) and captcha_engine.startswith("manual"):
++                    self.last_token_refresh_status = captcha_engine
+@@ -719,0 +731,3 @@ class CookieTokenManager:
++                    if captcha_engine == "manual":
++                        self.last_token_refresh_status = "manual_verification_succeeded"
++                        self._manual_token_retry_consumed = True
+@@ -721 +735,4 @@ class CookieTokenManager:
 -                    logger.warning(f"【{self.cookie_id}】滑块验证返回的全部cookies: {cookies}")
 +                    if captcha_engine == "manual":
 +                        logger.info(f"【{self.cookie_id}】手动验证返回 {len(cookies)} 个Cookie字段，不打印值")
 +                    else:
 +                        logger.warning(f"【{self.cookie_id}】滑块验证返回的全部cookies: {cookies}")
-                     
-                     # 更新风控日志为成功状态
-                     captcha_duration = time.time() - captcha_start_time
-@@ -729,6 +733,7 @@ class CookieTokenManager:
-                                 'drissionpage': '兜底引擎(DrissionPage)',
-                                 'real_mouse': '真人鼠标引擎(RealMouse)',
-                                 'remote': '远程接口(Remote)',
+@@ -731,0 +749 @@ class CookieTokenManager:
 +                                'manual': '手动验证(Manual)',
-                                 'playwright': '主引擎(Playwright)',
-                             }
-                             engine_label = engine_label_map.get(captcha_engine, '主引擎(Playwright)')
-@@ -800,10 +805,28 @@ class CookieTokenManager:
-                         self.cookies_str = cookies_str
-                         self.cookies = updated_cookies
-                         
+@@ -752 +770,4 @@ class CookieTokenManager:
+-                        if cookie_name_lower.startswith('x5') or 'x5sec' in cookie_name_lower:
++                        if captcha_engine == "manual":
++                            if cookie_name_lower == 'x5sec':
++                                x5sec_cookies[cookie_name] = cookie_value
++                        elif cookie_name_lower.startswith('x5') or 'x5sec' in cookie_name_lower:
+@@ -803,4 +824,22 @@ class CookieTokenManager:
 -                        # 打印更新后的x5sec值
 -                        logger.warning(f"【{self.cookie_id}】准备保存到数据库的x5sec: {updated_cookies.get('x5sec', '无')}")
 -
@@ -246,6 +643,12 @@ index 4864a47..d271f73 100644
 +                            # 打印更新后的x5sec值
 +                            logger.warning(f"【{self.cookie_id}】准备保存到数据库的x5sec: {updated_cookies.get('x5sec', '无')}")
 +                            await self.update_config_cookies()
-                         logger.info(f"【{self.cookie_id}】滑块验证成功后，数据库cookies已自动更新")
-                         logger.info(f"【{self.cookie_id}】滑块验证成功: 新增{new_cookie_count}个x5, 更新{updated_cookie_count}个x5")
- 
+@@ -1113,0 +1153,8 @@ class CookieTokenManager:
++                if captcha_retry_count > 0 and self._manual_token_retry_consumed:
++                    logger.warning(
++                        f"【{self.cookie_id}】手动验证后Token接口仍要求平台验证，"
++                        "判定为manual_verification_not_accepted，停止重复弹窗"
++                    )
++                    self.last_token_refresh_status = "manual_verification_not_accepted"
++                    self.current_token = None
++                    return None
