@@ -1,0 +1,56 @@
+name: Download Commons Audio
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/download_commons_audio.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download online licensed audio
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p commons_audio
+          curl --fail --location --retry 4 --retry-delay 2 \
+            'https://commons.wikimedia.org/wiki/Special:Redirect/file/Soft_Corporate_by_MusicLFiles.ogg' \
+            -o commons_audio/bgm_soft_corporate.ogg
+          curl --fail --location --retry 4 --retry-delay 2 \
+            'https://commons.wikimedia.org/wiki/Special:Redirect/file/Fwoosh.wav' \
+            -o commons_audio/sfx_whoosh.wav
+          curl --fail --location --retry 4 --retry-delay 2 \
+            'https://commons.wikimedia.org/wiki/Special:Redirect/file/Sound_Effect_-_Door_Bell.ogg' \
+            -o commons_audio/sfx_ding.ogg
+          curl --fail --location --retry 4 --retry-delay 2 \
+            'https://commons.wikimedia.org/wiki/Special:Redirect/file/Simple_Happy_Beep.ogg' \
+            -o commons_audio/sfx_notification.ogg
+          cat > commons_audio/AUDIO_CREDITS.txt <<'EOF'
+          BGM: "Soft Corporate" by MusicLFiles — CC BY 4.0 — Wikimedia Commons.
+          Whoosh: "Fwoosh.wav" by Célestine-Edelweiß — CC0 — Wikimedia Commons.
+          Ding: "Sound Effect - Door Bell.ogg" by Amada44 — CC0 — Wikimedia Commons.
+          Notification: "Simple Happy Beep.ogg" by waveplaySFX — CC0 — Wikimedia Commons.
+          All audio was downloaded online in GitHub Actions and was not locally synthesized.
+          EOF
+      - name: Validate downloaded media
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          for f in commons_audio/*.{ogg,wav}; do
+            [ -e "$f" ] || continue
+            ffprobe -v error -show_entries format=filename,duration,size -of default=nw=1 "$f"
+          done
+      - name: Upload audio artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghana-commons-audio
+          path: commons_audio/
+          if-no-files-found: error
+          retention-days: 7

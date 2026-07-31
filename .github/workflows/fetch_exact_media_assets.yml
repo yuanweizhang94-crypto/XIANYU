@@ -1,0 +1,199 @@
+name: Fetch Exact Media Assets
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch_exact_media_assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests curl_cffi playwright playwright-stealth beautifulsoup4
+          python -m playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg xvfb
+
+      - name: Fetch exact assets
+        shell: bash
+        run: |
+          cat > /tmp/fetch_exact.py <<'PY'
+          import asyncio, html, json, re, hashlib, subprocess
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import requests
+          from curl_cffi import requests as crequests
+          from playwright.async_api import async_playwright
+
+          OUT=Path('exact_assets'); OUT.mkdir(exist_ok=True)
+          DEBUG=OUT/'debug'; DEBUG.mkdir(exist_ok=True)
+
+          static_assets={
+            'Montserrat-Black.ttf':'https://raw.githubusercontent.com/JulietaUla/Montserrat/master/fonts/ttf/Montserrat-Black.ttf',
+            'Montserrat-Bold.ttf':'https://raw.githubusercontent.com/JulietaUla/Montserrat/master/fonts/ttf/Montserrat-Bold.ttf',
+            'whatsapp_flaticon_4406170.png':'https://cdn-icons-png.flaticon.com/512/4406/4406170.png',
+            'green_check_flaticon_1179179.png':'https://cdn-icons-png.flaticon.com/512/1179/1179179.png',
+          }
+
+          media_pages={
+            'bgm_pixabay.mp3':'https://pixabay.com/music/corporate-the-technology-corporate-198151/',
+            'whoosh_pixabay.mp3':'https://pixabay.com/sound-effects/film-special-effects-whoosh-effect-382717/',
+            'ding_pixabay.mp3':'https://pixabay.com/sound-effects/film-special-effects-ding-402325/',
+            'notification_pixabay.mp3':'https://pixabay.com/sound-effects/technology-ui-notification-pop-513564/',
+          }
+
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
+
+          def save_url(url, path, referer=None):
+            hdr={'User-Agent':UA,'Accept':'*/*'}
+            if referer: hdr['Referer']=referer
+            try:
+              r=crequests.get(url,headers=hdr,impersonate='chrome',timeout=90,allow_redirects=True)
+              b=r.content
+              print('GET',r.status_code,len(b),r.headers.get('content-type'),url)
+              if r.status_code<400 and len(b)>500:
+                path.write_bytes(b); return True
+            except Exception as e: print('curl_cffi error',url,e)
+            try:
+              r=requests.get(url,headers=hdr,timeout=90,allow_redirects=True)
+              b=r.content
+              print('requests GET',r.status_code,len(b),r.headers.get('content-type'),url)
+              if r.status_code<400 and len(b)>500:
+                path.write_bytes(b); return True
+            except Exception as e: print('requests error',url,e)
+            return False
+
+          for fn,url in static_assets.items():
+            if not save_url(url,OUT/fn):
+              print('FAILED STATIC',fn)
+
+          def normalize_text(s):
+            return html.unescape(s).replace('\\/','/').replace('\\u002F','/').replace('\\u0026','&')
+
+          def extract_candidates(text):
+            t=normalize_text(text)
+            patterns=[
+              r'https://cdn\.pixabay\.com/(?:download/)?audio/[^"\'<>\\ ]+?(?:\.mp3|\.wav|\.ogg)(?:\?[^"\'<>\\ ]*)?',
+              r'https://cdn\.pixabay\.com/[^"\'<>\\ ]+?(?:\.mp3|\.wav|\.ogg)(?:\?[^"\'<>\\ ]*)?',
+              r'https://[^"\'<>\\ ]+?pixabay[^"\'<>\\ ]+?(?:\.mp3|\.wav|\.ogg)(?:\?[^"\'<>\\ ]*)?',
+            ]
+            out=[]
+            for pat in patterns:
+              for u in re.findall(pat,t,re.I):
+                u=u.rstrip('\\')
+                if u not in out: out.append(u)
+            return out
+
+          async def browser_fetch():
+            results={k:[] for k in media_pages}
+            async with async_playwright() as p:
+              browser=await p.chromium.launch(headless=False,args=['--disable-blink-features=AutomationControlled','--no-sandbox'])
+              context=await browser.new_context(user_agent=UA,locale='en-US',viewport={'width':1440,'height':1000})
+              await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+              for fn,url in media_pages.items():
+                page=await context.new_page()
+                captured=[]
+                page.on('response',lambda resp, cap=captured: cap.append(resp.url) if ('cdn.pixabay.com' in resp.url or '.mp3' in resp.url.lower()) else None)
+                variants=[
+                  url,
+                  'https://r.jina.ai/'+url,
+                  url.replace('https://pixabay.com','https://pixabay-com.translate.goog')+'?_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en',
+                ]
+                for vi,vurl in enumerate(variants):
+                  try:
+                    print('BROWSER',fn,vurl)
+                    await page.goto(vurl,wait_until='domcontentloaded',timeout=120000)
+                    await page.wait_for_timeout(12000)
+                    # Attempt to start media and reveal download links.
+                    for sel in ['audio','button[aria-label*="Play"]','button:has-text("Play")','text=Free download']:
+                      try:
+                        loc=page.locator(sel).first
+                        if await loc.count(): await loc.click(timeout=3000)
+                      except Exception: pass
+                    await page.wait_for_timeout(5000)
+                    content=await page.content()
+                    (DEBUG/f'{fn}.{vi}.html').write_text(content,encoding='utf-8')
+                    srcs=await page.locator('audio, audio source, a').evaluate_all("els => els.flatMap(e => [e.src,e.currentSrc,e.href,e.getAttribute('src'),e.getAttribute('href')]).filter(Boolean)")
+                    for u in captured+srcs+extract_candidates(content):
+                      if u and u not in results[fn]: results[fn].append(u)
+                  except Exception as e:
+                    print('browser variant error',fn,vurl,e)
+                await page.close()
+              await browser.close()
+            return results
+
+          # Direct fetches using multiple impersonated routes.
+          direct_results={k:[] for k in media_pages}
+          for fn,url in media_pages.items():
+            variants=[url,'https://r.jina.ai/'+url,url.replace('https://pixabay.com','https://pixabay-com.translate.goog')+'?_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en']
+            for i,v in enumerate(variants):
+              try:
+                r=crequests.get(v,headers={'User-Agent':UA},impersonate='chrome',timeout=120)
+                text=r.text
+                (DEBUG/f'{fn}.direct{i}.html').write_text(text,encoding='utf-8')
+                direct_results[fn]+=extract_candidates(text)
+                print('DIRECT',fn,i,r.status_code,len(text),len(direct_results[fn]))
+              except Exception as e: print('direct error',fn,v,e)
+
+          browser_results=asyncio.run(browser_fetch())
+
+          manifest=[]
+          for fn,page_url in media_pages.items():
+            candidates=[]
+            for u in direct_results[fn]+browser_results[fn]:
+              u=normalize_text(u)
+              if u not in candidates: candidates.append(u)
+            (DEBUG/f'{fn}.candidates.txt').write_text('\n'.join(candidates),encoding='utf-8')
+            saved=False
+            for u in candidates:
+              if save_url(u,OUT/fn,referer=page_url):
+                try:
+                  subprocess.run(['ffprobe','-v','error','-show_entries','format=duration,size,format_name','-of','default=nw=1',str(OUT/fn)],check=True)
+                  saved=True; manifest.append((fn,page_url,u)); break
+                except Exception as e:
+                  print('ffprobe reject',u,e); (OUT/fn).unlink(missing_ok=True)
+            if not saved: print('FAILED MEDIA',fn,'candidate count',len(candidates))
+
+          # Write hash and source proof for all successful files.
+          rows=[]
+          for p in sorted(OUT.iterdir()):
+            if p.is_file():
+              rows.append(f'{p.name}\t{p.stat().st_size}\t{hashlib.sha256(p.read_bytes()).hexdigest()}')
+          (OUT/'SHA256SUMS.tsv').write_text('\n'.join(rows),encoding='utf-8')
+          (OUT/'sources.tsv').write_text('\n'.join(f'{a}\t{b}\t{c}' for a,b,c in manifest),encoding='utf-8')
+          print('\n'.join(rows))
+          PY
+          xvfb-run -a python /tmp/fetch_exact.py || true
+
+      - name: Validate files
+        if: always()
+        run: |
+          find exact_assets -maxdepth 2 -type f -printf '%p %s bytes\n' | sort
+          for f in exact_assets/*.mp3 exact_assets/*.wav exact_assets/*.ogg; do
+            [ -e "$f" ] && ffprobe -v error -show_entries format=filename,duration,size,format_name -of default=nw=1 "$f" || true
+          done
+          for f in exact_assets/*.ttf; do [ -e "$f" ] && file "$f" || true; done
+          for f in exact_assets/*.png; do [ -e "$f" ] && file "$f" || true; done
+
+      - name: Upload exact assets and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghana-exact-media-assets
+          path: exact_assets/
+          if-no-files-found: error
+          retention-days: 7

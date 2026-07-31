@@ -1,0 +1,29 @@
+name: Fetch Exact Green Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch_exact_green_check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download standalone Flaticon check mark
+        run: |
+          mkdir -p exact_green_check
+          curl -fL --retry 4 -A 'Mozilla/5.0' -e 'https://www.flaticon.com/free-icon/check-mark_11145963' -o exact_green_check/green_check_flaticon_11145963.png https://cdn-icons-png.flaticon.com/512/11145/11145963.png
+          file exact_green_check/green_check_flaticon_11145963.png
+          sha256sum exact_green_check/* > exact_green_check/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ghana-exact-green-check
+          path: exact_green_check/
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,32 @@
+name: Fetch Exact Static Assets
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch_exact_static_assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact font and icon files
+        run: |
+          mkdir -p exact_static
+          curl -fL --retry 3 -o exact_static/Montserrat-Black.ttf https://raw.githubusercontent.com/JulietaUla/Montserrat/master/fonts/ttf/Montserrat-Black.ttf
+          curl -fL --retry 3 -o exact_static/Montserrat-Bold.ttf https://raw.githubusercontent.com/JulietaUla/Montserrat/master/fonts/ttf/Montserrat-Bold.ttf
+          curl -fL --retry 3 -A 'Mozilla/5.0' -e 'https://www.flaticon.com/' -o exact_static/whatsapp_flaticon_4406170.png https://cdn-icons-png.flaticon.com/512/4406/4406170.png
+          curl -fL --retry 3 -A 'Mozilla/5.0' -e 'https://www.flaticon.com/' -o exact_static/green_check_flaticon_1179179.png https://cdn-icons-png.flaticon.com/512/1179/1179179.png
+          sha256sum exact_static/* > exact_static/SHA256SUMS.txt
+          file exact_static/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ghana-exact-static-assets
+          path: exact_static/
+          if-no-files-found: error
+          retention-days: 7

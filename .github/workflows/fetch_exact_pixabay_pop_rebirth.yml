@@ -1,0 +1,99 @@
+name: Fetch Exact Pixabay Pop Rebirth
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch_exact_pixabay_pop_rebirth.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser and media validators
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+      - name: Capture exact Pixabay bubble pop MP3
+        shell: bash
+        run: |
+          cat > /tmp/fetch_pop.py <<'PY'
+          import asyncio, html, re
+          from pathlib import Path
+          from playwright.async_api import async_playwright
+
+          PAGE='https://pixabay.com/sound-effects/film-special-effects-bubble-pop-03-320977/'
+          OUT=Path('exact_pixabay_pop'); OUT.mkdir(exist_ok=True)
+
+          async def main():
+            async with async_playwright() as p:
+              browser=await p.chromium.launch(headless=True,args=['--disable-blink-features=AutomationControlled'])
+              context=await browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/150 Safari/537.36',
+                locale='en-US', viewport={'width':1440,'height':1100},
+              )
+              page=await context.new_page()
+              candidates=[]
+              def on_response(resp):
+                u=resp.url
+                ct=(resp.headers.get('content-type') or '').lower()
+                if 'cdn.pixabay.com' in u and ('.mp3' in u.lower() or 'audio' in ct):
+                  candidates.append(u)
+              page.on('response',on_response)
+              await page.goto(PAGE,wait_until='domcontentloaded',timeout=90000)
+              await page.wait_for_timeout(5000)
+              for sel in ['button[aria-label*="Play" i]','button:has-text("Play")','audio']:
+                try:
+                  loc=page.locator(sel).first
+                  if await loc.count():
+                    await loc.click(timeout=5000)
+                    break
+                except Exception:
+                  pass
+              await page.wait_for_timeout(7000)
+              content=html.unescape(await page.content()).replace('\\/','/').replace('\\u002F','/').replace('\\u0026','&')
+              candidates += re.findall(r'https://cdn\.pixabay\.com/(?:download/)?audio/[^"\'<> ]+?\.mp3(?:\?[^"\'<> ]*)?', content)
+              seen=[]
+              for u in candidates:
+                u=html.unescape(u).replace('\\/','/')
+                if u not in seen: seen.append(u)
+              log=[]
+              for u in seen:
+                try:
+                  r=await context.request.get(u,headers={'Referer':PAGE,'Range':'bytes=0-'},timeout=90000)
+                  b=await r.body(); ct=(r.headers.get('content-type') or '').lower()
+                  log.append(f'{r.status}\t{len(b)}\t{ct}\t{u}')
+                  if r.ok and len(b)>10000 and ('audio' in ct or b[:3]==b'ID3' or b[:2] in (b'\xff\xfb',b'\xff\xf3',b'\xff\xf2')):
+                    (OUT/'bubble_pop_03_320977.mp3').write_bytes(b)
+                    (OUT/'SOURCE.txt').write_text(PAGE+'\n'+u+'\n',encoding='utf-8')
+                    (OUT/'CAPTURE_LOG.txt').write_text('\n'.join(log),encoding='utf-8')
+                    await browser.close(); return
+                except Exception as e:
+                  log.append(f'ERR\t{u}\t{e}')
+              (OUT/'CAPTURE_LOG.txt').write_text('\n'.join(log),encoding='utf-8')
+              raise RuntimeError('No valid MP3 captured')
+          asyncio.run(main())
+          PY
+          python /tmp/fetch_pop.py
+      - name: Validate pop file
+        run: |
+          file exact_pixabay_pop/bubble_pop_03_320977.mp3
+          ffprobe -v error -show_entries format=format_name,duration,size -of default=nw=1 exact_pixabay_pop/bubble_pop_03_320977.mp3
+          sha256sum exact_pixabay_pop/bubble_pop_03_320977.mp3 > exact_pixabay_pop/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ghana-exact-pixabay-pop-rebirth
+          path: exact_pixabay_pop/
+          if-no-files-found: error
+          retention-days: 7

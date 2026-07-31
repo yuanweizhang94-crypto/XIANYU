@@ -1,0 +1,139 @@
+name: Fetch Rebirth Tech SFX
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/fetch_rebirth_tech_sfx.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser and validators
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install curl_cffi playwright
+          python -m playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg xvfb
+      - name: Capture exact Pixabay SFX bytes
+        shell: bash
+        run: |
+          cat > /tmp/capture_sfx.py <<'PY'
+          import asyncio, hashlib, html, re, subprocess
+          from pathlib import Path
+          from curl_cffi import requests as crequests
+          from playwright.async_api import async_playwright
+
+          OUT=Path('rebirth_tech_sfx'); OUT.mkdir(exist_ok=True)
+          assets={
+            'deep_boom_geomorphism_123876.mp3':'https://pixabay.com/sound-effects/film-special-effects-boom-geomorphism-cinematic-trailer-sound-effects-123876/',
+            'bubble_pop_406640.mp3':'https://pixabay.com/sound-effects/film-special-effects-bubble-pop-406640/',
+            'traditional_stamp_44189.mp3':'https://pixabay.com/sound-effects/film-special-effects-traditional-stamp-44189/',
+          }
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
+
+          def probe(path):
+            try:
+              fmt=subprocess.check_output(['ffprobe','-v','error','-show_entries','format=format_name','-of','csv=p=0',str(path)],text=True).strip()
+              dur=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',str(path)],text=True).strip())
+              return ('mp3' in fmt and dur>0.1),fmt,dur
+            except Exception as e: return False,str(e),0
+
+          async def main():
+            logs=[]
+            async with async_playwright() as p:
+              browser=await p.chromium.launch(headless=True,args=['--disable-blink-features=AutomationControlled','--no-sandbox'])
+              context=await browser.new_context(user_agent=UA,locale='en-US',viewport={'width':1440,'height':1100},extra_http_headers={'Accept-Language':'en-US,en;q=0.9'})
+              await context.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined})")
+              for filename,page_url in assets.items():
+                target=OUT/filename; candidates=[]; saved=False
+                page=await context.new_page()
+                async def handler(resp):
+                  u=resp.url; ct=(resp.headers.get('content-type') or '').lower()
+                  if 'cdn.pixabay.com' in u and ('/audio/' in u or '.mp3' in u.lower() or 'audio' in ct):
+                    candidates.append(u)
+                    try:
+                      body=await resp.body(); temp=OUT/(filename+'.capture'); temp.write_bytes(body)
+                      ok,fmt,dur=probe(temp)
+                      logs.append(f'{filename} intercept {resp.status} {len(body)} {ct} {fmt} {dur} {u}')
+                      nonlocal_saved[0] = nonlocal_saved[0] or ok
+                      if ok and not target.exists(): temp.replace(target)
+                      else: temp.unlink(missing_ok=True)
+                    except Exception as e: logs.append(f'{filename} intercept error {e}')
+                nonlocal_saved=[False]
+                page.on('response',handler)
+                try:
+                  await page.goto(page_url,wait_until='domcontentloaded',timeout=120000)
+                  await page.wait_for_timeout(5000)
+                  try: await page.locator('audio').first.evaluate("a=>{a.muted=true;return a.play()}")
+                  except Exception as e: logs.append(f'{filename} audio element {e}')
+                  for sel in ['button[aria-label*="Play" i]','button:has-text("Play")']:
+                    try:
+                      if await page.locator(sel).count(): await page.locator(sel).first.click(timeout=5000)
+                    except Exception: pass
+                  await page.wait_for_timeout(9000)
+                  content=html.unescape(await page.content()).replace('\\/','/').replace('\\u002F','/').replace('\\u0026','&')
+                  candidates += re.findall(r'https://cdn\.pixabay\.com/(?:download/)?audio/[^"\'<> ]+?\.mp3(?:\?[^"\'<> ]*)?',content)
+                except Exception as e: logs.append(f'{filename} page error {e}')
+                saved=target.exists()
+                dedup=[]
+                for u in candidates:
+                  u=html.unescape(u).replace('\\/','/')
+                  if u not in dedup: dedup.append(u)
+                for u in dedup:
+                  if saved: break
+                  try:
+                    r=await context.request.get(u,headers={'Referer':page_url,'Accept':'audio/mpeg,audio/*;q=0.9,*/*;q=0.8','Range':'bytes=0-'},timeout=120000)
+                    b=await r.body(); temp=OUT/(filename+'.request'); temp.write_bytes(b)
+                    ok,fmt,dur=probe(temp); logs.append(f'{filename} request {r.status} {len(b)} {fmt} {dur} {u}')
+                    if ok: temp.replace(target); saved=True
+                    else: temp.unlink(missing_ok=True)
+                  except Exception as e: logs.append(f'{filename} request error {e}')
+                if not saved:
+                  cookies=await context.cookies(); jar={c['name']:c['value'] for c in cookies}
+                  for u in dedup:
+                    try:
+                      r=crequests.get(u,impersonate='chrome',cookies=jar,headers={'User-Agent':UA,'Referer':page_url,'Accept':'audio/mpeg,audio/*;q=0.9,*/*;q=0.8','Range':'bytes=0-'},timeout=120,allow_redirects=True)
+                      temp=OUT/(filename+'.curl'); temp.write_bytes(r.content)
+                      ok,fmt,dur=probe(temp); logs.append(f'{filename} curl {r.status_code} {len(r.content)} {fmt} {dur} {u}')
+                      if ok: temp.replace(target); saved=True; break
+                      temp.unlink(missing_ok=True)
+                    except Exception as e: logs.append(f'{filename} curl error {e}')
+                await page.close()
+                if not saved: logs.append(f'{filename} FAILED')
+              await browser.close()
+            (OUT/'CAPTURE_LOG.txt').write_text('\n'.join(logs),encoding='utf-8')
+            missing=[f for f in assets if not (OUT/f).exists()]
+            rows=[]
+            for f,page in assets.items():
+              p=OUT/f
+              if p.exists():
+                ok,fmt,dur=probe(p); rows.append(f'{f}\t{p.stat().st_size}\t{dur}\t{hashlib.sha256(p.read_bytes()).hexdigest()}\t{page}')
+            (OUT/'SOURCES_SHA256.tsv').write_text('\n'.join(rows),encoding='utf-8')
+            if missing: raise SystemExit('Missing: '+','.join(missing))
+          asyncio.run(main())
+          PY
+          xvfb-run -a python /tmp/capture_sfx.py
+      - name: Validate exact SFX
+        if: always()
+        run: |
+          cat rebirth_tech_sfx/CAPTURE_LOG.txt || true
+          cat rebirth_tech_sfx/SOURCES_SHA256.tsv || true
+          for f in rebirth_tech_sfx/*.mp3; do ffprobe -v error -show_entries format=filename,format_name,duration,size -of default=nw=1 "$f"; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ghana-rebirth-tech-sfx
+          path: rebirth_tech_sfx/
+          if-no-files-found: error
+          retention-days: 7

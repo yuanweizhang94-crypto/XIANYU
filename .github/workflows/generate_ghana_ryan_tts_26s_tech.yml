@@ -1,0 +1,41 @@
+name: Generate Ghana Ryan TTS 26s Tech
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/generate_ghana_ryan_tts_26s_tech.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Edge TTS
+        run: python -m pip install --upgrade edge-tts
+      - name: Generate concise Ryan voice segments
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ryan_26s_tech
+          voice='en-GB-RyanNeural'
+          rate='-5%'
+          edge-tts --voice "$voice" --rate="$rate" --pitch=+0Hz --volume=+0% --text "Looking for a direct fish factory in China?" --write-media ryan_26s_tech/01_ryan.mp3 --write-subtitles ryan_26s_tech/01_ryan.srt
+          edge-tts --voice "$voice" --rate="$rate" --pitch=+0Hz --volume=+0% --text "Partner directly with a leading Chinese factory." --write-media ryan_26s_tech/02_ryan.mp3 --write-subtitles ryan_26s_tech/02_ryan.srt
+          edge-tts --voice "$voice" --rate="$rate" --pitch=+0Hz --volume=+0% --text "Fresh sardines and mackerel, under strict quality control." --write-media ryan_26s_tech/03_ryan.mp3 --write-subtitles ryan_26s_tech/03_ryan.srt
+          edge-tts --voice "$voice" --rate="$rate" --pitch=+0Hz --volume=+0% --text "OEM and private label support to build your local brand." --write-media ryan_26s_tech/04_ryan.mp3 --write-subtitles ryan_26s_tech/04_ryan.srt
+          edge-tts --voice "$voice" --rate="$rate" --pitch=+0Hz --volume=+0% --text "High daily capacity, ready for mass export across Africa." --write-media ryan_26s_tech/05_ryan.mp3 --write-subtitles ryan_26s_tech/05_ryan.srt
+          edge-tts --voice "$voice" --rate="$rate" --pitch=+0Hz --volume=+0% --text "Message us now for direct prices, a free catalog, and samples today." --write-media ryan_26s_tech/06_ryan.mp3 --write-subtitles ryan_26s_tech/06_ryan.srt
+          printf 'voice=%s\nrate=%s\n' "$voice" "$rate" > ryan_26s_tech/manifest.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ghana-ryan-neural-tts-26s-tech
+          path: ryan_26s_tech/
+          if-no-files-found: error
+          retention-days: 7
