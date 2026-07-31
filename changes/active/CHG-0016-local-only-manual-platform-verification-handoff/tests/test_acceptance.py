@@ -143,6 +143,7 @@ def test_change_file_set_is_explicit() -> None:
     assert sorted(changed_files) == [
         "acceptance.md",
         "design.md",
+        "evidence/CHG16-MANUAL-20260731T010811Z-VSVN-masked-report.md",
         "evidence/upstream-audit.md",
         "proposal.md",
         "tasks.md",
