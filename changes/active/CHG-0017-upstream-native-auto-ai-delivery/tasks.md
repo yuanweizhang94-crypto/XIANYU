@@ -232,3 +232,34 @@ Validated owner-facing upstream-native pages and controls:
 
 PR #26 remains Draft, Open, and Unmerged. T17 remains unchecked because archive
 and final merge are still outside the current authorization.
+
+## Native Multi-Account Delivery Evidence
+
+Run `CHG17-MULTI-ACCOUNT-20260731T160511Z` verified the upstream-native
+multi-account automatic-reply runtime without creating a second manager,
+sender, Token flow, WebSocket runtime, AI worker, or frontend page.
+
+Findings and changes:
+
+- ACCOUNT-B was logged in and enabled, but its automatic-reply account task had
+  not been started. Cookie existence was not treated as WebSocket connection.
+- Upstream `CookieManager` already supports loading enabled accounts and
+  starting one task per account through the native start/status/stop APIs.
+- The candidate compose was corrected locally to `AUTO_START_WEBSOCKET=true`
+  so service restart restores all enabled accounts from the candidate DB.
+- The CHG-0017 reply gate patch was minimally corrected to support `*` in
+  receiver and sender allowlist values. Explicit allowlists still fail closed,
+  and empty, unknown, system, and own-message inputs remain rejected.
+- ACCOUNT-A and ACCOUNT-B both recovered to `running` and `connected` after
+  service restart.
+- Single-account stop/start isolation passed in both directions: stopping one
+  account did not stop the other.
+- The account management page showed both rows enabled and online from the
+  candidate runtime.
+- The online chat page exposed both accounts as online without sending a
+  message.
+- ACCOUNT-A remains production-running with Gemini AI enabled.
+- ACCOUNT-B remains AI-disabled / not configured and produced zero successful
+  sends.
+
+Runtime verdict: `MULTI_ACCOUNT_NATIVE_READY`.

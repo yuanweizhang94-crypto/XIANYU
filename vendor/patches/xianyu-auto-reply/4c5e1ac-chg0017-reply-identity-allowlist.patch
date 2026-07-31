@@ -83,10 +83,10 @@ index 4a82cfa19d348cb8077019dda3636a13056750b2..c3e30ed7d77651997288376b950aad58
 +            )
 diff --git a/tests/test_chg0017_reply_allowlist.py b/tests/test_chg0017_reply_allowlist.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..13fd9baa52f4628eb65aecd3bc649a3feb7ddf17
+index 0000000000000000000000000000000000000000..25306eecffbaed1cdb3da5fe5785fa17ca5f0dff
 --- /dev/null
 +++ b/tests/test_chg0017_reply_allowlist.py
-@@ -0,0 +1,511 @@
+@@ -0,0 +1,535 @@
 +import os
 +import sys
 +import unittest
@@ -200,6 +200,30 @@ index 0000000000000000000000000000000000000000..13fd9baa52f4628eb65aecd3bc649a3f
 +
 +        self.assertFalse(allowed)
 +        self.assertEqual(reason, "chg0017_allowlist_receiver_denied")
++
++    def test_allows_wildcard_receiver_and_sender_for_production_multi_account(self):
++        self.enable_gate(receiver="*", sender="*")
++
++        allowed, reason = self.service("account-c")._check_chg0017_reply_gate("buyer-platform")
++
++        self.assertTrue(allowed)
++        self.assertEqual(reason, "allowed")
++
++    def test_wildcard_sender_keeps_identity_safety_rejections(self):
++        self.enable_gate(receiver="*", sender="*")
++
++        self.assertEqual(
++            self.service()._check_chg0017_reply_gate("unknown"),
++            (False, "chg0017_allowlist_sender_unknown"),
++        )
++        self.assertEqual(
++            self.service()._check_chg0017_reply_gate(ACCOUNT_A_PLATFORM),
++            (False, "self_message"),
++        )
++        self.assertEqual(
++            self.service()._check_chg0017_reply_gate("buyer-platform", "系统"),
++            (False, "chg0017_allowlist_system_sender"),
++        )
 +
 +    def test_denies_missing_config(self):
 +        os.environ["CHG0017_REPLY_ALLOWLIST_ENABLED"] = "true"
@@ -599,15 +623,19 @@ index 0000000000000000000000000000000000000000..13fd9baa52f4628eb65aecd3bc649a3f
 +if __name__ == "__main__":
 +    unittest.main()
 diff --git a/websocket/app/services/xianyu/auto_reply_service.py b/websocket/app/services/xianyu/auto_reply_service.py
-index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..8cd6c0a85a532abbf0a235bad402b1ed420aacdd 100644
+index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..9a20410a3343960031bb82310fad8086367c0e7f 100644
 --- a/websocket/app/services/xianyu/auto_reply_service.py
 +++ b/websocket/app/services/xianyu/auto_reply_service.py
-@@ -39,0 +40,4 @@ from app.services.xianyu.auto_reply_log_service import AutoReplyLogService
+@@ -39,0 +40,8 @@ from app.services.xianyu.auto_reply_log_service import AutoReplyLogService
 +def _parse_chg0017_allowlist(raw_value: str | None) -> set[str]:
 +    return {part.strip() for part in str(raw_value or "").split(",") if part.strip()}
 +
 +
-@@ -126,0 +131,32 @@ class AutoReplyService:
++def _matches_chg0017_allowlist(allowed_values: set[str], value: str) -> bool:
++    return "*" in allowed_values or value in allowed_values
++
++
+@@ -126,0 +135,32 @@ class AutoReplyService:
 +
 +    def _check_chg0017_reply_gate(self, send_user_id: str, send_user_name: str = "") -> tuple[bool, str]:
 +        if str(os.getenv("CHG0017_REPLY_ALLOWLIST_ENABLED") or "").strip().lower() not in {"1", "true", "yes", "on"}:
@@ -619,7 +647,7 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..8cd6c0a85a532abbf0a235bad402b1ed
 +        if not allowed_cookie_ids or not allowed_sender_ids:
 +            return False, "chg0017_allowlist_config_missing"
 +
-+        if str(self.cookie_id) not in allowed_cookie_ids:
++        if not _matches_chg0017_allowlist(allowed_cookie_ids, str(self.cookie_id)):
 +            return False, "chg0017_allowlist_receiver_denied"
 +
 +        normalized_sender = str(send_user_id or "").strip()
@@ -633,16 +661,16 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..8cd6c0a85a532abbf0a235bad402b1ed
 +        current_platform_id = str(getattr(self.xianyu_instance, "myid", "") or "").strip()
 +        if current_platform_id and normalized_sender == current_platform_id:
 +            return False, "self_message"
-+        if normalized_sender not in allowed_sender_ids:
++        if not _matches_chg0017_allowlist(allowed_sender_ids, normalized_sender):
 +            return False, "chg0017_allowlist_sender_denied"
 +        return True, "allowed"
 +
 +    def _is_chg0017_reply_allowed(self, send_user_id: str) -> bool:
 +        allowed, _reason = self._check_chg0017_reply_gate(send_user_id)
 +        return allowed
-@@ -576,0 +613 @@ class AutoReplyService:
+@@ -576,0 +617 @@ class AutoReplyService:
 +            catalog_item_known = True
-@@ -587,0 +625,7 @@ class AutoReplyService:
+@@ -587,0 +629,7 @@ class AutoReplyService:
 +
 +            chg0017_allowed, chg0017_reason = self._check_chg0017_reply_gate(send_user_id, send_user_name)
 +            if not chg0017_allowed:
@@ -650,7 +678,7 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..8cd6c0a85a532abbf0a235bad402b1ed
 +                log_payload["process_status"] = "skipped"
 +                log_payload["decision_reason"] = chg0017_reason
 +                return
-@@ -634 +678,6 @@ class AutoReplyService:
+@@ -634 +682,6 @@ class AutoReplyService:
 -                self._merge_log_context(log_payload, belongs_to_account=belongs_to_account)
 +                catalog_item_known = bool(belongs_to_account)
 +                self._merge_log_context(
@@ -658,7 +686,7 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..8cd6c0a85a532abbf0a235bad402b1ed
 +                    catalog_item_known=catalog_item_known,
 +                    item_catalog_missing=not catalog_item_known,
 +                )
-@@ -636,16 +685,3 @@ class AutoReplyService:
+@@ -636,16 +689,3 @@ class AutoReplyService:
 -                    logger.info(f"【{self.cookie_id}】商品 {item_id} 不属于当前账号，跳过自动回复")
 -                    log_payload["process_status"] = "skipped"
 -                    log_payload["decision_reason"] = "item_not_belong"
@@ -678,22 +706,22 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..8cd6c0a85a532abbf0a235bad402b1ed
 +                    logger.info(
 +                        "CHG-0017 local item catalog missing; account-level reply paths remain eligible"
 +                    )
-@@ -685,0 +722 @@ class AutoReplyService:
+@@ -685,0 +726 @@ class AutoReplyService:
 +                    catalog_item_known=catalog_item_known,
-@@ -1064,0 +1102 @@ class AutoReplyService:
+@@ -1064,0 +1106 @@ class AutoReplyService:
 +        catalog_item_known: bool = True,
-@@ -1092,0 +1131,5 @@ class AutoReplyService:
+@@ -1092,0 +1135,5 @@ class AutoReplyService:
 +                catalog_scoped_item_id = item_id if catalog_item_known else None
 +                if not catalog_item_known and reply_trace is not None:
 +                    reply_trace["decision_reason"] = "item_catalog_missing"
 +                    reply_trace.setdefault("context_snapshot", {})["item_catalog_missing"] = True
 +
-@@ -1094 +1137 @@ class AutoReplyService:
+@@ -1094 +1141 @@ class AutoReplyService:
 -                    session, send_user_name, send_user_id, send_message, item_id
 +                    session, send_user_name, send_user_id, send_message, catalog_scoped_item_id
-@@ -1105 +1148 @@ class AutoReplyService:
+@@ -1105 +1152 @@ class AutoReplyService:
 -                    session, send_user_name, send_user_id, send_message, item_id, chat_id
 +                    session, send_user_name, send_user_id, send_message, catalog_scoped_item_id, chat_id
-@@ -1111 +1154 @@ class AutoReplyService:
+@@ -1111 +1158 @@ class AutoReplyService:
 -                    session, send_user_name, send_user_id, send_message, chat_id, item_id, msg_time
 +                    session, send_user_name, send_user_id, send_message, chat_id, catalog_scoped_item_id, msg_time

@@ -10,7 +10,16 @@ SECRET_PATTERNS = [
     re.compile(r"(?i)password\s*=\s*(?!replace|placeholder|example)[^\s]{8,}"),
     re.compile(r"-----BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----"),
 ]
-IGNORED_DIRS = {".git", ".venv", ".pytest_cache", ".mypy_cache", ".ruff_cache", "dist", "build"}
+IGNORED_DIRS = {
+    ".git",
+    ".local",
+    ".venv",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "dist",
+    "build",
+}
 TEXT_SUFFIXES = {".md", ".py", ".yaml", ".yml", ".json", ".toml", ".txt", ".example"}
 
 

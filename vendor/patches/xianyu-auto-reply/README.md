@@ -14,8 +14,8 @@
 - Base upstream repository: `zhinianboke/xianyu-auto-reply`
 - Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
 - Patch file: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
-- Canonical SHA256: `4918E56416B2B0B1993801265BA09D876EACAEED73903A4E4FE44C68240C959A`
-- Raw Windows SHA256: `4918E56416B2B0B1993801265BA09D876EACAEED73903A4E4FE44C68240C959A`
+- Canonical SHA256: `8E36EA3F72924FFFD0FBA8E16DFD36F0B91A2FFFC898C1E21E99A5740F6375A4`
+- Raw Windows SHA256: `8E36EA3F72924FFFD0FBA8E16DFD36F0B91A2FFFC898C1E21E99A5740F6375A4`
 - EOL state: LF, no BOM
 - Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
 - Patch apply check: passed with `git apply --check --whitespace=error-all --unidiff-zero`
@@ -31,6 +31,12 @@ reply validation. The receiver is matched by the current automatic-reply
 platform sender identity. It rejects missing, unknown, system, non-whitelist,
 wrong-receiver, and own-message inputs before keyword, AI, default-reply, or
 sender execution.
+
+For production multi-account operation, the same gate supports `*` in the
+receiver and sender allowlist environment values. This removes the CHG-0017
+runtime dependency on hardcoded validation accounts while preserving the
+existing empty, unknown, system, wrong-receiver, non-whitelist, and own-message
+rejections when explicit allowlists are configured.
 
 The patch also reclassifies a local item catalog miss as `item_catalog_missing`
 instead of proof that the item does not belong to the account. When local

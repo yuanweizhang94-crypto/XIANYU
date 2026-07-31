@@ -117,3 +117,26 @@ delivery criteria:
 - The Gemini model remains `gemini-3.6-flash` without a `models/` prefix.
 - No duplicate sender, IM runtime, Token runtime, WebSocket runtime, AI
   provider, or automatic reply worker was created.
+
+Run `CHG17-MULTI-ACCOUNT-20260731T160511Z` satisfied the upstream-native
+multi-account delivery criteria:
+
+- ACCOUNT-B root cause was task not started, not missing login or invalid
+  Cookie.
+- Both account records were enabled and mapped to separate account rows.
+- Both account tasks were running and WebSocket-connected after the native
+  start path and after candidate WebSocket service restart.
+- `AUTO_START_WEBSOCKET=true` restored all enabled accounts through upstream
+  `CookieManager.start_all_tasks`.
+- The CHG-0017 reply gate no longer hardcodes ACCOUNT-A / OWNER_TEST_ACCOUNT_B
+  as the only production runtime participants; wildcard receiver/sender values
+  are supported while explicit validation allowlists remain available.
+- Per-account stop/start controls were validated in both directions without
+  stopping the other account.
+- Account management showed both account rows enabled and online.
+- Online chat listed both accounts as online without sending a message.
+- ACCOUNT-A AI remained enabled and Gemini-configured.
+- ACCOUNT-B AI remained disabled / not configured, and ACCOUNT-B successful
+  sends remained `0`.
+- No second IM, Token, WebSocket, sender, AI worker, automatic reply worker,
+  Redis state system, frontend page, or multi-account manager was created.

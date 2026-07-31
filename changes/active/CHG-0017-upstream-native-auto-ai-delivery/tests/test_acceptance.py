@@ -169,7 +169,9 @@ def test_catalog_fallback_patch_artifact_is_recorded() -> None:
     patch_text = patch.read_text(encoding="utf-8")
 
     assert "reply identity allowlist and catalog fallback patch" in readme
-    assert "4918E56416B2B0B1993801265BA09D876EACAEED73903A4E4FE44C68240C959A" in readme
+    assert "8E36EA3F72924FFFD0FBA8E16DFD36F0B91A2FFFC898C1E21E99A5740F6375A4" in readme
+    assert "supports `*` in the" in readme
+    assert "test_allows_wildcard_receiver_and_sender_for_production_multi_account" in patch_text
     assert "`common/utils/item_info_manager.py`" in readme
     assert "`websocket/app/services/xianyu/auto_reply_service.py`" in readme
     assert "`tests/test_chg0017_reply_allowlist.py`" in readme
@@ -227,3 +229,31 @@ def test_go_live_delivery_evidence_is_recorded() -> None:
     assert "ACCOUNT-A final connection: connected" in evidence
     assert "non-whitelist successful reply sends: 0" in evidence
     assert "PR state after run: Draft, Open, Unmerged" in evidence
+
+
+def test_multi_account_native_delivery_evidence_is_recorded() -> None:
+    tasks = read_doc("tasks.md")
+    acceptance = read_doc("acceptance.md")
+    evidence = (
+        CHANGE_DIR
+        / "evidence"
+        / "CHG17-MULTI-ACCOUNT-20260731T160511Z-masked-report.md"
+    ).read_text(encoding="utf-8")
+
+    assert "MULTI_ACCOUNT_NATIVE_READY" in tasks
+    assert "MULTI_ACCOUNT_NATIVE_READY" in evidence
+    assert "ACCOUNT-B was logged in and enabled, but its automatic-reply account task had" in tasks
+    assert "ACCOUNT-B root cause was task not started" in acceptance
+    assert "account_b_task=not_started before this run" in evidence
+    assert "account_b_cookie=present_valid" in evidence
+    assert "ACCOUNT-A task: running" in evidence
+    assert "ACCOUNT-B task: running" in evidence
+    assert "ACCOUNT-A websocket: connected" in evidence
+    assert "ACCOUNT-B websocket: connected" in evidence
+    assert "executor_per_account: 1" in evidence
+    assert "duplicate_executor_count: 0" in evidence
+    assert "ACCOUNT-B successful send total after run: 0" in evidence
+    assert "proactive customer sends by Codex: 0" in evidence
+    assert "manual test messages sent by Codex: 0" in evidence
+    assert "ACCOUNT-B remains AI-disabled / not configured" in evidence
+    assert "No second IM, Token, WebSocket, sender, AI worker" in acceptance
