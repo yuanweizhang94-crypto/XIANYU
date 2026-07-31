@@ -1,5 +1,5 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: IMPLEMENTING
+Status: ARCHIVED
 # Threat Model
 
 ## Threats and controls
@@ -58,3 +58,15 @@ Manual handoff is operations-only; upstream keeps runtime ownership.
 ## Retirement plan for overlapping local code
 
 Keep CHG-0010 frozen/deprecated and avoid overlapping sender behavior.
+
+## Blocked closeout threat assessment
+
+CHG-0016 closes with `MANUAL_VERIFICATION_NOT_ACCEPTED`. The remaining risk is
+not solved by more local slider research. Follow-up delivery must rely on
+upstream-native Token and account operation in a normal logged-in state, and
+must fail closed if the platform again requires login, slider, face, device, or
+other strong verification.
+
+No message send, customer content, Cookie, Token, API key, account ID, complete
+verification URL, browser profile, or raw platform response is committed by this
+closeout.

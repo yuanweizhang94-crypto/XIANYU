@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
 CHANGE_ID = "CHG-0016-local-only-manual-platform-verification-handoff"
-CHANGE_DIR = ROOT / "changes" / "active" / CHANGE_ID
+CHANGE_DIR = ROOT / "changes" / "archive" / CHANGE_ID
 CHANGE_FILES = ["proposal.md", "design.md", "tasks.md", "acceptance.md"]
 
 
@@ -12,11 +12,11 @@ def read_doc(name: str) -> str:
     return (CHANGE_DIR / name).read_text(encoding="utf-8")
 
 
-def test_change_documents_are_implementing() -> None:
+def test_change_documents_are_archived() -> None:
     for name in CHANGE_FILES:
         text = read_doc(name)
         assert f"Change ID: {CHANGE_ID}" in text
-        assert "Status: IMPLEMENTING" in text
+        assert "Status: ARCHIVED" in text
 
 
 def test_reuse_decision_is_patch_upstream() -> None:
@@ -91,13 +91,16 @@ def test_patch_artifact_parseability_repair_is_documented() -> None:
     assert "Git-canonical content is identical for all five target files." in acceptance
 
 
-def test_t11_repair_cycle_is_closed_and_t12_is_next() -> None:
+def test_t11_repair_cycle_is_closed_and_t12_is_blocked() -> None:
     tasks = read_doc("tasks.md")
 
     assert "- [x] T11 Repair live manual verification defects" in tasks
     assert "- [ ] T12 Run controlled owner manual validation without sending messages." in tasks
-    assert "Completed tasks: 11 / 13" in tasks
-    assert "Next task: T12 Run controlled owner manual validation without sending messages." in tasks
+    assert "- [x] T13 Cleanup and close Change." in tasks
+    assert "Completed tasks: 12 / 13" in tasks
+    assert "Next task: null" in tasks
+    assert "MANUAL_VERIFICATION_NOT_ACCEPTED" in tasks
+    assert "Message sends during CHG-0016: `0`" in tasks
 
 
 def test_t11_exact_repair_evidence_is_recorded() -> None:
@@ -119,19 +122,15 @@ def test_t11_exact_repair_evidence_is_recorded() -> None:
         assert required in docs
 
 
-def test_generated_state_advances_only_to_t12() -> None:
+def test_generated_state_has_no_active_change_after_blocked_closeout() -> None:
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     tasks = state["tasks"]
 
-    assert state["active_change"]["id"] == CHANGE_ID
-    assert state["active_change"]["status"] == "IMPLEMENTING"
-    assert tasks["total"] == 13
-    assert tasks["completed"] == 11
-    assert tasks["next_task"] == "T12 Run controlled owner manual validation without sending messages."
-
-    task_items = {task["text"].split(" ", 1)[0]: task for task in tasks["items"]}
-    assert task_items["T12"]["completed"] is False
-    assert task_items["T13"]["completed"] is False
+    assert state["active_change"] is None
+    assert tasks["total"] == 0
+    assert tasks["completed"] == 0
+    assert tasks["next_task"] is None
+    assert tasks["items"] == []
 
 
 def test_change_file_set_is_explicit() -> None:
@@ -150,3 +149,19 @@ def test_change_file_set_is_explicit() -> None:
         "tests/test_acceptance.py",
         "threat-model.md",
     ]
+
+
+def test_blocked_closeout_acceptance_is_recorded() -> None:
+    docs = "\n\n".join(read_doc(name) for name in CHANGE_FILES)
+
+    for required in [
+        "Blocked closeout",
+        "MANUAL_VERIFICATION_NOT_ACCEPTED",
+        "T12 remains not completed",
+        "T13 is complete",
+        "Message sends during CHG-0016 remain `0`",
+        "CHG-0010 remains frozen, deprecated and stopped",
+        "Not validated by CHG-0016",
+        "Follow-up delivery is directed to upstream-native Token, account, WebSocket",
+    ]:
+        assert required in docs

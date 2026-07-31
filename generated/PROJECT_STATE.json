@@ -1,69 +1,12 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": {
-    "id": "CHG-0016-local-only-manual-platform-verification-handoff",
-    "status": "IMPLEMENTING",
-    "path": "changes/active/CHG-0016-local-only-manual-platform-verification-handoff"
-  },
+  "active_change": null,
   "tasks": {
-    "total": 13,
-    "completed": 11,
-    "next_task": "T12 Run controlled owner manual validation without sending messages.",
-    "items": [
-      {
-        "text": "T1 Create DRAFT proposal.",
-        "completed": true
-      },
-      {
-        "text": "T2 Create DRAFT design.",
-        "completed": true
-      },
-      {
-        "text": "T3 Record upstream evidence.",
-        "completed": true
-      },
-      {
-        "text": "T4 Record threat model.",
-        "completed": true
-      },
-      {
-        "text": "T5 Record DRAFT acceptance and test plan.",
-        "completed": true
-      },
-      {
-        "text": "T6 Project-owner implementation approval recorded.",
-        "completed": true
-      },
-      {
-        "text": "T7 Disable the two enabled default replies after ignored backup to establish zero automatic-send baseline.",
-        "completed": true
-      },
-      {
-        "text": "T8 Create upstream patch worktree from pinned SHA and implement manual-only mode.",
-        "completed": true
-      },
-      {
-        "text": "T9 Implement CHG-0009 host manual-listener wrapper lifecycle.",
-        "completed": true
-      },
-      {
-        "text": "T10 Run local verification.",
-        "completed": true
-      },
-      {
-        "text": "T11 Repair live manual verification defects, open repair PR, wait for CI, and merge.",
-        "completed": true
-      },
-      {
-        "text": "T12 Run controlled owner manual validation without sending messages.",
-        "completed": false
-      },
-      {
-        "text": "T13 Cleanup and close Change.",
-        "completed": false
-      }
-    ]
+    "total": 0,
+    "completed": 0,
+    "next_task": null,
+    "items": []
   },
   "capabilities": {
     "total": 10,

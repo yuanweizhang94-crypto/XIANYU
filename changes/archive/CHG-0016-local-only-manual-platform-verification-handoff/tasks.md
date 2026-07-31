@@ -1,5 +1,5 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: IMPLEMENTING
+Status: ARCHIVED
 # Tasks
 
 - [x] T1 Create DRAFT proposal.
@@ -14,12 +14,54 @@ Status: IMPLEMENTING
 - [x] T10 Run local verification.
 - [x] T11 Repair live manual verification defects, open repair PR, wait for CI, and merge.
 - [ ] T12 Run controlled owner manual validation without sending messages.
-- [ ] T13 Cleanup and close Change.
+- [x] T13 Cleanup and close Change.
 
 ## Current progress
 
-Completed tasks: 11 / 13
-Next task: T12 Run controlled owner manual validation without sending messages.
+Completed tasks: 12 / 13
+Next task: null
+
+## Execution contract
+
+User outcome: Close CHG-0016 honestly after the approved owner-only platform
+verification attempt was not accepted.
+Confirmed blocker: The live manual verification ended with
+`MANUAL_VERIFICATION_NOT_ACCEPTED`; no successful `x5sec` handoff was proven.
+Smallest success test: Archive the Change with T12 blocked, T13 complete,
+failure evidence preserved, generated state showing no active Change, and no
+runtime or message side effects.
+
+## Blocked closeout
+
+Final closeout status: `ARCHIVED`.
+
+Blocked reason: `MANUAL_VERIFICATION_NOT_ACCEPTED`.
+
+T12 remains not completed. T13 is complete because cleanup and blocked Change
+closure are complete.
+
+The implemented manual handoff and safety stop capability remains recorded, but
+the only approved live platform validation was not accepted by the platform.
+This Change must not be represented as proving automatic reply, AI reply, or
+production customer messaging.
+
+Closeout evidence:
+
+- `evidence/CHG16-MANUAL-20260731T010811Z-VSVN-masked-report.md`.
+
+Runtime closeout:
+
+- Message sends during CHG-0016: `0`.
+- Automatic reply log delta in the T12 attempt: `0`.
+- AI message delta in the T12 attempt: `0`.
+- Successful send delta in the T12 attempt: `0`.
+- Docker websocket: stopped.
+- Host manual-listener: stopped.
+- CHG-0010: frozen, deprecated and stopped.
+
+Follow-up direction: do not continue local slider research. Subsequent delivery
+must use upstream-native Token, account, WebSocket, keyword reply, AI reply,
+default reply and sender paths.
 
 Current live defect marker: `MANUAL_VERIFICATION_REPEATED_BROWSER_LAUNCH`.
 
