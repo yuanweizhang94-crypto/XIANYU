@@ -1,5 +1,5 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: IMPLEMENTING
+Status: ARCHIVED
 # Acceptance
 
 ## IMPLEMENTING acceptance
@@ -196,3 +196,42 @@ Upstream remains business runtime owner. The handoff is operations-only.
 ## Retirement plan for overlapping local code
 
 Keep CHG-0010 frozen/deprecated and do not expand it.
+
+## Blocked closeout acceptance
+
+CHG-0016 is acceptable for archival only when:
+
+- Status is `ARCHIVED` in proposal, design, tasks, acceptance and threat model.
+- The Change exists only under `changes/archive/`.
+- T12 remains unchecked and records `MANUAL_VERIFICATION_NOT_ACCEPTED`.
+- T13 is checked because cleanup and blocked closure are complete.
+- The masked failure evidence is preserved.
+- `generated/PROJECT_STATE.json` has `active_change` set to `null`.
+- Generated tasks total, completed and next task are `0`, `0` and `null`.
+- No runtime is started during closeout.
+- Message sends during CHG-0016 remain `0`.
+- CHG-0010 remains frozen, deprecated and stopped.
+- Follow-up delivery is directed to upstream-native Token, account, WebSocket,
+  reply, AI and sender paths.
+
+Validated by CHG-0016:
+
+- local-only visible owner browser handoff implementation;
+- official host allowlist;
+- one-browser-only guard;
+- expected changed `x5sec` acceptance checks;
+- at most one native Token retry after successful handoff;
+- deterministic cleanup and stop controls;
+- zero message sends during the approved live attempt.
+
+Not validated by CHG-0016:
+
+- platform acceptance of the live manual verification;
+- AI reply;
+- keyword reply;
+- default reply;
+- real customer chat;
+- production automatic reply;
+- image reply;
+- online-chat business matrix;
+- order, refund, shipping or rating behavior.

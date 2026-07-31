@@ -1,5 +1,5 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: IMPLEMENTING
+Status: ARCHIVED
 # Proposal
 
 ## Title
@@ -106,3 +106,16 @@ Not applicable. This Change uses `PATCH_UPSTREAM`, not `BUILD_LOCAL_EXCEPTION`.
 ## Retirement plan for overlapping local code
 
 CHG-0010 local worker remains `FREEZE_AND_DEPRECATE`. This Change must not restore it, extend it, or use it as a message executor. Any future implementation must retire or keep disabled any overlapping local helper once upstream provides an equivalent manual handoff.
+
+## Blocked closeout
+
+CHG-0016 implemented the local-only manual handoff and safety stop capability,
+but the only approved live platform validation was not accepted by the
+platform. The final live verdict is `MANUAL_VERIFICATION_NOT_ACCEPTED`.
+
+This Change is archived as a blocked closeout. T12 remains not completed, T13
+records cleanup and closure, message sends during CHG-0016 remain `0`, and all
+related runtime processes were stopped before archival.
+
+Follow-up delivery must use the upstream-native Token, account, WebSocket,
+reply, AI and sender paths instead of continuing local slider research.

@@ -1,5 +1,5 @@
 Change ID: CHG-0016-local-only-manual-platform-verification-handoff
-Status: IMPLEMENTING
+Status: ARCHIVED
 # Design
 
 ## Scope
@@ -272,3 +272,18 @@ Manual handoff is an operations wrapper. Upstream remains the business runtime o
 ## Retirement plan for overlapping local code
 
 Any future helper must be temporary, local-only, and retired or disabled if upstream later provides a native manual handoff.
+
+## Blocked closeout
+
+User outcome: Close CHG-0016 honestly after the approved owner-only platform
+verification attempt was not accepted.
+Confirmed blocker: The live manual verification ended with
+`MANUAL_VERIFICATION_NOT_ACCEPTED`; no successful `x5sec` handoff was proven.
+Smallest success test: Archive the Change with T12 blocked, T13 complete,
+failure evidence preserved, generated state showing no active Change, and no
+runtime or message side effects.
+
+The closed design conclusion is that the manual handoff remains an
+operations-only safety capability. It does not prove production automatic reply
+delivery, AI reply, keyword reply, default reply, online-chat business matrix,
+or customer messaging.
