@@ -68,10 +68,10 @@ def test_tasks_reflect_required_t1_to_t17_plan() -> None:
     for number in range(1, 18):
         assert f"T{number} " in tasks
     assert "- [x] T7 Create latest upstream candidate worktree." in tasks
-    assert "- [ ] T8 Validate upstream native Token and account connection." in tasks
+    assert "- [x] T8 Validate upstream native Token and account connection." in tasks
     assert "- [ ] T15 Wait for OWNER GO_LIVE." in tasks
-    assert "Completed tasks: 7 / 17" in tasks
-    assert "Next task: T8 Validate upstream native Token and account connection." in tasks
+    assert "Completed tasks: 8 / 17" in tasks
+    assert "Next task: T9 Validate upstream native WebSocket and sender." in tasks
 
 
 def test_generated_state_points_to_active_change() -> None:
@@ -82,8 +82,8 @@ def test_generated_state_points_to_active_change() -> None:
         "path": f"changes/active/{CHANGE_ID}",
     }
     assert state["tasks"]["total"] == 17
-    assert state["tasks"]["completed"] == 7
-    assert state["tasks"]["next_task"] == "T8 Validate upstream native Token and account connection."
+    assert state["tasks"]["completed"] == 8
+    assert state["tasks"]["next_task"] == "T9 Validate upstream native WebSocket and sender."
 
 
 def test_owner_implementation_approval_is_recorded() -> None:
@@ -124,6 +124,23 @@ def test_t8_platform_verification_blocker_is_recorded_zero_send() -> None:
     assert "send-message signal: absent" in evidence
     assert "Messages sent by CHG-0017 T8: `0`" in evidence
     assert "T8 remains unchecked" in evidence
+
+
+def test_t8_completed_and_catalog_direction_blocker_recorded() -> None:
+    tasks = read_doc("tasks.md")
+    evidence = (
+        CHANGE_DIR
+        / "evidence"
+        / "CHG17-CATALOG-DIRECTION-LIVE-20260731T095918Z-W9IU-catalog-required.md"
+    ).read_text(encoding="utf-8")
+    assert "- [x] T8 Validate upstream native Token and account connection." in tasks
+    assert "`TEST_MESSAGE_DIRECTION_MISMATCH_AND_ITEM_CATALOG_MISS`" in evidence
+    assert "EXPECTED_B_PLATFORM matches: 1" in evidence
+    assert "EXPECTED_A_PLATFORM matches: 4" in evidence
+    assert "Verdict: ACCOUNT_A_ITEM_CATALOG_REQUIRED" in evidence
+    assert "candidate ACCOUNT-A catalog rows after sync: 0" in evidence
+    assert "platform messages sent: 0" in evidence
+    assert "T9 remains blocked" in evidence
 
 
 def test_t8_owner_login_followup_still_zero_send() -> None:

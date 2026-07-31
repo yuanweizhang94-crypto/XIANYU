@@ -9,7 +9,7 @@ Status: IMPLEMENTING
 - [x] T5 Define acceptance criteria.
 - [x] T6 Record project-owner implementation approval.
 - [x] T7 Create latest upstream candidate worktree.
-- [ ] T8 Validate upstream native Token and account connection.
+- [x] T8 Validate upstream native Token and account connection.
 - [ ] T9 Validate upstream native WebSocket and sender.
 - [ ] T10 Configure keyword, AI, and failure fallback.
 - [ ] T11 Run no-send integration tests.
@@ -22,8 +22,8 @@ Status: IMPLEMENTING
 
 ## Current Progress
 
-Completed tasks: 7 / 17
-Next task: T8 Validate upstream native Token and account connection.
+Completed tasks: 8 / 17
+Next task: T9 Validate upstream native WebSocket and sender.
 
 ## Execution Contract
 
@@ -101,6 +101,39 @@ reappeared. `ACCOUNT-A` and the candidate websocket were stopped, followed by a
 120 second quiet period with zero autoreply, AI, or send deltas.
 
 Verdict: `PLATFORM_VERIFICATION_STILL_REQUIRED`
+
+Later owner-authorized live work established that the previous T8 runtime
+blocker was no longer the current state: remote Token real request passed,
+Token was obtained, `device_id` was obtained, ACCOUNT-A entered native
+WebSocket `connected` state, a stable observation completed, browser launches
+remained `0`, and T8 sends remained `0`.
+
+T8 is therefore complete. T9 and later tasks remain unchecked until the
+upstream-native sender, reply routing, cleanup, and reconnect evidence is
+completed.
+
+## T9 Blocker
+
+Run `CHG17-CATALOG-DIRECTION-LIVE-20260731T095918Z-W9IU` recorded the
+standardized conclusion from the previous skipped-row audit:
+
+`TEST_MESSAGE_DIRECTION_MISMATCH_AND_ITEM_CATALOG_MISS`
+
+The audit showed one sender identity matching `EXPECTED_B_PLATFORM`, proving
+the OWNER_TEST_ACCOUNT_B platform identity mapping is valid. The other four
+skipped rows matched `EXPECTED_A_PLATFORM` and are treated as ACCOUNT-A
+self-message echoes, not as B identity mapping failures. The single B inbound
+record was blocked by `item_not_belong`.
+
+The candidate item catalog sync then returned success with `0` returned items,
+`0` saved items, and `0` ACCOUNT-A catalog rows. No TEST_ITEM could be selected
+and `check_item_belongs_to_account(ACCOUNT-A, TEST_ITEM)` could not be proven.
+
+Verdict: `ACCOUNT_A_ITEM_CATALOG_REQUIRED`
+
+No websocket account task was started during this catalog-direction run, no
+test message was sent, and the candidate management runtime was stopped with
+ports closed.
 
 ## READY_FOR_GO_LIVE Boundary
 

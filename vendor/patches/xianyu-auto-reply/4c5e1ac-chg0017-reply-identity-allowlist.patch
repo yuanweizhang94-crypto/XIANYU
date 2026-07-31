@@ -1,0 +1,200 @@
+diff --git a/tests/test_chg0017_reply_allowlist.py b/tests/test_chg0017_reply_allowlist.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0b53a5a8bfb64a33b9ff21f11c1950a46bbce572
+--- /dev/null
++++ b/tests/test_chg0017_reply_allowlist.py
+@@ -0,0 +1,144 @@
++import os
++import sys
++import unittest
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "websocket"))
++
++from app.services.xianyu.auto_reply_service import AutoReplyService
++
++
++ACCOUNT_A = "account-a"
++ACCOUNT_A_PLATFORM = "platform-a"
++OWNER_TEST_B_ACCOUNT = "account-b"
++OWNER_TEST_B_PLATFORM = "platform-b"
++
++
++class DummyInstance:
++    myid = ACCOUNT_A_PLATFORM
++
++
++class Chg0017ReplyAllowlistTest(unittest.IsolatedAsyncioTestCase):
++    def tearDown(self):
++        for key in (
++            "CHG0017_REPLY_ALLOWLIST_ENABLED",
++            "CHG0017_REPLY_ALLOWED_COOKIE_IDS",
++            "CHG0017_REPLY_ALLOWED_SENDER_IDS",
++        ):
++            os.environ.pop(key, None)
++
++    def enable_gate(self, receiver: str = ACCOUNT_A, sender: str = OWNER_TEST_B_PLATFORM):
++        os.environ["CHG0017_REPLY_ALLOWLIST_ENABLED"] = "true"
++        os.environ["CHG0017_REPLY_ALLOWED_COOKIE_IDS"] = receiver
++        os.environ["CHG0017_REPLY_ALLOWED_SENDER_IDS"] = sender
++
++    def service(self, receiver: str = ACCOUNT_A) -> AutoReplyService:
++        return AutoReplyService(receiver, DummyInstance())
++
++    def test_allows_receiver_account_and_sender_platform_identity(self):
++        self.enable_gate()
++        allowed, reason = self.service()._check_chg0017_reply_gate(OWNER_TEST_B_PLATFORM)
++
++        self.assertTrue(allowed)
++        self.assertEqual(reason, "allowed")
++
++    def test_denies_owner_test_account_id_as_sender_identity(self):
++        self.enable_gate()
++        allowed, reason = self.service()._check_chg0017_reply_gate(OWNER_TEST_B_ACCOUNT)
++
++        self.assertFalse(allowed)
++        self.assertEqual(reason, "chg0017_allowlist_sender_denied")
++
++    def test_denies_account_a_platform_identity_as_own_message(self):
++        self.enable_gate()
++        allowed, reason = self.service()._check_chg0017_reply_gate(ACCOUNT_A_PLATFORM)
++
++        self.assertFalse(allowed)
++        self.assertEqual(reason, "self_message")
++
++    def test_denies_unknown_sender(self):
++        self.enable_gate()
++
++        allowed, reason = self.service()._check_chg0017_reply_gate("unknown")
++
++        self.assertFalse(allowed)
++        self.assertEqual(reason, "chg0017_allowlist_sender_unknown")
++
++    def test_denies_empty_sender(self):
++        self.enable_gate()
++
++        allowed, reason = self.service()._check_chg0017_reply_gate("")
++
++        self.assertFalse(allowed)
++        self.assertEqual(reason, "chg0017_allowlist_sender_missing")
++
++    def test_denies_system_sender_name(self):
++        self.enable_gate()
++
++        allowed, reason = self.service()._check_chg0017_reply_gate(OWNER_TEST_B_PLATFORM, "系统")
++
++        self.assertFalse(allowed)
++        self.assertEqual(reason, "chg0017_allowlist_system_sender")
++
++    def test_denies_other_receiver_account(self):
++        self.enable_gate()
++
++        allowed, reason = self.service("account-c")._check_chg0017_reply_gate(OWNER_TEST_B_PLATFORM)
++
++        self.assertFalse(allowed)
++        self.assertEqual(reason, "chg0017_allowlist_receiver_denied")
++
++    def test_denies_missing_config(self):
++        os.environ["CHG0017_REPLY_ALLOWLIST_ENABLED"] = "true"
++        service = self.service()
++
++        allowed, reason = service._check_chg0017_reply_gate(OWNER_TEST_B_PLATFORM)
++
++        self.assertFalse(allowed)
++        self.assertEqual(reason, "chg0017_allowlist_config_missing")
++
++    def test_denies_when_gate_disabled(self):
++        service = self.service()
++
++        allowed, reason = service._check_chg0017_reply_gate(OWNER_TEST_B_PLATFORM)
++
++        self.assertFalse(allowed)
++        self.assertEqual(reason, "chg0017_allowlist_disabled")
++
++    async def test_non_whitelist_sender_denied_before_reply_route(self):
++        self.enable_gate()
++        service = self.service()
++        calls = {"reply": 0, "log_payload": None}
++
++        async def get_reply(**_kwargs):
++            calls["reply"] += 1
++            return "must not be reached"
++
++        async def record_log(payload):
++            calls["log_payload"] = dict(payload)
++            return 1
++
++        service.get_reply = get_reply
++        service._record_auto_reply_log = record_log
++
++        await service.handle_chat_message(
++            {
++                "send_user_id": "non-whitelist-platform",
++                "send_user_name": "owner-test",
++                "send_message": "hello",
++                "chat_id": "chat-fixture",
++                "item_id": "",
++                "msg_time": 1,
++            },
++            websocket=None,
++        )
++
++        self.assertEqual(calls["reply"], 0)
++        self.assertIsNotNone(calls["log_payload"])
++        self.assertEqual(calls["log_payload"]["process_status"], "skipped")
++        self.assertEqual(calls["log_payload"]["decision_reason"], "chg0017_allowlist_sender_denied")
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/websocket/app/services/xianyu/auto_reply_service.py b/websocket/app/services/xianyu/auto_reply_service.py
+index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..45427e6b782075e92d213780949630aa04ba8e21 100644
+--- a/websocket/app/services/xianyu/auto_reply_service.py
++++ b/websocket/app/services/xianyu/auto_reply_service.py
+@@ -39,0 +40,4 @@ from app.services.xianyu.auto_reply_log_service import AutoReplyLogService
++def _parse_chg0017_allowlist(raw_value: str | None) -> set[str]:
++    return {part.strip() for part in str(raw_value or "").split(",") if part.strip()}
++
++
+@@ -126,0 +131,32 @@ class AutoReplyService:
++
++    def _check_chg0017_reply_gate(self, send_user_id: str, send_user_name: str = "") -> tuple[bool, str]:
++        if str(os.getenv("CHG0017_REPLY_ALLOWLIST_ENABLED") or "").strip().lower() not in {"1", "true", "yes", "on"}:
++            return False, "chg0017_allowlist_disabled"
++
++        allowed_cookie_ids = _parse_chg0017_allowlist(os.getenv("CHG0017_REPLY_ALLOWED_COOKIE_IDS"))
++        allowed_sender_ids = _parse_chg0017_allowlist(os.getenv("CHG0017_REPLY_ALLOWED_SENDER_IDS"))
++
++        if not allowed_cookie_ids or not allowed_sender_ids:
++            return False, "chg0017_allowlist_config_missing"
++
++        if str(self.cookie_id) not in allowed_cookie_ids:
++            return False, "chg0017_allowlist_receiver_denied"
++
++        normalized_sender = str(send_user_id or "").strip()
++        if not normalized_sender:
++            return False, "chg0017_allowlist_sender_missing"
++        if normalized_sender.lower() == "unknown":
++            return False, "chg0017_allowlist_sender_unknown"
++        if str(send_user_name or "").strip() == "系统":
++            return False, "chg0017_allowlist_system_sender"
++
++        current_platform_id = str(getattr(self.xianyu_instance, "myid", "") or "").strip()
++        if current_platform_id and normalized_sender == current_platform_id:
++            return False, "self_message"
++        if normalized_sender not in allowed_sender_ids:
++            return False, "chg0017_allowlist_sender_denied"
++        return True, "allowed"
++
++    def _is_chg0017_reply_allowed(self, send_user_id: str) -> bool:
++        allowed, _reason = self._check_chg0017_reply_gate(send_user_id)
++        return allowed
+@@ -587,0 +624,7 @@ class AutoReplyService:
++
++            chg0017_allowed, chg0017_reason = self._check_chg0017_reply_gate(send_user_id, send_user_name)
++            if not chg0017_allowed:
++                logger.warning("CHG-0017 reply allowlist denied automatic reply before route evaluation")
++                log_payload["process_status"] = "skipped"
++                log_payload["decision_reason"] = chg0017_reason
++                return

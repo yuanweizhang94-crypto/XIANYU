@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 17,
-    "completed": 7,
-    "next_task": "T8 Validate upstream native Token and account connection.",
+    "completed": 8,
+    "next_task": "T9 Validate upstream native WebSocket and sender.",
     "items": [
       {
         "text": "T1 Create proposal.",
@@ -41,7 +41,7 @@
       },
       {
         "text": "T8 Validate upstream native Token and account connection.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T9 Validate upstream native WebSocket and sender.",

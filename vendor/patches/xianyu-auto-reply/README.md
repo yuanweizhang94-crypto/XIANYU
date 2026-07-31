@@ -9,6 +9,32 @@
 - Local patch worktree: `D:/xianyu-upstream-manual-chg0016`
 - Patch apply check: `git apply --check --whitespace=error-all --unidiff-zero <patch-file>`
 
+## CHG-0017 reply identity allowlist patch
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`
+- Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
+- Patch file: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
+- Canonical SHA256: `31BE720D9D501024FA0DCB8D6FD17AD3405BB79EC0697193F453CDE3034DC260`
+- Raw Windows SHA256: `31BE720D9D501024FA0DCB8D6FD17AD3405BB79EC0697193F453CDE3034DC260`
+- EOL state: LF, no BOM
+- Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
+- Patch apply check: passed with `git apply --check --whitespace=error-all --unidiff-zero`
+- Targeted test: passed with `python tests/test_chg0017_reply_allowlist.py`
+- Changed files:
+  - `websocket/app/services/xianyu/auto_reply_service.py`
+  - `tests/test_chg0017_reply_allowlist.py`
+
+This patch adds a default-off fail-closed CHG-0017 test gate for automatic
+reply validation. The receiver is matched by the current automatic-reply
+`cookie_id` account identifier, while the sender is matched by the inbound
+platform sender identity. It rejects missing, unknown, system, non-whitelist,
+wrong-receiver, and own-message inputs before keyword, AI, default-reply, or
+sender execution.
+
+The artifact contains no runtime account identifiers, platform identifiers,
+Cookie, Token, Gemini key, item IDs, chat IDs, customer messages, or runtime
+HMAC values.
+
 ## Artifact Format
 
 Git-generated zero-context unified diff.
