@@ -94,3 +94,26 @@ Run `CHG17-GO-LIVE-20260731T1431Z` satisfied the operational delivery criteria:
   non-whitelist successful reply sends are `0`.
 - Candidate backend health is reachable on `/health`.
 - PR #26 remains Draft, Open, and Unmerged; no merge authorization was used.
+
+Run `CHG17-NATIVE-UI-20260731T150428Z` satisfied the native management UI
+delivery criteria:
+
+- `http://127.0.0.1:19000` is served by the CHG-0017 candidate frontend, not
+  the old Pilot frontend.
+- The frontend same-origin `/api` proxy resolves to the candidate backend on
+  the candidate Docker network.
+- The candidate frontend, backend, MySQL, Redis, and WebSocket all use the same
+  candidate runtime.
+- Account management shows ACCOUNT-A enabled and online from the upstream
+  WebSocket service state.
+- Online chat connects ACCOUNT-A through the upstream native `chat-new` IM
+  session manager, and the IM connection failure previously seen through the
+  old Pilot UI is resolved.
+- Online chat sessions are available after selecting ACCOUNT-A; no message was
+  sent by this UI validation.
+- AI switch, AI settings, provider, base URL, API key, model, prompt, keyword
+  management, reply logs, and system service status controls are verified as
+  upstream-native UI paths.
+- The Gemini model remains `gemini-3.6-flash` without a `models/` prefix.
+- No duplicate sender, IM runtime, Token runtime, WebSocket runtime, AI
+  provider, or automatic reply worker was created.

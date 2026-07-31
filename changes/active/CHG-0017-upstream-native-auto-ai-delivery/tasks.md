@@ -203,3 +203,32 @@ WebSocket runtime, or AI provider.
 
 T17 remains unchecked because final archive/merge was not authorized in this
 run. The operational delivery state is `DELIVERY_READY`.
+
+## Native UI Delivery Evidence
+
+Run `CHG17-NATIVE-UI-20260731T150428Z` resolved the owner-facing native UI
+runtime mismatch without modifying upstream business code. The URL
+`http://127.0.0.1:19000` had been served by the old Pilot frontend, whose
+same-origin nginx proxy resolved `backend-web:8089` on the Pilot network. The
+already-working CHG-0017 production chain was running in the separate candidate
+backend, MySQL, Redis, and WebSocket containers.
+
+The old Pilot frontend was stopped, the upstream-built CHG-0017 candidate
+frontend was started on `127.0.0.1:19000`, and the frontend was attached to the
+candidate Docker network. The local runtime compose file remains under
+gitignored `.local/`.
+
+Validated owner-facing upstream-native pages and controls:
+
+- Account management shows ACCOUNT-A enabled and online from the candidate
+  WebSocket state.
+- Online chat connects ACCOUNT-A through the upstream native `chat-new` IM
+  session manager and loads sessions without sending a message.
+- System settings shows backend service and message service online.
+- AI settings modal exposes the upstream native AI switch, provider, base URL,
+  API key, model, prompt, test, and save controls.
+- Keyword management and automatic reply log pages open through the candidate
+  frontend/backend pair.
+
+PR #26 remains Draft, Open, and Unmerged. T17 remains unchecked because archive
+and final merge are still outside the current authorization.
