@@ -1,18 +1,105 @@
+diff --git a/common/utils/item_info_manager.py b/common/utils/item_info_manager.py
+index 4a82cfa19d348cb8077019dda3636a13056750b2..c3e30ed7d77651997288376b950aad58ade49f82 100644
+--- a/common/utils/item_info_manager.py
++++ b/common/utils/item_info_manager.py
+@@ -150,5 +150,5 @@ class ItemInfoManager:
+-            # 打印请求参数和请求头
+-            logger.info(f"【{self.cookie_id}】请求参数 params: {params}")
+-            logger.info(f"【{self.cookie_id}】请求数据 data: {data}")
+-            logger.info(f"【{self.cookie_id}】请求数据 data_val: {data_val}")
+-            logger.info(f"【{self.cookie_id}】请求头 headers: {dict(headers)}")
++            logger.info(
++                "item_list_request_started "
++                f"request_started=true page_number={page_number} page_size={page_size} "
++                f"resolved_user_identity_present={bool(myid or self.cookie_id)}"
++            )
+@@ -177,0 +178,24 @@ class ItemInfoManager:
++                items_data = res_json.get('data', {}) if isinstance(res_json, dict) else {}
++                data_keys = sorted(items_data.keys()) if isinstance(items_data, dict) else []
++                card_list = items_data.get('cardList', []) if isinstance(items_data, dict) else []
++                array_counts = (
++                    {
++                        key: len(value)
++                        for key, value in items_data.items()
++                        if isinstance(value, list) and key != "cardList"
++                    }
++                    if isinstance(items_data, dict)
++                    else {}
++                )
++                error_msg = res_json.get('ret', [''])[0] if isinstance(res_json, dict) and res_json.get('ret') else ''
++                ret_classification = "success" if str(error_msg).startswith("SUCCESS::") else (
++                    "token_expired" if "token" in str(error_msg).lower() else "failure"
++                )
++
++                logger.info(
++                    "item_list_response "
++                    f"http_status={response.status} ret_classification={ret_classification} "
++                    f"response_data_keys={data_keys} card_list_count={len(card_list)} "
++                    f"other_array_counts={array_counts}"
++                )
++
+@@ -180,3 +203,0 @@ class ItemInfoManager:
+-                    items_data = res_json.get('data', {})
+-                    card_list = items_data.get('cardList', [])
+-
+@@ -205 +226,5 @@ class ItemInfoManager:
+-                    logger.info(f"成功获取到 {len(items_list)} 个商品")
++                    logger.info(
++                        "item_list_parse_result "
++                        f"parsed_item_count={len(items_list)} saved_item_count=unavailable "
++                        "error_type=none"
++                    )
+@@ -210,0 +236,4 @@ class ItemInfoManager:
++                        "http_status": response.status,
++                        "response_data_keys": data_keys,
++                        "card_list_count": len(card_list),
++                        "other_array_counts": array_counts,
+@@ -216 +244,0 @@ class ItemInfoManager:
+-                    error_msg = res_json.get('ret', [''])[0] if res_json.get('ret') else ''
+@@ -218 +246 @@ class ItemInfoManager:
+-                        logger.warning(f"Token失效，准备重试: {error_msg}")
++                        logger.warning("item_list_token_expired retry=true")
+@@ -222,2 +250,13 @@ class ItemInfoManager:
+-                        logger.error(f"获取商品信息失败: {res_json}")
+-                        return {"success": False, "error": f"获取商品信息失败: {error_msg}"}
++                        logger.error(
++                            "item_list_request_failed "
++                            f"http_status={response.status} ret_classification={ret_classification} "
++                            "error_type=api_failure"
++                        )
++                        return {
++                            "success": False,
++                            "http_status": response.status,
++                            "response_data_keys": data_keys,
++                            "card_list_count": len(card_list),
++                            "other_array_counts": array_counts,
++                            "error": f"获取商品信息失败: {error_msg}",
++                        }
+@@ -226 +265,4 @@ class ItemInfoManager:
+-            logger.error(f"商品信息API请求异常: {self._safe_str(e)}")
++            logger.error(
++                "item_list_request_exception "
++                f"page_number={page_number} page_size={page_size} error_type={type(e).__name__}"
++            )
 diff --git a/tests/test_chg0017_reply_allowlist.py b/tests/test_chg0017_reply_allowlist.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..0b53a5a8bfb64a33b9ff21f11c1950a46bbce572
+index 0000000000000000000000000000000000000000..13fd9baa52f4628eb65aecd3bc649a3feb7ddf17
 --- /dev/null
 +++ b/tests/test_chg0017_reply_allowlist.py
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,511 @@
 +import os
 +import sys
 +import unittest
 +from pathlib import Path
++from unittest.mock import patch
 +
 +ROOT = Path(__file__).resolve().parents[1]
 +sys.path.insert(0, str(ROOT / "websocket"))
++sys.path.insert(0, str(ROOT))
 +
++import app.services.xianyu.auto_reply_service as auto_reply_module
 +from app.services.xianyu.auto_reply_service import AutoReplyService
++from common.utils.item_info_manager import ItemInfoManager
 +
 +
 +ACCOUNT_A = "account-a"
@@ -24,8 +111,26 @@ index 0000000000000000000000000000000000000000..0b53a5a8bfb64a33b9ff21f11c1950a4
 +class DummyInstance:
 +    myid = ACCOUNT_A_PLATFORM
 +
++    async def send_msg(self, **_kwargs):
++        return {"success": True}
++
++
++class DummySessionContext:
++    async def __aenter__(self):
++        return object()
++
++    async def __aexit__(self, exc_type, exc, tb):
++        return False
++
++
++class DummyAccount:
++    id = 1
++
 +
 +class Chg0017ReplyAllowlistTest(unittest.IsolatedAsyncioTestCase):
++    def setUp(self):
++        self._original_session_maker = auto_reply_module.async_session_maker
++
 +    def tearDown(self):
 +        for key in (
 +            "CHG0017_REPLY_ALLOWLIST_ENABLED",
@@ -33,6 +138,7 @@ index 0000000000000000000000000000000000000000..0b53a5a8bfb64a33b9ff21f11c1950a4
 +            "CHG0017_REPLY_ALLOWED_SENDER_IDS",
 +        ):
 +            os.environ.pop(key, None)
++        auto_reply_module.async_session_maker = self._original_session_maker
 +
 +    def enable_gate(self, receiver: str = ACCOUNT_A, sender: str = OWNER_TEST_B_PLATFORM):
 +        os.environ["CHG0017_REPLY_ALLOWLIST_ENABLED"] = "true"
@@ -145,11 +251,355 @@ index 0000000000000000000000000000000000000000..0b53a5a8bfb64a33b9ff21f11c1950a4
 +        self.assertEqual(calls["log_payload"]["process_status"], "skipped")
 +        self.assertEqual(calls["log_payload"]["decision_reason"], "chg0017_allowlist_sender_denied")
 +
++    async def test_catalog_missing_global_keyword_still_matches(self):
++        auto_reply_module.async_session_maker = lambda: DummySessionContext()
++        service = self.service()
++
++        async def get_account(_session):
++            return DummyAccount()
++
++        async def list_keywords(_session, _account):
++            return [
++                {
++                    "keyword": "item-only",
++                    "reply": "item reply",
++                    "item_id": "item-secret-123",
++                    "type": "text",
++                    "image_url": "",
++                    "item_title": "",
++                },
++                {
++                    "keyword": "global",
++                    "reply": "global reply",
++                    "item_id": "",
++                    "type": "text",
++                    "image_url": "",
++                    "item_title": "",
++                },
++            ]
++
++        async def no_ai(*_args, **_kwargs):
++            return None
++
++        async def no_default(*_args, **_kwargs):
++            return None
++
++        service._get_account = get_account
++        service._list_keywords = list_keywords
++        service.get_ai_reply = no_ai
++        service.get_default_reply = no_default
++
++        reply = await service.get_reply(
++            send_user_name="owner-test",
++            send_user_id=OWNER_TEST_B_PLATFORM,
++            send_message="please use global",
++            chat_id="chat-fixture",
++            item_id="item-secret-123",
++            catalog_item_known=False,
++        )
++
++        self.assertEqual(reply, "global reply")
++
++    async def test_catalog_missing_item_specific_keyword_is_skipped(self):
++        auto_reply_module.async_session_maker = lambda: DummySessionContext()
++        service = self.service()
++
++        async def get_account(_session):
++            return DummyAccount()
++
++        async def list_keywords(_session, _account):
++            return [
++                {
++                    "keyword": "item-only",
++                    "reply": "item reply",
++                    "item_id": "item-secret-123",
++                    "type": "text",
++                    "image_url": "",
++                    "item_title": "",
++                }
++            ]
++
++        async def no_ai(*_args, **_kwargs):
++            return None
++
++        async def no_default(*_args, **_kwargs):
++            return None
++
++        service._get_account = get_account
++        service._list_keywords = list_keywords
++        service.get_ai_reply = no_ai
++        service.get_default_reply = no_default
++
++        reply = await service.get_reply(
++            send_user_name="owner-test",
++            send_user_id=OWNER_TEST_B_PLATFORM,
++            send_message="item-only",
++            chat_id="chat-fixture",
++            item_id="item-secret-123",
++            catalog_item_known=False,
++        )
++
++        self.assertIsNone(reply)
++
++    async def test_catalog_missing_ai_path_receives_no_item_id(self):
++        auto_reply_module.async_session_maker = lambda: DummySessionContext()
++        service = self.service()
++        calls = {"ai_item_id": "not-called"}
++
++        async def get_account(_session):
++            return DummyAccount()
++
++        async def list_keywords(_session, _account):
++            return []
++
++        async def ai_reply(_session, *_args):
++            calls["ai_item_id"] = _args[3]
++            return "ai reply"
++
++        async def no_default(*_args, **_kwargs):
++            raise AssertionError("default route must not run after AI reply")
++
++        service._get_account = get_account
++        service._list_keywords = list_keywords
++        service.get_ai_reply = ai_reply
++        service.get_default_reply = no_default
++
++        reply = await service.get_reply(
++            send_user_name="owner-test",
++            send_user_id=OWNER_TEST_B_PLATFORM,
++            send_message="question",
++            chat_id="chat-fixture",
++            item_id="item-secret-123",
++            catalog_item_known=False,
++        )
++
++        self.assertEqual(reply, "ai reply")
++        self.assertIsNone(calls["ai_item_id"])
++
++    async def test_catalog_missing_default_route_uses_account_scope(self):
++        auto_reply_module.async_session_maker = lambda: DummySessionContext()
++        service = self.service()
++        calls = {"default_item_id": "not-called"}
++
++        async def get_account(_session):
++            return DummyAccount()
++
++        async def list_keywords(_session, _account):
++            return []
++
++        async def no_ai(*_args, **_kwargs):
++            return None
++
++        async def default_reply(_session, *_args):
++            calls["default_item_id"] = _args[4]
++            return "account default"
++
++        service._get_account = get_account
++        service._list_keywords = list_keywords
++        service.get_ai_reply = no_ai
++        service.get_default_reply = default_reply
++
++        reply = await service.get_reply(
++            send_user_name="owner-test",
++            send_user_id=OWNER_TEST_B_PLATFORM,
++            send_message="fallback",
++            chat_id="chat-fixture",
++            item_id="item-secret-123",
++            catalog_item_known=False,
++        )
++
++        self.assertEqual(reply, "account default")
++        self.assertIsNone(calls["default_item_id"])
++
++    async def test_catalog_missing_does_not_log_sensitive_values(self):
++        from loguru import logger
++
++        self.enable_gate()
++        service = self.service()
++        captured = []
++        token = logger.add(lambda message: captured.append(str(message)), format="{message}")
++
++        async def get_reply(**_kwargs):
++            return None
++
++        async def record_log(_payload):
++            return 1
++
++        async def no_filters(_filter_type):
++            return []
++
++        async def no_notification(**_kwargs):
++            return None
++
++        async def item_missing(_account_id, _item_id):
++            return False
++
++        service.get_reply = get_reply
++        service._record_auto_reply_log = record_log
++        service.get_filter_keywords = no_filters
++        service._send_notification = no_notification
++        service._message_expire_time = 3600
++        service._message_expire_time_loaded = True
++
++        try:
++            with patch("app.services.xianyu.rate_service.check_item_belongs_to_account", item_missing):
++                await service.handle_chat_message(
++                    {
++                        "send_user_id": OWNER_TEST_B_PLATFORM,
++                        "send_user_name": "owner-test",
++                        "send_message": "secret body text",
++                        "chat_id": "chat-fixture",
++                        "item_id": "item-secret-123",
++                        "msg_time": 1,
++                    },
++                    websocket=None,
++                )
++        finally:
++            logger.remove(token)
++
++        catalog_lines = [line for line in captured if "catalog missing" in line]
++        self.assertTrue(catalog_lines)
++        joined = "\n".join(catalog_lines)
++        self.assertNotIn("item-secret-123", joined)
++        self.assertNotIn(ACCOUNT_A, joined)
++        self.assertNotIn("Cookie", joined)
++        self.assertNotIn("secret body text", joined)
++
++    async def test_catalog_missing_sets_trace_context(self):
++        auto_reply_module.async_session_maker = lambda: DummySessionContext()
++        service = self.service()
++        trace = {}
++        token = service._reply_trace_var.set(trace)
++
++        async def get_account(_session):
++            return DummyAccount()
++
++        async def list_keywords(_session, _account):
++            return []
++
++        async def no_ai(*_args, **_kwargs):
++            return None
++
++        async def no_default(*_args, **_kwargs):
++            return None
++
++        service._get_account = get_account
++        service._list_keywords = list_keywords
++        service.get_ai_reply = no_ai
++        service.get_default_reply = no_default
++
++        try:
++            await service.get_reply(
++                send_user_name="owner-test",
++                send_user_id=OWNER_TEST_B_PLATFORM,
++                send_message="question",
++                chat_id="chat-fixture",
++                item_id="item-secret-123",
++                catalog_item_known=False,
++            )
++        finally:
++            service._reply_trace_var.reset(token)
++
++        self.assertTrue(trace["context_snapshot"]["item_catalog_missing"])
++
++    async def test_known_catalog_keeps_item_scope_for_default_reply(self):
++        auto_reply_module.async_session_maker = lambda: DummySessionContext()
++        service = self.service()
++        calls = {"default_item_id": "not-called"}
++
++        async def get_account(_session):
++            return DummyAccount()
++
++        async def list_keywords(_session, _account):
++            return []
++
++        async def no_ai(*_args, **_kwargs):
++            return None
++
++        async def default_reply(_session, *_args):
++            calls["default_item_id"] = _args[4]
++            return "item default"
++
++        service._get_account = get_account
++        service._list_keywords = list_keywords
++        service.get_ai_reply = no_ai
++        service.get_default_reply = default_reply
++
++        reply = await service.get_reply(
++            send_user_name="owner-test",
++            send_user_id=OWNER_TEST_B_PLATFORM,
++            send_message="fallback",
++            chat_id="chat-fixture",
++            item_id="item-known-123",
++            catalog_item_known=True,
++        )
++
++        self.assertEqual(reply, "item default")
++        self.assertEqual(calls["default_item_id"], "item-known-123")
++
++    async def test_item_list_logging_is_masked(self):
++        from loguru import logger
++
++        class FakeHeaders(dict):
++            def getall(self, _name):
++                return []
++
++        class FakeResponse:
++            status = 200
++            headers = FakeHeaders()
++
++            async def __aenter__(self):
++                return self
++
++            async def __aexit__(self, exc_type, exc, tb):
++                return False
++
++            async def json(self):
++                return {
++                    "ret": ["SUCCESS::调用成功"],
++                    "data": {
++                        "cardList": [],
++                        "otherItems": [{"id": "item-secret-123"}],
++                        "userId": "user-secret-123",
++                    },
++                }
++
++        class FakeSession:
++            def post(self, *_args, **_kwargs):
++                return FakeResponse()
++
++        captured = []
++        token = logger.add(lambda message: captured.append(str(message)), format="{message}")
++        manager = ItemInfoManager(
++            cookie_id=ACCOUNT_A,
++            cookies_str="_m_h5_tk=token-secret; cookie-secret=value",
++            session=FakeSession(),
++        )
++
++        try:
++            result = await manager.get_item_list_info(page_number=1, page_size=20, myid="user-secret-123")
++        finally:
++            logger.remove(token)
++
++        self.assertTrue(result["success"])
++        self.assertEqual(result["http_status"], 200)
++        self.assertEqual(result["response_data_keys"], ["cardList", "otherItems", "userId"])
++        self.assertEqual(result["card_list_count"], 0)
++        self.assertEqual(result["other_array_counts"], {"otherItems": 1})
++        joined = "\n".join(captured)
++        self.assertNotIn("cookie-secret", joined)
++        self.assertNotIn("_m_h5_tk", joined)
++        self.assertNotIn("token-secret", joined)
++        self.assertNotIn("sign", joined)
++        self.assertNotIn("Authorization", joined)
++        self.assertNotIn("user-secret-123", joined)
++        self.assertNotIn(ACCOUNT_A, joined)
++
 +
 +if __name__ == "__main__":
 +    unittest.main()
 diff --git a/websocket/app/services/xianyu/auto_reply_service.py b/websocket/app/services/xianyu/auto_reply_service.py
-index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..45427e6b782075e92d213780949630aa04ba8e21 100644
+index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..8cd6c0a85a532abbf0a235bad402b1ed420aacdd 100644
 --- a/websocket/app/services/xianyu/auto_reply_service.py
 +++ b/websocket/app/services/xianyu/auto_reply_service.py
 @@ -39,0 +40,4 @@ from app.services.xianyu.auto_reply_log_service import AutoReplyLogService
@@ -190,7 +640,9 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..45427e6b782075e92d213780949630aa
 +    def _is_chg0017_reply_allowed(self, send_user_id: str) -> bool:
 +        allowed, _reason = self._check_chg0017_reply_gate(send_user_id)
 +        return allowed
-@@ -587,0 +624,7 @@ class AutoReplyService:
+@@ -576,0 +613 @@ class AutoReplyService:
++            catalog_item_known = True
+@@ -587,0 +625,7 @@ class AutoReplyService:
 +
 +            chg0017_allowed, chg0017_reason = self._check_chg0017_reply_gate(send_user_id, send_user_name)
 +            if not chg0017_allowed:
@@ -198,3 +650,50 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..45427e6b782075e92d213780949630aa
 +                log_payload["process_status"] = "skipped"
 +                log_payload["decision_reason"] = chg0017_reason
 +                return
+@@ -634 +678,6 @@ class AutoReplyService:
+-                self._merge_log_context(log_payload, belongs_to_account=belongs_to_account)
++                catalog_item_known = bool(belongs_to_account)
++                self._merge_log_context(
++                    log_payload,
++                    catalog_item_known=catalog_item_known,
++                    item_catalog_missing=not catalog_item_known,
++                )
+@@ -636,16 +685,3 @@ class AutoReplyService:
+-                    logger.info(f"【{self.cookie_id}】商品 {item_id} 不属于当前账号，跳过自动回复")
+-                    log_payload["process_status"] = "skipped"
+-                    log_payload["decision_reason"] = "item_not_belong"
+-                    # 商品不属于当前账号，仍然发送通知
+-                    skip_notify_keywords = await self.get_filter_keywords('skip_notify')
+-                    should_skip_notification = self.should_skip_notify(send_message, skip_notify_keywords)
+-                    if not should_skip_notification:
+-                        await self._send_notification(
+-                            send_user_name=send_user_name,
+-                            send_user_id=send_user_id,
+-                            send_message=send_message,
+-                            chat_id=chat_id,
+-                            item_id=item_id,
+-                            msg_time=msg_time,
+-                        )
+-                    return
++                    logger.info(
++                        "CHG-0017 local item catalog missing; account-level reply paths remain eligible"
++                    )
+@@ -685,0 +722 @@ class AutoReplyService:
++                    catalog_item_known=catalog_item_known,
+@@ -1064,0 +1102 @@ class AutoReplyService:
++        catalog_item_known: bool = True,
+@@ -1092,0 +1131,5 @@ class AutoReplyService:
++                catalog_scoped_item_id = item_id if catalog_item_known else None
++                if not catalog_item_known and reply_trace is not None:
++                    reply_trace["decision_reason"] = "item_catalog_missing"
++                    reply_trace.setdefault("context_snapshot", {})["item_catalog_missing"] = True
++
+@@ -1094 +1137 @@ class AutoReplyService:
+-                    session, send_user_name, send_user_id, send_message, item_id
++                    session, send_user_name, send_user_id, send_message, catalog_scoped_item_id
+@@ -1105 +1148 @@ class AutoReplyService:
+-                    session, send_user_name, send_user_id, send_message, item_id, chat_id
++                    session, send_user_name, send_user_id, send_message, catalog_scoped_item_id, chat_id
+@@ -1111 +1154 @@ class AutoReplyService:
+-                    session, send_user_name, send_user_id, send_message, chat_id, item_id, msg_time
++                    session, send_user_name, send_user_id, send_message, chat_id, catalog_scoped_item_id, msg_time

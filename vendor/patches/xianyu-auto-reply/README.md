@@ -9,18 +9,19 @@
 - Local patch worktree: `D:/xianyu-upstream-manual-chg0016`
 - Patch apply check: `git apply --check --whitespace=error-all --unidiff-zero <patch-file>`
 
-## CHG-0017 reply identity allowlist patch
+## CHG-0017 reply identity allowlist and catalog fallback patch
 
 - Base upstream repository: `zhinianboke/xianyu-auto-reply`
 - Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
 - Patch file: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
-- Canonical SHA256: `31BE720D9D501024FA0DCB8D6FD17AD3405BB79EC0697193F453CDE3034DC260`
-- Raw Windows SHA256: `31BE720D9D501024FA0DCB8D6FD17AD3405BB79EC0697193F453CDE3034DC260`
+- Canonical SHA256: `4918E56416B2B0B1993801265BA09D876EACAEED73903A4E4FE44C68240C959A`
+- Raw Windows SHA256: `4918E56416B2B0B1993801265BA09D876EACAEED73903A4E4FE44C68240C959A`
 - EOL state: LF, no BOM
 - Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
 - Patch apply check: passed with `git apply --check --whitespace=error-all --unidiff-zero`
 - Targeted test: passed with `python tests/test_chg0017_reply_allowlist.py`
 - Changed files:
+  - `common/utils/item_info_manager.py`
   - `websocket/app/services/xianyu/auto_reply_service.py`
   - `tests/test_chg0017_reply_allowlist.py`
 
@@ -30,6 +31,16 @@ reply validation. The receiver is matched by the current automatic-reply
 platform sender identity. It rejects missing, unknown, system, non-whitelist,
 wrong-receiver, and own-message inputs before keyword, AI, default-reply, or
 sender execution.
+
+The patch also reclassifies a local item catalog miss as `item_catalog_missing`
+instead of proof that the item does not belong to the account. When local
+catalog data is absent, item-scoped keyword/default/image side-effect paths are
+not eligible, while approved account-level text keyword and Gemini routing may
+continue after the allowlist gate.
+
+The item-list sync utility no longer logs full request headers, Cookie, signed
+params, request data, data value, full response body, account ID, or user ID.
+It logs only structured diagnostic counts and classifications.
 
 The artifact contains no runtime account identifiers, platform identifiers,
 Cookie, Token, Gemini key, item IDs, chat IDs, customer messages, or runtime

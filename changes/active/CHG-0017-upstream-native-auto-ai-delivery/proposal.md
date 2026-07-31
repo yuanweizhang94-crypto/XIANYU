@@ -69,9 +69,13 @@ Existing local overlap remains limited to governance, wrapper lifecycle/status c
 
 ## Reuse Decision
 
-Decision: CONFIGURE_UPSTREAM
+Decision: CONFIGURE_UPSTREAM with minimal PATCH_UPSTREAM safety fixes
 
-Use latest upstream-native capabilities and configure them for the local Pilot. `PATCH_UPSTREAM` is allowed only if latest upstream has a specific missing safety or operations defect that blocks the smallest delivery path. `BUILD_LOCAL_EXCEPTION` is forbidden for this Change.
+Use latest upstream-native capabilities and configure them for the local Pilot.
+`PATCH_UPSTREAM` is limited to the confirmed latest-upstream safety defects
+that block the smallest delivery path: CHG-0017 receiver/sender allowlist,
+catalog-missing account-level fallback, and sensitive item-sync log removal.
+`BUILD_LOCAL_EXCEPTION` is forbidden for this Change.
 
 ## Duplicate Implementation Risk
 
@@ -79,7 +83,12 @@ Duplicate risk is high if this work adds local alternatives for Token acquisitio
 
 ## Why Upstream Cannot Satisfy The Requirement
 
-Not applicable as the primary decision. Latest upstream appears to contain the required native account, Token, WebSocket, keyword, default, AI, sender, and log paths. CHG-0017 exists to configure and validate those paths. If a later task proves a specific upstream safety or operations defect, that evidence must be recorded before any `PATCH_UPSTREAM` work.
+Latest upstream contains the required native account, Token, WebSocket,
+keyword, default, AI, sender, and log paths. CHG-0017 still uses those native
+paths. The only approved `PATCH_UPSTREAM` exception is the minimal safety patch
+recorded in the vendor artifact: fail-closed reply allowlist, local catalog-miss
+fallback that disables item-scoped side effects, and item-list log redaction.
+No local replacement runtime is introduced.
 
 ## Approved Exception ADR
 

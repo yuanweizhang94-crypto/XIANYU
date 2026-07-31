@@ -10,20 +10,20 @@ Status: IMPLEMENTING
 - [x] T6 Record project-owner implementation approval.
 - [x] T7 Create latest upstream candidate worktree.
 - [x] T8 Validate upstream native Token and account connection.
-- [ ] T9 Validate upstream native WebSocket and sender.
-- [ ] T10 Configure keyword, AI, and failure fallback.
-- [ ] T11 Run no-send integration tests.
-- [ ] T12 Run controlled automatic reply test between two owner-owned accounts.
-- [ ] T13 Validate restart, reconnect, duplicate protection, and one-click stop.
-- [ ] T14 Generate redacted delivery report.
-- [ ] T15 Wait for OWNER GO_LIVE.
-- [ ] T16 Enable production and observe.
+- [x] T9 Validate upstream native WebSocket and sender.
+- [x] T10 Configure keyword, AI, and failure fallback.
+- [x] T11 Run no-send integration tests.
+- [x] T12 Run controlled automatic reply test between two owner-owned accounts.
+- [x] T13 Validate restart, reconnect, duplicate protection, and one-click stop.
+- [x] T14 Generate redacted delivery report.
+- [x] T15 Wait for OWNER GO_LIVE.
+- [x] T16 Enable production and observe.
 - [ ] T17 Archive and deliver.
 
 ## Current Progress
 
-Completed tasks: 8 / 17
-Next task: T9 Validate upstream native WebSocket and sender.
+Completed tasks: 16 / 17
+Next task: T17 Archive and deliver.
 
 ## Execution Contract
 
@@ -129,14 +129,77 @@ The candidate item catalog sync then returned success with `0` returned items,
 `0` saved items, and `0` ACCOUNT-A catalog rows. No TEST_ITEM could be selected
 and `check_item_belongs_to_account(ACCOUNT-A, TEST_ITEM)` could not be proven.
 
-Verdict: `ACCOUNT_A_ITEM_CATALOG_REQUIRED`
+Verdict: `LOCAL_ITEM_CATALOG_MISS`
 
 No websocket account task was started during this catalog-direction run, no
 test message was sent, and the candidate management runtime was stopped with
 ports closed.
 
+This conclusion was later reclassified because upstream
+`check_item_belongs_to_account()` only checks local `xy_catalog_items`, not
+platform ownership. A local catalog miss must not block account-level keyword
+or Gemini AI routing. It must only make item-scoped keyword/default/image/card,
+delivery, order, rating, and item-mutation paths ineligible.
+
+## T9 Catalog Fallback Patch
+
+Run `CHG17-CATALOG-FALLBACK-OFFLINE-20260731T102708Z` confirmed:
+
+- Cookie identity and stored UNB matched without printing either value.
+- The upstream item-list API returned HTTP 200 and API success.
+- The response had no `cardList`, no non-empty alternative item arrays, and
+  zero parsed/saved catalog rows.
+- Diagnosis: `ITEM_API_RETURNED_EMPTY`.
+- Sensitive item-sync logging was patched to remove raw headers, Cookie,
+  signed params, request data, data value, response body, account ID, and user
+  ID output.
+- Automatic reply routing was patched so `item_catalog_missing=true` disables
+  only item-scoped paths while approved account-level keyword and Gemini routes
+  remain eligible after the CHG-0017 allowlist gate.
+- Candidate local tests passed: `18`.
+- Patch artifact SHA256:
+  `4918E56416B2B0B1993801265BA09D876EACAEED73903A4E4FE44C68240C959A`.
+
+T9/T10/T11 remain unchecked until controlled live validation proves the native
+sender, keyword, Gemini, cleanup, and reconnect behavior with zero
+non-whitelist sends.
+
 ## READY_FOR_GO_LIVE Boundary
 
-The Change must stop at `READY_FOR_GO_LIVE` after controlled validation. Production enablement requires the exact owner text:
+The Change stopped at `READY_FOR_GO_LIVE` after controlled validation.
+Production enablement then received the exact owner text:
 
 `GO_LIVE ACCOUNT-A`
+
+## T9-T16 Delivery Evidence
+
+Run `CHG17-GO-LIVE-20260731T1431Z` completed the remaining controlled
+validation and production enablement on the existing CHG-0017 branch and
+Draft PR #26 without creating a new Change, branch, PR, sender, Token client,
+WebSocket runtime, or AI provider.
+
+- Upstream-native websocket service: healthy.
+- ACCOUNT-A native task: running and connected.
+- OWNER_TEST_ACCOUNT_B official IM send path: connected and used for test
+  inbound messages.
+- Gemini provider settings: `provider_type=gemini`,
+  `base_url=https://generativelanguage.googleapis.com`,
+  `model_name=gemini-3.6-flash`, API key present and redacted.
+- Zero-send provider test: passed with sender invocation `0` and platform
+  send `0`.
+- Context test: passed, `context_used=true`, one AI reply success.
+- Duplicate test: passed, two official B messages produced one successful
+  reply and one duplicate skip.
+- Stop test: passed, ACCOUNT-A stopped, one official B message produced zero
+  autoreply and zero AI deltas, then ACCOUNT-A recovered.
+- Reconnect test: passed, ACCOUNT-A reconnected and one AI reply succeeded.
+- Rollback drill: passed, AI was temporarily disabled and ACCOUNT-A/websocket
+  stopped with zero deltas, then restored to production running state.
+- Final production state: ACCOUNT-A running, websocket connected, AI enabled.
+- Active keyword rules: `0`; enabled default replies: `0`; enabled filters:
+  `0`.
+- Non-whitelist successful reply sends: `0`.
+- PR #26 remains Draft, Open, and Unmerged as required.
+
+T17 remains unchecked because final archive/merge was not authorized in this
+run. The operational delivery state is `DELIVERY_READY`.

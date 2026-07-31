@@ -2,7 +2,7 @@ Run ID: CHG17-CATALOG-DIRECTION-LIVE-20260731T095918Z-W9IU
 
 Change ID: CHG-0017-upstream-native-auto-ai-delivery
 Status: IMPLEMENTING
-Verdict: ACCOUNT_A_ITEM_CATALOG_REQUIRED
+Verdict: LOCAL_ITEM_CATALOG_MISS
 
 ## Standardized Direction Conclusion
 
@@ -66,6 +66,10 @@ body is recorded in this evidence.
 ## Result
 
 T8 is complete based on prior successful Token/device/WebSocket evidence.
-T9 remains blocked because no ACCOUNT-A TEST_ITEM could be proven in the
-candidate catalog. Live keyword, Gemini AI, context, duplicate, stop, and
-reconnect validation did not run.
+The original conclusion was reclassified from `ACCOUNT_A_ITEM_CATALOG_REQUIRED`
+to `LOCAL_ITEM_CATALOG_MISS`: upstream `check_item_belongs_to_account()` only
+checks local `xy_catalog_items(account_pk, item_id)`, so a local catalog miss is
+not platform proof that the item does not belong to ACCOUNT-A.
+
+Live keyword, Gemini AI, context, duplicate, stop, and reconnect validation did
+not run in this run.

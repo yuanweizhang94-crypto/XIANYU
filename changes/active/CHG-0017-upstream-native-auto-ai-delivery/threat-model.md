@@ -10,6 +10,9 @@ Status: IMPLEMENTING
 - Token or Cookie material could be printed or committed.
 - Scheduler/order/shipping/rating automation could create business side effects.
 - Platform verification could require owner action or create risk-control state.
+- A local item catalog miss could be misclassified as platform ownership proof,
+  either blocking account-level replies unnecessarily or enabling item-scoped
+  side effects without local item configuration.
 
 ## Controls
 
@@ -20,6 +23,12 @@ Status: IMPLEMENTING
 - Stop on platform verification, unknown sender, unknown account identity, or any non-whitelist message.
 - Do not start scheduler or Docker websocket unless the active task explicitly requires the approved upstream candidate service.
 - Enforce a hard cap of 8 automatic test replies.
+- Treat local catalog misses as `item_catalog_missing`: allow only approved
+  account-level text keyword and Gemini paths after the sender allowlist, and
+  disable item-scoped keyword/default/image/card/delivery/order/rating/item
+  mutation paths.
+- Log item sync and catalog-missing diagnostics as counts and classifications
+  only.
 
 ## Secret Handling
 

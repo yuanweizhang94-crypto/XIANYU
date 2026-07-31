@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 17,
-    "completed": 8,
-    "next_task": "T9 Validate upstream native WebSocket and sender.",
+    "completed": 16,
+    "next_task": "T17 Archive and deliver.",
     "items": [
       {
         "text": "T1 Create proposal.",
@@ -45,35 +45,35 @@
       },
       {
         "text": "T9 Validate upstream native WebSocket and sender.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T10 Configure keyword, AI, and failure fallback.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T11 Run no-send integration tests.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T12 Run controlled automatic reply test between two owner-owned accounts.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T13 Validate restart, reconnect, duplicate protection, and one-click stop.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T14 Generate redacted delivery report.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T15 Wait for OWNER GO_LIVE.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T16 Enable production and observe.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T17 Archive and deliver.",

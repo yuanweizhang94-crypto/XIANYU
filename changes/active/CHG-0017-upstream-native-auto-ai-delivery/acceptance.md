@@ -50,7 +50,47 @@ The controlled validation can be marked passed only when all are true:
 - `SECOND_EXECUTOR_DETECTED`
 - `PLATFORM_VERIFICATION_REQUIRED`
 - `TEST_MESSAGE_DIRECTION_MISMATCH_AND_ITEM_CATALOG_MISS`
-- `ACCOUNT_A_ITEM_CATALOG_REQUIRED`
+- `LOCAL_ITEM_CATALOG_MISS`
+- `ITEM_API_RETURNED_EMPTY`
+- `ITEM_RESPONSE_SCHEMA_CHANGED`
+- `ITEM_CATALOG_SAVE_FAILED`
+- `ACCOUNT_COOKIE_IDENTITY_MISMATCH`
 - `UNCONTROLLED_MESSAGE_OBSERVED`
 - `READY_FOR_GO_LIVE`
+- `DELIVERY_READY`
 - `RUNTIME_SAFETY_BLOCK`
+
+## Catalog Missing Acceptance
+
+Local catalog absence is not proof that an item is not owned by ACCOUNT-A.
+When `xy_catalog_items` does not contain the inbound `item_id`, the candidate
+must record `item_catalog_missing=true`, must not log the full item ID or
+message body in the catalog-missing diagnostic, and must not select item-scoped
+keyword/default/image/card/delivery/order/rating/item-mutation paths.
+
+After the CHG-0017 receiver/sender allowlist gate passes, account-level text
+keyword and Gemini AI routes may remain eligible with no item scope. Non-
+whitelist, unknown, system, and own-message inputs must still be denied before
+keyword, AI, default, or sender execution.
+
+Item-list sync logging must not print Cookie, `_m_h5_tk`, sign, Authorization,
+full account identifiers, user IDs, full request data, full headers, or full
+response bodies.
+
+## Delivery Acceptance
+
+Run `CHG17-GO-LIVE-20260731T1431Z` satisfied the operational delivery criteria:
+
+- ACCOUNT-A was configured with Gemini using the upstream AI settings model.
+- The API key is present only as a redacted, gitignored local secret and in
+  upstream account metadata; it is not recorded in repository evidence.
+- The provider test passed before WebSocket account start and performed zero
+  sender or platform sends.
+- Context, duplicate protection, stop, reconnect, and rollback checks passed
+  using the upstream-native account task, WebSocket, AI engine, sender, and
+  official OWNER_TEST_ACCOUNT_B IM send path.
+- Final state is ACCOUNT-A running and connected with AI enabled.
+- Active keyword rules are `0`, enabled default replies are `0`, and
+  non-whitelist successful reply sends are `0`.
+- Candidate backend health is reachable on `/health`.
+- PR #26 remains Draft, Open, and Unmerged; no merge authorization was used.

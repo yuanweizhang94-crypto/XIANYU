@@ -70,3 +70,19 @@ Stop immediately on:
 ## Patch Boundary
 
 `PATCH_UPSTREAM` may be proposed only for a confirmed defect in the latest upstream candidate that prevents safe operation of the upstream-native path. It must be minimal and cannot create a new service, dependency, sender, Token client, WebSocket client, AI worker, or automatic reply worker.
+
+## Catalog Missing Fallback
+
+Latest live evidence showed the upstream item ownership helper only checks the
+local catalog table. Therefore a local miss is `LOCAL_ITEM_CATALOG_MISS`, not
+platform proof that the item belongs to another account.
+
+The candidate patch handles that state by recording `item_catalog_missing=true`
+and continuing only through account-level routes after the CHG-0017 allowlist
+gate. Item-scoped keyword/default/image/card/delivery/order/rating/item-mutation
+paths are not eligible until the item exists in the local catalog. Gemini AI is
+called without item context when the catalog is missing.
+
+Item-list synchronization diagnostics are safe-count logs only: no headers,
+Cookie, signed params, request body, response body, account ID, user ID, item
+ID, title, URL parameter, Token, or API key may be logged.
