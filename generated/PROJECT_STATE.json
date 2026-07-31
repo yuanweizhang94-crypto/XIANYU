@@ -1,12 +1,85 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": null,
+  "active_change": {
+    "id": "CHG-0017-upstream-native-auto-ai-delivery",
+    "status": "IMPLEMENTING",
+    "path": "changes/active/CHG-0017-upstream-native-auto-ai-delivery"
+  },
   "tasks": {
-    "total": 0,
-    "completed": 0,
-    "next_task": null,
-    "items": []
+    "total": 17,
+    "completed": 7,
+    "next_task": "T8 Validate upstream native Token and account connection.",
+    "items": [
+      {
+        "text": "T1 Create proposal.",
+        "completed": true
+      },
+      {
+        "text": "T2 Create design.",
+        "completed": true
+      },
+      {
+        "text": "T3 Audit latest upstream.",
+        "completed": true
+      },
+      {
+        "text": "T4 Record threat model.",
+        "completed": true
+      },
+      {
+        "text": "T5 Define acceptance criteria.",
+        "completed": true
+      },
+      {
+        "text": "T6 Record project-owner implementation approval.",
+        "completed": true
+      },
+      {
+        "text": "T7 Create latest upstream candidate worktree.",
+        "completed": true
+      },
+      {
+        "text": "T8 Validate upstream native Token and account connection.",
+        "completed": false
+      },
+      {
+        "text": "T9 Validate upstream native WebSocket and sender.",
+        "completed": false
+      },
+      {
+        "text": "T10 Configure keyword, AI, and failure fallback.",
+        "completed": false
+      },
+      {
+        "text": "T11 Run no-send integration tests.",
+        "completed": false
+      },
+      {
+        "text": "T12 Run controlled automatic reply test between two owner-owned accounts.",
+        "completed": false
+      },
+      {
+        "text": "T13 Validate restart, reconnect, duplicate protection, and one-click stop.",
+        "completed": false
+      },
+      {
+        "text": "T14 Generate redacted delivery report.",
+        "completed": false
+      },
+      {
+        "text": "T15 Wait for OWNER GO_LIVE.",
+        "completed": false
+      },
+      {
+        "text": "T16 Enable production and observe.",
+        "completed": false
+      },
+      {
+        "text": "T17 Archive and deliver.",
+        "completed": false
+      }
+    ]
   },
   "capabilities": {
     "total": 10,
