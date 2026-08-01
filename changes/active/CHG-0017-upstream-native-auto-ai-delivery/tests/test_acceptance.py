@@ -215,6 +215,32 @@ def test_gemini_content_blocker_evidence_is_recorded() -> None:
     assert "full account ID printed in evidence: no" in evidence
 
 
+def test_account_catalog_alignment_success_evidence_is_recorded() -> None:
+    evidence = (
+        CHANGE_DIR
+        / "evidence"
+        / "CHG17-ACCOUNT-CATALOG-ALIGNMENT-20260801T055428Z-masked-report.md"
+    ).read_text(encoding="utf-8")
+    tasks = read_doc("tasks.md")
+
+    assert "AI_REPLY_CONTENT_READY" in evidence
+    assert "AFFECTED_ACCOUNT_IDENTITY_MISMATCH" in evidence
+    assert "ai_and_catalog_same_account: false" in evidence
+    assert "ws_and_catalog_same_account: true" in evidence
+    assert "catalog_record_present: true" in evidence
+    assert "runtime_item_info_complete: true" in evidence
+    assert "AIReplySettingsService.update_settings" in evidence
+    assert "provider_item_case_1: pass" in evidence
+    assert "provider_item_case_4: pass" in evidence
+    assert "provider_sender_invocations: 0" in evidence
+    assert "provider_platform_sends: 0" in evidence
+    assert "reply_strategy: ai" in evidence
+    assert "send_status: success" in evidence
+    assert "duplicate_sends: 0" in evidence
+    assert "remaining_blockers=none" in evidence
+    assert "Runtime verdict: `AI_REPLY_CONTENT_READY`." in tasks
+
+
 def test_catalog_fallback_offline_evidence_is_recorded() -> None:
     evidence = (
         CHANGE_DIR

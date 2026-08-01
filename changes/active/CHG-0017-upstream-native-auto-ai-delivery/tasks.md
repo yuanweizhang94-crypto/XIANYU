@@ -287,3 +287,29 @@ T17 remains unchecked. CHG-0017 cannot be archived as content-ready until the
 affected account has an account-scoped catalog item and the live AI reply test
 can prove product-aware Simplified Chinese output with zero duplicate or
 non-whitelist sends.
+
+## Account Catalog Alignment and AI Content Ready Evidence
+
+Run `CHG17-ACCOUNT-CATALOG-ALIGNMENT-20260801T055428Z` reclassified the prior
+catalog blocker as an account identity mismatch rather than an item-sync code
+defect.
+
+- ACCOUNT-AI held the Gemini configuration, while ACCOUNT-CATALOG held the
+  visible product catalog row.
+- ACCOUNT-CATALOG's native WebSocket task was already running and connected.
+- Gemini settings were applied to ACCOUNT-CATALOG through upstream-native
+  `AIReplySettingsService.update_settings`; catalog ownership was not copied or
+  modified.
+- Catalog gate passed with an account-scoped product row, price, description,
+  and product AI prompt.
+- Zero-send product-context Provider regression passed four buyer-question
+  classes with sender invocation `0` and platform sends `0`.
+- Controlled live test used one owner-controlled buyer message and produced one
+  successful AI reply for ACCOUNT-CATALOG.
+- Live reply was Simplified Chinese, complete by the quality gate, and had no
+  template, Markdown, JSON, duplicate, non-whitelist, or proactive-customer
+  send leak.
+
+Runtime verdict: `AI_REPLY_CONTENT_READY`.
+
+T17 remains unchecked until separate archive/closeout authorization is given.
