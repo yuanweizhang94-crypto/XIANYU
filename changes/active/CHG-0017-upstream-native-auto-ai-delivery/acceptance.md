@@ -140,3 +140,28 @@ multi-account delivery criteria:
   sends remained `0`.
 - No second IM, Token, WebSocket, sender, AI worker, automatic reply worker,
   Redis state system, frontend page, or multi-account manager was created.
+
+Run `CHG17-FINAL-DELIVERY-20260801T060801Z` records the non-archive final
+delivery report for PR #26:
+
+- PR #26 remains Draft, Open, and Unmerged at exact HEAD
+  `60c330c31edddc28eae6bb6e1e7748b64a96289a`.
+- Upstream-native account tasks, IM Token acquisition, WebSocket connection,
+  reply decisioning, Gemini AI invocation, sender, logs, account settings,
+  online chat, and management UI remain the reused delivery path.
+- The added fixes are limited to the CHG-0017 safety patch boundary:
+  allowlist fail-closed handling, catalog-miss account-level fallback, redacted
+  item-sync diagnostics, Gemini parser/quality gates, and account catalog
+  alignment through upstream-native AI settings service.
+- Product context is available for the effective production AI account:
+  catalog row, title, price, description/detail, and product AI prompt are
+  present, and runtime item information is complete.
+- The prior catalog blocker is classified as
+  `AFFECTED_ACCOUNT_IDENTITY_MISMATCH`; after alignment, ACCOUNT-CATALOG is
+  the effective production AI account.
+- Provider product-context tests, controlled live AI reply, targeted acceptance
+  tests, change validation, repository verification, and PR CI all passed.
+- Current online boundary: ACCOUNT-CATALOG task running, WebSocket connected,
+  AI enabled, active keyword rules `0`, enabled default replies `0`.
+- Rollback remains the upstream-native AI disable plus account-task stop path.
+- T17 remains unchecked because archive and merge are not authorized.

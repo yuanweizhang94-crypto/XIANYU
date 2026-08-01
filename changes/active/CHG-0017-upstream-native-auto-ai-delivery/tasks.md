@@ -313,3 +313,37 @@ defect.
 Runtime verdict: `AI_REPLY_CONTENT_READY`.
 
 T17 remains unchecked until separate archive/closeout authorization is given.
+
+## Final Delivery Report Without Archive
+
+Run `CHG17-FINAL-DELIVERY-20260801T060801Z` generated the requested final
+delivery report while keeping PR #26 Draft, Open, and Unmerged.
+
+- Upstream reuse: account tasks, IM Token, WebSocket, reply decisioning, Gemini
+  Provider call, sender, logs, account settings, online chat, and management UI
+  remain upstream-native.
+- Added fix points: receiver/sender allowlist hardening, catalog-miss
+  account-level fallback, redacted item-sync diagnostics, Gemini parser and
+  reply quality gate, and ACCOUNT-CATALOG Gemini settings alignment through
+  upstream `AIReplySettingsService.update_settings`.
+- AI chain: Gemini on `https://generativelanguage.googleapis.com` with
+  `gemini-3.6-flash`, API key present only as redacted evidence, valid JSON
+  account custom prompts, and plain-text product AI prompt.
+- Product context: catalog row, title, price, description/detail, and product
+  AI prompt are present for the effective production AI account.
+- Account mapping: prior item-catalog blocker is reclassified as
+  `AFFECTED_ACCOUNT_IDENTITY_MISMATCH`; ACCOUNT-CATALOG is now the effective
+  production AI account without changing product ownership.
+- Tests: targeted acceptance passed, change validation passed, repository
+  verification passed, and PR #26 quality/tests/security CI passed at exact
+  HEAD `60c330c31edddc28eae6bb6e1e7748b64a96289a`.
+- Current boundary: ACCOUNT-CATALOG task running, WebSocket connected, AI
+  enabled, active keyword rules `0`, enabled default replies `0`, PR #26 still
+  Draft/Open/Unmerged.
+- Rollback: disable ACCOUNT-CATALOG AI through upstream-native settings, stop
+  that account task, and confirm no new successful reply sends after stop.
+
+Delivery report verdict: `CHG0017_DELIVERY_REPORT_READY`.
+
+T17 remains unchecked because the owner explicitly did not authorize archive or
+merge in this run.

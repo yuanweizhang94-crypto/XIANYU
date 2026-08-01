@@ -241,6 +241,30 @@ def test_account_catalog_alignment_success_evidence_is_recorded() -> None:
     assert "Runtime verdict: `AI_REPLY_CONTENT_READY`." in tasks
 
 
+def test_final_delivery_report_is_recorded_without_archive_or_merge() -> None:
+    evidence = (
+        CHANGE_DIR
+        / "evidence"
+        / "CHG17-FINAL-DELIVERY-20260801T060801Z-masked-report.md"
+    ).read_text(encoding="utf-8")
+    tasks = read_doc("tasks.md")
+    acceptance = read_doc("acceptance.md")
+
+    assert "CHG0017_DELIVERY_REPORT_READY" in evidence
+    assert "PR: #26 Draft, Open, Unmerged" in evidence
+    assert "does not archive the Change" in evidence
+    assert "does not merge PR #26" in evidence
+    assert "Delivery decision: CONFIGURE_UPSTREAM" in evidence
+    assert "No second IM, Token, WebSocket, sender, AI worker" in evidence
+    assert "Provider product-context cases: 4 passed." in evidence
+    assert "Controlled live owner-account test: pass." in evidence
+    assert "ACCOUNT-CATALOG WebSocket: connected." in evidence
+    assert "ACCOUNT-CATALOG AI: enabled." in evidence
+    assert "T17 remains unchecked because archive and merge are not authorized." in evidence
+    assert "Delivery report verdict: `CHG0017_DELIVERY_REPORT_READY`." in tasks
+    assert "Run `CHG17-FINAL-DELIVERY-20260801T060801Z` records" in acceptance
+
+
 def test_catalog_fallback_offline_evidence_is_recorded() -> None:
     evidence = (
         CHANGE_DIR
