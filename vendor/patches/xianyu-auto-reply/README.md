@@ -9,21 +9,29 @@
 - Local patch worktree: `D:/xianyu-upstream-manual-chg0016`
 - Patch apply check: `git apply --check --whitespace=error-all --unidiff-zero <patch-file>`
 
-## CHG-0017 reply identity allowlist and catalog fallback patch
+## CHG-0017 reply identity allowlist, catalog fallback, and Gemini content patch
 
 - Base upstream repository: `zhinianboke/xianyu-auto-reply`
 - Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
 - Patch file: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
-- Canonical SHA256: `8E36EA3F72924FFFD0FBA8E16DFD36F0B91A2FFFC898C1E21E99A5740F6375A4`
-- Raw Windows SHA256: `8E36EA3F72924FFFD0FBA8E16DFD36F0B91A2FFFC898C1E21E99A5740F6375A4`
+- Canonical SHA256: `44041F7AED4750E97A2BC04ACD9B4FF43DD9966EC2F4884F5DC59EA9A3D7B64D`
+- Raw Windows SHA256: `44041F7AED4750E97A2BC04ACD9B4FF43DD9966EC2F4884F5DC59EA9A3D7B64D`
 - EOL state: LF, no BOM
 - Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
 - Patch apply check: passed with `git apply --check --whitespace=error-all --unidiff-zero`
-- Targeted test: passed with `python tests/test_chg0017_reply_allowlist.py`
+- Targeted tests: passed with `python tests/test_chg0017_gemini_response_parser.py`,
+  `python tests/test_chg0017_ai_prompt_validation.py`, and
+  `python tests/test_chg0017_reply_allowlist.py`
 - Changed files:
+  - `backend-web/app/services/ai_reply_service.py`
+  - `common/services/ai_provider_service.py`
   - `common/utils/item_info_manager.py`
-  - `websocket/app/services/xianyu/auto_reply_service.py`
+  - `frontend/src/pages/accounts/Accounts.tsx`
+  - `tests/test_chg0017_ai_prompt_validation.py`
+  - `tests/test_chg0017_gemini_response_parser.py`
   - `tests/test_chg0017_reply_allowlist.py`
+  - `websocket/app/services/xianyu/ai_reply_engine.py`
+  - `websocket/app/services/xianyu/auto_reply_service.py`
 
 This patch adds a default-off fail-closed CHG-0017 test gate for automatic
 reply validation. The receiver is matched by the current automatic-reply
@@ -48,6 +56,18 @@ The item-list sync utility no longer logs full request headers, Cookie, signed
 params, request data, data value, full response body, account ID, or user ID.
 It logs only structured diagnostic counts and classifications.
 
+The Gemini patch adds one shared `generateContent` parser for provider tests
+and formal AI replies. It ignores `thought=true` parts, merges all final text
+parts in order, checks `finishReason`, rejects truncated output, retries at
+most once with a higher output limit, requests plain text with the verified
+low thinking configuration, and rejects obvious non-customer-facing fragments
+such as internal template fields, JSON-like output, Markdown wrappers, and
+English-dominant replies before sender use.
+
+The account-level custom prompt setting is now validated as a JSON object in
+both the native backend service and the account UI before saving. Product-level
+AI prompts remain normal plain text and are not parsed as JSON.
+
 The artifact contains no runtime account identifiers, platform identifiers,
 Cookie, Token, Gemini key, item IDs, chat IDs, customer messages, or runtime
 HMAC values.
@@ -60,14 +80,15 @@ Generation command:
 
 ```text
 git diff --cached --binary --full-index --no-ext-diff
---unified=0 --src-prefix=a/ --dst-prefix=b/ HEAD
+--unified=0 --ignore-space-at-eol --src-prefix=a/ --dst-prefix=b/ HEAD
 ```
 
 Reason:
 
 The pinned upstream source contains unchanged whitespace-bearing context lines.
 Including those lines in a vendor patch causes repository whitespace checks to
-inspect upstream baseline formatting rather than the five-file change itself.
+inspect upstream baseline formatting rather than the recorded target change
+itself.
 
 Safety:
 
@@ -76,13 +97,13 @@ Safety:
 - clean pinned-SHA apply check is mandatory;
 - `--whitespace=error-all` is mandatory;
 - applied-source `git diff --check` is mandatory;
-- Git blob equivalence must be 5/5;
-- exact target file set must remain five files.
+- Git blob equivalence must cover every recorded target file;
+- exact target file set must match the `Changed files` list for the patch.
 
 ## Artifact Generation
 
-Generated from the staged five-file Git diff in a disposable worktree at the
-pinned upstream SHA. Patch hunks must not be hand-edited.
+Generated from the staged Git diff in a disposable worktree at the pinned
+upstream SHA. Patch hunks must not be hand-edited.
 
 ## Parseability gate
 
@@ -95,7 +116,7 @@ pinned upstream SHA. Patch hunks must not be hand-edited.
 ## Equivalence gate
 
 The staged Git blob IDs after clean application must match the staged Git blob
-IDs used to generate the patch for all five files.
+IDs used to generate the patch for every recorded target file.
 
 ## Working-tree note
 

@@ -168,18 +168,51 @@ def test_catalog_fallback_patch_artifact_is_recorded() -> None:
     patch = ROOT / "vendor" / "patches" / "xianyu-auto-reply" / "4c5e1ac-chg0017-reply-identity-allowlist.patch"
     patch_text = patch.read_text(encoding="utf-8")
 
-    assert "reply identity allowlist and catalog fallback patch" in readme
-    assert "8E36EA3F72924FFFD0FBA8E16DFD36F0B91A2FFFC898C1E21E99A5740F6375A4" in readme
+    assert "reply identity allowlist, catalog fallback, and Gemini content patch" in readme
+    assert "44041F7AED4750E97A2BC04ACD9B4FF43DD9966EC2F4884F5DC59EA9A3D7B64D" in readme
     assert "supports `*` in the" in readme
+    assert "`common/services/ai_provider_service.py`" in readme
     assert "test_allows_wildcard_receiver_and_sender_for_production_multi_account" in patch_text
+    assert "parse_gemini_generate_content_response" in patch_text
+    assert "GEMINI_INITIAL_MAX_OUTPUT_TOKENS = 1024" in patch_text
+    assert "GEMINI_RETRY_MAX_OUTPUT_TOKENS = 2048" in patch_text
+    assert "responseMimeType" in patch_text
+    assert "test_rejects_english_dominant_customer_reply" in patch_text
+    assert "validate_custom_prompts_json" in patch_text
     assert "`common/utils/item_info_manager.py`" in readme
     assert "`websocket/app/services/xianyu/auto_reply_service.py`" in readme
+    assert "`websocket/app/services/xianyu/ai_reply_engine.py`" in readme
+    assert "`backend-web/app/services/ai_reply_service.py`" in readme
+    assert "`frontend/src/pages/accounts/Accounts.tsx`" in readme
+    assert "`tests/test_chg0017_gemini_response_parser.py`" in readme
+    assert "`tests/test_chg0017_ai_prompt_validation.py`" in readme
     assert "`tests/test_chg0017_reply_allowlist.py`" in readme
     assert "item_catalog_missing" in readme
     assert "item_list_request_started" in patch_text
     assert "CHG-0017 local item catalog missing; account-level reply paths remain eligible" in patch_text
     assert "test_catalog_missing_global_keyword_still_matches" in patch_text
     assert "test_catalog_missing_ai_path_receives_no_item_id" in patch_text
+
+
+def test_gemini_content_blocker_evidence_is_recorded() -> None:
+    evidence = (
+        CHANGE_DIR
+        / "evidence"
+        / "CHG17-GEMINI-CONTENT-20260801T044125Z-masked-blocker.md"
+    ).read_text(encoding="utf-8")
+
+    assert "AI_REPLY_CONTENT_BLOCKED" in evidence
+    assert "AFFECTED_ACCOUNT_ITEM_CATALOG_ABSENT" in evidence
+    assert "provider_case_1: pass" in evidence
+    assert "provider_case_2: pass" in evidence
+    assert "provider_case_3: pass" in evidence
+    assert "provider_case_4: pass" in evidence
+    assert "provider_sender_invocations: 0" in evidence
+    assert "provider_platform_sends: 0" in evidence
+    assert "item_catalog_record: absent" in evidence
+    assert "runtime_item_info_complete: false" in evidence
+    assert "affected account AI enabled after repair: false" in evidence
+    assert "full account ID printed in evidence: no" in evidence
 
 
 def test_catalog_fallback_offline_evidence_is_recorded() -> None:

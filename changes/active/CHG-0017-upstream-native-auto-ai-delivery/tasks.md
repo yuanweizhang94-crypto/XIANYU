@@ -263,3 +263,27 @@ Findings and changes:
   sends.
 
 Runtime verdict: `MULTI_ACCOUNT_NATIVE_READY`.
+
+## Gemini Content Quality Blocker
+
+Run `CHG17-GEMINI-CONTENT-20260801T044125Z` repaired the confirmed Gemini
+content-quality defects without creating a new Provider, sender, Token flow,
+WebSocket runtime, or AI worker.
+
+- Shared Gemini response parser now ignores thought parts, merges all final
+  text parts, checks `finishReason`, and rejects truncated output.
+- Formal AI replies and Provider tests use the same parser and output quality
+  gate.
+- Gemini requests use verified plain text response mode, low thinking
+  configuration, lower customer-service temperature, and one bounded retry.
+- Account-level custom prompts are validated as JSON objects in the native
+  backend service and account UI; product-level AI prompts remain plain text.
+- Zero-send Provider regression passed four buyer-question classes with sender
+  invocation `0` and platform sends `0`.
+- The affected account AI remains disabled because the upstream-native item
+  sync returned success with `0` parsed/saved catalog items for that account.
+
+T17 remains unchecked. CHG-0017 cannot be archived as content-ready until the
+affected account has an account-scoped catalog item and the live AI reply test
+can prove product-aware Simplified Chinese output with zero duplicate or
+non-whitelist sends.

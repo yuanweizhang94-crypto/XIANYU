@@ -1,3 +1,183 @@
+diff --git a/backend-web/app/services/ai_reply_service.py b/backend-web/app/services/ai_reply_service.py
+index 56055a0ebcc28ca037633f246b3e0179c8c164dc..86b864ed90c950c9b373d8d9b0708007960fbd28 100644
+--- a/backend-web/app/services/ai_reply_service.py
++++ b/backend-web/app/services/ai_reply_service.py
+@@ -10,0 +11,2 @@ from __future__ import annotations
++import json
++
+@@ -38,0 +41,17 @@ DEFAULT_AI_SETTINGS = {
++def validate_custom_prompts_json(value: str | None) -> str:
++    """Validate account-level custom prompts JSON while preserving item plain text prompts."""
++    text = value or ""
++    if not text.strip():
++        return ""
++    try:
++        parsed = json.loads(text)
++    except json.JSONDecodeError as exc:
++        raise ValueError("自定义提示词必须是合法 JSON 对象") from exc
++    if not isinstance(parsed, dict):
++        raise ValueError("自定义提示词必须是 JSON 对象")
++    for key, prompt in parsed.items():
++        if not isinstance(key, str) or not isinstance(prompt, str):
++            raise ValueError("自定义提示词字段名和值都必须是字符串")
++    return text
++
++
+@@ -98 +117 @@ class AIReplySettingsService:
+-            merged["custom_prompts"] = payload.get("custom_prompts") or ""
++            merged["custom_prompts"] = validate_custom_prompts_json(payload.get("custom_prompts"))
+diff --git a/common/services/ai_provider_service.py b/common/services/ai_provider_service.py
+index b18ba10810cbff45f7092e71e94da25f0b5cd247..8f18935b249dd54da6598961cad8e8a1bd0682dd 100644
+--- a/common/services/ai_provider_service.py
++++ b/common/services/ai_provider_service.py
+@@ -44,0 +45,134 @@ def clean_ai_text(value: Any) -> str:
++GEMINI_TRUNCATED_FINISH_REASONS = {"MAX_TOKENS", "LENGTH"}
++GEMINI_SUCCESS_FINISH_REASONS = {"STOP"}
++GEMINI_INITIAL_MAX_OUTPUT_TOKENS = 1024
++GEMINI_RETRY_MAX_OUTPUT_TOKENS = 2048
++GEMINI_TEXT_GENERATION_CONFIG = {
++    "responseMimeType": "text/plain",
++    "thinkingConfig": {"thinkingLevel": "low"},
++}
++
++
++def parse_gemini_generate_content_response(result: Any) -> dict[str, Any]:
++    """Parse Gemini generateContent JSON without exposing thought/internal parts."""
++    parsed = {
++        "final_text": "",
++        "finish_reason": "",
++        "part_count": 0,
++        "thought_part_count": 0,
++        "answer_part_count": 0,
++        "truncated": False,
++        "error_class": "",
++    }
++    if not isinstance(result, dict):
++        parsed["error_class"] = "response_not_object"
++        return parsed
++
++    candidates = result.get("candidates")
++    if not isinstance(candidates, list) or not candidates:
++        parsed["error_class"] = "missing_candidates"
++        return parsed
++
++    candidate = candidates[0]
++    if not isinstance(candidate, dict):
++        parsed["error_class"] = "candidate_not_object"
++        return parsed
++
++    finish_reason = str(candidate.get("finishReason") or "").strip()
++    finish_reason_upper = finish_reason.upper()
++    parsed["finish_reason"] = finish_reason
++    parsed["truncated"] = finish_reason_upper in GEMINI_TRUNCATED_FINISH_REASONS
++    if not finish_reason:
++        parsed["error_class"] = "missing_finish_reason"
++    elif (
++        finish_reason_upper not in GEMINI_SUCCESS_FINISH_REASONS
++        and finish_reason_upper not in GEMINI_TRUNCATED_FINISH_REASONS
++    ):
++        parsed["error_class"] = "non_success_finish_reason"
++
++    content = candidate.get("content") if isinstance(candidate.get("content"), dict) else {}
++    parts = content.get("parts") if isinstance(content, dict) else None
++    if not isinstance(parts, list):
++        parsed["error_class"] = "missing_parts"
++        return parsed
++
++    parsed["part_count"] = len(parts)
++    answer_texts: list[str] = []
++    for part in parts:
++        if not isinstance(part, dict):
++            continue
++        if part.get("thought") is True:
++            parsed["thought_part_count"] += 1
++            continue
++        text = part.get("text")
++        if not isinstance(text, str) or not text.strip():
++            continue
++        parsed["answer_part_count"] += 1
++        answer_texts.append(text)
++
++    final_text = " ".join(" ".join(text.split()) for text in answer_texts).strip()
++    parsed["final_text"] = final_text
++    if not final_text and not parsed["error_class"]:
++        parsed["error_class"] = "missing_answer_text"
++    return parsed
++
++
++def validate_ai_reply_text(text: Any, *, truncated: bool = False) -> tuple[bool, str]:
++    """Reject obvious non-customer-facing or truncated AI output before sender use."""
++    cleaned = clean_ai_text(text)
++    if not cleaned:
++        return False, "empty"
++    if truncated:
++        return False, "truncated"
++    if len(cleaned) <= 2:
++        return False, "too_short"
++    if all(ch.isspace() or ch in ".,:;!?，。！？、：；-_*#`{}[]()（）|/\\\"'" for ch in cleaned):
++        return False, "punctuation_only"
++    if cleaned[0] in ",:;，：；、）)]}":
++        return False, "broken_prefix"
++
++    stripped = cleaned.strip()
++    if stripped.startswith(("{", "[")) and stripped.endswith(("}", "]")):
++        return False, "json_like"
++
++    lower = cleaned.lower()
++    markers = (
++        "length:",
++        "assistant:",
++        "assistant：",
++        "product intro",
++        "logistics",
++        "markdown",
++        "field name",
++    )
++    if any(marker in lower for marker in markers):
++        return False, "template_leak"
++    if cleaned.startswith(("**", "#", "- ", "* ", "+ ", "• ", "```")):
++        return False, "markdown_like"
++    if any(cleaned.startswith(f"{index}.") for index in range(1, 10)):
++        return False, "markdown_like"
++
++    cjk_count = sum(1 for ch in cleaned if "\u4e00" <= ch <= "\u9fff")
++    ascii_letter_count = sum(1 for ch in cleaned if ("a" <= ch.lower() <= "z"))
++    if cjk_count == 0 and ascii_letter_count:
++        return False, "english_template"
++    if ascii_letter_count > max(24, cjk_count):
++        return False, "english_template"
++    if ascii_letter_count >= 12 and ascii_letter_count > cjk_count * 2:
++        return False, "english_template"
++    return True, ""
++
++
++def extract_gemini_final_text(result: Any) -> str:
++    """Return validated Gemini answer text or raise a sanitized RuntimeError."""
++    parsed = parse_gemini_generate_content_response(result)
++    ok, reason = validate_ai_reply_text(parsed["final_text"], truncated=bool(parsed["truncated"]))
++    if parsed["error_class"] or not ok:
++        error_class = parsed["error_class"] or reason
++        raise RuntimeError(
++            "Gemini response invalid "
++            f"error_class={error_class} finish_reason={parsed['finish_reason']} "
++            f"part_count={parsed['part_count']} answer_part_count={parsed['answer_part_count']}"
++        )
++    return parsed["final_text"]
++
++
+@@ -344 +478 @@ async def test_ai_connection(
+-    temperature = 0.7
++    temperature = 0.3
+@@ -403 +537,2 @@ async def test_ai_connection(
+-                    "maxOutputTokens": max_tokens,
++                    "maxOutputTokens": GEMINI_INITIAL_MAX_OUTPUT_TOKENS,
++                    **GEMINI_TEXT_GENERATION_CONFIG,
+@@ -417 +552 @@ async def test_ai_connection(
+-                return clean_ai_text(result["candidates"][0]["content"]["parts"][0]["text"])
++                return extract_gemini_final_text(result)
+@@ -419 +554 @@ async def test_ai_connection(
+-                raise RuntimeError(f"Gemini响应格式错误: {str(result)[:500]}") from exc
++                raise RuntimeError(f"Gemini响应格式错误: {exc}") from exc
 diff --git a/common/utils/item_info_manager.py b/common/utils/item_info_manager.py
 index 4a82cfa19d348cb8077019dda3636a13056750b2..c3e30ed7d77651997288376b950aad58ade49f82 100644
 --- a/common/utils/item_info_manager.py
@@ -81,12 +261,548 @@ index 4a82cfa19d348cb8077019dda3636a13056750b2..c3e30ed7d77651997288376b950aad58
 +                "item_list_request_exception "
 +                f"page_number={page_number} page_size={page_size} error_type={type(e).__name__}"
 +            )
+diff --git a/frontend/src/pages/accounts/Accounts.tsx b/frontend/src/pages/accounts/Accounts.tsx
+index a401573c073b8250ffc3e57463de9b792e81f36c..a1cf816e3f88d170ac4c130bbb7f4ed1151d9fa8 100644
+--- a/frontend/src/pages/accounts/Accounts.tsx
++++ b/frontend/src/pages/accounts/Accounts.tsx
+@@ -73,0 +74,19 @@ const getAIConfigIncompleteMessage = (missingItems: string[]): string => (
++const validateAICustomPrompts = (value: string): string | null => {
++  const text = value.trim()
++  if (!text) return null
++  try {
++    const parsed = JSON.parse(text)
++    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
++      return '自定义提示词必须是JSON对象'
++    }
++    for (const [key, prompt] of Object.entries(parsed)) {
++      if (typeof key !== 'string' || typeof prompt !== 'string') {
++        return '自定义提示词字段名和值都必须是字符串'
++      }
++    }
++  } catch {
++    return '自定义提示词必须是合法JSON对象'
++  }
++  return null
++}
++
+@@ -1468,0 +1488,5 @@ export function Accounts() {
++    const promptValidationError = validateAICustomPrompts(aiCustomPrompts)
++    if (promptValidationError) {
++      addToast({ type: 'warning', message: promptValidationError })
++      return
++    }
+@@ -1512,0 +1537,5 @@ export function Accounts() {
++    const promptValidationError = validateAICustomPrompts(aiCustomPrompts)
++    if (promptValidationError) {
++      addToast({ type: 'warning', message: promptValidationError })
++      return
++    }
+diff --git a/tests/test_chg0017_ai_prompt_validation.py b/tests/test_chg0017_ai_prompt_validation.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..b9d8ab1d860ec3d13f8b265dae4d47628b3b2cbb
+--- /dev/null
++++ b/tests/test_chg0017_ai_prompt_validation.py
+@@ -0,0 +1,35 @@
++import sys
++import unittest
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "backend-web"))
++sys.path.insert(0, str(ROOT))
++
++from app.services.ai_reply_service import validate_custom_prompts_json
++
++
++class AIReplyPromptValidationTest(unittest.TestCase):
++    def test_rejects_account_level_plain_text_prompt(self):
++        with self.assertRaises(ValueError):
++            validate_custom_prompts_json("根据我的商品情况，引导下单")
++
++    def test_rejects_account_level_json_array(self):
++        with self.assertRaises(ValueError):
++            validate_custom_prompts_json('["default"]')
++
++    def test_accepts_account_level_json_object_with_string_values(self):
++        text = '{"default":"只输出简体中文完整句子","tech":"按商品信息回答","price":"引导闲鱼页面下单"}'
++
++        self.assertEqual(validate_custom_prompts_json(text), text)
++
++    def test_rejects_account_level_json_with_non_string_prompt_value(self):
++        with self.assertRaises(ValueError):
++            validate_custom_prompts_json('{"default":123}')
++
++    def test_allows_empty_account_level_prompt_to_use_system_default(self):
++        self.assertEqual(validate_custom_prompts_json(""), "")
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_chg0017_gemini_response_parser.py b/tests/test_chg0017_gemini_response_parser.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..7c5237abab066799b3971e024b274e699a73d3e9
+--- /dev/null
++++ b/tests/test_chg0017_gemini_response_parser.py
+@@ -0,0 +1,453 @@
++import copy
++import sys
++import unittest
++from pathlib import Path
++from unittest.mock import AsyncMock, patch
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "websocket"))
++sys.path.insert(0, str(ROOT))
++
++from common.services.ai_provider_service import (
++    GEMINI_INITIAL_MAX_OUTPUT_TOKENS,
++    GEMINI_RETRY_MAX_OUTPUT_TOKENS,
++    GEMINI_TEXT_GENERATION_CONFIG,
++    extract_gemini_final_text,
++    parse_gemini_generate_content_response,
++    validate_ai_reply_text,
++)
++from app.services.xianyu.ai_reply_engine import AIReplyEngine
++
++
++class FakeGeminiResponse:
++    def __init__(self, payload):
++        self.payload = payload
++
++    def raise_for_status(self):
++        return None
++
++    def json(self):
++        return self.payload
++
++
++class FakeGeminiClient:
++    responses = []
++    requests = []
++
++    def __init__(self, *_args, **_kwargs):
++        pass
++
++    async def __aenter__(self):
++        return self
++
++    async def __aexit__(self, exc_type, exc, tb):
++        return False
++
++    async def post(self, _url, **kwargs):
++        self.__class__.requests.append(copy.deepcopy(kwargs["json"]))
++        return FakeGeminiResponse(self.__class__.responses.pop(0))
++
++
++class FakeDBResult:
++    def __init__(self, rows=None, scalar_value=None):
++        self._rows = rows or []
++        self._scalar_value = scalar_value
++
++    def all(self):
++        return self._rows
++
++    def scalar(self):
++        return self._scalar_value
++
++
++class FakeDBSession:
++    def __init__(self):
++        self.results = [
++            FakeDBResult(rows=[]),
++            FakeDBResult(rows=[]),
++            FakeDBResult(scalar_value=0),
++        ]
++        self.added = []
++        self.commit_count = 0
++
++    def add(self, value):
++        self.added.append(value)
++
++    async def commit(self):
++        self.commit_count += 1
++
++    async def execute(self, _statement):
++        return self.results.pop(0)
++
++
++class GeminiResponseParserTest(unittest.TestCase):
++    def test_skips_thought_part_and_reads_final_answer(self):
++        result = {
++            "candidates": [
++                {
++                    "finishReason": "STOP",
++                    "content": {
++                        "parts": [
++                            {"text": "internal reasoning", "thought": True},
++                            {"text": "可以在闲鱼页面点击购买入口下单。"},
++                        ]
++                    },
++                }
++            ]
++        }
++
++        parsed = parse_gemini_generate_content_response(result)
++
++        self.assertEqual(parsed["thought_part_count"], 1)
++        self.assertEqual(parsed["answer_part_count"], 1)
++        self.assertEqual(parsed["final_text"], "可以在闲鱼页面点击购买入口下单。")
++        self.assertEqual(extract_gemini_final_text(result), "可以在闲鱼页面点击购买入口下单。")
++
++    def test_merges_multiple_non_thought_text_parts(self):
++        result = {
++            "candidates": [
++                {
++                    "finishReason": "STOP",
++                    "content": {
++                        "parts": [
++                            {"text": "这个服务包含视频剪辑，"},
++                            {"text": "下单请通过闲鱼页面购买入口提交。"},
++                        ]
++                    },
++                }
++            ]
++        }
++
++        parsed = parse_gemini_generate_content_response(result)
++
++        self.assertEqual(parsed["answer_part_count"], 2)
++        self.assertEqual(parsed["final_text"], "这个服务包含视频剪辑， 下单请通过闲鱼页面购买入口提交。")
++
++    def test_ignores_thought_signature_and_function_call_parts(self):
++        result = {
++            "candidates": [
++                {
++                    "finishReason": "STOP",
++                    "content": {
++                        "parts": [
++                            {"text": "internal", "thought": True, "thoughtSignature": "secret"},
++                            {"functionCall": {"name": "internal_tool"}},
++                            {"thoughtSignature": "secret"},
++                            {"text": "具体内容以商品页面信息为准。"},
++                        ]
++                    },
++                }
++            ]
++        }
++
++        parsed = parse_gemini_generate_content_response(result)
++
++        self.assertEqual(parsed["thought_part_count"], 1)
++        self.assertEqual(parsed["answer_part_count"], 1)
++        self.assertEqual(parsed["final_text"], "具体内容以商品页面信息为准。")
++
++    def test_rejects_truncated_response(self):
++        result = {
++            "candidates": [
++                {
++                    "finishReason": "MAX_TOKENS",
++                    "content": {"parts": [{"text": "亲，在"}]},
++                }
++            ]
++        }
++
++        parsed = parse_gemini_generate_content_response(result)
++
++        self.assertTrue(parsed["truncated"])
++        with self.assertRaises(RuntimeError):
++            extract_gemini_final_text(result)
++
++    def test_rejects_internal_template_fragments(self):
++        for text in (
++            "* Length:",
++            "Assistant:**",
++            "Assistant:** 可以下单。",
++            "assistant:",
++            "** Product intro",
++            "logistics,",
++        ):
++            ok, reason = validate_ai_reply_text(text)
++            self.assertFalse(ok)
++            self.assertIn(
++                reason,
++                {"template_leak", "markdown_like", "broken_prefix", "english_template"},
++            )
++
++    def test_rejects_json_and_ordered_template_output(self):
++        for text in ('{"reply":"可以下单"}', '["可以下单"]', "1. Product intro"):
++            ok, _reason = validate_ai_reply_text(text)
++            self.assertFalse(ok)
++
++    def test_rejects_non_success_finish_reason(self):
++        result = {
++            "candidates": [
++                {
++                    "finishReason": "SAFETY",
++                    "content": {"parts": [{"text": "可以下单。"}]},
++                }
++            ]
++        }
++
++        parsed = parse_gemini_generate_content_response(result)
++
++        self.assertEqual(parsed["error_class"], "non_success_finish_reason")
++        with self.assertRaises(RuntimeError):
++            extract_gemini_final_text(result)
++
++    def test_rejects_empty_parts(self):
++        result = {
++            "candidates": [
++                {
++                    "finishReason": "STOP",
++                    "content": {"parts": []},
++                }
++            ]
++        }
++
++        parsed = parse_gemini_generate_content_response(result)
++
++        self.assertEqual(parsed["error_class"], "missing_answer_text")
++        with self.assertRaises(RuntimeError):
++            extract_gemini_final_text(result)
++
++    def test_rejects_english_dominant_customer_reply(self):
++        ok, reason = validate_ai_reply_text("You can place the order from the product page purchase button.")
++
++        self.assertFalse(ok)
++        self.assertEqual(reason, "english_template")
++
++    def test_allows_normal_short_chinese_customer_reply(self):
++        ok, reason = validate_ai_reply_text("在的，请问需要了解什么？")
++
++        self.assertTrue(ok, reason)
++
++    def test_allows_chinese_reply_with_normal_model_name(self):
++        ok, reason = validate_ai_reply_text("支持 iPhone 15 Pro，具体以商品页面信息为准。")
++
++        self.assertTrue(ok, reason)
++
++    def test_documents_token_limits(self):
++        self.assertEqual(GEMINI_INITIAL_MAX_OUTPUT_TOKENS, 1024)
++        self.assertEqual(GEMINI_RETRY_MAX_OUTPUT_TOKENS, 2048)
++
++    def test_documents_gemini_text_generation_config(self):
++        self.assertEqual(GEMINI_TEXT_GENERATION_CONFIG["responseMimeType"], "text/plain")
++        self.assertEqual(GEMINI_TEXT_GENERATION_CONFIG["thinkingConfig"]["thinkingLevel"], "low")
++
++    def test_context_uses_chinese_roles_and_filters_invalid_assistant_history(self):
++        context = [
++            {"role": "user", "content": "你好"},
++            {"role": "assistant", "content": "* Length:"},
++            {"role": "assistant", "content": "Assistant:**"},
++            {"role": "assistant", "content": "assistant:"},
++            {"role": "assistant", "content": "在的，请问需要了解什么？"},
++            {"role": "user", "content": "怎么下单"},
++        ]
++
++        context_text = AIReplyEngine()._build_context_str(context)
++
++        self.assertIn("买家：你好", context_text)
++        self.assertIn("卖家客服：在的，请问需要了解什么？", context_text)
++        self.assertIn("买家：怎么下单", context_text)
++        self.assertNotIn("Length", context_text)
++        self.assertNotIn("Assistant", context_text)
++        self.assertNotIn("assistant:", context_text)
++        self.assertNotIn("user:", context_text)
++
++
++class AIReplyEngineSaveGateTest(unittest.IsolatedAsyncioTestCase):
++    def setUp(self):
++        self.engine = AIReplyEngine()
++        self.settings = {
++            "ai_enabled": True,
++            "provider_type": "gemini",
++            "api_key": "test-key",
++            "base_url": "https://generativelanguage.googleapis.com",
++            "model_name": "gemini-test",
++            "custom_prompts": "",
++            "max_bargain_rounds": 3,
++            "max_discount_percent": 10,
++            "max_discount_amount": 100,
++        }
++
++    async def test_invalid_ai_output_is_not_saved_as_assistant_message(self):
++        session = FakeDBSession()
++        save_mock = AsyncMock(return_value=True)
++        decision_trace = {}
++
++        with (
++            patch.object(self.engine, "is_ai_enabled", AsyncMock(return_value=True)),
++            patch.object(self.engine, "get_ai_settings", AsyncMock(return_value=self.settings)),
++            patch.object(self.engine, "_call_gemini_api", AsyncMock(return_value="Assistant:** 可以下单。")),
++            patch.object(self.engine, "_save_ai_message_with_retry", save_mock),
++            patch("app.services.xianyu.ai_reply_engine.pause_manager.is_chat_paused", return_value=False),
++        ):
++            reply = await self.engine.generate_reply(
++                message="怎么下单",
++                item_info={"title": "测试商品", "price": 10, "desc": "测试描述"},
++                chat_id="chat-fixture",
++                cookie_id="account-a",
++                user_id="buyer-a",
++                item_id="item-a",
++                db_session=session,
++                skip_wait=True,
++                decision_trace=decision_trace,
++            )
++
++        self.assertIsNone(reply)
++        save_mock.assert_not_awaited()
++        self.assertEqual(len(session.added), 1)
++        self.assertEqual(session.added[0].role, "user")
++        self.assertEqual(decision_trace["decision_reason"], "ai_output_invalid")
++        self.assertEqual(
++            decision_trace["context_snapshot"]["ai_output_invalid_reason"],
++            "template_leak",
++        )
++
++    async def test_gemini_retry_failure_records_ai_output_invalid(self):
++        session = FakeDBSession()
++        decision_trace = {}
++        save_mock = AsyncMock(return_value=True)
++
++        with (
++            patch.object(self.engine, "is_ai_enabled", AsyncMock(return_value=True)),
++            patch.object(self.engine, "get_ai_settings", AsyncMock(return_value=self.settings)),
++            patch.object(self.engine, "_call_gemini_api", AsyncMock(return_value=None)),
++            patch.object(self.engine, "_save_ai_message_with_retry", save_mock),
++        ):
++            reply = await self.engine.generate_reply(
++                message="怎么下单",
++                item_info={"title": "测试商品", "price": 10, "desc": "测试描述"},
++                chat_id="chat-fixture",
++                cookie_id="account-a",
++                user_id="buyer-a",
++                item_id="item-a",
++                db_session=session,
++                skip_wait=True,
++                decision_trace=decision_trace,
++            )
++
++        self.assertIsNone(reply)
++        save_mock.assert_not_awaited()
++        self.assertEqual(decision_trace["process_status"], "skipped")
++        self.assertEqual(decision_trace["decision_reason"], "ai_output_invalid")
++        self.assertEqual(
++            decision_trace["context_snapshot"]["ai_output_invalid_reason"],
++            "gemini_response_invalid",
++        )
++
++    async def test_item_plain_text_ai_prompt_is_merged_without_json_requirement(self):
++        session = FakeDBSession()
++        captured_messages = []
++
++        async def call_gemini(_settings, messages):
++            captured_messages.extend(messages)
++            return "可以直接点击闲鱼页面的购买入口下单。"
++
++        with (
++            patch.object(self.engine, "is_ai_enabled", AsyncMock(return_value=True)),
++            patch.object(self.engine, "get_ai_settings", AsyncMock(return_value=self.settings)),
++            patch.object(self.engine, "_call_gemini_api", side_effect=call_gemini),
++            patch.object(self.engine, "_save_ai_message_with_retry", AsyncMock(return_value=True)),
++            patch("app.services.xianyu.ai_reply_engine.pause_manager.is_chat_paused", return_value=False),
++        ):
++            reply = await self.engine.generate_reply(
++                message="包含什么",
++                item_info={
++                    "title": "测试商品",
++                    "price": 10,
++                    "desc": "测试描述",
++                    "ai_prompt": "这是商品级普通文本提示词，以商品页面信息为准。",
++                },
++                chat_id="chat-fixture",
++                cookie_id="account-a",
++                user_id="buyer-a",
++                item_id="item-a",
++                db_session=session,
++                skip_wait=True,
++            )
++
++        self.assertEqual(reply, "可以直接点击闲鱼页面的购买入口下单。")
++        self.assertEqual(len(captured_messages), 2)
++        self.assertIn("商品特殊说明: 这是商品级普通文本提示词，以商品页面信息为准。", captured_messages[1]["content"])
++
++
++class GeminiRetryTest(unittest.IsolatedAsyncioTestCase):
++    def setUp(self):
++        FakeGeminiClient.responses = []
++        FakeGeminiClient.requests = []
++        self.engine = AIReplyEngine()
++        self.settings = {
++            "api_key": "test-key",
++            "model_name": "gemini-test",
++            "base_url": "https://generativelanguage.googleapis.com",
++        }
++        self.messages = [
++            {"role": "system", "content": "只输出简体中文。"},
++            {"role": "user", "content": "怎么下单"},
++        ]
++
++    async def test_max_tokens_retries_once_with_2048_and_returns_complete_chinese(self):
++        FakeGeminiClient.responses = [
++            {
++                "candidates": [
++                    {
++                        "finishReason": "MAX_TOKENS",
++                        "content": {"parts": [{"text": "可以在"}]},
++                    }
++                ]
++            },
++            {
++                "candidates": [
++                    {
++                        "finishReason": "STOP",
++                        "content": {"parts": [{"text": "可以直接点击闲鱼页面的购买入口下单。"}]},
++                    }
++                ]
++            },
++        ]
++
++        with patch("app.services.xianyu.ai_reply_engine.httpx.AsyncClient", FakeGeminiClient):
++            reply = await self.engine._call_gemini_api(self.settings, self.messages)
++
++        self.assertEqual(reply, "可以直接点击闲鱼页面的购买入口下单。")
++        self.assertEqual(
++            [request["generationConfig"]["maxOutputTokens"] for request in FakeGeminiClient.requests],
++            [GEMINI_INITIAL_MAX_OUTPUT_TOKENS, GEMINI_RETRY_MAX_OUTPUT_TOKENS],
++        )
++        self.assertIn("只输出一条完整自然的简体中文买家回复", FakeGeminiClient.requests[1]["contents"][0]["parts"][0]["text"])
++
++    async def test_retry_still_truncated_returns_none(self):
++        FakeGeminiClient.responses = [
++            {
++                "candidates": [
++                    {
++                        "finishReason": "MAX_TOKENS",
++                        "content": {"parts": [{"text": "可以在"}]},
++                    }
++                ]
++            },
++            {
++                "candidates": [
++                    {
++                        "finishReason": "LENGTH",
++                        "content": {"parts": [{"text": "仍然被截断"}]},
++                    }
++                ]
++            },
++        ]
++
++        with patch("app.services.xianyu.ai_reply_engine.httpx.AsyncClient", FakeGeminiClient):
++            reply = await self.engine._call_gemini_api(self.settings, self.messages)
++
++        self.assertIsNone(reply)
++        self.assertEqual(len(FakeGeminiClient.requests), 2)
++
++
++if __name__ == "__main__":
++    unittest.main()
 diff --git a/tests/test_chg0017_reply_allowlist.py b/tests/test_chg0017_reply_allowlist.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..25306eecffbaed1cdb3da5fe5785fa17ca5f0dff
+index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e03082f06413
 --- /dev/null
 +++ b/tests/test_chg0017_reply_allowlist.py
-@@ -0,0 +1,535 @@
+@@ -0,0 +1,636 @@
 +import os
 +import sys
 +import unittest
@@ -125,6 +841,7 @@ index 0000000000000000000000000000000000000000..25306eecffbaed1cdb3da5fe5785fa17
 +
 +class DummyAccount:
 +    id = 1
++    ai_reply_block_ordered_users = False
 +
 +
 +class Chg0017ReplyAllowlistTest(unittest.IsolatedAsyncioTestCase):
@@ -274,6 +991,106 @@ index 0000000000000000000000000000000000000000..25306eecffbaed1cdb3da5fe5785fa17
 +        self.assertIsNotNone(calls["log_payload"])
 +        self.assertEqual(calls["log_payload"]["process_status"], "skipped")
 +        self.assertEqual(calls["log_payload"]["decision_reason"], "chg0017_allowlist_sender_denied")
++
++    async def test_invalid_ai_output_is_rejected_before_sender_route(self):
++        service = self.service()
++        trace = {}
++        token = service._reply_trace_var.set(trace)
++
++        async def get_account(_session):
++            return DummyAccount()
++
++        class FakeAIEngine:
++            async def is_ai_enabled(self, _cookie_id, _session):
++                return True
++
++            async def get_ai_settings(self, _cookie_id, _session):
++                return {"model_name": "gemini-test"}
++
++            def _get_api_provider_name(self, _settings):
++                return "Google Gemini"
++
++            async def generate_reply(self, **_kwargs):
++                return "Assistant:**"
++
++        service._get_account = get_account
++        try:
++            with patch(
++                "app.services.xianyu.ai_reply_engine.get_ai_reply_engine",
++                return_value=FakeAIEngine(),
++            ):
++                reply = await service.get_ai_reply(
++                    session=object(),
++                    send_user_name="owner-test",
++                    send_user_id=OWNER_TEST_B_PLATFORM,
++                    send_message="你好",
++                    item_id=None,
++                    chat_id="chat-fixture",
++                )
++        finally:
++            service._reply_trace_var.reset(token)
++
++        self.assertIsNone(reply)
++        self.assertEqual(trace["process_status"], "skipped")
++        self.assertEqual(trace["decision_reason"], "ai_output_invalid")
++        self.assertEqual(trace["context_snapshot"]["ai_output_invalid_reason"], "template_leak")
++
++    async def test_invalid_ai_output_keeps_sender_call_zero_and_reason(self):
++        self.enable_gate()
++
++        class CountingInstance:
++            myid = ACCOUNT_A_PLATFORM
++
++            def __init__(self):
++                self.send_count = 0
++
++            async def send_msg(self, **_kwargs):
++                self.send_count += 1
++                return {"success": True}
++
++        instance = CountingInstance()
++        service = AutoReplyService(ACCOUNT_A, instance)
++        recorded = {}
++
++        async def invalid_reply(**_kwargs):
++            trace = service._reply_trace_var.get()
++            trace["process_status"] = "skipped"
++            trace["decision_reason"] = "ai_output_invalid"
++            trace.setdefault("context_snapshot", {})["ai_output_invalid_reason"] = "template_leak"
++            return None
++
++        async def no_filters(_filter_type):
++            return []
++
++        async def no_notification(**_kwargs):
++            return None
++
++        async def record_log(payload):
++            recorded.update(payload)
++            return 1
++
++        service.get_reply = invalid_reply
++        service.get_filter_keywords = no_filters
++        service._send_notification = no_notification
++        service._record_auto_reply_log = record_log
++        service._message_expire_time = 3600
++        service._message_expire_time_loaded = True
++
++        await service.handle_chat_message(
++            {
++                "send_user_id": OWNER_TEST_B_PLATFORM,
++                "send_user_name": "owner-test",
++                "send_message": "怎么下单",
++                "chat_id": "chat-fixture",
++                "item_id": "",
++                "msg_time": 1,
++            },
++            websocket=None,
++        )
++
++        self.assertEqual(instance.send_count, 0)
++        self.assertEqual(recorded["process_status"], "skipped")
++        self.assertEqual(recorded["decision_reason"], "ai_output_invalid")
 +
 +    async def test_catalog_missing_global_keyword_still_matches(self):
 +        auto_reply_module.async_session_maker = lambda: DummySessionContext()
@@ -622,11 +1439,129 @@ index 0000000000000000000000000000000000000000..25306eecffbaed1cdb3da5fe5785fa17
 +
 +if __name__ == "__main__":
 +    unittest.main()
+diff --git a/websocket/app/services/xianyu/ai_reply_engine.py b/websocket/app/services/xianyu/ai_reply_engine.py
+index fd1a6c450bc32e5329034fd0ae05d02f5798de16..8be9b05a9dc1b7c32849f166d8f4423093617cb4 100644
+--- a/websocket/app/services/xianyu/ai_reply_engine.py
++++ b/websocket/app/services/xianyu/ai_reply_engine.py
+@@ -31,0 +32,3 @@ from common.services.ai_provider_service import (
++    GEMINI_INITIAL_MAX_OUTPUT_TOKENS,
++    GEMINI_RETRY_MAX_OUTPUT_TOKENS,
++    GEMINI_TEXT_GENERATION_CONFIG,
+@@ -34,0 +38,3 @@ from common.services.ai_provider_service import (
++    extract_gemini_final_text,
++    parse_gemini_generate_content_response,
++    validate_ai_reply_text,
+@@ -183,0 +190,21 @@ class AIReplyEngine:
++    def _build_context_str(self, context: List[Dict[str, Any]], limit: int = 10) -> str:
++        """Build customer-facing chat history without feeding invalid assistant output back to AI."""
++        role_labels = {"user": "买家", "assistant": "卖家客服"}
++        lines: List[str] = []
++        for msg in context[-limit:]:
++            role = str(msg.get("role") or "").strip().lower()
++            if role not in role_labels:
++                continue
++            content = self._normalize_text(msg.get("content"))
++            if not content:
++                continue
++            if role == "assistant":
++                is_valid, reason = validate_ai_reply_text(content)
++                if not is_valid:
++                    logger.warning(
++                        f"过滤异常AI历史消息，不再注入上下文: reason={reason}"
++                    )
++                    continue
++            lines.append(f"{role_labels[role]}：{content}")
++        return "\n".join(lines)
++
+@@ -523,2 +550,2 @@ class AIReplyEngine:
+-        max_tokens: int = 100,
+-        temperature: float = 0.7,
++        max_tokens: int = GEMINI_INITIAL_MAX_OUTPUT_TOKENS,
++        temperature: float = 0.3,
+@@ -582,3 +609,3 @@ class AIReplyEngine:
+-        max_tokens: int = 100,
+-        temperature: float = 0.7,
+-    ) -> str:
++        max_tokens: int = GEMINI_INITIAL_MAX_OUTPUT_TOKENS,
++        temperature: float = 0.3,
++    ) -> Optional[str]:
+@@ -616,0 +644 @@ class AIReplyEngine:
++                    **GEMINI_TEXT_GENERATION_CONFIG,
+@@ -627,4 +655,15 @@ class AIReplyEngine:
+-            async with httpx.AsyncClient(timeout=30) as client:
+-                response = await client.post(url, headers=headers, params={"key": api_key}, json=payload)
+-                response.raise_for_status()
+-                result = response.json()
++            async def request_once(token_limit: int, *, stricter: bool = False) -> str:
++                retry_instruction = (
++                    "\n\n只输出一条完整自然的简体中文买家回复。"
++                    "不要输出星号、井号、花括号、方括号、列表、字段名、标题或分析过程。"
++                    "不要使用英文模板。直接回答买家当前问题。"
++                    if stricter
++                    else ""
++                )
++                payload["contents"][0]["parts"][0]["text"] = f"{user_content}{retry_instruction}"
++                payload["generationConfig"]["maxOutputTokens"] = token_limit
++                async with httpx.AsyncClient(timeout=30) as client:
++                    response = await client.post(url, headers=headers, params={"key": api_key}, json=payload)
++                    response.raise_for_status()
++                    result = response.json()
++                return extract_gemini_final_text(result)
+@@ -632 +671,9 @@ class AIReplyEngine:
+-            reply_text = result["candidates"][0]["content"]["parts"][0]["text"]
++            try:
++                reply_text = await request_once(max_tokens)
++            except RuntimeError as first_error:
++                logger.warning(f"Gemini API invalid response; retrying once: {first_error}")
++                try:
++                    reply_text = await request_once(GEMINI_RETRY_MAX_OUTPUT_TOKENS, stricter=True)
++                except RuntimeError as retry_error:
++                    logger.warning(f"Gemini API retry remained invalid; returning no reply: {retry_error}")
++                    return None
+@@ -635 +682 @@ class AIReplyEngine:
+-                logger.warning("Gemini API返回空内容")
++                raise RuntimeError("Gemini API returned empty final answer")
+@@ -709,0 +757 @@ class AIReplyEngine:
++        decision_trace: Optional[Dict[str, Any]] = None,
+@@ -721,0 +770 @@ class AIReplyEngine:
++            decision_trace: 可选的自动回复决策日志上下文
+@@ -868,4 +917,2 @@ class AIReplyEngine:
+-                # 构建对话历史
+-                context_str = "\n".join([
+-                    f"{msg['role']}: {msg['content']}" for msg in context[-10:]
+-                ])
++                # 构建对话历史：使用中文角色标签，并过滤既有异常assistant输出
++                context_str = self._build_context_str(context)
+@@ -921,0 +969,8 @@ class AIReplyEngine:
++                    if reply is None:
++                        if decision_trace is not None:
++                            decision_trace["process_status"] = "skipped"
++                            decision_trace["decision_reason"] = "ai_output_invalid"
++                            decision_trace.setdefault("context_snapshot", {})[
++                                "ai_output_invalid_reason"
++                            ] = "gemini_response_invalid"
++                        return None
+@@ -927,0 +983,13 @@ class AIReplyEngine:
++                    reply_is_valid, invalid_reason = validate_ai_reply_text(reply)
++                    if not reply_is_valid:
++                        logger.warning(
++                            f"【{cookie_id}】AI输出质量校验失败，跳过保存和发送: reason={invalid_reason}"
++                        )
++                        if decision_trace is not None:
++                            decision_trace["process_status"] = "skipped"
++                            decision_trace["decision_reason"] = "ai_output_invalid"
++                            decision_trace.setdefault("context_snapshot", {})[
++                                "ai_output_invalid_reason"
++                            ] = invalid_reason
++                        return None
++
 diff --git a/websocket/app/services/xianyu/auto_reply_service.py b/websocket/app/services/xianyu/auto_reply_service.py
-index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..9a20410a3343960031bb82310fad8086367c0e7f 100644
+index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..c5ddea8b3252eff21b787972435b61d67eb3adc6 100644
 --- a/websocket/app/services/xianyu/auto_reply_service.py
 +++ b/websocket/app/services/xianyu/auto_reply_service.py
-@@ -39,0 +40,8 @@ from app.services.xianyu.auto_reply_log_service import AutoReplyLogService
+@@ -34,0 +35 @@ from common.utils.default_reply_api import call_reply_api
++from common.services.ai_provider_service import validate_ai_reply_text
+@@ -39,0 +41,8 @@ from app.services.xianyu.auto_reply_log_service import AutoReplyLogService
 +def _parse_chg0017_allowlist(raw_value: str | None) -> set[str]:
 +    return {part.strip() for part in str(raw_value or "").split(",") if part.strip()}
 +
@@ -635,8 +1570,7 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..9a20410a3343960031bb82310fad8086
 +    return "*" in allowed_values or value in allowed_values
 +
 +
-@@ -126,0 +135,32 @@ class AutoReplyService:
-+
+@@ -127,0 +137,32 @@ class AutoReplyService:
 +    def _check_chg0017_reply_gate(self, send_user_id: str, send_user_name: str = "") -> tuple[bool, str]:
 +        if str(os.getenv("CHG0017_REPLY_ALLOWLIST_ENABLED") or "").strip().lower() not in {"1", "true", "yes", "on"}:
 +            return False, "chg0017_allowlist_disabled"
@@ -668,17 +1602,18 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..9a20410a3343960031bb82310fad8086
 +    def _is_chg0017_reply_allowed(self, send_user_id: str) -> bool:
 +        allowed, _reason = self._check_chg0017_reply_gate(send_user_id)
 +        return allowed
-@@ -576,0 +617 @@ class AutoReplyService:
-+            catalog_item_known = True
-@@ -587,0 +629,7 @@ class AutoReplyService:
 +
+@@ -576,0 +618 @@ class AutoReplyService:
++            catalog_item_known = True
+@@ -588,0 +631,7 @@ class AutoReplyService:
 +            chg0017_allowed, chg0017_reason = self._check_chg0017_reply_gate(send_user_id, send_user_name)
 +            if not chg0017_allowed:
 +                logger.warning("CHG-0017 reply allowlist denied automatic reply before route evaluation")
 +                log_payload["process_status"] = "skipped"
 +                log_payload["decision_reason"] = chg0017_reason
 +                return
-@@ -634 +682,6 @@ class AutoReplyService:
++
+@@ -634 +683,6 @@ class AutoReplyService:
 -                self._merge_log_context(log_payload, belongs_to_account=belongs_to_account)
 +                catalog_item_known = bool(belongs_to_account)
 +                self._merge_log_context(
@@ -686,7 +1621,7 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..9a20410a3343960031bb82310fad8086
 +                    catalog_item_known=catalog_item_known,
 +                    item_catalog_missing=not catalog_item_known,
 +                )
-@@ -636,16 +689,3 @@ class AutoReplyService:
+@@ -636,16 +690,3 @@ class AutoReplyService:
 -                    logger.info(f"【{self.cookie_id}】商品 {item_id} 不属于当前账号，跳过自动回复")
 -                    log_payload["process_status"] = "skipped"
 -                    log_payload["decision_reason"] = "item_not_belong"
@@ -706,22 +1641,39 @@ index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..9a20410a3343960031bb82310fad8086
 +                    logger.info(
 +                        "CHG-0017 local item catalog missing; account-level reply paths remain eligible"
 +                    )
-@@ -685,0 +726 @@ class AutoReplyService:
+@@ -685,0 +727 @@ class AutoReplyService:
 +                    catalog_item_known=catalog_item_known,
-@@ -1064,0 +1106 @@ class AutoReplyService:
+@@ -1064,0 +1107 @@ class AutoReplyService:
 +        catalog_item_known: bool = True,
-@@ -1092,0 +1135,5 @@ class AutoReplyService:
+@@ -1092,0 +1136,5 @@ class AutoReplyService:
 +                catalog_scoped_item_id = item_id if catalog_item_known else None
 +                if not catalog_item_known and reply_trace is not None:
 +                    reply_trace["decision_reason"] = "item_catalog_missing"
 +                    reply_trace.setdefault("context_snapshot", {})["item_catalog_missing"] = True
 +
-@@ -1094 +1141 @@ class AutoReplyService:
+@@ -1094 +1142 @@ class AutoReplyService:
 -                    session, send_user_name, send_user_id, send_message, item_id
 +                    session, send_user_name, send_user_id, send_message, catalog_scoped_item_id
-@@ -1105 +1152 @@ class AutoReplyService:
+@@ -1105 +1153 @@ class AutoReplyService:
 -                    session, send_user_name, send_user_id, send_message, item_id, chat_id
 +                    session, send_user_name, send_user_id, send_message, catalog_scoped_item_id, chat_id
-@@ -1111 +1158 @@ class AutoReplyService:
+@@ -1111 +1159 @@ class AutoReplyService:
 -                    session, send_user_name, send_user_id, send_message, chat_id, item_id, msg_time
 +                    session, send_user_name, send_user_id, send_message, chat_id, catalog_scoped_item_id, msg_time
+@@ -1121 +1169 @@ class AutoReplyService:
+-            if reply_trace is not None:
++            if reply_trace is not None and reply_trace.get("decision_reason") in {None, "processing"}:
+@@ -1871,0 +1920 @@ class AutoReplyService:
++                decision_trace=reply_trace,
+@@ -1874,0 +1924,11 @@ class AutoReplyService:
++                reply_is_valid, invalid_reason = validate_ai_reply_text(reply)
++                if not reply_is_valid:
++                    logger.warning(
++                        f"【{self.cookie_id}】AI输出质量校验失败，sender调用保持为0: reason={invalid_reason}"
++                    )
++                    if reply_trace is not None:
++                        reply_trace["process_status"] = "skipped"
++                        reply_trace["decision_reason"] = "ai_output_invalid"
++                        reply_trace.setdefault("context_snapshot", {})["ai_output_invalid_reason"] = invalid_reason
++                    return None
++
