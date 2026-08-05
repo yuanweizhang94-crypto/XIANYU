@@ -2,6 +2,26 @@
 
 Change: CHG-0011-upstream-first-product-direction-freeze
 
+## P0 immutable development rule
+
+After safety, legality, credentials, permissions, platform-verification boundaries, and explicit project-owner instructions, the permanent highest-priority development rule is:
+
+> Never build a second implementation of a capability that upstream already provides. Reuse the upstream method and code path directly, configure it, or repair the confirmed upstream defect with the smallest auditable patch.
+
+This rule outranks delivery speed, convenience, cleanup, broad refactoring, speculative hardening, architecture preferences, future scale, and feature expansion.
+
+Every task must use this decision order:
+
+1. `ADOPT_UPSTREAM`: call the exact existing upstream function, route, service, model, UI, task, cache, lock, Profile, or workflow.
+2. `CONFIGURE_UPSTREAM`: correct configuration or operating procedure without changing source.
+3. `PATCH_UPSTREAM`: repair the existing upstream path while preserving its API, return shape, data ownership, execution owner, and native user workflow.
+4. `WRAP_FOR_OPERATIONS`: add only safety, governance, validation, monitoring, backup, restore, diagnostics, upgrade control, or a narrow compatibility boundary.
+5. `BUILD_LOCAL_EXCEPTION`: create a new implementation only after all exception gates in this policy are satisfied and the project owner explicitly approves it.
+
+Before code is written, the active work record must identify the upstream-native path, the pinned-SHA evidence, the newer-upstream search result, the selected reuse decision, the exact duplicate-development risk, and the rollback. A missing record blocks implementation.
+
+The current project-wide capability disposition and minimal formal development direction are recorded in `docs/FORMAL_DEVELOPMENT_DIRECTION.md`. That document may be updated as evidence changes, but it may not weaken this P0 rule.
+
 ## Purpose
 
 The original upstream project is the product application and business execution engine. This repository is the safety, governance, operations, validation, evidence, and release-control layer. Development must not drift into rebuilding capabilities that upstream already provides.
