@@ -87,7 +87,7 @@ HMAC values.
 - Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
 - Applies after: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
 - Patch file: `4c5e1ac-chg0018-account-profile-publish-safety.patch`
-- SHA256: `81373BE04B3BFCDB29D028AC4432B26B0BA93A175BD58FEFE574ADE7ED2AFE23`
+- SHA256: `8FA58C8F2674EE7A16C36689F962612DC1619C211ACAA390105778A64CD20EEE`
 - Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
 - Patch parse check: passed with `git apply --numstat --unidiff-zero`
 - Patch staged-base apply check: passed with `git apply --check --cached --whitespace=error-all --unidiff-zero`
@@ -96,19 +96,29 @@ HMAC values.
 - Changed files:
   - `backend-web/app/api/routes/cookies.py`
   - `backend-web/app/services/account_service.py`
+  - `backend-web/app/services/xianyu_publisher.py`
   - `common/schemas/account.py`
+  - `common/services/publish_execution_service.py`
+  - `common/services/xianyu_publish_service.py`
   - `frontend/src/api/accounts.ts`
   - `frontend/src/pages/accounts/Accounts.tsx`
   - `frontend/src/types/index.ts`
   - `websocket/app/api/routes/internal.py`
   - `websocket/app/services/xianyu/cookie_token_manager.py`
   - `tests/test_chg0018_credential_safety.py`
+  - `tests/test_chg0018_profile_publish_readiness.py`
 
 The patch removes raw `login_password` from ordinary account detail responses,
 adds explicit password-clear intent, keeps saved passwords out of the default
 account edit form, and prevents `no_credentials` or `bad_credentials` password
 refresh failures from disabling an account. Touched refresh logs report Cookie
 field counts instead of full Cookie values.
+
+The patch also routes publish execution through authoritative account identity,
+loads the latest Cookie inside the existing publisher path, opens the account's
+persistent Profile, runs shared read-only preflight before any publish form
+mutation in the same context, and reuses the existing captcha concurrency
+managers for one browser slot and one account lock.
 
 ## Artifact Format
 

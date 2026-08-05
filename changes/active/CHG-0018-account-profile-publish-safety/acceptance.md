@@ -39,7 +39,18 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Targeted upstream test: `python -m pytest tests/test_chg0018_credential_safety.py -q`.
 - Frontend build: `npm run build`.
 - Patch artifact: `vendor/patches/xianyu-auto-reply/4c5e1ac-chg0018-account-profile-publish-safety.patch`.
-- Patch SHA256: `81373BE04B3BFCDB29D028AC4432B26B0BA93A175BD58FEFE574ADE7ED2AFE23`.
+- Patch SHA256: `8FA58C8F2674EE7A16C36689F962612DC1619C211ACAA390105778A64CD20EEE`.
+
+## P1-P4 result
+
+- Publish execution passes authoritative account identity and owner scope to the existing publisher path.
+- The publisher loads the latest Cookie from the authoritative account record and opens the existing persistent account Profile.
+- Missing Profile and busy Profile states return existing-style `failure_reason` values: `profile_missing` and `browser_busy`.
+- Formal publish calls shared `preflight_publish_form()` before form mutation in the same context.
+- `preflight_only` returns readiness without upload, form fill, or publish click.
+- Browser lifecycle uses existing captcha concurrency managers for one global slot and one account lock, released during close.
+- Targeted upstream tests: `python -m pytest tests/test_chg0018_credential_safety.py tests/test_chg0018_profile_publish_readiness.py -q`.
+- CHG-0017 regression tests: `python -m pytest tests/test_chg0017_publish_login_submit.py tests/test_chg0017_reply_allowlist.py tests/test_chg0017_ai_prompt_validation.py tests/test_chg0017_gemini_response_parser.py -q`.
 
 ## Upstream capability audit
 

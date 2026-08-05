@@ -6,11 +6,11 @@ Change ID: CHG-0018-account-profile-publish-safety
 
 - [x] T1 Implement P0 credential safety and false-disable prevention.
 - [x] T2 Run P0 targeted tests and commit the P0 boundary.
-- [ ] T3 Implement P1 persistent Profile publish readiness.
-- [ ] T4 Implement P2 Profile initialization and repair boundaries.
-- [ ] T5 Implement P3 shared read-only publish preflight.
-- [ ] T6 Implement P4 canonical browser lock usage for publish readiness paths.
-- [ ] T7 Run P1-P4 targeted tests and commit the Profile readiness boundary.
+- [x] T3 Implement P1 persistent Profile publish readiness.
+- [x] T4 Implement P2 Profile initialization and repair boundaries.
+- [x] T5 Implement P3 shared read-only publish preflight.
+- [x] T6 Implement P4 canonical browser lock usage for publish readiness paths.
+- [x] T7 Run P1-P4 targeted tests and commit the Profile readiness boundary.
 - [ ] T8 Generate CHG-0018 patch artifact, evidence, and full validation.
 
 ## Upstream capability audit

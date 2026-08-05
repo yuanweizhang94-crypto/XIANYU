@@ -78,5 +78,22 @@ def test_p0_credential_safety_result_is_recorded() -> None:
     assert "- [x] T1 Implement P0 credential safety and false-disable prevention." in tasks
     assert "- [x] T2 Run P0 targeted tests and commit the P0 boundary." in tasks
     assert "Raw `login_password` is removed" in acceptance
-    assert "81373BE04B3BFCDB29D028AC4432B26B0BA93A175BD58FEFE574ADE7ED2AFE23" in acceptance
+    assert "8FA58C8F2674EE7A16C36689F962612DC1619C211ACAA390105778A64CD20EEE" in acceptance
     assert patch.is_file()
+
+
+def test_profile_publish_readiness_result_is_recorded() -> None:
+    tasks = read(CHANGE_DIR / "tasks.md")
+    acceptance = read(CHANGE_DIR / "acceptance.md")
+
+    for task in [
+        "T3 Implement P1 persistent Profile publish readiness.",
+        "T4 Implement P2 Profile initialization and repair boundaries.",
+        "T5 Implement P3 shared read-only publish preflight.",
+        "T6 Implement P4 canonical browser lock usage for publish readiness paths.",
+        "T7 Run P1-P4 targeted tests and commit the Profile readiness boundary.",
+    ]:
+        assert f"- [x] {task}" in tasks
+    assert "preflight_publish_form()" in acceptance
+    assert "`profile_missing` and `browser_busy`" in acceptance
+    assert "one global slot and one account lock" in acceptance
