@@ -8,6 +8,7 @@
     "version",
     "active_change",
     "tasks",
+    "suspended_changes",
     "capabilities"
   ],
   "properties": {
@@ -49,6 +50,54 @@
         }
       },
       "additionalProperties": false
+    },
+    "suspended_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "path",
+          "suspended_from",
+          "suspended_at",
+          "suspended_reason",
+          "resume_condition",
+          "tasks"
+        ],
+        "properties": {
+          "id": { "type": "string", "pattern": "^CHG-\\d{4}-[A-Za-z0-9_.-]+$" },
+          "status": { "const": "SUSPENDED" },
+          "path": { "type": "string", "pattern": "^changes/suspended/" },
+          "suspended_from": { "type": ["string", "null"] },
+          "suspended_at": { "type": ["string", "null"] },
+          "suspended_reason": { "type": ["string", "null"] },
+          "resume_condition": { "type": ["string", "null"] },
+          "tasks": {
+            "type": "object",
+            "required": ["total", "completed", "next_task", "items"],
+            "properties": {
+              "total": { "type": "integer", "minimum": 0 },
+              "completed": { "type": "integer", "minimum": 0 },
+              "next_task": { "type": ["string", "null"] },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["text", "completed"],
+                  "properties": {
+                    "text": { "type": "string" },
+                    "completed": { "type": "boolean" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "capabilities": {
       "type": "object",

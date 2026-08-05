@@ -12,11 +12,13 @@ if str(REPO_ROOT_FOR_IMPORTS) not in sys.path:
 from scripts.repo_utils import (
     ACTIVE_CHANGE_STATUSES,
     REQUIRED_CHANGE_FILES,
+    SUSPENDED_CHANGE_STATUSES,
     VALID_CHANGE_STATUSES,
     current_branch_change_id,
     extract_change_status,
     extract_change_statuses,
     find_active_changes,
+    find_suspended_changes,
     parse_tasks,
 )
 
@@ -142,9 +144,25 @@ def _validate_archived_changes(root: Path) -> list[str]:
     return errors
 
 
+def _validate_suspended_changes(root: Path) -> list[str]:
+    errors: list[str] = []
+    for change_dir in find_suspended_changes(root):
+        missing = [name for name in REQUIRED_CHANGE_FILES if not (change_dir / name).exists()]
+        if missing:
+            errors.append(f"missing suspended change files for {change_dir.name}: {', '.join(missing)}")
+            continue
+        statuses = extract_change_statuses(change_dir)
+        unique_statuses = {status for status in statuses.values() if status}
+        if unique_statuses != SUSPENDED_CHANGE_STATUSES:
+            errors.append(f"suspended change must have SUSPENDED status: {change_dir.name}")
+        errors.extend(_change_id_mentions_are_consistent(change_dir))
+    return errors
+
+
 def validate_change(root: Path) -> list[str]:
     errors: list[str] = []
     errors.extend(_validate_archived_changes(root))
+    errors.extend(_validate_suspended_changes(root))
     active_changes = find_active_changes(root)
 
     if len(active_changes) > 1:
@@ -171,7 +189,9 @@ def validate_change(root: Path) -> list[str]:
         errors.append(f"change status mismatch: {statuses}")
 
     status = extract_change_status(change_dir)
-    if status in {"MERGED", "ARCHIVED"}:
+    if status == "SUSPENDED":
+        errors.append("SUSPENDED change must not remain in changes/active")
+    elif status in {"MERGED", "ARCHIVED"}:
         errors.append(f"{status} change must not remain in changes/active")
     elif status and status not in ACTIVE_CHANGE_STATUSES:
         errors.append(f"invalid active change status: {status}")

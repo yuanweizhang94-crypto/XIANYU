@@ -1,5 +1,10 @@
 Change ID: CHG-0017-upstream-native-auto-ai-delivery
-Status: IMPLEMENTING
+Status: SUSPENDED
+
+suspended_from: IMPLEMENTING
+suspended_at: 2026-08-05
+suspended_reason: Project owner approved prioritizing account credential mis-save, false account disablement, missing account Profile, publish preflight, and browser mutual-exclusion fixes. CHG-0017 code, tests, evidence, and Draft PR remain preserved. T17 was not executed; the Change is incomplete, not archived, and not merged.
+resume_condition: Project owner approval after CHG-0018 completion and verification.
 # Tasks
 
 - [x] T1 Create proposal.

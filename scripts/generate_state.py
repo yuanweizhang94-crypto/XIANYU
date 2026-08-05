@@ -14,6 +14,8 @@ if str(REPO_ROOT_FOR_IMPORTS) not in sys.path:
 from scripts.repo_utils import (
     discover_active_change,
     extract_change_status,
+    extract_suspension_metadata,
+    find_suspended_changes,
     is_executable_change_status,
     load_capabilities,
     next_uncompleted_task,
@@ -38,6 +40,37 @@ def _active_change_state(root: Path) -> tuple[dict[str, str] | None, list[Any], 
     return active_state, tasks, next_task
 
 
+def _tasks_state(change_dir: Path, *, executable: bool) -> dict[str, Any]:
+    tasks_path = change_dir / "tasks.md"
+    tasks = parse_tasks(tasks_path) if tasks_path.exists() else []
+    return {
+        "total": len(tasks),
+        "completed": sum(1 for task in tasks if task.completed),
+        "next_task": next_uncompleted_task(tasks) if executable else None,
+        "items": [{"text": task.text, "completed": task.completed} for task in tasks],
+    }
+
+
+def _suspended_change_states(root: Path) -> list[dict[str, Any]]:
+    states: list[dict[str, Any]] = []
+    for change_dir in find_suspended_changes(root):
+        status = extract_change_status(change_dir)
+        metadata = extract_suspension_metadata(change_dir)
+        states.append(
+            {
+                "id": change_dir.name,
+                "status": status,
+                "path": change_dir.relative_to(root).as_posix(),
+                "suspended_from": metadata["suspended_from"],
+                "suspended_at": metadata["suspended_at"],
+                "suspended_reason": metadata["suspended_reason"],
+                "resume_condition": metadata["resume_condition"],
+                "tasks": _tasks_state(change_dir, executable=False),
+            }
+        )
+    return states
+
+
 def build_project_state(root: Path) -> dict[str, Any]:
     active_change, tasks, next_task = _active_change_state(root)
     capabilities = load_capabilities(root)
@@ -53,6 +86,7 @@ def build_project_state(root: Path) -> dict[str, Any]:
             "next_task": next_task,
             "items": [{"text": task.text, "completed": task.completed} for task in tasks],
         },
+        "suspended_changes": _suspended_change_states(root),
         "capabilities": {
             "total": len(capabilities),
             "by_status": dict(sorted(status_counts.items())),

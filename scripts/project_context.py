@@ -81,6 +81,7 @@ def render_context(root: Path) -> str:
         active_status = active_change["status"]
 
     next_task = state["tasks"]["next_task"]
+    suspended_changes = state.get("suspended_changes", [])
     executable = is_executable_change_status(str(active_status)) if active_status else False
 
     lines = [
@@ -101,8 +102,19 @@ def render_context(root: Path) -> str:
             f"active_change: {active_id if active_id is not None else 'null'}",
             f"Active change status: {active_status if active_status is not None else 'null'}",
             f"next_task: {next_task if next_task is not None else 'null'}",
+            f"suspended_changes: {len(suspended_changes) if isinstance(suspended_changes, list) else 0}",
         ]
     )
+    if isinstance(suspended_changes, list):
+        for item in suspended_changes:
+            if isinstance(item, dict):
+                lines.append(
+                    "Suspended change: "
+                    f"{item.get('id')} "
+                    f"status={item.get('status')} "
+                    f"progress={item.get('tasks', {}).get('completed')}/"
+                    f"{item.get('tasks', {}).get('total')}"
+                )
     if not executable:
         lines.append("no approved executable change")
     lines.extend(

@@ -10,7 +10,7 @@ import jsonschema
 import yaml
 
 from scripts.generate_state import project_state_json
-from scripts.repo_utils import find_active_changes, read_yaml, required_repo_paths
+from scripts.repo_utils import find_active_changes, find_suspended_changes, read_yaml, required_repo_paths
 from scripts.security_scan import scan as security_scan
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,11 +43,20 @@ def test_changes_active_has_at_most_one_active_change() -> None:
     assert len(find_active_changes(ROOT)) <= 1
 
 
+def test_changes_suspended_does_not_count_as_active() -> None:
+    suspended_root = ROOT / "changes" / "suspended"
+    if not suspended_root.exists():
+        assert find_suspended_changes(ROOT) == []
+        return
+    assert all(path.parent == suspended_root for path in find_suspended_changes(ROOT))
+
+
 def test_pytest_default_testpaths_include_tests_and_active_changes_only() -> None:
     testpaths = pytest_testpaths()
     assert "tests" in testpaths
     assert "changes/active" in testpaths
     assert "changes/archive" not in testpaths
+    assert "changes/suspended" not in testpaths
 
 
 def test_quality_workflow_mypy_checks_scripts_and_app() -> None:
@@ -96,6 +105,14 @@ def test_archived_status_exists_only_in_changes_archive() -> None:
             continue
         relative = change_file.relative_to(ROOT).as_posix()
         assert relative.startswith("changes/archive/")
+
+
+def test_suspended_status_exists_only_in_changes_suspended() -> None:
+    for change_file in (ROOT / "changes").glob("**/*.md"):
+        if "Status: SUSPENDED" not in change_file.read_text(encoding="utf-8"):
+            continue
+        relative = change_file.relative_to(ROOT).as_posix()
+        assert relative.startswith("changes/suspended/")
 
 
 def test_project_state_matches_generated_state() -> None:

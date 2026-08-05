@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from scripts.repo_utils import VALID_CHANGE_STATUSES
+from scripts.repo_utils import VALID_CHANGE_STATUSES, is_executable_change_status
 from scripts.repo_utils import discover_active_change
 from scripts.validate_change import validate_change
 
@@ -94,6 +94,26 @@ def replace_status(change_dir: Path, status: str) -> None:
         path.write_text(text, encoding="utf-8")
 
 
+def seed_suspended_change(
+    root: Path,
+    change_id: str = "CHG-9998-suspended-test",
+    status: str = "SUSPENDED",
+) -> Path:
+    source = root / "changes" / "archive" / "CHG-0006-xianyu-publish-boundary"
+    target = root / "changes" / "suspended" / change_id
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source, target)
+    for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
+        path = target / name
+        text = path.read_text(encoding="utf-8").replace(
+            "CHG-0006-xianyu-publish-boundary", change_id
+        )
+        text = re.sub(r"^Status: .+$", f"Status: {status}", text, flags=re.MULTILINE)
+        text = text.rstrip() + "\nsuspended_from: IMPLEMENTING\nsuspended_reason: test suspension\n"
+        path.write_text(text, encoding="utf-8")
+    return target
+
+
 def test_validate_change_passes_for_current_repo() -> None:
     assert validate_change(ROOT) == []
 
@@ -101,6 +121,22 @@ def test_validate_change_passes_for_current_repo() -> None:
 def test_zero_active_change_is_allowed(tmp_path: Path) -> None:
     root = copy_change_tree(tmp_path)
     assert discover_active_change(root) is None
+    assert validate_change(root) == []
+
+
+def test_suspended_change_without_active_change_is_allowed(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    seed_suspended_change(root)
+
+    assert discover_active_change(root) is None
+    assert validate_change(root) == []
+
+
+def test_suspended_change_with_single_active_change_is_allowed(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    seed_single_active_change(root, status="DRAFT")
+    seed_suspended_change(root)
+
     assert validate_change(root) == []
 
 
@@ -201,6 +237,27 @@ def test_merged_or_archived_change_cannot_remain_active(tmp_path: Path) -> None:
         replace_status(change_dir, terminal_status)
         errors = validate_change(root)
         assert any("must not remain in changes/active" in error for error in errors)
+
+
+def test_suspended_change_cannot_remain_active(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    change_dir = seed_single_active_change(root)
+    replace_status(change_dir, "SUSPENDED")
+
+    errors = validate_change(root)
+    assert any("SUSPENDED change must not remain in changes/active" in error for error in errors)
+
+
+def test_non_suspended_change_cannot_live_in_suspended_directory(tmp_path: Path) -> None:
+    root = copy_change_tree(tmp_path)
+    seed_suspended_change(root, status="DRAFT")
+
+    errors = validate_change(root)
+    assert any("suspended change must have SUSPENDED status" in error for error in errors)
+
+
+def test_suspended_status_is_not_executable() -> None:
+    assert not is_executable_change_status("SUSPENDED")
 
 
 def test_all_change_statuses_are_from_unified_machine() -> None:
