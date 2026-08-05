@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0018-account-profile-publish-safety",
-    "status": "IMPLEMENTING",
+    "status": "VERIFYING",
     "path": "changes/active/CHG-0018-account-profile-publish-safety"
   },
   "tasks": {
     "total": 10,
-    "completed": 8,
-    "next_task": "T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening.",
+    "completed": 10,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Implement P0 credential safety and false-disable prevention.",
@@ -45,11 +45,11 @@
       },
       {
         "text": "T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T10 Return CHG-0018 to VERIFYING after scoped runtime evidence and repository validation.",
-        "completed": false
+        "completed": true
       }
     ]
   },

@@ -1,6 +1,6 @@
 # CHG-0018 Tasks
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -12,8 +12,20 @@ Change ID: CHG-0018-account-profile-publish-safety
 - [x] T6 Implement P4 canonical browser lock usage for publish readiness paths.
 - [x] T7 Run P1-P4 targeted tests and commit the Profile readiness boundary.
 - [x] T8 Generate CHG-0018 patch artifact, evidence, and full validation.
-- [ ] T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening.
-- [ ] T10 Return CHG-0018 to VERIFYING after scoped runtime evidence and repository validation.
+- [x] T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening.
+- [x] T10 Return CHG-0018 to VERIFYING after scoped runtime evidence and repository validation.
+
+## T9 result
+
+- Frontend CHG-0018 image was deployed without restarting WebSocket, backend, MySQL, Redis, or creating a second runtime.
+- CANARY-A01 Profile initialization completed from the authoritative database Cookie path, and read-only publish preflight returned ready without filling, uploading, or publishing.
+- Auto-polish root causes were classified as `SCHEDULER_NOT_RUNNING` and `PLATFORM_DAY_NOT_READY` before recovery; scheduler task isolation was corrected to only `day_switch`, `fetch_items`, and `polish`.
+- Native scoped polish canary processed one CANARY-A01 item successfully with other-account polish delta `0`, password-login trigger `0`, and account-disabled delta `0`.
+- The single scheduler then remained running and processed only CANARY-A01 remaining eligible polish items; follow-up polish intervals found no duplicate work.
+
+## T10 result
+
+- CHG-0018 returned to `VERIFYING` after targeted tests, repository validation, patch clean-apply checks, and masked runtime evidence.
 
 ## Upstream capability audit
 

@@ -22,12 +22,12 @@ def test_chg0018_is_active_verifying_change() -> None:
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         text = read(CHANGE_DIR / name)
         assert f"Change ID: {CHANGE_ID}" in text
-        assert "Status: IMPLEMENTING" in text
+        assert "Status: VERIFYING" in text
 
     state = project_state()
     assert state["active_change"] == {
         "id": CHANGE_ID,
-        "status": "IMPLEMENTING",
+        "status": "VERIFYING",
         "path": f"changes/active/{CHANGE_ID}",
     }
 
@@ -105,7 +105,7 @@ def test_final_validation_evidence_is_recorded() -> None:
     evidence = CHANGE_DIR / "evidence" / "20260805-final-validation.md"
 
     assert "- [x] T8 Generate CHG-0018 patch artifact, evidence, and full validation." in tasks
-    assert "- [ ] T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening." in tasks
+    assert "- [x] T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening." in tasks
     assert "Combined upstream targeted and regression tests: 68 passed." in acceptance
     assert "Frontend build: passed with `npm run build`." in acceptance
     assert "non-blocking upstream tooling gap" in acceptance
@@ -118,3 +118,23 @@ def test_final_validation_evidence_is_recorded() -> None:
     assert "`quality`: success" in evidence_text
     assert "`tests`: success" in evidence_text
     assert "`security`: success" in evidence_text
+
+
+def test_runtime_profile_preflight_auto_polish_evidence_is_recorded() -> None:
+    tasks = read(CHANGE_DIR / "tasks.md")
+    acceptance = read(CHANGE_DIR / "acceptance.md")
+    evidence = CHANGE_DIR / "evidence" / "20260805-runtime-profile-preflight-auto-polish.md"
+
+    assert "- [x] T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening." in tasks
+    assert "- [x] T10 Return CHG-0018 to VERIFYING after scoped runtime evidence and repository validation." in tasks
+    assert "Real polish canary executed: yes" in acceptance
+    assert "Other accounts polished: 0" in acceptance
+    assert "Scheduler enabled tasks: `day_switch,fetch_items,polish`" in acceptance
+    assert evidence.is_file()
+    evidence_text = read(evidence)
+    assert "Target alias: `CANARY-A01`" in evidence_text
+    assert "Explicit canary target success delta: 1" in evidence_text
+    assert "Other accounts polished during observation: 0" in evidence_text
+    assert "Synthetic messages sent: 0" in evidence_text
+    assert "Products published: 0" in evidence_text
+    assert "Sensitive data recorded: no" in evidence_text

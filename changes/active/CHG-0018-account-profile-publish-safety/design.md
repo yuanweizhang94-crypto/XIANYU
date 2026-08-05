@@ -1,6 +1,6 @@
 # CHG-0018 Design
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -17,6 +17,10 @@ P2 separates API Cookie renewal from Profile initialization. API renewal writes 
 P3 extracts a shared `preflight_publish_form(context)` or equivalent from CHG-0017 diagnostics. Preflight-only opens and closes one Profile context. Formal publish opens one Profile context, runs shared preflight, and if ready continues filling and publishing inside the same context.
 
 P4 first confirms the existing responsibilities of `run_browser_task`, account locks, and global browser slots. Only publish, preflight, and Profile initialization are changed where missing or proven duplicate. Cookie renewal and password login are not refactored for symmetry.
+
+The auto-polish hardening stays inside pinned upstream scheduler services. `day_switch_task` fail-closes Redis read/update failures before resetting polish state. `polish_task` checks platform-day readiness before item processing, supports optional internal account scope and per-account item limit for canaries, masks account/item identifiers in touched polish logs, treats duplicate polish responses as successful same-day completion, and only schedules existing password login recovery when complete automatic-login credentials exist.
+
+Runtime enablement keeps the existing scheduler process model. The production canary enables only `day_switch`, `fetch_items`, and `polish` in `xy_scheduled_tasks`; all order, delivery, direct-message, token-renewal, and unrelated scheduler tasks remain disabled.
 
 ## Upstream capability audit
 

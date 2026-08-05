@@ -1,6 +1,6 @@
 # CHG-0018 Account Profile Publish Safety
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -72,3 +72,13 @@ The runtime expansion must reuse upstream native scheduler paths and must not cr
 ## Rollback boundary
 
 Implementation commits must preserve three auditable boundaries: P0 safety, P1-P4 Profile readiness, and tests/vendor patch/evidence.
+
+## Runtime closeout summary
+
+- Target alias: `CANARY-A01`.
+- Frontend CHG-0018 image deployed without restarting WebSocket, backend, MySQL, or Redis.
+- Credential UI/API safety remained in effect during the canary: no raw password response path is accepted, and the target account has no automatic-login username or password configured.
+- Persistent Profile creation and read-only publish preflight completed without product creation, product publish, upload, or message sending.
+- Auto-polish used the pinned upstream native scheduler path, with `day_switch`, `fetch_items`, and `polish` as the only enabled scheduler tasks.
+- One scoped canary item was polished through `PolishTaskService.execute(account_ids=..., max_items_per_account=1)`, then the single scheduler handled only remaining CANARY-A01 eligible items.
+- Other accounts kept `auto_polish=false`; follow-up owner approval is required before enabling auto-polish for any other account.

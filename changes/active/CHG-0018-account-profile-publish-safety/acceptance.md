@@ -1,6 +1,6 @@
 # CHG-0018 Acceptance
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -70,6 +70,36 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Evidence: `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260805-final-validation.md`.
 - Production operations executed: none.
 - PR #26 state changed: no.
+
+## Runtime verification result
+
+- Evidence: `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260805-runtime-profile-preflight-auto-polish.md`.
+- Target alias: `CANARY-A01`.
+- Frontend deployed: yes.
+- UI/API password status: unconfigured credentials; no raw `login_password` path is accepted.
+- Remark regression: passed for the target account without credential resubmission.
+- Profile created: yes.
+- Profile healthy: yes.
+- Manual verification required: no.
+- Read-only preflight ready: yes.
+- Preflight failure reason: null.
+- Auto-polish root cause before recovery: `SCHEDULER_NOT_RUNNING` and `PLATFORM_DAY_NOT_READY`.
+- Auto-polish code fixed: yes.
+- Account auto-polish enabled: yes, only for `CANARY-A01`.
+- Catalog item count: 7.
+- Platform day ready: yes.
+- Real polish canary executed: yes, one scoped item.
+- Real polish canary success: yes.
+- Other accounts polished: 0.
+- Password login triggered for canary: false.
+- Target account disabled: false.
+- Synthetic messages sent: 0.
+- Products created: 0.
+- Products published: 0.
+- Scheduler running: yes.
+- Scheduler enabled tasks: `day_switch,fetch_items,polish`.
+- `fetch_orders`, `dm_send`, and `auto_order` executed: false.
+- Patch SHA256: `F15F2161213EE7CD8B952D3DD475DEA18BA12F56570E332CE4711BD87D6350E2`.
 
 ## Upstream capability audit
 

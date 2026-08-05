@@ -1,6 +1,6 @@
 # CHG-0018 Threat Model
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -13,6 +13,9 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Publish preflight opens one context and publish opens another, masking readiness failures.
 - Locking is nested or duplicated, leaving browser resources behind.
 - Profile repair performs real account, publish, or message operations.
+- Auto-polish runs before platform-day state is safely initialized.
+- Auto-polish schedules password login for accounts without complete automatic-login credentials.
+- Auto-polish logs leak full account identifiers, item identifiers, Cookie, Token, or full API responses.
 
 ## Mitigations
 
@@ -22,6 +25,10 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Shared preflight runs in the active context for formal publish attempts.
 - Existing lock and browser slot primitives are used once per task.
 - Production operations remain prohibited during development.
+- Platform-day Redis read/update failures fail closed before resetting item polish state or running polish.
+- Auto-polish canaries use the existing scheduler path with explicit account scope and max item limit.
+- Missing credentials record `no_credentials/login_required` behavior without disabling the account or triggering password login.
+- Touched polish logs use masked identifiers and response classifications only.
 
 ## Upstream capability audit
 
