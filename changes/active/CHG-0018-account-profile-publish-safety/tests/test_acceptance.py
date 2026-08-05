@@ -22,12 +22,12 @@ def test_chg0018_is_active_verifying_change() -> None:
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         text = read(CHANGE_DIR / name)
         assert f"Change ID: {CHANGE_ID}" in text
-        assert "Status: VERIFYING" in text
+        assert "Status: IMPLEMENTING" in text
 
     state = project_state()
     assert state["active_change"] == {
         "id": CHANGE_ID,
-        "status": "VERIFYING",
+        "status": "IMPLEMENTING",
         "path": f"changes/active/{CHANGE_ID}",
     }
 
@@ -78,7 +78,7 @@ def test_p0_credential_safety_result_is_recorded() -> None:
     assert "- [x] T1 Implement P0 credential safety and false-disable prevention." in tasks
     assert "- [x] T2 Run P0 targeted tests and commit the P0 boundary." in tasks
     assert "Raw `login_password` is removed" in acceptance
-    assert "8FA58C8F2674EE7A16C36689F962612DC1619C211ACAA390105778A64CD20EEE" in acceptance
+    assert "F15F2161213EE7CD8B952D3DD475DEA18BA12F56570E332CE4711BD87D6350E2" in acceptance
     assert patch.is_file()
 
 
@@ -105,6 +105,7 @@ def test_final_validation_evidence_is_recorded() -> None:
     evidence = CHANGE_DIR / "evidence" / "20260805-final-validation.md"
 
     assert "- [x] T8 Generate CHG-0018 patch artifact, evidence, and full validation." in tasks
+    assert "- [ ] T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening." in tasks
     assert "Combined upstream targeted and regression tests: 68 passed." in acceptance
     assert "Frontend build: passed with `npm run build`." in acceptance
     assert "non-blocking upstream tooling gap" in acceptance

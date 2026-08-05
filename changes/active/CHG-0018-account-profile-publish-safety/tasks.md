@@ -1,6 +1,6 @@
 # CHG-0018 Tasks
 
-Status: VERIFYING
+Status: IMPLEMENTING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -12,6 +12,8 @@ Change ID: CHG-0018-account-profile-publish-safety
 - [x] T6 Implement P4 canonical browser lock usage for publish readiness paths.
 - [x] T7 Run P1-P4 targeted tests and commit the Profile readiness boundary.
 - [x] T8 Generate CHG-0018 patch artifact, evidence, and full validation.
+- [ ] T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening.
+- [ ] T10 Return CHG-0018 to VERIFYING after scoped runtime evidence and repository validation.
 
 ## Upstream capability audit
 

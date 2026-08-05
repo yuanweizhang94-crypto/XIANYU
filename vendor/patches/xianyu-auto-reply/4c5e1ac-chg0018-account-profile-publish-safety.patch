@@ -1,5 +1,5 @@
 diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
-index c623a06aa7a9a32cd3c94732c9af1d0377162754..2e6805bd5fbd60cacbeb5624ce01ad4239a1d441 100644
+index c623a06..0346bc2 100644
 --- a/backend-web/app/api/routes/cookies.py
 +++ b/backend-web/app/api/routes/cookies.py
 @@ -218 +218 @@ async def list_cookie_details(
@@ -11,7 +11,7 @@ index c623a06aa7a9a32cd3c94732c9af1d0377162754..2e6805bd5fbd60cacbeb5624ce01ad42
 @@ -746,0 +747 @@ async def update_account_login_info(
 +        clear_login_password=payload.clear_login_password,
 diff --git a/backend-web/app/services/account_service.py b/backend-web/app/services/account_service.py
-index 752c006698b22cc1e887432c0243317a4100f490..67457193292646936d39cb296574c0bcb0036805 100644
+index 752c006..c39bd89 100644
 --- a/backend-web/app/services/account_service.py
 +++ b/backend-web/app/services/account_service.py
 @@ -411,0 +412 @@ class AccountService:
@@ -22,7 +22,7 @@ index 752c006698b22cc1e887432c0243317a4100f490..67457193292646936d39cb296574c0bc
 +            account.login_password = None
 +        elif login_password is not None:
 diff --git a/backend-web/app/services/xianyu_publisher.py b/backend-web/app/services/xianyu_publisher.py
-index 51d09944f771caef17eaed16cd4b3ea782e201ab..538d9be9f52df20fa4d94b171f6a2f7f4900303a 100644
+index 51d0994..a4da4bc 100644
 --- a/backend-web/app/services/xianyu_publisher.py
 +++ b/backend-web/app/services/xianyu_publisher.py
 @@ -50,0 +51,5 @@ class XianyuPublisher:
@@ -385,7 +385,7 @@ index 51d09944f771caef17eaed16cd4b3ea782e201ab..538d9be9f52df20fa4d94b171f6a2f7f
 @@ -2122,0 +2213 @@ class XianyuPublisher:
 +            await self._release_profile_guards()
 diff --git a/common/schemas/account.py b/common/schemas/account.py
-index 948911e272b7264131b562f2947668fc1a054968..155bc190518dba82bc0a1cab0fd83e46d6e105cd 100644
+index 948911e..155bc19 100644
 --- a/common/schemas/account.py
 +++ b/common/schemas/account.py
 @@ -42 +42 @@ class AccountDetail(BaseModel):
@@ -394,7 +394,7 @@ index 948911e272b7264131b562f2947668fc1a054968..155bc190518dba82bc0a1cab0fd83e46
 @@ -95,0 +96 @@ class AccountLoginInfoUpdate(BaseModel):
 +    clear_login_password: bool = Field(False, description="明确清空登录密码")
 diff --git a/common/services/publish_execution_service.py b/common/services/publish_execution_service.py
-index d7b68f3b637cd6a7ce65e8fc2c511b20db5787fd..f4abd9eb2986f4d9ac70c1dac3cb1c9ce303646d 100644
+index d7b68f3..f4abd9e 100644
 --- a/common/services/publish_execution_service.py
 +++ b/common/services/publish_execution_service.py
 @@ -138 +137,0 @@ async def execute_single_publish(
@@ -403,7 +403,7 @@ index d7b68f3b637cd6a7ce65e8fc2c511b20db5787fd..f4abd9eb2986f4d9ac70c1dac3cb1c9c
 +            account_id=account.account_id,
 +            owner_id=user_id,
 diff --git a/common/services/xianyu_publish_service.py b/common/services/xianyu_publish_service.py
-index 0243e772948694f08891584d8a1a2b80f067ad33..3b53ba2a1111166d47bf47399e1e7f13c61fb001 100644
+index 0243e77..3b53ba2 100644
 --- a/common/services/xianyu_publish_service.py
 +++ b/common/services/xianyu_publish_service.py
 @@ -33 +33 @@ async def publish_single_item(
@@ -421,7 +421,7 @@ index 0243e772948694f08891584d8a1a2b80f067ad33..3b53ba2a1111166d47bf47399e1e7f13
 +        owner_id=owner_id,
 +        preflight_only=preflight_only,
 diff --git a/frontend/src/api/accounts.ts b/frontend/src/api/accounts.ts
-index d89f14acb7626a0044d04e576f2635c514df96e8..604d300c6b26eedd90a85022637402cc2e0239a7 100644
+index d89f14a..2f5d96a 100644
 --- a/frontend/src/api/accounts.ts
 +++ b/frontend/src/api/accounts.ts
 @@ -85 +85 @@ export const getAccountDetailsPaginated = async (
@@ -434,7 +434,7 @@ index d89f14acb7626a0044d04e576f2635c514df96e8..604d300c6b26eedd90a85022637402cc
 -  data: { username?: string; login_password?: string; show_browser?: boolean }
 +  data: { username?: string; login_password?: string; clear_login_password?: boolean; show_browser?: boolean }
 diff --git a/frontend/src/pages/accounts/Accounts.tsx b/frontend/src/pages/accounts/Accounts.tsx
-index a1cf816e3f88d170ac4c130bbb7f4ed1151d9fa8..4c6d789af40b5de3a2d66e22ccf715466e6f5c6e 100644
+index a1cf816..fe89607 100644
 --- a/frontend/src/pages/accounts/Accounts.tsx
 +++ b/frontend/src/pages/accounts/Accounts.tsx
 @@ -191,0 +192,5 @@ export function Accounts() {
@@ -623,102 +623,349 @@ index a1cf816e3f88d170ac4c130bbb7f4ed1151d9fa8..4c6d789af40b5de3a2d66e22ccf71546
 -                  </div>
 +                  )}
 diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
-index 14835027d0065b78d154c58db5ee8a614807e46e..164e9e50e20d4a5c8d69637de24d01452fd301d5 100644
+index 1483502..40ab618 100644
 --- a/frontend/src/types/index.ts
 +++ b/frontend/src/types/index.ts
 @@ -69 +69 @@ export interface Account {
 -  login_password?: string
 +  has_password?: boolean
-diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
-index 49ac450e5fc83d1be9456effb7189b7bea929ee3..001005c24d7d924a9ddbc6f9ca9e54f6837f6f44 100644
---- a/websocket/app/api/routes/internal.py
-+++ b/websocket/app/api/routes/internal.py
-@@ -2321 +2321 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
--                logger.info(f"【{account_id}】[续期前全量Cookies] {cookies_str}")
-+                logger.info(f"[{account_id}] cookie renew before field count: {len(trans_cookies(cookies_str) or {})}")
-@@ -2335,2 +2335,4 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
--                # 记录续期后的全量cookies（不管成功失败都打印）
--                logger.info(f"【{account_id}】[续期后全量Cookies] {renew_result.new_cookies_str or cookies_str}")
-+                logger.info(
-+                    f"[{account_id}] cookie renew after field count: "
-+                    f"{len(trans_cookies(renew_result.new_cookies_str or cookies_str) or {})}"
-+                )
-@@ -2369,8 +2371,4 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
--            err_msg = f"{_api_renew_fail_msg}，且未配置用户名或密码，账号已自动禁用"
--            logger.warning(f"【内部API】账号 {account_id} 未配置用户名或密码")
--            # 自动禁用账号
--            try:
--                db_manager.disable_account(account_id, reason=f"{trigger_reason}且未配置密码，自动禁用")
--                logger.warning(f"【内部API】账号 {account_id} 已自动禁用")
--            except Exception as disable_e:
--                logger.error(f"【内部API】自动禁用账号失败: {disable_e}")
-+            err_msg = f"{_api_renew_fail_msg}; no credentials configured"
-+            logger.warning(
-+                f"[internal-api] account {account_id} has no credentials; account status is unchanged"
-+            )
-@@ -2382 +2380 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
--                "message": "未配置用户名或密码，账号已自动禁用",
-+                "message": "no credentials configured; account status unchanged",
-@@ -2417,2 +2415 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
--            # 记录密码登录获取到的新cookies
--            logger.info(f"【{account_id}】[密码登录获取的新Cookies] {new_cookies_str}")
-+            logger.info(f"[{account_id}] password login returned cookie field count: {len(result)}")
-@@ -2515,6 +2512,3 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
--            disable_reason = error_msg if error_msg else "账号密码错误"
--            try:
--                db_manager.disable_account(account_id, reason=disable_reason)
--                logger.warning(f"【内部API】检测到账密错误，账号 {account_id} 已自动禁用，原因: {disable_reason}")
--            except Exception as disable_e:
--                logger.error(f"【内部API】禁用账号失败: {disable_e}")
-+            logger.warning(
-+                f"[internal-api] bad_credentials recorded for account {account_id}; account status is unchanged"
-+            )
-diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
-index 9dff7cdbc3295c01fc1e409afbf3bdaa5a4d454b..af866b7f0c3ad93d2fdb345f6aacd4cb7d2522d1 100644
---- a/websocket/app/services/xianyu/cookie_token_manager.py
-+++ b/websocket/app/services/xianyu/cookie_token_manager.py
-@@ -1286,11 +1286,3 @@ class CookieTokenManager:
--                        # 未配置密码，禁用账号
--                        logger.debug(f"【{self.cookie_id}】Session过期且未配置密码，立即禁用账号")
--
--                        # 自动禁用账号
--                        try:
--                            from common.db.compat import db_manager
--                            db_manager.disable_account(self.cookie_id, reason="账号已掉线且未配置账号密码，自动禁用")
--                            logger.warning(f"【{self.cookie_id}】账号已自动禁用")
--                        except Exception as disable_e:
--                            logger.error(f"【{self.cookie_id}】自动禁用账号失败: {self._safe_str(disable_e)}")
--
-+                        logger.warning(
-+                            f"[{self.cookie_id}] no_credentials recorded after session expiry; account status is unchanged"
+diff --git a/scheduler/app/services/scheduler/day_switch_task.py b/scheduler/app/services/scheduler/day_switch_task.py
+index f609698..2ceb248 100644
+--- a/scheduler/app/services/scheduler/day_switch_task.py
++++ b/scheduler/app/services/scheduler/day_switch_task.py
+@@ -25,0 +26 @@ class DaySwitchTaskService:
++    PLATFORM_DAY_READ_FAILED = object()
+@@ -41,0 +43,3 @@ class DaySwitchTaskService:
++            if platform_day is self.PLATFORM_DAY_READ_FAILED:
++                logger.error(f"【{self.task_name}】platform_day_read_failed; fail_closed=true")
++                return
+@@ -58 +62,3 @@ class DaySwitchTaskService:
+-            await self._update_platform_day(current_day)
++            if not await self._update_platform_day(current_day):
++                logger.error(f"【{self.task_name}】platform_day_update_failed; fail_closed=true")
++                raise RuntimeError("platform_day_update_failed")
+@@ -73 +79 @@ class DaySwitchTaskService:
+-    async def _get_platform_day(self) -> Optional[str]:
++    async def _get_platform_day(self) -> Optional[str] | object:
+@@ -86 +92 @@ class DaySwitchTaskService:
+-            return None
++            return self.PLATFORM_DAY_READ_FAILED
+diff --git a/scheduler/app/services/scheduler/polish_task.py b/scheduler/app/services/scheduler/polish_task.py
+index a81cf79..3daf465 100644
+--- a/scheduler/app/services/scheduler/polish_task.py
++++ b/scheduler/app/services/scheduler/polish_task.py
+@@ -23,0 +24 @@ from common.db.session import async_session_maker
++from common.db.redis_client import get_redis_client
+@@ -36,0 +38 @@ class PolishTaskService:
++    PLATFORM_DAY_KEY = "platform:day"
+@@ -41 +43,5 @@ class PolishTaskService:
+-    async def execute(self):
++    async def execute(
++        self,
++        account_ids: set[str] | None = None,
++        max_items_per_account: int | None = None,
++    ):
+@@ -49,0 +56,4 @@ class PolishTaskService:
++            if not await self._is_platform_day_ready():
++                logger.warning(f"【{self.task_name}】platform_day_not_ready; polish skipped")
++                return
++
+@@ -55 +65 @@ class PolishTaskService:
+-                accounts = await self._get_enabled_accounts(session)
++                accounts = await self._get_enabled_accounts(session, account_ids=account_ids)
+@@ -72 +82 @@ class PolishTaskService:
+-                            f"【{self.task_name}】账号 {account.account_id} "
++                            f"【{self.task_name}】账号 {self._mask_identifier(account.account_id)} "
+@@ -78 +88,6 @@ class PolishTaskService:
+-                        success, failed = await self._process_account(session, account, batch_id)
++                        success, failed = await self._process_account(
++                            session,
++                            account,
++                            batch_id,
++                            max_items_per_account=max_items_per_account,
 +                        )
-@@ -1452,2 +1444 @@ class CookieTokenManager:
--                # 记录续期前的全量cookies
--                logger.info(f"【{self.cookie_id}】[续期前全量Cookies] {self.cookies_str}")
-+                logger.info(f"[{self.cookie_id}] cookie renew before field count: {len(self.cookies)}")
-@@ -1468,2 +1459 @@ class CookieTokenManager:
--                # 记录续期后的全量cookies（不管成功失败都打印）
--                logger.info(f"【{self.cookie_id}】[续期后全量Cookies] {self.cookies_str}")
-+                logger.info(f"[{self.cookie_id}] cookie renew after field count: {len(self.cookies)}")
-@@ -1594,2 +1584 @@ class CookieTokenManager:
--                # 记录密码登录获取到的新cookies
--                logger.info(f"【{self.cookie_id}】[密码登录获取的新Cookies] {new_cookies_str}")
-+                logger.info(f"[{self.cookie_id}] password login returned cookie field count: {len(result)}")
-@@ -1683,8 +1672,3 @@ class CookieTokenManager:
--                # 直接使用原始错误文案作为禁用原因（不加前缀），与内层 _disable_account_on_timeout 保持一致
--                disable_reason = error_msg if error_msg else "账号密码错误"
--                try:
--                    from common.db.compat import db_manager
--                    db_manager.disable_account(self.cookie_id, reason=disable_reason)
--                    logger.warning(f"【{self.cookie_id}】检测到账密错误，账号已自动禁用，原因: {disable_reason}")
--                except Exception as disable_e:
--                    logger.error(f"【{self.cookie_id}】禁用账号失败: {self._safe_str(disable_e)}")
-+                logger.warning(
-+                    f"[{self.cookie_id}] bad_credentials recorded; account status is unchanged"
+@@ -82 +97 @@ class PolishTaskService:
+-                        logger.error(f"【{self.task_name}】处理账号 {account.account_id} 失败: {e}")
++                        logger.error(f"【{self.task_name}】处理账号 {self._mask_identifier(account.account_id)} 失败: {e}")
+@@ -122 +137,5 @@ class PolishTaskService:
+-    async def _get_enabled_accounts(self, session: AsyncSession) -> List[XYAccount]:
++    async def _get_enabled_accounts(
++        self,
++        session: AsyncSession,
++        account_ids: set[str] | None = None,
++    ) -> List[XYAccount]:
+@@ -133,0 +153,4 @@ class PolishTaskService:
++        if account_ids is not None:
++            if not account_ids:
++                return []
++            stmt = stmt.where(XYAccount.account_id.in_(account_ids))
+@@ -137 +160,7 @@ class PolishTaskService:
+-    async def _process_account(self, session: AsyncSession, account: XYAccount, batch_id: str) -> tuple[int, int]:
++    async def _process_account(
++        self,
++        session: AsyncSession,
++        account: XYAccount,
++        batch_id: str,
++        max_items_per_account: int | None = None,
++    ) -> tuple[int, int]:
+@@ -149 +178,2 @@ class PolishTaskService:
+-        logger.info(f"【{self.task_name}】开始处理账号: {account.account_id}")
++        masked_account_id = self._mask_identifier(account.account_id)
++        logger.info(f"【{self.task_name}】开始处理账号: {masked_account_id}")
+@@ -153 +183,5 @@ class PolishTaskService:
+-            items = await self._get_unpolished_items(session, account.id)
++            items = await self._get_unpolished_items(
++                session,
++                account.id,
++                limit=max_items_per_account,
++            )
+@@ -156 +190 @@ class PolishTaskService:
+-                logger.info(f"【{self.task_name}】账号 {account.account_id} 没有需要擦亮的商品")
++                logger.info(f"【{self.task_name}】账号 {masked_account_id} 没有需要擦亮的商品")
+@@ -159 +193 @@ class PolishTaskService:
+-            logger.info(f"【{self.task_name}】账号 {account.account_id} 找到 {len(items)} 个需要擦亮的商品")
++            logger.info(f"【{self.task_name}】账号 {masked_account_id} 找到 {len(items)} 个需要擦亮的商品")
+@@ -177 +211 @@ class PolishTaskService:
+-                        logger.info(f"【{self.task_name}】账号 {account.account_id} Cookie已通过Set-Cookie更新并写入数据库")
++                        logger.info(f"【{self.task_name}】账号 {masked_account_id} Cookie已通过Set-Cookie更新并写入数据库")
+@@ -184 +218 @@ class PolishTaskService:
+-                    if not is_success and ("一天只能擦亮一次" in error_msg or "POLISH_DUPLICATE" in error_msg):
++                    if not is_success and self._is_duplicate_success(error_msg):
+@@ -186 +220 @@ class PolishTaskService:
+-                        logger.info(f"【{self.task_name}】账号 {account.account_id} 商品 {item.item_id} 今天已擦亮过，视为成功")
++                        logger.info(f"【{self.task_name}】账号 {masked_account_id} 商品 {self._mask_identifier(item.item_id)} 今天已擦亮过，视为成功")
+@@ -193 +227 @@ class PolishTaskService:
+-                        logger.info(f"【{self.task_name}】账号 {account.account_id} 商品 {item.item_id} 擦亮成功")
++                        logger.info(f"【{self.task_name}】账号 {masked_account_id} 商品 {self._mask_identifier(item.item_id)} 擦亮成功")
+@@ -206 +240 @@ class PolishTaskService:
+-                        logger.warning(f"【{self.task_name}】账号 {account.account_id} 商品 {item.item_id} 擦亮失败: {error_msg}")
++                        logger.warning(f"【{self.task_name}】账号 {masked_account_id} 商品 {self._mask_identifier(item.item_id)} 擦亮失败: {self._classify_error(error_msg)}")
+@@ -209 +243 @@ class PolishTaskService:
+-                        if 'SESSION_EXPIRED' in error_msg or 'Cookie中没有找到_m_h5_tk' in error_msg or 'TOKEN_EMPTY' in error_msg or '令牌为空' in error_msg or '已掉线' in error_msg or '请重新登录' in error_msg:
++                        if self._is_session_error(error_msg):
+@@ -214 +248,5 @@ class PolishTaskService:
+-                            trigger_password_login_async(account.account_id)
++                            if self._has_auto_login_credentials(account):
++                                trigger_password_login_async(account.account_id)
++                                refresh_action = "password_login_scheduled"
++                            else:
++                                refresh_action = "no_credentials/login_required"
+@@ -216,2 +254,2 @@ class PolishTaskService:
+-                                f"【{self.task_name}】账号 {account.account_id} 登录态异常，"
+-                                f"已标记冷却并触发后台密码登录，跳过剩余商品: {error_msg}"
++                                f"【{self.task_name}】账号 {masked_account_id} 登录态异常，"
++                                f"refresh_action={refresh_action}，跳过剩余商品: {self._classify_error(error_msg)}"
+@@ -234 +272 @@ class PolishTaskService:
+-                                f"【{self.task_name}】账号 {account.account_id} 商品 {item.item_id} "
++                                f"【{self.task_name}】账号 {masked_account_id} 商品 {self._mask_identifier(item.item_id)} "
+@@ -254 +292 @@ class PolishTaskService:
+-                    logger.error(f"【{self.task_name}】账号 {account.account_id} 商品 {item.item_id} 擦亮异常: {error_msg}")
++                    logger.error(f"【{self.task_name}】账号 {masked_account_id} 商品 {self._mask_identifier(item.item_id)} 擦亮异常: {self._classify_error(error_msg)}")
+@@ -270 +308 @@ class PolishTaskService:
+-                f"【{self.task_name}】账号 {account.account_id} 处理完成，"
++                f"【{self.task_name}】账号 {masked_account_id} 处理完成，"
+@@ -277 +315 @@ class PolishTaskService:
+-            logger.error(f"【{self.task_name}】处理账号 {account.account_id} 失败: {e}")
++            logger.error(f"【{self.task_name}】处理账号 {masked_account_id} 失败: {e}")
+@@ -280 +318,6 @@ class PolishTaskService:
+-    async def _get_unpolished_items(self, session: AsyncSession, account_pk: int) -> List[XYCatalogItem]:
++    async def _get_unpolished_items(
++        self,
++        session: AsyncSession,
++        account_pk: int,
++        limit: int | None = None,
++    ) -> List[XYCatalogItem]:
+@@ -291,0 +335,2 @@ class PolishTaskService:
++        if limit is not None:
++            stmt = stmt.limit(limit)
+@@ -309 +354 @@ class PolishTaskService:
+-        max_retry = 3
++        max_token_retries = 1
+@@ -383,0 +429,3 @@ class PolishTaskService:
++                    ret_list = result.get('ret', []) if isinstance(result, dict) else []
++                    ret_code = self._ret_code(ret_list)
++                    has_set_cookie = 'set-cookie' in response.headers
+@@ -385 +433 @@ class PolishTaskService:
+-                    # 打印接口返回值
++                    # 打印脱敏接口返回值
+@@ -387 +435,2 @@ class PolishTaskService:
+-                        f"擦亮商品接口返回: item_id={item_id}, retry_count={retry_count}, result={result}"
++                        f"擦亮商品接口返回: item_id={self._mask_identifier(item_id)}, "
++                        f"retry_count={retry_count}, ret_code={ret_code}, set_cookie={has_set_cookie}"
+@@ -400 +449 @@ class PolishTaskService:
+-                        if '宝贝已经擦亮过了' in error_msg or 'IDLEITEM_POLISH_AGAIN' in error_msg:
++                        if self._is_duplicate_success(error_msg):
+@@ -404 +452,0 @@ class PolishTaskService:
+-                        ret_list = result.get('ret', [])
+@@ -406 +454 @@ class PolishTaskService:
+-                            if retry_count < max_retry - 1:
++                            if retry_count < max_token_retries:
+@@ -408,2 +456,2 @@ class PolishTaskService:
+-                                    f"商品 {item_id} 擦亮令牌过期，"
+-                                    f"已更新Cookie，准备重试({retry_count + 1}/{max_retry - 1})"
++                                    f"商品 {self._mask_identifier(item_id)} 擦亮令牌过期，"
++                                    f"已更新Cookie，准备重试({retry_count + 1}/{max_token_retries})"
+@@ -417 +465 @@ class PolishTaskService:
+-            return {"success": False, "message": f"商品 {item_id} 网络请求失败: {e}"}
++            return {"success": False, "message": f"NETWORK_ERROR: {type(e).__name__}"}
+@@ -419 +467,65 @@ class PolishTaskService:
+-            return {"success": False, "message": f"商品 {item_id} 擦亮异常: {e}"}
++            return {"success": False, "message": f"POLISH_ERROR: {type(e).__name__}"}
++
++    async def _is_platform_day_ready(self) -> bool:
++        try:
++            redis_client = await get_redis_client()
++            platform_day = await redis_client.get(self.PLATFORM_DAY_KEY)
++        except Exception as e:
++            logger.error(f"【{self.task_name}】platform_day_read_failed; error={type(e).__name__}")
++            return False
++
++        current_day = get_beijing_now_naive().strftime("%Y-%m-%d")
++        return platform_day == current_day
++
++    @staticmethod
++    def _mask_identifier(value: str | None) -> str:
++        if not value:
++            return "missing"
++        value = str(value)
++        if len(value) <= 4:
++            return "***"
++        return f"{value[:2]}***{value[-2:]}"
++
++    @staticmethod
++    def _ret_code(ret_list: list) -> str:
++        if not ret_list:
++            return "missing"
++        return str(ret_list[0]).split("::", 1)[0]
++
++    @staticmethod
++    def _is_duplicate_success(error_msg: str) -> bool:
++        return (
++            "一天只能擦亮一次" in error_msg
++            or "宝贝已经擦亮过了" in error_msg
++            or "POLISH_DUPLICATE" in error_msg
++            or "IDLEITEM_POLISH_AGAIN" in error_msg
++        )
++
++    @staticmethod
++    def _is_session_error(error_msg: str) -> bool:
++        return (
++            "SESSION_EXPIRED" in error_msg
++            or "Cookie中没有找到_m_h5_tk" in error_msg
++            or "TOKEN_EMPTY" in error_msg
++            or "令牌为空" in error_msg
++            or "已掉线" in error_msg
++            or "请重新登录" in error_msg
++        )
++
++    @staticmethod
++    def _classify_error(error_msg: str) -> str:
++        if not error_msg:
++            return "unknown"
++        if "TOKEN_EXOIRED" in error_msg or "TOKEN_EXPIRED" in error_msg:
++            return "token_expired"
++        if PolishTaskService._is_session_error(error_msg):
++            return "session_expired"
++        if PolishTaskService._is_duplicate_success(error_msg):
++            return "duplicate_success"
++        if "UNSUPPORTED_ITEM_STATUS" in error_msg:
++            return "unsupported_item_status"
++        return str(error_msg).split("::", 1)[0][:80]
++
++    @staticmethod
++    def _has_auto_login_credentials(account: XYAccount) -> bool:
++        return bool(getattr(account, "username", None) and getattr(account, "login_password", None))
+@@ -486 +598,4 @@ class PolishTaskService:
+-                logger.info(f"【{self.task_name}】账号 {account_id} 商品 {item_id} 处理成功")
++                logger.info(
++                    f"【{self.task_name}】账号 {self._mask_identifier(account_id)} "
++                    f"商品 {self._mask_identifier(item_id)} 处理成功"
 +                )
+@@ -488 +603,4 @@ class PolishTaskService:
+-                logger.debug(f"【{self.task_name}】账号 {account_id} 商品 {item_id} 处理失败: {error_message}")
++                logger.debug(
++                    f"【{self.task_name}】账号 {self._mask_identifier(account_id)} "
++                    f"商品 {self._mask_identifier(item_id)} 处理失败: {self._classify_error(error_message or '')}"
++                )
+diff --git a/tests/test_chg0018_auto_polish_safety.py b/tests/test_chg0018_auto_polish_safety.py
+new file mode 100644
+index 0000000..ba1cef8
+--- /dev/null
++++ b/tests/test_chg0018_auto_polish_safety.py
+@@ -0,0 +1,70 @@
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++POLISH_TASK = ROOT / "scheduler/app/services/scheduler/polish_task.py"
++DAY_SWITCH_TASK = ROOT / "scheduler/app/services/scheduler/day_switch_task.py"
++
++
++def _source(path: Path) -> str:
++    return path.read_text(encoding="utf-8")
++
++
++def test_polish_execute_supports_account_scope_and_item_limit():
++    source = _source(POLISH_TASK)
++
++    assert "account_ids: set[str] | None = None" in source
++    assert "max_items_per_account: int | None = None" in source
++    assert "XYAccount.account_id.in_(account_ids)" in source
++    assert "limit=max_items_per_account" in source
++    assert "stmt = stmt.limit(limit)" in source
++
++
++def test_polish_waits_for_platform_day_and_fails_closed_on_redis_read_error():
++    source = _source(POLISH_TASK)
++
++    assert "PLATFORM_DAY_KEY = \"platform:day\"" in source
++    assert "if not await self._is_platform_day_ready()" in source
++    assert "platform_day_read_failed" in source
++    assert "return False" in source
++
++
++def test_no_credentials_do_not_trigger_password_login_from_polish():
++    source = _source(POLISH_TASK)
++
++    assert "if self._has_auto_login_credentials(account):" in source
++    assert "trigger_password_login_async(account.account_id)" in source
++    assert "no_credentials/login_required" in source
++    assert "account.status" not in source
++
++
++def test_polish_logs_are_sanitized_and_retry_is_bounded():
++    source = _source(POLISH_TASK)
++
++    assert "max_token_retries = 1" in source
++    assert "result={result}" not in source
++    assert "ret_code={ret_code}" in source
++    assert "set_cookie={has_set_cookie}" in source
++    assert "_mask_identifier(item_id)" in source
++    assert "NETWORK_ERROR: {type(e).__name__}" in source
++
++
++def test_duplicate_polish_results_are_successful():
++    source = _source(POLISH_TASK)
++
++    assert "def _is_duplicate_success" in source
++    assert "POLISH_DUPLICATE" in source
++    assert "IDLEITEM_POLISH_AGAIN" in source
++    assert "if not is_success and self._is_duplicate_success(error_msg):" in source
++    assert "if self._is_duplicate_success(error_msg):" in source
++
++
++def test_day_switch_distinguishes_missing_key_from_redis_failure():
++    source = _source(DAY_SWITCH_TASK)
++
++    assert "PLATFORM_DAY_READ_FAILED = object()" in source
++    assert "if platform_day is self.PLATFORM_DAY_READ_FAILED:" in source
++    assert "platform_day_read_failed; fail_closed=true" in source
++    assert "return self.PLATFORM_DAY_READ_FAILED" in source
++    assert "if not await self._update_platform_day(current_day):" in source
++    assert "platform_day_update_failed" in source
 diff --git a/tests/test_chg0018_credential_safety.py b/tests/test_chg0018_credential_safety.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..f2db763f899c2921226597b07c568637ce1e7613
+index 0000000..f2db763
 --- /dev/null
 +++ b/tests/test_chg0018_credential_safety.py
 @@ -0,0 +1,59 @@
@@ -783,7 +1030,7 @@ index 0000000000000000000000000000000000000000..f2db763f899c2921226597b07c568637
 +        assert "cookie field count" in source
 diff --git a/tests/test_chg0018_profile_publish_readiness.py b/tests/test_chg0018_profile_publish_readiness.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..99703ca72c0eda9cde9a230e32bb5792d90c0678
+index 0000000..99703ca
 --- /dev/null
 +++ b/tests/test_chg0018_profile_publish_readiness.py
 @@ -0,0 +1,68 @@
@@ -855,3 +1102,90 @@ index 0000000000000000000000000000000000000000..99703ca72c0eda9cde9a230e32bb5792
 +    assert "await self._release_profile_guards()" in source
 +    assert "class BrowserBroker" not in source
 +    assert "new_service" not in source
+diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
+index 49ac450..e30d031 100644
+--- a/websocket/app/api/routes/internal.py
++++ b/websocket/app/api/routes/internal.py
+@@ -2321 +2321 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-                logger.info(f"【{account_id}】[续期前全量Cookies] {cookies_str}")
++                logger.info(f"[{account_id}] cookie renew before field count: {len(trans_cookies(cookies_str) or {})}")
+@@ -2335,2 +2335,4 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-                # 记录续期后的全量cookies（不管成功失败都打印）
+-                logger.info(f"【{account_id}】[续期后全量Cookies] {renew_result.new_cookies_str or cookies_str}")
++                logger.info(
++                    f"[{account_id}] cookie renew after field count: "
++                    f"{len(trans_cookies(renew_result.new_cookies_str or cookies_str) or {})}"
++                )
+@@ -2369,8 +2371,4 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-            err_msg = f"{_api_renew_fail_msg}，且未配置用户名或密码，账号已自动禁用"
+-            logger.warning(f"【内部API】账号 {account_id} 未配置用户名或密码")
+-            # 自动禁用账号
+-            try:
+-                db_manager.disable_account(account_id, reason=f"{trigger_reason}且未配置密码，自动禁用")
+-                logger.warning(f"【内部API】账号 {account_id} 已自动禁用")
+-            except Exception as disable_e:
+-                logger.error(f"【内部API】自动禁用账号失败: {disable_e}")
++            err_msg = f"{_api_renew_fail_msg}; no credentials configured"
++            logger.warning(
++                f"[internal-api] account {account_id} has no credentials; account status is unchanged"
++            )
+@@ -2382 +2380 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-                "message": "未配置用户名或密码，账号已自动禁用",
++                "message": "no credentials configured; account status unchanged",
+@@ -2417,2 +2415 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-            # 记录密码登录获取到的新cookies
+-            logger.info(f"【{account_id}】[密码登录获取的新Cookies] {new_cookies_str}")
++            logger.info(f"[{account_id}] password login returned cookie field count: {len(result)}")
+@@ -2515,6 +2512,3 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-            disable_reason = error_msg if error_msg else "账号密码错误"
+-            try:
+-                db_manager.disable_account(account_id, reason=disable_reason)
+-                logger.warning(f"【内部API】检测到账密错误，账号 {account_id} 已自动禁用，原因: {disable_reason}")
+-            except Exception as disable_e:
+-                logger.error(f"【内部API】禁用账号失败: {disable_e}")
++            logger.warning(
++                f"[internal-api] bad_credentials recorded for account {account_id}; account status is unchanged"
++            )
+diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
+index 9dff7cd..0517943 100644
+--- a/websocket/app/services/xianyu/cookie_token_manager.py
++++ b/websocket/app/services/xianyu/cookie_token_manager.py
+@@ -1286,11 +1286,3 @@ class CookieTokenManager:
+-                        # 未配置密码，禁用账号
+-                        logger.debug(f"【{self.cookie_id}】Session过期且未配置密码，立即禁用账号")
+-
+-                        # 自动禁用账号
+-                        try:
+-                            from common.db.compat import db_manager
+-                            db_manager.disable_account(self.cookie_id, reason="账号已掉线且未配置账号密码，自动禁用")
+-                            logger.warning(f"【{self.cookie_id}】账号已自动禁用")
+-                        except Exception as disable_e:
+-                            logger.error(f"【{self.cookie_id}】自动禁用账号失败: {self._safe_str(disable_e)}")
+-
++                        logger.warning(
++                            f"[{self.cookie_id}] no_credentials recorded after session expiry; account status is unchanged"
++                        )
+@@ -1452,2 +1444 @@ class CookieTokenManager:
+-                # 记录续期前的全量cookies
+-                logger.info(f"【{self.cookie_id}】[续期前全量Cookies] {self.cookies_str}")
++                logger.info(f"[{self.cookie_id}] cookie renew before field count: {len(self.cookies)}")
+@@ -1468,2 +1459 @@ class CookieTokenManager:
+-                # 记录续期后的全量cookies（不管成功失败都打印）
+-                logger.info(f"【{self.cookie_id}】[续期后全量Cookies] {self.cookies_str}")
++                logger.info(f"[{self.cookie_id}] cookie renew after field count: {len(self.cookies)}")
+@@ -1594,2 +1584 @@ class CookieTokenManager:
+-                # 记录密码登录获取到的新cookies
+-                logger.info(f"【{self.cookie_id}】[密码登录获取的新Cookies] {new_cookies_str}")
++                logger.info(f"[{self.cookie_id}] password login returned cookie field count: {len(result)}")
+@@ -1683,8 +1672,3 @@ class CookieTokenManager:
+-                # 直接使用原始错误文案作为禁用原因（不加前缀），与内层 _disable_account_on_timeout 保持一致
+-                disable_reason = error_msg if error_msg else "账号密码错误"
+-                try:
+-                    from common.db.compat import db_manager
+-                    db_manager.disable_account(self.cookie_id, reason=disable_reason)
+-                    logger.warning(f"【{self.cookie_id}】检测到账密错误，账号已自动禁用，原因: {disable_reason}")
+-                except Exception as disable_e:
+-                    logger.error(f"【{self.cookie_id}】禁用账号失败: {self._safe_str(disable_e)}")
++                logger.warning(
++                    f"[{self.cookie_id}] bad_credentials recorded; account status is unchanged"
++                )

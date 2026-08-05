@@ -1,6 +1,6 @@
 # CHG-0018 Acceptance
 
-Status: VERIFYING
+Status: IMPLEMENTING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -19,6 +19,13 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Batch publish does not keep one long-lived context for the whole batch or all accounts.
 - Each browser task acquires at most one account lock and one global browser slot.
 - No real account operation, message sending, true publish, CHG-0017 T17, archive, merge, or PR #26 state change occurs.
+- Runtime verification may perform only the project-owner authorized CANARY-A01 read-only Profile/preflight checks and at most one native auto-polish canary item. It must not create products, publish products, send messages, start a second scheduler path, or affect PR #26.
+- Auto-polish must use the pinned upstream native scheduler path with an explicit account scope and max-one-item limit for the canary.
+- Redis platform day read failures must fail closed without resetting polish state or running polish.
+- Missing platform day must block polish until the day switch task safely initializes the platform day after a successful item-state reset.
+- Missing or bad account credentials in polish must not trigger password login for accounts without complete credentials and must not disable the account.
+- Polish API logs must not record Cookie, Token, full API responses, or full account identifiers.
+- Token-expiry retry during polish is bounded to one retry.
 
 ## Test matrix
 
@@ -39,7 +46,7 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Targeted upstream test: `python -m pytest tests/test_chg0018_credential_safety.py -q`.
 - Frontend build: `npm run build`.
 - Patch artifact: `vendor/patches/xianyu-auto-reply/4c5e1ac-chg0018-account-profile-publish-safety.patch`.
-- Patch SHA256: `8FA58C8F2674EE7A16C36689F962612DC1619C211ACAA390105778A64CD20EEE`.
+- Patch SHA256: `F15F2161213EE7CD8B952D3DD475DEA18BA12F56570E332CE4711BD87D6350E2`.
 
 ## P1-P4 result
 

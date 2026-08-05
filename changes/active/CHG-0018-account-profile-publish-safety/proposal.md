@@ -1,6 +1,6 @@
 # CHG-0018 Account Profile Publish Safety
 
-Status: VERIFYING
+Status: IMPLEMENTING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -19,6 +19,7 @@ Smallest success test: P0 prevents raw password return and false disablement; P1
 - P2: initialize or repair Profile only when missing or explicitly requested.
 - P3: share read-only publish preflight diagnostics with formal publish.
 - P4: use the existing canonical browser locking/slot combination exactly once per task.
+- Runtime expansion: complete CANARY-A01 UI/Profile/preflight validation and harden the pinned upstream native auto-polish chain for one scoped canary item without product creation, product publish, or test messages.
 
 ## Upstream capability audit
 
@@ -60,11 +61,13 @@ No overlapping local production code is added. The patch can be retired when ups
 
 ## Allowed files
 
-Allowed changes are limited to CHG-0018 governance files, governance-generated state, targeted tests, the independent CHG-0018 vendor patch artifact, and the pinned upstream files required by P0-P4.
+Allowed changes are limited to CHG-0018 governance files, governance-generated state, targeted tests, the independent CHG-0018 vendor patch artifact, the pinned upstream files required by P0-P4, and the pinned upstream native scheduler files required to safely execute the authorized CANARY-A01 auto-polish canary.
 
 ## Forbidden work
 
 No database tables, services, queues, Browser Broker, sender, Token system, login system, Docker/Compose changes, real account operation, real publish, message sending, CHG-0017 T17, PR #26 state change, archive, or merge.
+
+The runtime expansion must reuse upstream native scheduler paths and must not create a second polish service, task queue, table, browser polish implementation, sender, or account runtime.
 
 ## Rollback boundary
 
