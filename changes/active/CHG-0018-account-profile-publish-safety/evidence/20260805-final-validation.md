@@ -1,7 +1,7 @@
 # CHG-0018 Final Validation Evidence
 
 Change ID: CHG-0018-account-profile-publish-safety
-Status: IMPLEMENTING
+Status: VERIFYING
 Evidence date: 2026-08-05
 
 ## Scope
@@ -43,6 +43,19 @@ Evidence date: 2026-08-05
 - `python -m pytest --collect-only -q`: 594 tests collected.
 - `git diff --check`: passed with Windows line-ending warnings only.
 - Known warning baseline: Starlette/httpx deprecation warning from FastAPI TestClient.
+
+## Remote validation
+
+- Remote branch: `origin/feat/CHG-0018-account-profile-publish-safety`
+- Implementation HEAD: `292bfe55f80090fe64526c3f416277221c230695`
+- Remote implementation HEAD: `292bfe55f80090fe64526c3f416277221c230695`
+- CHG-0017 remote HEAD: `8f1b0487761f324840eec15251f71bbd3f534e42`
+- Push CI for implementation HEAD:
+  - `quality`: success
+  - `tests`: success
+  - `security`: success
+- PR #26 state changed: no.
+- PR #26 remained Draft/Open/Unmerged.
 
 ## Safety
 

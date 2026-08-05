@@ -18,16 +18,16 @@ def project_state() -> dict[str, object]:
     return json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
 
 
-def test_chg0018_is_active_implementing_change() -> None:
+def test_chg0018_is_active_verifying_change() -> None:
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         text = read(CHANGE_DIR / name)
         assert f"Change ID: {CHANGE_ID}" in text
-        assert "Status: IMPLEMENTING" in text
+        assert "Status: VERIFYING" in text
 
     state = project_state()
     assert state["active_change"] == {
         "id": CHANGE_ID,
-        "status": "IMPLEMENTING",
+        "status": "VERIFYING",
         "path": f"changes/active/{CHANGE_ID}",
     }
 
@@ -113,3 +113,7 @@ def test_final_validation_evidence_is_recorded() -> None:
     assert "CHG-0018 Final Validation Evidence" in evidence_text
     assert "Production operations executed: none" in evidence_text
     assert "PR #26 state changed: no" in evidence_text
+    assert "Remote branch: `origin/feat/CHG-0018-account-profile-publish-safety`" in evidence_text
+    assert "`quality`: success" in evidence_text
+    assert "`tests`: success" in evidence_text
+    assert "`security`: success" in evidence_text

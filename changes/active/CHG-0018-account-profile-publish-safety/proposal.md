@@ -1,6 +1,6 @@
 # CHG-0018 Account Profile Publish Safety
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
