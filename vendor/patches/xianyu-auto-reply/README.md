@@ -91,8 +91,10 @@ HMAC values.
 - Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
 - Patch parse check: passed with `git apply --numstat --unidiff-zero`
 - Patch staged-base apply check: passed with `git apply --check --cached --whitespace=error-all --unidiff-zero`
-- Targeted tests: passed with `python -m pytest tests/test_chg0018_credential_safety.py -q`
+- Targeted tests: passed with `python -m pytest tests/test_chg0018_credential_safety.py tests/test_chg0018_profile_publish_readiness.py -q`
+- Combined CHG-0017 regression and CHG-0018 targeted tests: 68 passed
 - Frontend build: passed with `npm run build`
+- Frontend lint note: `npm run lint` exists, but the upstream frontend checkout has no ESLint config file; recorded as a non-blocking upstream tooling gap.
 - Changed files:
   - `backend-web/app/api/routes/cookies.py`
   - `backend-web/app/services/account_service.py`

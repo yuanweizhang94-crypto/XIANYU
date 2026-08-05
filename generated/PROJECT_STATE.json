@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 8,
-    "completed": 7,
-    "next_task": "T8 Generate CHG-0018 patch artifact, evidence, and full validation.",
+    "completed": 8,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Implement P0 credential safety and false-disable prevention.",
@@ -41,7 +41,7 @@
       },
       {
         "text": "T8 Generate CHG-0018 patch artifact, evidence, and full validation.",
-        "completed": false
+        "completed": true
       }
     ]
   },

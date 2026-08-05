@@ -97,3 +97,19 @@ def test_profile_publish_readiness_result_is_recorded() -> None:
     assert "preflight_publish_form()" in acceptance
     assert "`profile_missing` and `browser_busy`" in acceptance
     assert "one global slot and one account lock" in acceptance
+
+
+def test_final_validation_evidence_is_recorded() -> None:
+    tasks = read(CHANGE_DIR / "tasks.md")
+    acceptance = read(CHANGE_DIR / "acceptance.md")
+    evidence = CHANGE_DIR / "evidence" / "20260805-final-validation.md"
+
+    assert "- [x] T8 Generate CHG-0018 patch artifact, evidence, and full validation." in tasks
+    assert "Combined upstream targeted and regression tests: 68 passed." in acceptance
+    assert "Frontend build: passed with `npm run build`." in acceptance
+    assert "non-blocking upstream tooling gap" in acceptance
+    assert evidence.is_file()
+    evidence_text = read(evidence)
+    assert "CHG-0018 Final Validation Evidence" in evidence_text
+    assert "Production operations executed: none" in evidence_text
+    assert "PR #26 state changed: no" in evidence_text

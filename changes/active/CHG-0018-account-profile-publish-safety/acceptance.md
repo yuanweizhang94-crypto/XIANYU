@@ -52,6 +52,18 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Targeted upstream tests: `python -m pytest tests/test_chg0018_credential_safety.py tests/test_chg0018_profile_publish_readiness.py -q`.
 - CHG-0017 regression tests: `python -m pytest tests/test_chg0017_publish_login_submit.py tests/test_chg0017_reply_allowlist.py tests/test_chg0017_ai_prompt_validation.py tests/test_chg0017_gemini_response_parser.py -q`.
 
+## Final validation result
+
+- Combined upstream targeted and regression tests: 68 passed.
+- Frontend build: passed with `npm run build`.
+- Frontend lint discovery: `npm run lint` exists, but the upstream frontend checkout does not contain an ESLint config file; this is recorded as a non-blocking upstream tooling gap, not a CHG-0018 code failure.
+- Patch parse check: passed with `git apply --numstat --unidiff-zero`.
+- Patch staged-base apply check: passed with `git apply --check --cached --whitespace=error-all --unidiff-zero`.
+- Patch diff check: passed for `vendor/patches/xianyu-auto-reply/4c5e1ac-chg0018-account-profile-publish-safety.patch`.
+- Evidence: `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260805-final-validation.md`.
+- Production operations executed: none.
+- PR #26 state changed: no.
+
 ## Upstream capability audit
 
 Acceptance is based on the pinned upstream account, password refresh, Cookie renewal, publisher, preflight diagnostics, and browser concurrency paths.

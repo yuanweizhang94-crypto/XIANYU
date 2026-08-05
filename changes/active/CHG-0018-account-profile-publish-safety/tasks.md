@@ -11,7 +11,7 @@ Change ID: CHG-0018-account-profile-publish-safety
 - [x] T5 Implement P3 shared read-only publish preflight.
 - [x] T6 Implement P4 canonical browser lock usage for publish readiness paths.
 - [x] T7 Run P1-P4 targeted tests and commit the Profile readiness boundary.
-- [ ] T8 Generate CHG-0018 patch artifact, evidence, and full validation.
+- [x] T8 Generate CHG-0018 patch artifact, evidence, and full validation.
 
 ## Upstream capability audit
 
