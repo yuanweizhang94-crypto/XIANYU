@@ -8,16 +8,16 @@
   },
   "tasks": {
     "total": 8,
-    "completed": 0,
-    "next_task": "T1 Implement P0 credential safety and false-disable prevention.",
+    "completed": 2,
+    "next_task": "T3 Implement P1 persistent Profile publish readiness.",
     "items": [
       {
         "text": "T1 Implement P0 credential safety and false-disable prevention.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T2 Run P0 targeted tests and commit the P0 boundary.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T3 Implement P1 persistent Profile publish readiness.",

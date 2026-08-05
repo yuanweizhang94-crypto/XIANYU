@@ -68,3 +68,15 @@ def test_required_rollback_boundaries_are_recorded() -> None:
     assert "P0 safety" in proposal
     assert "P1-P4 Profile readiness" in proposal
     assert "tests/vendor patch/evidence" in proposal
+
+
+def test_p0_credential_safety_result_is_recorded() -> None:
+    tasks = read(CHANGE_DIR / "tasks.md")
+    acceptance = read(CHANGE_DIR / "acceptance.md")
+    patch = ROOT / "vendor" / "patches" / "xianyu-auto-reply" / "4c5e1ac-chg0018-account-profile-publish-safety.patch"
+
+    assert "- [x] T1 Implement P0 credential safety and false-disable prevention." in tasks
+    assert "- [x] T2 Run P0 targeted tests and commit the P0 boundary." in tasks
+    assert "Raw `login_password` is removed" in acceptance
+    assert "81373BE04B3BFCDB29D028AC4432B26B0BA93A175BD58FEFE574ADE7ED2AFE23" in acceptance
+    assert patch.is_file()

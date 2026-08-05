@@ -1,0 +1,393 @@
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+index c623a06aa7a9a32cd3c94732c9af1d0377162754..2e6805bd5fbd60cacbeb5624ce01ad4239a1d441 100644
+--- a/backend-web/app/api/routes/cookies.py
++++ b/backend-web/app/api/routes/cookies.py
+@@ -218 +218 @@ async def list_cookie_details(
+-                login_password=account.login_password or "",
++                has_password=bool(account.username and account.login_password),
+@@ -362 +362 @@ async def list_cookie_details_paginated(
+-            "login_password": account.login_password or "",
++            "has_password": bool(account.username and account.login_password),
+@@ -746,0 +747 @@ async def update_account_login_info(
++        clear_login_password=payload.clear_login_password,
+diff --git a/backend-web/app/services/account_service.py b/backend-web/app/services/account_service.py
+index 752c006698b22cc1e887432c0243317a4100f490..67457193292646936d39cb296574c0bcb0036805 100644
+--- a/backend-web/app/services/account_service.py
++++ b/backend-web/app/services/account_service.py
+@@ -411,0 +412 @@ class AccountService:
++        clear_login_password: bool = False,
+@@ -417 +418,3 @@ class AccountService:
+-        if login_password is not None:
++        if clear_login_password:
++            account.login_password = None
++        elif login_password is not None:
+diff --git a/common/schemas/account.py b/common/schemas/account.py
+index 948911e272b7264131b562f2947668fc1a054968..155bc190518dba82bc0a1cab0fd83e46d6e105cd 100644
+--- a/common/schemas/account.py
++++ b/common/schemas/account.py
+@@ -42 +42 @@ class AccountDetail(BaseModel):
+-    login_password: str | None = None
++    has_password: bool = False
+@@ -95,0 +96 @@ class AccountLoginInfoUpdate(BaseModel):
++    clear_login_password: bool = Field(False, description="明确清空登录密码")
+diff --git a/frontend/src/api/accounts.ts b/frontend/src/api/accounts.ts
+index d89f14acb7626a0044d04e576f2635c514df96e8..604d300c6b26eedd90a85022637402cc2e0239a7 100644
+--- a/frontend/src/api/accounts.ts
++++ b/frontend/src/api/accounts.ts
+@@ -85 +85 @@ export const getAccountDetailsPaginated = async (
+-    login_password?: string
++    has_password?: boolean
+@@ -163 +163 @@ export const getAccountDetailsPaginated = async (
+-      login_password: item.login_password,
++      has_password: Boolean(item.has_password),
+@@ -335 +335 @@ export const updateAccountLoginInfo = (
+-  data: { username?: string; login_password?: string; show_browser?: boolean }
++  data: { username?: string; login_password?: string; clear_login_password?: boolean; show_browser?: boolean }
+diff --git a/frontend/src/pages/accounts/Accounts.tsx b/frontend/src/pages/accounts/Accounts.tsx
+index a1cf816e3f88d170ac4c130bbb7f4ed1151d9fa8..4c6d789af40b5de3a2d66e22ccf715466e6f5c6e 100644
+--- a/frontend/src/pages/accounts/Accounts.tsx
++++ b/frontend/src/pages/accounts/Accounts.tsx
+@@ -191,0 +192,5 @@ export function Accounts() {
++  const [editCredentialMode, setEditCredentialMode] = useState(false)
++  const [editUsernameDirty, setEditUsernameDirty] = useState(false)
++  const [editPasswordDirty, setEditPasswordDirty] = useState(false)
++  const [editShowBrowserDirty, setEditShowBrowserDirty] = useState(false)
++  const [editClearPassword, setEditClearPassword] = useState(false)
+@@ -512,0 +518,6 @@ export function Accounts() {
++    setEditPassword('')
++    setEditCredentialMode(false)
++    setEditUsernameDirty(false)
++    setEditPasswordDirty(false)
++    setEditShowBrowserDirty(false)
++    setEditClearPassword(false)
+@@ -1073 +1084 @@ export function Accounts() {
+-    setEditPassword(account.login_password || '')
++    setEditPassword('')
+@@ -1074,0 +1086,5 @@ export function Accounts() {
++    setEditCredentialMode(false)
++    setEditUsernameDirty(false)
++    setEditPasswordDirty(false)
++    setEditShowBrowserDirty(false)
++    setEditClearPassword(false)
+@@ -1102 +1117,0 @@ export function Accounts() {
+-      // 更新登录信息（用户名、密码、显示浏览器）
+@@ -1104,3 +1119,6 @@ export function Accounts() {
+-        editUsername !== (editingAccount.username || '') ||
+-        editPassword !== (editingAccount.login_password || '') ||
+-        editShowBrowser !== (editingAccount.show_browser || false)
++        editCredentialMode && (
++          editUsernameDirty ||
++          editPasswordDirty ||
++          editClearPassword ||
++          editShowBrowserDirty
++        )
+@@ -1109,5 +1127,18 @@ export function Accounts() {
+-        promises.push(updateAccountLoginInfo(editingAccount.id, {
+-          username: editUsername,
+-          login_password: editPassword,
+-          show_browser: editShowBrowser,
+-        }))
++        const loginInfoPayload: {
++          username?: string
++          login_password?: string
++          clear_login_password?: boolean
++          show_browser?: boolean
++        } = {}
++
++        if (editUsernameDirty) loginInfoPayload.username = editUsername
++        if (editShowBrowserDirty) loginInfoPayload.show_browser = editShowBrowser
++        if (editClearPassword) {
++          loginInfoPayload.clear_login_password = true
++        } else if (editPasswordDirty) {
++          loginInfoPayload.login_password = editPassword
++        }
++
++        if (Object.keys(loginInfoPayload).length > 0) {
++          promises.push(updateAccountLoginInfo(editingAccount.id, loginInfoPayload))
++        }
+@@ -2425 +2456 @@ export function Accounts() {
+-                        (account.username && account.login_password)
++                        account.has_password
+@@ -2430 +2461 @@ export function Accounts() {
+-                        {(account.username && account.login_password) ? '已配置' : '未配置'}
++                        {account.has_password ? '已配置' : '未配置'}
+@@ -3123,10 +3154,12 @@ export function Accounts() {
+-                  <div className="space-y-3">
+-                    <div className="input-group">
+-                      <label className="input-label">登录用户名(手机号)</label>
+-                      <input
+-                        type="text"
+-                        value={editUsername}
+-                        onChange={(e) => setEditUsername(e.target.value)}
+-                        className="input-ios"
+-                        placeholder="闲鱼账号/手机号"
+-                      />
++                  {!editCredentialMode ? (
++                    <div className="space-y-3">
++                      <div className="text-xs text-slate-500 dark:text-slate-400">
++                        Credential status: {editingAccount?.has_password ? 'Configured' : 'Not configured'}
++                      </div>
++                      <button
++                        type="button"
++                        className="btn-ios-secondary"
++                        onClick={() => setEditCredentialMode(true)}
++                      >
++                        Edit auto-login credentials
++                      </button>
+@@ -3134,3 +3167,4 @@ export function Accounts() {
+-                    <div className="input-group">
+-                      <label className="input-label">登录密码</label>
+-                      <div className="relative">
++                  ) : (
++                    <div className="space-y-3">
++                      <div className="input-group">
++                        <label className="input-label">Login username / phone</label>
+@@ -3138,5 +3172,9 @@ export function Accounts() {
+-                          type={editPasswordVisible ? 'text' : 'password'}
+-                          value={editPassword}
+-                          onChange={(e) => setEditPassword(e.target.value)}
+-                          className="input-ios pr-10"
+-                          placeholder="登录密码"
++                          type="text"
++                          value={editUsername}
++                          onChange={(e) => {
++                            setEditUsername(e.target.value)
++                            setEditUsernameDirty(true)
++                          }}
++                          autoComplete="off"
++                          className="input-ios"
++                          placeholder="Xianyu account or phone"
+@@ -3144,8 +3181,0 @@ export function Accounts() {
+-                        <button
+-                          type="button"
+-                          onClick={() => setEditPasswordVisible((current) => !current)}
+-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+-                          title={editPasswordVisible ? '隐藏密码' : '查看密码'}
+-                        >
+-                          {editPasswordVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+-                        </button>
+@@ -3152,0 +3183,53 @@ export function Accounts() {
++                      <div className="input-group">
++                        <label className="input-label">Login password</label>
++                        <div className="relative">
++                          <input
++                            type={editPasswordVisible ? 'text' : 'password'}
++                            value={editPassword}
++                            onChange={(e) => {
++                              setEditPassword(e.target.value)
++                              setEditPasswordDirty(true)
++                              setEditClearPassword(false)
++                            }}
++                            autoComplete="new-password"
++                            className="input-ios pr-10"
++                            placeholder="Leave blank to keep saved password"
++                            disabled={editClearPassword}
++                          />
++                          <button
++                            type="button"
++                            onClick={() => setEditPasswordVisible((current) => !current)}
++                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
++                            title={editPasswordVisible ? 'Hide password' : 'Show password'}
++                          >
++                            {editPasswordVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
++                          </button>
++                        </div>
++                      </div>
++                      <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
++                        <input
++                          type="checkbox"
++                          checked={editClearPassword}
++                          onChange={(e) => {
++                            setEditClearPassword(e.target.checked)
++                            if (e.target.checked) {
++                              setEditPassword('')
++                              setEditPasswordDirty(false)
++                            }
++                          }}
++                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600"
++                        />
++                        Clear saved password
++                      </label>
++                      <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
++                        <input
++                          type="checkbox"
++                          checked={editShowBrowser}
++                          onChange={(e) => {
++                            setEditShowBrowser(e.target.checked)
++                            setEditShowBrowserDirty(true)
++                          }}
++                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600"
++                        />
++                        Show browser on Windows source deployment
++                      </label>
+@@ -3154,10 +3237 @@ export function Accounts() {
+-                    <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+-                      <input
+-                        type="checkbox"
+-                        checked={editShowBrowser}
+-                        onChange={(e) => setEditShowBrowser(e.target.checked)}
+-                        className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600"
+-                      />
+-                      显示浏览器(只有Windows源码部署用)
+-                    </label>
+-                  </div>
++                  )}
+diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
+index 14835027d0065b78d154c58db5ee8a614807e46e..164e9e50e20d4a5c8d69637de24d01452fd301d5 100644
+--- a/frontend/src/types/index.ts
++++ b/frontend/src/types/index.ts
+@@ -69 +69 @@ export interface Account {
+-  login_password?: string
++  has_password?: boolean
+diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
+index 49ac450e5fc83d1be9456effb7189b7bea929ee3..001005c24d7d924a9ddbc6f9ca9e54f6837f6f44 100644
+--- a/websocket/app/api/routes/internal.py
++++ b/websocket/app/api/routes/internal.py
+@@ -2321 +2321 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-                logger.info(f"【{account_id}】[续期前全量Cookies] {cookies_str}")
++                logger.info(f"[{account_id}] cookie renew before field count: {len(trans_cookies(cookies_str) or {})}")
+@@ -2335,2 +2335,4 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-                # 记录续期后的全量cookies（不管成功失败都打印）
+-                logger.info(f"【{account_id}】[续期后全量Cookies] {renew_result.new_cookies_str or cookies_str}")
++                logger.info(
++                    f"[{account_id}] cookie renew after field count: "
++                    f"{len(trans_cookies(renew_result.new_cookies_str or cookies_str) or {})}"
++                )
+@@ -2369,8 +2371,4 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-            err_msg = f"{_api_renew_fail_msg}，且未配置用户名或密码，账号已自动禁用"
+-            logger.warning(f"【内部API】账号 {account_id} 未配置用户名或密码")
+-            # 自动禁用账号
+-            try:
+-                db_manager.disable_account(account_id, reason=f"{trigger_reason}且未配置密码，自动禁用")
+-                logger.warning(f"【内部API】账号 {account_id} 已自动禁用")
+-            except Exception as disable_e:
+-                logger.error(f"【内部API】自动禁用账号失败: {disable_e}")
++            err_msg = f"{_api_renew_fail_msg}; no credentials configured"
++            logger.warning(
++                f"[internal-api] account {account_id} has no credentials; account status is unchanged"
++            )
+@@ -2382 +2380 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-                "message": "未配置用户名或密码，账号已自动禁用",
++                "message": "no credentials configured; account status unchanged",
+@@ -2417,2 +2415 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-            # 记录密码登录获取到的新cookies
+-            logger.info(f"【{account_id}】[密码登录获取的新Cookies] {new_cookies_str}")
++            logger.info(f"[{account_id}] password login returned cookie field count: {len(result)}")
+@@ -2515,6 +2512,3 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-            disable_reason = error_msg if error_msg else "账号密码错误"
+-            try:
+-                db_manager.disable_account(account_id, reason=disable_reason)
+-                logger.warning(f"【内部API】检测到账密错误，账号 {account_id} 已自动禁用，原因: {disable_reason}")
+-            except Exception as disable_e:
+-                logger.error(f"【内部API】禁用账号失败: {disable_e}")
++            logger.warning(
++                f"[internal-api] bad_credentials recorded for account {account_id}; account status is unchanged"
++            )
+diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
+index 9dff7cdbc3295c01fc1e409afbf3bdaa5a4d454b..af866b7f0c3ad93d2fdb345f6aacd4cb7d2522d1 100644
+--- a/websocket/app/services/xianyu/cookie_token_manager.py
++++ b/websocket/app/services/xianyu/cookie_token_manager.py
+@@ -1286,11 +1286,3 @@ class CookieTokenManager:
+-                        # 未配置密码，禁用账号
+-                        logger.debug(f"【{self.cookie_id}】Session过期且未配置密码，立即禁用账号")
+-
+-                        # 自动禁用账号
+-                        try:
+-                            from common.db.compat import db_manager
+-                            db_manager.disable_account(self.cookie_id, reason="账号已掉线且未配置账号密码，自动禁用")
+-                            logger.warning(f"【{self.cookie_id}】账号已自动禁用")
+-                        except Exception as disable_e:
+-                            logger.error(f"【{self.cookie_id}】自动禁用账号失败: {self._safe_str(disable_e)}")
+-
++                        logger.warning(
++                            f"[{self.cookie_id}] no_credentials recorded after session expiry; account status is unchanged"
++                        )
+@@ -1452,2 +1444 @@ class CookieTokenManager:
+-                # 记录续期前的全量cookies
+-                logger.info(f"【{self.cookie_id}】[续期前全量Cookies] {self.cookies_str}")
++                logger.info(f"[{self.cookie_id}] cookie renew before field count: {len(self.cookies)}")
+@@ -1468,2 +1459 @@ class CookieTokenManager:
+-                # 记录续期后的全量cookies（不管成功失败都打印）
+-                logger.info(f"【{self.cookie_id}】[续期后全量Cookies] {self.cookies_str}")
++                logger.info(f"[{self.cookie_id}] cookie renew after field count: {len(self.cookies)}")
+@@ -1594,2 +1584 @@ class CookieTokenManager:
+-                # 记录密码登录获取到的新cookies
+-                logger.info(f"【{self.cookie_id}】[密码登录获取的新Cookies] {new_cookies_str}")
++                logger.info(f"[{self.cookie_id}] password login returned cookie field count: {len(result)}")
+@@ -1683,8 +1672,3 @@ class CookieTokenManager:
+-                # 直接使用原始错误文案作为禁用原因（不加前缀），与内层 _disable_account_on_timeout 保持一致
+-                disable_reason = error_msg if error_msg else "账号密码错误"
+-                try:
+-                    from common.db.compat import db_manager
+-                    db_manager.disable_account(self.cookie_id, reason=disable_reason)
+-                    logger.warning(f"【{self.cookie_id}】检测到账密错误，账号已自动禁用，原因: {disable_reason}")
+-                except Exception as disable_e:
+-                    logger.error(f"【{self.cookie_id}】禁用账号失败: {self._safe_str(disable_e)}")
++                logger.warning(
++                    f"[{self.cookie_id}] bad_credentials recorded; account status is unchanged"
++                )
+diff --git a/tests/test_chg0018_credential_safety.py b/tests/test_chg0018_credential_safety.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f2db763f899c2921226597b07c568637ce1e7613
+--- /dev/null
++++ b/tests/test_chg0018_credential_safety.py
+@@ -0,0 +1,59 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++from common.schemas.account import AccountDetail, AccountLoginInfoUpdate
++
++
++ROOT = Path(__file__).resolve().parents[1]
++
++
++def read(relative: str) -> str:
++    return (ROOT / relative).read_text(encoding="utf-8")
++
++
++def test_account_detail_does_not_expose_raw_login_password() -> None:
++    fields = AccountDetail.model_fields
++    assert "login_password" not in fields
++    assert "has_password" in fields
++
++
++def test_login_info_update_requires_explicit_password_clear_flag() -> None:
++    payload = AccountLoginInfoUpdate()
++    assert payload.login_password is None
++    assert payload.clear_login_password is False
++
++
++def test_account_routes_return_presence_flag_not_raw_password() -> None:
++    source = read("backend-web/app/api/routes/cookies.py")
++    assert "login_password=account.login_password" not in source
++    assert '"login_password": account.login_password' not in source
++    assert "has_password=bool(account.username and account.login_password)" in source
++    assert '"has_password": bool(account.username and account.login_password)' in source
++
++
++def test_frontend_default_edit_does_not_load_or_submit_saved_password() -> None:
++    accounts_page = read("frontend/src/pages/accounts/Accounts.tsx")
++    api_client = read("frontend/src/api/accounts.ts")
++    frontend_types = read("frontend/src/types/index.ts")
++
++    assert "setEditPassword(account.login_password" not in accounts_page
++    assert "editCredentialMode" in accounts_page
++    assert 'autoComplete="new-password"' in accounts_page
++    assert "clear_login_password" in accounts_page
++    assert "item.login_password" not in api_client
++    assert "has_password?: boolean" in api_client
++    assert "login_password?: string" not in frontend_types
++
++
++def test_password_refresh_failures_do_not_disable_accounts_or_log_full_cookies() -> None:
++    for relative in [
++        "websocket/app/services/xianyu/cookie_token_manager.py",
++        "websocket/app/api/routes/internal.py",
++    ]:
++        source = read(relative)
++        assert "disable_account" not in source
++        assert "全量Cookies" not in source
++        assert "新Cookies" not in source
++        assert "account status is unchanged" in source
++        assert "cookie field count" in source

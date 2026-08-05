@@ -4,8 +4,8 @@ Status: IMPLEMENTING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
-- [ ] T1 Implement P0 credential safety and false-disable prevention.
-- [ ] T2 Run P0 targeted tests and commit the P0 boundary.
+- [x] T1 Implement P0 credential safety and false-disable prevention.
+- [x] T2 Run P0 targeted tests and commit the P0 boundary.
 - [ ] T3 Implement P1 persistent Profile publish readiness.
 - [ ] T4 Implement P2 Profile initialization and repair boundaries.
 - [ ] T5 Implement P3 shared read-only publish preflight.

@@ -81,6 +81,35 @@ The artifact contains no runtime account identifiers, platform identifiers,
 Cookie, Token, Gemini key, item IDs, chat IDs, customer messages, or runtime
 HMAC values.
 
+## CHG-0018 account credential safety patch
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`
+- Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
+- Applies after: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
+- Patch file: `4c5e1ac-chg0018-account-profile-publish-safety.patch`
+- SHA256: `81373BE04B3BFCDB29D028AC4432B26B0BA93A175BD58FEFE574ADE7ED2AFE23`
+- Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
+- Patch parse check: passed with `git apply --numstat --unidiff-zero`
+- Patch staged-base apply check: passed with `git apply --check --cached --whitespace=error-all --unidiff-zero`
+- Targeted tests: passed with `python -m pytest tests/test_chg0018_credential_safety.py -q`
+- Frontend build: passed with `npm run build`
+- Changed files:
+  - `backend-web/app/api/routes/cookies.py`
+  - `backend-web/app/services/account_service.py`
+  - `common/schemas/account.py`
+  - `frontend/src/api/accounts.ts`
+  - `frontend/src/pages/accounts/Accounts.tsx`
+  - `frontend/src/types/index.ts`
+  - `websocket/app/api/routes/internal.py`
+  - `websocket/app/services/xianyu/cookie_token_manager.py`
+  - `tests/test_chg0018_credential_safety.py`
+
+The patch removes raw `login_password` from ordinary account detail responses,
+adds explicit password-clear intent, keeps saved passwords out of the default
+account edit form, and prevents `no_credentials` or `bad_credentials` password
+refresh failures from disabling an account. Touched refresh logs report Cookie
+field counts instead of full Cookie values.
+
 ## Artifact Format
 
 Git-generated zero-context unified diff.

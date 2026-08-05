@@ -30,6 +30,17 @@ Change ID: CHG-0018-account-profile-publish-safety
 - `python scripts/verify_repository.py`.
 - Patch clean apply and blob equivalence checks.
 
+## P0 result
+
+- Raw `login_password` is removed from ordinary account detail responses.
+- Account editing defaults to no credential mode, empty password input, dirty tracking, and explicit password clearing.
+- `no_credentials` and `bad_credentials` password-refresh paths keep `XYAccount.status` unchanged.
+- Password and full Cookie values are removed from the touched refresh logs.
+- Targeted upstream test: `python -m pytest tests/test_chg0018_credential_safety.py -q`.
+- Frontend build: `npm run build`.
+- Patch artifact: `vendor/patches/xianyu-auto-reply/4c5e1ac-chg0018-account-profile-publish-safety.patch`.
+- Patch SHA256: `81373BE04B3BFCDB29D028AC4432B26B0BA93A175BD58FEFE574ADE7ED2AFE23`.
+
 ## Upstream capability audit
 
 Acceptance is based on the pinned upstream account, password refresh, Cookie renewal, publisher, preflight diagnostics, and browser concurrency paths.
