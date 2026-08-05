@@ -14,21 +14,23 @@
 - Base upstream repository: `zhinianboke/xianyu-auto-reply`
 - Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
 - Patch file: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
-- Canonical SHA256: `44041F7AED4750E97A2BC04ACD9B4FF43DD9966EC2F4884F5DC59EA9A3D7B64D`
-- Raw Windows SHA256: `44041F7AED4750E97A2BC04ACD9B4FF43DD9966EC2F4884F5DC59EA9A3D7B64D`
+- Canonical SHA256: `14820F96672A67E5B63EB22C8A5A3F1C0C16F8002E5514FB956EF5FBB8BC3329`
+- Raw Windows SHA256: `14820F96672A67E5B63EB22C8A5A3F1C0C16F8002E5514FB956EF5FBB8BC3329`
 - EOL state: LF, no BOM
 - Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
 - Patch apply check: passed with `git apply --check --whitespace=error-all --unidiff-zero`
-- Targeted tests: passed with `python tests/test_chg0017_gemini_response_parser.py`,
-  `python tests/test_chg0017_ai_prompt_validation.py`, and
-  `python tests/test_chg0017_reply_allowlist.py`
+- Targeted tests: passed with
+  `python -m pytest tests/test_chg0017_publish_login_submit.py tests/test_chg0017_reply_allowlist.py tests/test_chg0017_ai_prompt_validation.py tests/test_chg0017_gemini_response_parser.py -q`
 - Changed files:
   - `backend-web/app/services/ai_reply_service.py`
+  - `backend-web/app/services/xianyu_publisher.py`
   - `common/services/ai_provider_service.py`
+  - `common/services/publish_execution_service.py`
   - `common/utils/item_info_manager.py`
   - `frontend/src/pages/accounts/Accounts.tsx`
   - `tests/test_chg0017_ai_prompt_validation.py`
   - `tests/test_chg0017_gemini_response_parser.py`
+  - `tests/test_chg0017_publish_login_submit.py`
   - `tests/test_chg0017_reply_allowlist.py`
   - `websocket/app/services/xianyu/ai_reply_engine.py`
   - `websocket/app/services/xianyu/auto_reply_service.py`
@@ -67,6 +69,13 @@ English-dominant replies before sender use.
 The account-level custom prompt setting is now validated as a JSON object in
 both the native backend service and the account UI before saving. Product-level
 AI prompts remain normal plain text and are not parsed as JSON.
+
+The product publish patch preserves the verified native publish path while
+repairing the official quick-enter login handoff, runtime Chromium user agent,
+publish text sanitization, publish button readiness checks, POST/PUT publish
+request diagnostics, and explicit failure classification. Publish diagnostics
+are masked and do not record Cookie, Token, full URLs, account IDs, item IDs, or
+customer content.
 
 The artifact contains no runtime account identifiers, platform identifiers,
 Cookie, Token, Gemini key, item IDs, chat IDs, customer messages, or runtime
@@ -123,10 +132,10 @@ IDs used to generate the patch for every recorded target file.
 Raw byte hashes may differ on Windows only because text=auto can expand LF and
 CRLF differently. Such a difference is acceptable only when:
 
-- canonical CRLF-to-LF comparison is 5/5;
+- canonical CRLF-to-LF comparison is 12/12;
 - BOM and trailing-newline state match;
 - no lone CR exists;
-- staged Git blob comparison is 5/5.
+- staged Git blob comparison is 12/12.
 
 ## Modified upstream files
 

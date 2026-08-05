@@ -169,9 +169,11 @@ def test_catalog_fallback_patch_artifact_is_recorded() -> None:
     patch_text = patch.read_text(encoding="utf-8")
 
     assert "reply identity allowlist, catalog fallback, and Gemini content patch" in readme
-    assert "44041F7AED4750E97A2BC04ACD9B4FF43DD9966EC2F4884F5DC59EA9A3D7B64D" in readme
+    assert "14820F96672A67E5B63EB22C8A5A3F1C0C16F8002E5514FB956EF5FBB8BC3329" in readme
     assert "supports `*` in the" in readme
+    assert "`backend-web/app/services/xianyu_publisher.py`" in readme
     assert "`common/services/ai_provider_service.py`" in readme
+    assert "`common/services/publish_execution_service.py`" in readme
     assert "test_allows_wildcard_receiver_and_sender_for_production_multi_account" in patch_text
     assert "parse_gemini_generate_content_response" in patch_text
     assert "GEMINI_INITIAL_MAX_OUTPUT_TOKENS = 1024" in patch_text
@@ -186,9 +188,17 @@ def test_catalog_fallback_patch_artifact_is_recorded() -> None:
     assert "`frontend/src/pages/accounts/Accounts.tsx`" in readme
     assert "`tests/test_chg0017_gemini_response_parser.py`" in readme
     assert "`tests/test_chg0017_ai_prompt_validation.py`" in readme
+    assert "`tests/test_chg0017_publish_login_submit.py`" in readme
     assert "`tests/test_chg0017_reply_allowlist.py`" in readme
+    sync_evidence = (
+        CHANGE_DIR / "evidence" / "CHG17-LAPTOP-SOURCE-SYNC-20260805T035232Z-masked-report.md"
+    ).read_text(encoding="utf-8")
+    assert "Patch target count: `12`" in sync_evidence
     assert "item_catalog_missing" in readme
     assert "item_list_request_started" in patch_text
+    assert "XianyuPublisher" in patch_text
+    assert "_handle_publish_quick_enter" in patch_text
+    assert "test_publish_quick_enter_clicks_official_iframe_button" in patch_text
     assert "CHG-0017 local item catalog missing; account-level reply paths remain eligible" in patch_text
     assert "test_catalog_missing_global_keyword_still_matches" in patch_text
     assert "test_catalog_missing_ai_path_receives_no_item_id" in patch_text
@@ -263,6 +273,34 @@ def test_final_delivery_report_is_recorded_without_archive_or_merge() -> None:
     assert "T17 remains unchecked because archive and merge are not authorized." in evidence
     assert "Delivery report verdict: `CHG0017_DELIVERY_REPORT_READY`." in tasks
     assert "Run `CHG17-FINAL-DELIVERY-20260801T060801Z` records" in acceptance
+
+
+def test_laptop_source_sync_evidence_is_recorded_without_archive_or_merge() -> None:
+    evidence = (
+        CHANGE_DIR
+        / "evidence"
+        / "CHG17-LAPTOP-SOURCE-SYNC-20260805T035232Z-masked-report.md"
+    ).read_text(encoding="utf-8")
+    tasks = read_doc("tasks.md")
+    acceptance = read_doc("acceptance.md")
+
+    assert "LAPTOP_SOURCE_SYNC_READY_FOR_DRAFT_PR" in evidence
+    assert "PR state before sync: Draft / Open / Unmerged" in evidence
+    assert "Messages sent: `0`" in evidence
+    assert "Product publish attempted: no" in evidence
+    assert "AI provider call attempted during sync: no" in evidence
+    assert "Patch target count: `12`" in evidence
+    assert "14820F96672A67E5B63EB22C8A5A3F1C0C16F8002E5514FB956EF5FBB8BC3329" in evidence
+    assert "Staged blob equivalence: passed, `12/12`" in evidence
+    assert "Result: `58 passed`" in evidence
+    assert "Repository evidence submitted by this sync is limited to masked Markdown" in evidence
+    assert "Change status after sync: `IMPLEMENTING`" in evidence
+    assert "Completed tasks after sync: `16 / 17`" in evidence
+    assert "T17 archived: no" in evidence
+    assert "PR #26 kept Draft: yes" in evidence
+    assert "PR #26 merged: no" in evidence
+    assert "Run `CHG17-LAPTOP-SOURCE-SYNC-20260805T035232Z` records" in tasks
+    assert "Run `CHG17-LAPTOP-SOURCE-SYNC-20260805T035232Z` records" in acceptance
 
 
 def test_catalog_fallback_offline_evidence_is_recorded() -> None:

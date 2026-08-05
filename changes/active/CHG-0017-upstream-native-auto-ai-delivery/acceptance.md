@@ -165,3 +165,23 @@ delivery report for PR #26:
   AI enabled, active keyword rules `0`, enabled default replies `0`.
 - Rollback remains the upstream-native AI disable plus account-task stop path.
 - T17 remains unchecked because archive and merge are not authorized.
+
+Run `CHG17-LAPTOP-SOURCE-SYNC-20260805T035232Z` records the production laptop
+source synchronization into existing Draft PR #26:
+
+- Runtime containers were inspected only and remained protected from stop,
+  restart, rebuild, or recreate operations.
+- No platform action, account task action, product publish, AI provider call, or
+  message send occurred during the synchronization.
+- The PR branch was fast-forwarded to remote head
+  `2c1058fd5c0a9f1a572b578faf913df16e2cbd2b` before applying the laptop source
+  artifact.
+- The vendor patch artifact was regenerated from the candidate upstream staged
+  diff and covers `12` target files, including the final product publish login
+  and submit-path fixes.
+- Patch SHA256 is
+  `14820F96672A67E5B63EB22C8A5A3F1C0C16F8002E5514FB956EF5FBB8BC3329`.
+- Clean apply, applied-source diff check, and staged blob equivalence passed.
+- Targeted offline tests passed: `58`.
+- Only masked Markdown evidence is submitted to Git.
+- PR #26 remains Draft, Open, and Unmerged; T17 remains unchecked.

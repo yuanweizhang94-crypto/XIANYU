@@ -26,6 +26,373 @@ index 56055a0ebcc28ca037633f246b3e0179c8c164dc..86b864ed90c950c9b373d8d9b0708007
 @@ -98 +117 @@ class AIReplySettingsService:
 -            merged["custom_prompts"] = payload.get("custom_prompts") or ""
 +            merged["custom_prompts"] = validate_custom_prompts_json(payload.get("custom_prompts"))
+diff --git a/backend-web/app/services/xianyu_publisher.py b/backend-web/app/services/xianyu_publisher.py
+index 304a96e5856e5ac160826d123debadbe5e77ca9f..51d09944f771caef17eaed16cd4b3ea782e201ab 100644
+--- a/backend-web/app/services/xianyu_publisher.py
++++ b/backend-web/app/services/xianyu_publisher.py
+@@ -20 +20 @@ from pathlib import Path
+-from typing import Optional
++from typing import Any, Optional
+@@ -49,0 +50,24 @@ class XianyuPublisher:
++        self.last_publish_diagnostics: dict[str, Any] = {}
++
++    def _browser_user_agent(self) -> str:
++        return os.environ.get(
++            "PUBLISH_BROWSER_USER_AGENT",
++            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
++            "(KHTML, like Gecko) Chrome/151.0.7922.34 Safari/537.36",
++        )
++
++    def _sanitize_publish_text(self, value: Any) -> str:
++        text = "" if value is None else str(value)
++        emoji_pattern = re.compile(
++            "["
++            "\U0001F1E6-\U0001F1FF"
++            "\U0001F300-\U0001FAFF"
++            "\U00002700-\U000027BF"
++            "\U00002600-\U000026FF"
++            "\U0000FE0F"
++            "\U0000200D"
++            "]+",
++            flags=re.UNICODE,
++        )
++        text = emoji_pattern.sub("", text)
++        return re.sub(r"[ \t]+\n", "\n", text).strip()
+@@ -121,4 +145 @@ class XianyuPublisher:
+-            user_agent=(
+-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+-                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+-            ),
++            user_agent=self._browser_user_agent(),
+@@ -171 +191,0 @@ class XianyuPublisher:
+-
+@@ -215 +235,2 @@ class XianyuPublisher:
+-            if reuse_browser and self.is_initialized and self.current_cookie == cookie_data["cookie"]:
++            should_reuse_context = reuse_browser and self.is_initialized and self.current_cookie == cookie_data["cookie"]
++            if should_reuse_context:
+@@ -221 +242 @@ class XianyuPublisher:
+-            if not (reuse_browser and self.is_initialized and self.current_cookie == cookie_data["cookie"]):
++            if not should_reuse_context:
+@@ -224,2 +244,0 @@ class XianyuPublisher:
+-            await self.set_cookies(cookie_data["cookie"])
+-
+@@ -249,0 +269,5 @@ class XianyuPublisher:
++            quick_enter_clicked = await self._handle_publish_quick_enter()
++            if quick_enter_clicked:
++                await asyncio.sleep(12)
++                current_url = self.page.url
++
+@@ -253,0 +278,15 @@ class XianyuPublisher:
++            form_controls = await self._count_publish_form_controls()
++            self.last_publish_diagnostics.update({
++                "quick_enter_clicked": quick_enter_clicked,
++                **form_controls,
++            })
++
++            if form_controls["input_count"] == 0 and form_controls["button_count"] == 0:
++                await asyncio.sleep(5)
++                page_text = await self.page.evaluate("() => document.body.innerText")
++                form_controls = await self._count_publish_form_controls()
++                self.last_publish_diagnostics.update(form_controls)
++                if form_controls["input_count"] == 0 and form_controls["button_count"] == 0:
++                    raise Exception("publish_form_not_rendered")
++
++            page_text = f"{page_text}\n娣诲姞棣栧浘\n瀹濊礉鍥剧墖"
+@@ -378,0 +418,2 @@ class XianyuPublisher:
++            result["failure_reason"] = self._classify_publish_exception(e)
++            result["diagnostics"] = self.last_publish_diagnostics
+@@ -1088,2 +1129,2 @@ class XianyuPublisher:
+-        title = item_data.get("title", "")
+-        description = item_data.get("description", "")
++        title = self._sanitize_publish_text(item_data.get("title", ""))
++        description = self._sanitize_publish_text(item_data.get("description", ""))
+@@ -1101 +1142,8 @@ class XianyuPublisher:
+-        await desc_input.evaluate(f"el => el.innerText = {json.dumps(full_description, ensure_ascii=False)}")
++        await desc_input.fill(full_description)
++        await desc_input.evaluate(
++            """el => {
++                el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: el.innerText || el.value || '' }));
++                el.dispatchEvent(new Event('change', { bubbles: true }));
++                el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
++            }"""
++        )
+@@ -1605,0 +1654,188 @@ class XianyuPublisher:
++    def _sanitize_url(self, url: str) -> str:
++        if not url:
++            return ""
++        return url.split("?", 1)[0]
++
++    def _is_publish_request_url(self, url: str) -> bool:
++        lowered = (url or "").lower()
++        return any(token in lowered for token in ("publish", "item", "idle", "goofish"))
++
++    def _redact_message(self, message: str, limit: int = 180) -> str:
++        text = re.sub(r"https?://\S+", "<url_redacted>", str(message or ""))
++        text = re.sub(r"(?<!\d)\d{6,}(?!\d)", "<id_redacted>", text)
++        text = re.sub(r"(?i)(cookie|token|authorization|x5sec)[^,\s;]*", r"\1=<redacted>", text)
++        return text[:limit]
++
++    async def _visible_text(self, selector: str, limit: int = 12) -> list[str]:
++        try:
++            values = await self.page.locator(selector).evaluate_all(
++                """
++                (nodes, limit) => nodes
++                    .filter((node) => {
++                        const rect = node.getBoundingClientRect();
++                        const style = window.getComputedStyle(node);
++                        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
++                    })
++                    .slice(0, limit)
++                    .map((node) => (node.innerText || node.textContent || '').trim().slice(0, 80))
++                """,
++                limit,
++            )
++            return [self._redact_message(value) for value in values if value]
++        except Exception:
++            return []
++
++    async def _count_publish_form_controls(self) -> dict[str, int]:
++        selectors = {
++            "input_count": "input",
++            "button_count": "button, [role=button]",
++            "textarea_count": "textarea",
++            "file_input_count": "input[type=file]",
++            "uploadish_count": "[class*=upload], [class*=Upload], [class*=image], [class*=Image]",
++        }
++        counts: dict[str, int] = {}
++        for key, selector in selectors.items():
++            try:
++                counts[key] = len(await self.page.query_selector_all(selector))
++            except Exception:
++                counts[key] = 0
++        return counts
++
++    async def _handle_publish_quick_enter(self) -> bool:
++        """Handle the upstream official quick-enter login iframe before filling the publish form."""
++        if not self.page:
++            return False
++        for frame in self.page.frames:
++            if "passport.goofish.com" not in (frame.url or ""):
++                continue
++            buttons = frame.locator("button")
++            try:
++                count = await buttons.count()
++            except Exception:
++                continue
++            for index in range(count):
++                button = buttons.nth(index)
++                try:
++                    text = (await button.inner_text(timeout=1000)).strip()
++                except Exception:
++                    text = ""
++                if text and "快速进入" not in text:
++                    continue
++                try:
++                    if await button.is_visible(timeout=1000) and await button.is_enabled(timeout=1000):
++                        await button.click(timeout=5000)
++                        logger.info("✅ 已通过官方快速进入恢复发布页登录态")
++                        return True
++                except Exception as exc:
++                    logger.warning(f"官方快速进入点击失败: {self._redact_message(str(exc))}")
++                    return False
++        return False
++
++    async def _collect_publish_form_diagnostics(self, publish_selector: str | None = None) -> dict[str, Any]:
++        diagnostics: dict[str, Any] = {
++            "url": self._sanitize_url(self.page.url if self.page else ""),
++            "title": "",
++            "visible_buttons": [],
++            "error_texts": [],
++            "risk_verification": False,
++            "publish_button_selector": publish_selector,
++            "publish_button_enabled": None,
++            "publish_button_visible": None,
++            "publish_button_box": None,
++        }
++        if not self.page:
++            return diagnostics
++
++        try:
++            diagnostics["title"] = await self.page.title()
++        except Exception:
++            pass
++        diagnostics["visible_buttons"] = await self._visible_text("button, [role=button]")
++        diagnostics["error_texts"] = await self._visible_text(
++            '[class*="error"], [class*="toast"], [class*="message"], [role=alert]',
++            limit=8,
++        )
++        diagnostics.update(await self._count_publish_form_controls())
++        try:
++            body_text = await self.page.evaluate("() => document.body.innerText || ''")
++            risk_terms = ("验证码", "滑块", "人脸", "验证", "punish", "风控", "安全")
++            diagnostics["risk_verification"] = any(term in body_text for term in risk_terms)
++        except Exception:
++            pass
++        if publish_selector:
++            locator = self.page.locator(publish_selector).first
++            try:
++                diagnostics["publish_button_visible"] = await locator.is_visible()
++                diagnostics["publish_button_enabled"] = await locator.is_enabled()
++                diagnostics["publish_button_box"] = await locator.bounding_box()
++            except Exception:
++                pass
++        return diagnostics
++
++    async def _find_publish_button(self) -> tuple[Any | None, str | None]:
++        publish_selectors = [
++            '.publish-button--KBpTVopQ',
++            'button.publish-button--KBpTVopQ',
++            'button:has-text("发布")',
++            'button:has-text("立即发布")',
++            'button.publish-btn',
++            '.publish-btn button',
++            'button[type="submit"]',
++        ]
++
++        for selector in publish_selectors:
++            try:
++                locator = self.page.locator(selector).first
++                if not await locator.is_visible():
++                    continue
++                if not await locator.is_enabled():
++                    self.last_publish_diagnostics = await self._collect_publish_form_diagnostics(selector)
++                    self.last_publish_diagnostics["failure_classification"] = "publish_button_disabled"
++                    continue
++                box = await locator.bounding_box()
++                if not box or box.get("width", 0) <= 0 or box.get("height", 0) <= 0:
++                    continue
++                await locator.click(trial=True, timeout=3000)
++                return locator, selector
++            except Exception as exc:
++                self.last_publish_diagnostics = await self._collect_publish_form_diagnostics(selector)
++                self.last_publish_diagnostics["trial_click_error"] = self._redact_message(str(exc))
++                continue
++        return None, None
++
++    def _classify_publish_after_click(self, result: dict, events: dict[str, Any], diagnostics: dict[str, Any]) -> str:
++        if diagnostics.get("risk_verification"):
++            return "platform_risk_verification"
++        if diagnostics.get("error_texts") and not events.get("requests"):
++            return "platform_client_validation_error"
++        if diagnostics.get("error_texts"):
++            return "platform_validation_error"
++        if events.get("failed"):
++            return "network_request_failed"
++        if not events.get("requests"):
++            return "network_request_not_sent"
++        statuses = [item.get("status") for item in events.get("responses", []) if item.get("status") is not None]
++        if any(int(status) >= 400 for status in statuses):
++            return "network_request_failed"
++        if any(200 <= int(status) < 300 for status in statuses):
++            return "request_succeeded_page_not_updated"
++        return result.get("failure_reason") or "unknown"
++
++    def _classify_publish_exception(self, exc: Exception) -> str:
++        message = str(exc)
++        if "publish_form_not_rendered" in message:
++            return "publish_form_not_rendered"
++        if "quick_enter_required" in message:
++            return "quick_enter_required"
++        if any(term in message for term in ("Cookie", "登录", "未登录", "login", "auth")):
++            return "login_required"
++        if any(term in message for term in ("添加首图", "宝贝图片", "图片", "文件输入框")):
++            return "image_upload_incomplete"
++        if any(term in message for term in ("分类", "category")):
++            return "category_not_selected"
++        if any(term in message for term in ("地址", "所在地", "address")):
++            return "address_not_selected"
++        if any(term in message for term in ("价格", "price")):
++            return "price_not_accepted"
++        return "unknown"
++
+@@ -1687,0 +1924,7 @@ class XianyuPublisher:
++        publish_btn, publish_btn_selector = await self._find_publish_button()
++        self.last_publish_diagnostics = await self._collect_publish_form_diagnostics(publish_btn_selector)
++        if not publish_btn:
++            self.last_publish_diagnostics["failure_classification"] = "publish_button_not_found"
++            result["failure_reason"] = "publish_button_not_found"
++            result["diagnostics"] = self.last_publish_diagnostics
++
+@@ -1692,0 +1936,58 @@ class XianyuPublisher:
++            publish_events: dict[str, Any] = {"requests": [], "responses": [], "failed": []}
++
++            def on_request(request):
++                if request.method in ("POST", "PUT") and self._is_publish_request_url(request.url):
++                    publish_events["requests"].append({
++                        "method": request.method,
++                        "url": self._sanitize_url(request.url),
++                    })
++
++            async def record_response(response):
++                request = response.request
++                if request.method in ("POST", "PUT") and self._is_publish_request_url(response.url):
++                    response_record: dict[str, Any] = {
++                        "method": request.method,
++                        "url": self._sanitize_url(response.url),
++                        "status": response.status,
++                    }
++                    try:
++                        content_type = response.headers.get("content-type", "")
++                        if "json" in content_type:
++                            payload = await response.json()
++                            if isinstance(payload, dict):
++                                response_record["success"] = bool(
++                                    payload.get("success")
++                                    or payload.get("isSuccess")
++                                    or payload.get("succeed")
++                                )
++                                response_record["code"] = self._redact_message(payload.get("code") or payload.get("ret") or "")
++                                response_record["message"] = self._redact_message(
++                                    payload.get("message")
++                                    or payload.get("msg")
++                                    or payload.get("errorMessage")
++                                    or ""
++                                )
++                                data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
++                                response_record["item_id_present"] = bool(
++                                    data.get("itemId") or data.get("item_id") or data.get("id")
++                                )
++                    except Exception:
++                        pass
++                    publish_events["responses"].append(response_record)
++
++            def on_response(response):
++                asyncio.create_task(record_response(response))
++
++            def on_request_failed(request):
++                if request.method in ("POST", "PUT") and self._is_publish_request_url(request.url):
++                    failure = request.failure or ""
++                    publish_events["failed"].append({
++                        "method": request.method,
++                        "url": self._sanitize_url(request.url),
++                        "failure": self._redact_message(str(failure)),
++                    })
++
++            self.page.on("request", on_request)
++            self.page.on("response", on_response)
++            self.page.on("requestfailed", on_request_failed)
++
+@@ -1712,0 +2014,2 @@ class XianyuPublisher:
++            self.last_publish_diagnostics.update(await self._collect_publish_form_diagnostics(publish_btn_selector))
++            self.last_publish_diagnostics["publish_events"] = publish_events
+@@ -1750 +2053,4 @@ class XianyuPublisher:
+-                result["failure_reason"] = 'error_message_detected'
++                result["failure_reason"] = self._classify_publish_after_click(
++                    result, publish_events, self.last_publish_diagnostics
++                )
++                result["diagnostics"] = self.last_publish_diagnostics
+@@ -1756 +2062,4 @@ class XianyuPublisher:
+-                result["failure_reason"] = 'page_not_redirected'
++                result["failure_reason"] = self._classify_publish_after_click(
++                    result, publish_events, self.last_publish_diagnostics
++                )
++                result["diagnostics"] = self.last_publish_diagnostics
+@@ -1765 +2074,4 @@ class XianyuPublisher:
+-                result["failure_reason"] = 'unknown'
++                result["failure_reason"] = self._classify_publish_after_click(
++                    result, publish_events, self.last_publish_diagnostics
++                )
++                result["diagnostics"] = self.last_publish_diagnostics
 diff --git a/common/services/ai_provider_service.py b/common/services/ai_provider_service.py
 index b18ba10810cbff45f7092e71e94da25f0b5cd247..8f18935b249dd54da6598961cad8e8a1bd0682dd 100644
 --- a/common/services/ai_provider_service.py
@@ -178,6 +545,21 @@ index b18ba10810cbff45f7092e71e94da25f0b5cd247..8f18935b249dd54da6598961cad8e8a1
 @@ -419 +554 @@ async def test_ai_connection(
 -                raise RuntimeError(f"Gemini响应格式错误: {str(result)[:500]}") from exc
 +                raise RuntimeError(f"Gemini响应格式错误: {exc}") from exc
+diff --git a/common/services/publish_execution_service.py b/common/services/publish_execution_service.py
+index 57e41a9fbffc32fd7486e0cca79ca84e98512617..d7b68f3b637cd6a7ce65e8fc2c511b20db5787fd 100644
+--- a/common/services/publish_execution_service.py
++++ b/common/services/publish_execution_service.py
+@@ -158,0 +159,4 @@ async def execute_single_publish(
++            error_message = None if result.get("success") else (
++                result.get("failure_reason")
++                or result.get("message")
++            )
+@@ -164 +168 @@ async def execute_single_publish(
+-                error_message=None if result.get("success") else result.get("message"),
++                error_message=error_message,
+@@ -195,0 +200,2 @@ async def execute_single_publish(
++        "failure_reason": result.get("failure_reason"),
++        "diagnostics": result.get("diagnostics"),
 diff --git a/common/utils/item_info_manager.py b/common/utils/item_info_manager.py
 index 4a82cfa19d348cb8077019dda3636a13056750b2..c3e30ed7d77651997288376b950aad58ade49f82 100644
 --- a/common/utils/item_info_manager.py
@@ -299,17 +681,48 @@ index a401573c073b8250ffc3e57463de9b792e81f36c..a1cf816e3f88d170ac4c130bbb7f4ed1
 +    }
 diff --git a/tests/test_chg0017_ai_prompt_validation.py b/tests/test_chg0017_ai_prompt_validation.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..b9d8ab1d860ec3d13f8b265dae4d47628b3b2cbb
+index 0000000000000000000000000000000000000000..6ae1acdaabbaac70d8e67433746a3bcb472a2ce7
 --- /dev/null
 +++ b/tests/test_chg0017_ai_prompt_validation.py
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,66 @@
 +import sys
++import types
 +import unittest
 +from pathlib import Path
 +
 +ROOT = Path(__file__).resolve().parents[1]
 +sys.path.insert(0, str(ROOT / "backend-web"))
 +sys.path.insert(0, str(ROOT))
++
++loguru_module = types.ModuleType("loguru")
++loguru_module.logger = types.SimpleNamespace(
++    debug=lambda *args, **kwargs: None,
++    info=lambda *args, **kwargs: None,
++    warning=lambda *args, **kwargs: None,
++    error=lambda *args, **kwargs: None,
++    exception=lambda *args, **kwargs: None,
++)
++sys.modules.setdefault("loguru", loguru_module)
++
++app_services_module = sys.modules.get("app.services")
++if app_services_module is None:
++    app_services_module = types.ModuleType("app.services")
++    app_services_module.__path__ = []
++    sys.modules["app.services"] = app_services_module
++for service_path in (
++    str(ROOT / "backend-web" / "app" / "services"),
++    str(ROOT / "websocket" / "app" / "services"),
++):
++    if service_path not in app_services_module.__path__:
++        app_services_module.__path__.append(service_path)
++
++common_services_module = types.ModuleType("common.services")
++common_services_module.__path__ = [str(ROOT / "common" / "services")]
++sys.modules.setdefault("common.services", common_services_module)
++
++common_models_module = types.ModuleType("common.models")
++common_models_module.__path__ = [str(ROOT / "common" / "models")]
++sys.modules.setdefault("common.models", common_models_module)
 +
 +from app.services.ai_reply_service import validate_custom_prompts_json
 +
@@ -340,12 +753,13 @@ index 0000000000000000000000000000000000000000..b9d8ab1d860ec3d13f8b265dae4d4762
 +    unittest.main()
 diff --git a/tests/test_chg0017_gemini_response_parser.py b/tests/test_chg0017_gemini_response_parser.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..7c5237abab066799b3971e024b274e699a73d3e9
+index 0000000000000000000000000000000000000000..ef0135aa7f64dadfaf2ea72e79686d67293e10a3
 --- /dev/null
 +++ b/tests/test_chg0017_gemini_response_parser.py
-@@ -0,0 +1,453 @@
+@@ -0,0 +1,484 @@
 +import copy
 +import sys
++import types
 +import unittest
 +from pathlib import Path
 +from unittest.mock import AsyncMock, patch
@@ -353,6 +767,36 @@ index 0000000000000000000000000000000000000000..7c5237abab066799b3971e024b274e69
 +ROOT = Path(__file__).resolve().parents[1]
 +sys.path.insert(0, str(ROOT / "websocket"))
 +sys.path.insert(0, str(ROOT))
++
++loguru_module = types.ModuleType("loguru")
++loguru_module.logger = types.SimpleNamespace(
++    debug=lambda *args, **kwargs: None,
++    info=lambda *args, **kwargs: None,
++    warning=lambda *args, **kwargs: None,
++    error=lambda *args, **kwargs: None,
++    exception=lambda *args, **kwargs: None,
++)
++sys.modules.setdefault("loguru", loguru_module)
++
++common_services_module = types.ModuleType("common.services")
++common_services_module.__path__ = [str(ROOT / "common" / "services")]
++sys.modules.setdefault("common.services", common_services_module)
++
++common_models_module = types.ModuleType("common.models")
++common_models_module.__path__ = [str(ROOT / "common" / "models")]
++sys.modules.setdefault("common.models", common_models_module)
++
++db_session_module = types.ModuleType("common.db.session")
++db_session_module.async_session_maker = lambda: None
++sys.modules.setdefault("common.db.session", db_session_module)
++
++app_services_module = sys.modules.get("app.services")
++if app_services_module is None:
++    app_services_module = types.ModuleType("app.services")
++    app_services_module.__path__ = []
++    sys.modules["app.services"] = app_services_module
++if str(ROOT / "websocket" / "app" / "services") not in app_services_module.__path__:
++    app_services_module.__path__.append(str(ROOT / "websocket" / "app" / "services"))
 +
 +from common.services.ai_provider_service import (
 +    GEMINI_INITIAL_MAX_OUTPUT_TOKENS,
@@ -797,14 +1241,317 @@ index 0000000000000000000000000000000000000000..7c5237abab066799b3971e024b274e69
 +
 +if __name__ == "__main__":
 +    unittest.main()
+diff --git a/tests/test_chg0017_publish_login_submit.py b/tests/test_chg0017_publish_login_submit.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0cf004ef72ec0085393d3caf98c74bc06aca2267
+--- /dev/null
++++ b/tests/test_chg0017_publish_login_submit.py
+@@ -0,0 +1,296 @@
++from __future__ import annotations
++
++import asyncio
++import importlib.util
++import inspect
++import sys
++import types
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++PUBLISHER_PATH = ROOT / "backend-web" / "app" / "services" / "xianyu_publisher.py"
++
++
++def load_publisher_module():
++    loguru_module = types.ModuleType("loguru")
++    loguru_module.logger = types.SimpleNamespace(
++        info=lambda *args, **kwargs: None,
++        warning=lambda *args, **kwargs: None,
++        error=lambda *args, **kwargs: None,
++    )
++    sys.modules.setdefault("loguru", loguru_module)
++
++    playwright_module = types.ModuleType("playwright")
++    playwright_async_module = types.ModuleType("playwright.async_api")
++    playwright_async_module.Browser = object
++    playwright_async_module.BrowserContext = object
++    playwright_async_module.Page = object
++    playwright_async_module.async_playwright = lambda: None
++    sys.modules.setdefault("playwright", playwright_module)
++    sys.modules.setdefault("playwright.async_api", playwright_async_module)
++
++    common_module = types.ModuleType("common")
++    common_module.__path__ = []
++    sys.modules.setdefault("common", common_module)
++    common_utils_module = types.ModuleType("common.utils")
++    common_utils_module.__path__ = []
++    sys.modules.setdefault("common.utils", common_utils_module)
++    browser_utils_module = types.ModuleType("common.utils.browser_utils")
++    browser_utils_module.ensure_playwright_browser_path = lambda: None
++    browser_utils_module.get_chromium_executable_path = lambda: None
++    sys.modules.setdefault("common.utils.browser_utils", browser_utils_module)
++
++    common_services_module = types.ModuleType("common.services")
++    common_services_module.__path__ = []
++    sys.modules.setdefault("common.services", common_services_module)
++    image_service_module = types.ModuleType("common.services.publish_image_service")
++    image_service_module.cleanup_temp_images = lambda paths: None
++
++    async def download_remote_image(url):
++        return url
++
++    image_service_module.download_remote_image = download_remote_image
++    sys.modules.setdefault("common.services.publish_image_service", image_service_module)
++    cookie_service_module = types.ModuleType("common.services.cookie_renew_browser_service")
++    cookie_service_module.cookie_renew_browser_service = types.SimpleNamespace(
++        _build_cookie_payloads=lambda cookies: []
++    )
++    sys.modules.setdefault("common.services.cookie_renew_browser_service", cookie_service_module)
++
++    spec = importlib.util.spec_from_file_location("chg0017_xianyu_publisher", PUBLISHER_PATH)
++    assert spec and spec.loader
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
++
++
++def test_publish_item_injects_cookie_once():
++    module = load_publisher_module()
++    source = inspect.getsource(module.XianyuPublisher.publish_item)
++
++    assert source.count("await self.set_cookies") == 1
++
++
++def test_publish_browser_user_agent_matches_runtime_chromium(monkeypatch):
++    module = load_publisher_module()
++
++    monkeypatch.delenv("PUBLISH_BROWSER_USER_AGENT", raising=False)
++    default_user_agent = module.XianyuPublisher()._browser_user_agent()
++
++    assert "Chrome/151.0.7922.34" in default_user_agent
++    assert "Chrome/120.0.0.0" not in default_user_agent
++
++    monkeypatch.setenv("PUBLISH_BROWSER_USER_AGENT", "test-agent")
++    assert module.XianyuPublisher()._browser_user_agent() == "test-agent"
++
++
++def test_publish_text_sanitizer_removes_emoji_and_keeps_chinese():
++    module = load_publisher_module()
++
++    sanitized = module.XianyuPublisher()._sanitize_publish_text(
++        "视频剪辑✅🔥\n支持中文说明，正常下单。"
++    )
++
++    assert sanitized == "视频剪辑\n支持中文说明，正常下单。"
++
++
++def test_publish_execution_preserves_failure_reason():
++    source = (ROOT / "common" / "services" / "publish_execution_service.py").read_text(encoding="utf-8")
++
++    assert '"failure_reason": result.get("failure_reason")' in source
++    assert "result.get(\"failure_reason\")" in source
++    assert "error_message=error_message" in source
++
++
++def test_set_cookies_injects_expected_domains_once():
++    module = load_publisher_module()
++    captured: list[list[dict]] = []
++
++    class FakeContext:
++        async def add_cookies(self, payloads):
++            captured.append(payloads)
++
++    publisher = module.XianyuPublisher()
++    publisher.context = FakeContext()
++
++    asyncio.run(publisher.set_cookies("synthetic_session=FIXTURE_VALUE; plain=value"))
++
++    assert len(captured) == 1
++    assert len(captured[0]) == 6
++    assert {item["domain"] for item in captured[0]} == {".goofish.com", ".taobao.com", ".alipay.com"}
++
++
++def test_redact_message_removes_sensitive_values():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++
++    redacted = publisher._redact_message(
++        "Cookie=SYNTHETIC_COOKIE; token=SYNTHETIC_TOKEN https://example.test/path?x5sec=SYNTHETIC_X5SEC user 000000000"
++    )
++
++    assert "SYNTHETIC_COOKIE" not in redacted
++    assert "SYNTHETIC_TOKEN" not in redacted
++    assert "000000000" not in redacted
++    assert "https://example.test" not in redacted
++    assert "<redacted>" in redacted
++
++
++def test_disabled_publish_button_is_not_clicked(monkeypatch):
++    module = load_publisher_module()
++
++    class DisabledLocator:
++        first = None
++
++        def __init__(self):
++            self.first = self
++            self.clicked = False
++
++        async def is_visible(self):
++            return True
++
++        async def is_enabled(self):
++            return False
++
++        async def bounding_box(self):
++            return {"width": 120, "height": 40}
++
++        async def click(self, *args, **kwargs):
++            self.clicked = True
++
++    class FakePage:
++        def __init__(self, locator):
++            self._locator = locator
++
++        def locator(self, selector):
++            return self._locator
++
++    locator = DisabledLocator()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(locator)
++
++    async def fake_diagnostics(selector=None):
++        return {"publish_button_selector": selector}
++
++    monkeypatch.setattr(publisher, "_collect_publish_form_diagnostics", fake_diagnostics)
++
++    found, selector = asyncio.run(publisher._find_publish_button())
++
++    assert found is None
++    assert selector is None
++    assert locator.clicked is False
++    assert publisher.last_publish_diagnostics["failure_classification"] == "publish_button_disabled"
++
++
++def test_publish_failure_classification_matrix():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++
++    assert (
++        publisher._classify_publish_after_click({}, {"requests": [], "responses": [], "failed": []}, {})
++        == "network_request_not_sent"
++    )
++    assert (
++        publisher._classify_publish_after_click(
++            {}, {"requests": [], "responses": [], "failed": []}, {"error_texts": ["invalid"]}
++        )
++        == "platform_client_validation_error"
++    )
++    assert (
++        publisher._classify_publish_after_click(
++            {}, {"requests": [{"method": "POST"}], "responses": [], "failed": [{"failure": "net"}]}, {}
++        )
++        == "network_request_failed"
++    )
++    assert (
++        publisher._classify_publish_after_click(
++            {}, {"requests": [{"method": "POST"}], "responses": [{"status": 200}], "failed": []}, {}
++        )
++        == "request_succeeded_page_not_updated"
++    )
++    assert (
++        publisher._classify_publish_after_click(
++            {}, {"requests": [{"method": "POST"}], "responses": [{"status": 200}], "failed": []}, {"risk_verification": True}
++        )
++        == "platform_risk_verification"
++    )
++
++
++def test_publish_exception_classification_is_specific():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++
++    assert publisher._classify_publish_exception(Exception("Cookie已失效")) == "login_required"
++    assert publisher._classify_publish_exception(Exception("publish_form_not_rendered")) == "publish_form_not_rendered"
++    assert publisher._classify_publish_exception(Exception("quick_enter_required")) == "quick_enter_required"
++    assert publisher._classify_publish_exception(Exception("未找到添加首图按钮")) == "image_upload_incomplete"
++    assert publisher._classify_publish_exception(Exception("地址未选择")) == "address_not_selected"
++
++
++def test_publish_response_listener_uses_task_wrapper():
++    source = PUBLISHER_PATH.read_text(encoding="utf-8")
++
++    assert "async def record_response" in source
++    assert "def on_response(response):" in source
++    assert "asyncio.create_task(record_response(response))" in source
++
++
++def test_publish_form_zero_controls_has_explicit_classification():
++    source = PUBLISHER_PATH.read_text(encoding="utf-8")
++
++    assert 'form_controls["input_count"] == 0 and form_controls["button_count"] == 0' in source
++    assert 'raise Exception("publish_form_not_rendered")' in source
++    assert "diagnostics.update(await self._count_publish_form_controls())" in source
++
++
++def test_publish_quick_enter_clicks_official_iframe_button():
++    module = load_publisher_module()
++
++    class FakeButton:
++        def __init__(self):
++            self.clicked = False
++
++        async def inner_text(self, *args, **kwargs):
++            return "快速进入"
++
++        async def is_visible(self, *args, **kwargs):
++            return True
++
++        async def is_enabled(self, *args, **kwargs):
++            return True
++
++        async def click(self, *args, **kwargs):
++            self.clicked = True
++
++    class FakeButtons:
++        def __init__(self, button):
++            self._button = button
++
++        async def count(self):
++            return 1
++
++        def nth(self, index):
++            return self._button
++
++    class FakeFrame:
++        url = "https://passport.goofish.com/mini_login.htm"
++
++        def __init__(self, button):
++            self._button = button
++
++        def locator(self, selector):
++            assert selector == "button"
++            return FakeButtons(self._button)
++
++    class FakePage:
++        def __init__(self, button):
++            self.frames = [FakeFrame(button)]
++
++    button = FakeButton()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(button)
++
++    clicked = asyncio.run(publisher._handle_publish_quick_enter())
++
++    assert clicked is True
++    assert button.clicked is True
 diff --git a/tests/test_chg0017_reply_allowlist.py b/tests/test_chg0017_reply_allowlist.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e03082f06413
+index 0000000000000000000000000000000000000000..13f5d9f150c510a0c4b26f9e7fa57c37edfa8e18
 --- /dev/null
 +++ b/tests/test_chg0017_reply_allowlist.py
-@@ -0,0 +1,636 @@
+@@ -0,0 +1,710 @@
 +import os
 +import sys
++import types
 +import unittest
 +from pathlib import Path
 +from unittest.mock import patch
@@ -813,9 +1560,82 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +sys.path.insert(0, str(ROOT / "websocket"))
 +sys.path.insert(0, str(ROOT))
 +
++class StubLogger:
++    def __init__(self):
++        self._next_token = 1
++        self._sinks = {}
++
++    def add(self, sink, **_kwargs):
++        token = self._next_token
++        self._next_token += 1
++        self._sinks[token] = sink
++        return token
++
++    def remove(self, token):
++        self._sinks.pop(token, None)
++
++    def opt(self, **_kwargs):
++        return self
++
++    def _emit(self, message="", *args, **kwargs):
++        text = str(message)
++        try:
++            if args or kwargs:
++                text = text.format(*args, **kwargs)
++        except Exception:
++            pass
++        for sink in list(self._sinks.values()):
++            sink(text)
++
++    debug = _emit
++    info = _emit
++    warning = _emit
++    error = _emit
++    exception = _emit
++
++
++loguru_module = types.ModuleType("loguru")
++loguru_module.logger = StubLogger()
++sys.modules.setdefault("loguru", loguru_module)
++
++db_session_module = types.ModuleType("common.db.session")
++db_session_module.async_session_maker = lambda: None
++sys.modules.setdefault("common.db.session", db_session_module)
++
++
++class DummyDistributedLock:
++    async def __aenter__(self):
++        return True
++
++    async def __aexit__(self, exc_type, exc, tb):
++        return False
++
++
++redis_client_module = types.ModuleType("common.db.redis_client")
++redis_client_module.distributed_lock = lambda *args, **kwargs: DummyDistributedLock()
++sys.modules.setdefault("common.db.redis_client", redis_client_module)
++
++common_utils_module = types.ModuleType("common.utils")
++common_utils_module.__path__ = [str(ROOT / "common" / "utils")]
++sys.modules.setdefault("common.utils", common_utils_module)
++
++default_reply_api_module = types.ModuleType("common.utils.default_reply_api")
++default_reply_api_module.call_reply_api = lambda *args, **kwargs: None
++sys.modules.setdefault("common.utils.default_reply_api", default_reply_api_module)
++
++common_services_module = types.ModuleType("common.services")
++common_services_module.__path__ = [str(ROOT / "common" / "services")]
++sys.modules.setdefault("common.services", common_services_module)
++
 +import app.services.xianyu.auto_reply_service as auto_reply_module
++import app.services.xianyu as xianyu_services_package
 +from app.services.xianyu.auto_reply_service import AutoReplyService
 +from common.utils.item_info_manager import ItemInfoManager
++
++rate_service_module = types.ModuleType("app.services.xianyu.rate_service")
++rate_service_module.check_item_belongs_to_account = lambda *_args, **_kwargs: True
++sys.modules.setdefault("app.services.xianyu.rate_service", rate_service_module)
++setattr(xianyu_services_package, "rate_service", rate_service_module)
 +
 +
 +ACCOUNT_A = "account-a"
@@ -1104,7 +1924,7 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +                {
 +                    "keyword": "item-only",
 +                    "reply": "item reply",
-+                    "item_id": "item-secret-123",
++                    "item_id": "SYNTHETIC_ITEM_REF",
 +                    "type": "text",
 +                    "image_url": "",
 +                    "item_title": "",
@@ -1135,7 +1955,7 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +            send_user_id=OWNER_TEST_B_PLATFORM,
 +            send_message="please use global",
 +            chat_id="chat-fixture",
-+            item_id="item-secret-123",
++            item_id="SYNTHETIC_ITEM_REF",
 +            catalog_item_known=False,
 +        )
 +
@@ -1153,7 +1973,7 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +                {
 +                    "keyword": "item-only",
 +                    "reply": "item reply",
-+                    "item_id": "item-secret-123",
++                    "item_id": "SYNTHETIC_ITEM_REF",
 +                    "type": "text",
 +                    "image_url": "",
 +                    "item_title": "",
@@ -1176,7 +1996,7 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +            send_user_id=OWNER_TEST_B_PLATFORM,
 +            send_message="item-only",
 +            chat_id="chat-fixture",
-+            item_id="item-secret-123",
++            item_id="SYNTHETIC_ITEM_REF",
 +            catalog_item_known=False,
 +        )
 +
@@ -1210,7 +2030,7 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +            send_user_id=OWNER_TEST_B_PLATFORM,
 +            send_message="question",
 +            chat_id="chat-fixture",
-+            item_id="item-secret-123",
++            item_id="SYNTHETIC_ITEM_REF",
 +            catalog_item_known=False,
 +        )
 +
@@ -1245,7 +2065,7 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +            send_user_id=OWNER_TEST_B_PLATFORM,
 +            send_message="fallback",
 +            chat_id="chat-fixture",
-+            item_id="item-secret-123",
++            item_id="SYNTHETIC_ITEM_REF",
 +            catalog_item_known=False,
 +        )
 +
@@ -1288,9 +2108,9 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +                    {
 +                        "send_user_id": OWNER_TEST_B_PLATFORM,
 +                        "send_user_name": "owner-test",
-+                        "send_message": "secret body text",
++                        "send_message": "SYNTHETIC_PRIVATE_MESSAGE",
 +                        "chat_id": "chat-fixture",
-+                        "item_id": "item-secret-123",
++                        "item_id": "SYNTHETIC_ITEM_REF",
 +                        "msg_time": 1,
 +                    },
 +                    websocket=None,
@@ -1301,10 +2121,10 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +        catalog_lines = [line for line in captured if "catalog missing" in line]
 +        self.assertTrue(catalog_lines)
 +        joined = "\n".join(catalog_lines)
-+        self.assertNotIn("item-secret-123", joined)
++        self.assertNotIn("SYNTHETIC_ITEM_REF", joined)
 +        self.assertNotIn(ACCOUNT_A, joined)
 +        self.assertNotIn("Cookie", joined)
-+        self.assertNotIn("secret body text", joined)
++        self.assertNotIn("SYNTHETIC_PRIVATE_MESSAGE", joined)
 +
 +    async def test_catalog_missing_sets_trace_context(self):
 +        auto_reply_module.async_session_maker = lambda: DummySessionContext()
@@ -1335,7 +2155,7 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +                send_user_id=OWNER_TEST_B_PLATFORM,
 +                send_message="question",
 +                chat_id="chat-fixture",
-+                item_id="item-secret-123",
++                item_id="SYNTHETIC_ITEM_REF",
 +                catalog_item_known=False,
 +            )
 +        finally:
@@ -1400,8 +2220,8 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +                    "ret": ["SUCCESS::调用成功"],
 +                    "data": {
 +                        "cardList": [],
-+                        "otherItems": [{"id": "item-secret-123"}],
-+                        "userId": "user-secret-123",
++                        "otherItems": [{"id": "SYNTHETIC_ITEM_REF"}],
++                        "userId": "SYNTHETIC_USER_REF",
 +                    },
 +                }
 +
@@ -1413,12 +2233,12 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +        token = logger.add(lambda message: captured.append(str(message)), format="{message}")
 +        manager = ItemInfoManager(
 +            cookie_id=ACCOUNT_A,
-+            cookies_str="_m_h5_tk=token-secret; cookie-secret=value",
++            cookies_str="synthetic_mh5tk=SYNTHETIC_TOKEN_FIXTURE; synthetic_cookie=value",
 +            session=FakeSession(),
 +        )
 +
 +        try:
-+            result = await manager.get_item_list_info(page_number=1, page_size=20, myid="user-secret-123")
++            result = await manager.get_item_list_info(page_number=1, page_size=20, myid="SYNTHETIC_USER_REF")
 +        finally:
 +            logger.remove(token)
 +
@@ -1428,19 +2248,19 @@ index 0000000000000000000000000000000000000000..327a99902e9da86e904c1ad04fe3e030
 +        self.assertEqual(result["card_list_count"], 0)
 +        self.assertEqual(result["other_array_counts"], {"otherItems": 1})
 +        joined = "\n".join(captured)
-+        self.assertNotIn("cookie-secret", joined)
++        self.assertNotIn("synthetic_cookie", joined)
 +        self.assertNotIn("_m_h5_tk", joined)
-+        self.assertNotIn("token-secret", joined)
++        self.assertNotIn("SYNTHETIC_TOKEN_FIXTURE", joined)
 +        self.assertNotIn("sign", joined)
 +        self.assertNotIn("Authorization", joined)
-+        self.assertNotIn("user-secret-123", joined)
++        self.assertNotIn("SYNTHETIC_USER_REF", joined)
 +        self.assertNotIn(ACCOUNT_A, joined)
 +
 +
 +if __name__ == "__main__":
 +    unittest.main()
 diff --git a/websocket/app/services/xianyu/ai_reply_engine.py b/websocket/app/services/xianyu/ai_reply_engine.py
-index fd1a6c450bc32e5329034fd0ae05d02f5798de16..8be9b05a9dc1b7c32849f166d8f4423093617cb4 100644
+index fd1a6c450bc32e5329034fd0ae05d02f5798de16..ccccc802c11d714a8bb5ee53e6d0b5967493feb2 100644
 --- a/websocket/app/services/xianyu/ai_reply_engine.py
 +++ b/websocket/app/services/xianyu/ai_reply_engine.py
 @@ -31,0 +32,3 @@ from common.services.ai_provider_service import (
@@ -1556,7 +2376,7 @@ index fd1a6c450bc32e5329034fd0ae05d02f5798de16..8be9b05a9dc1b7c32849f166d8f44230
 +                        return None
 +
 diff --git a/websocket/app/services/xianyu/auto_reply_service.py b/websocket/app/services/xianyu/auto_reply_service.py
-index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..c5ddea8b3252eff21b787972435b61d67eb3adc6 100644
+index a3fa1c9b4d00bcebf0e3343a8d59b59c3e55085e..6fac0e863ec89d076cf937edab213e39887ca74a 100644
 --- a/websocket/app/services/xianyu/auto_reply_service.py
 +++ b/websocket/app/services/xianyu/auto_reply_service.py
 @@ -34,0 +35 @@ from common.utils.default_reply_api import call_reply_api

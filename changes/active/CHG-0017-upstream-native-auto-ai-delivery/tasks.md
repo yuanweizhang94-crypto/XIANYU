@@ -204,6 +204,31 @@ WebSocket runtime, or AI provider.
 T17 remains unchecked because final archive/merge was not authorized in this
 run. The operational delivery state is `DELIVERY_READY`.
 
+## Laptop Source Sync Evidence
+
+Run `CHG17-LAPTOP-SOURCE-SYNC-20260805T035232Z` records the source
+synchronization from the production laptop into existing Draft PR #26.
+
+- Production containers were inspected only and were not stopped, restarted,
+  rebuilt, or recreated.
+- No account task, scheduler, CHG-0010 worker, platform verification, product
+  publish, AI provider call, or message send was triggered during the sync.
+- Local branch was fast-forwarded to remote PR head
+  `2c1058fd5c0a9f1a572b578faf913df16e2cbd2b` before applying laptop source
+  artifacts.
+- Vendor patch artifact was regenerated from the candidate upstream staged
+  diff at pinned base `4c5e1ac5f532c7313365d70409ae115305de8a55`.
+- Patch SHA256 is
+  `14820F96672A67E5B63EB22C8A5A3F1C0C16F8002E5514FB956EF5FBB8BC3329`.
+- Patch target count is `12`; clean apply, applied diff check, and staged blob
+  equivalence passed `12/12`.
+- Targeted offline tests passed: `58`.
+- Only masked Markdown evidence is eligible for Git; raw screenshots, raw JSON
+  browser summaries, logs, Cookie, Token, API keys, full account IDs, full item
+  IDs, chat IDs, and customer messages remain excluded.
+- PR #26 remains Draft, Open, and Unmerged.
+- T17 remains unchecked because archive and merge are not authorized.
+
 ## Native UI Delivery Evidence
 
 Run `CHG17-NATIVE-UI-20260731T150428Z` resolved the owner-facing native UI
