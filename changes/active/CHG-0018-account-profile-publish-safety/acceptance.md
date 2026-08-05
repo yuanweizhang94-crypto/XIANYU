@@ -1,6 +1,6 @@
 # CHG-0018 Acceptance
 
-Status: VERIFYING
+Status: IMPLEMENTING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -17,6 +17,9 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Existing healthy Profiles are not opened during passive checks.
 - Formal publish runs shared preflight and publish inside one context for the concrete attempt.
 - Batch publish does not keep one long-lived context for the whole batch or all accounts.
+- Batch publish passes authoritative `account_id` and `owner_id` into the existing upstream publisher and does not silently fall back to a temporary Cookie-only context.
+- Backend publisher and websocket/Profile execution containers use the same mounted canonical `browser_data` Profile root.
+- Publish-page preflight waits up to 60 seconds and returns specific failure reasons instead of using `publish_form_not_rendered` for slow load, login, verification, or page-structure mismatch.
 - Each browser task acquires at most one account lock and one global browser slot.
 - No real account operation, message sending, true publish, CHG-0017 T17, archive, merge, or PR #26 state change occurs.
 - Runtime verification may perform only the project-owner authorized CANARY-A01 read-only Profile/preflight checks and at most one native auto-polish canary item. It must not create products, publish products, send messages, start a second scheduler path, or affect PR #26.
@@ -26,6 +29,7 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Missing or bad account credentials in polish must not trigger password login for accounts without complete credentials and must not disable the account.
 - Polish API logs must not record Cookie, Token, full API responses, or full account identifiers.
 - Token-expiry retry during polish is bounded to one retry.
+- Real batch publish recovery may retry only the four owner-authorized failed publish records after duplicate checks classify them as `NOT_PUBLISHED`; successful or unknown records must not be retried.
 
 ## Test matrix
 
@@ -47,6 +51,12 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Frontend build: `npm run build`.
 - Patch artifact: `vendor/patches/xianyu-auto-reply/4c5e1ac-chg0018-account-profile-publish-safety.patch`.
 - Patch SHA256: `F15F2161213EE7CD8B952D3DD475DEA18BA12F56570E332CE4711BD87D6350E2`.
+
+## Real batch publish recovery target
+
+- Executor service: backend-web native batch publish service.
+- Required fix: canonical Profile root shared through the existing Cookie/Profile service and deployment volume, authoritative account identity forwarding, and specific publish-page readiness classification.
+- Required safety: duplicate check before retry, max one retry per authorized failed record, no Token batch renewals, no QR batch scans, no messages, and no PR #26 state change.
 
 ## P1-P4 result
 

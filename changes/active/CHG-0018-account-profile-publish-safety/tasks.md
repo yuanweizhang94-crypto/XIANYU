@@ -1,6 +1,6 @@
 # CHG-0018 Tasks
 
-Status: VERIFYING
+Status: IMPLEMENTING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -14,6 +14,8 @@ Change ID: CHG-0018-account-profile-publish-safety
 - [x] T8 Generate CHG-0018 patch artifact, evidence, and full validation.
 - [x] T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening.
 - [x] T10 Return CHG-0018 to VERIFYING after scoped runtime evidence and repository validation.
+- [ ] T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path.
+- [ ] T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.
 
 ## T9 result
 
@@ -26,6 +28,14 @@ Change ID: CHG-0018-account-profile-publish-safety
 ## T10 result
 
 - CHG-0018 returned to `VERIFYING` after targeted tests, repository validation, patch clean-apply checks, and masked runtime evidence.
+
+## T11 target
+
+- Confirm the real batch publish executor, runtime image, and call chain from masked production logs and database records.
+- Share one canonical persistent Profile root between backend publisher and websocket/Profile execution containers.
+- Ensure batch publish passes authoritative `account_id` and `owner_id`, not only caller-supplied Cookie data.
+- Replace the old early `publish_form_not_rendered` check with 60-second page-state polling and specific failure reasons.
+- Retry only owner-authorized failed records classified as `NOT_PUBLISHED` after duplicate checks.
 
 ## Upstream capability audit
 

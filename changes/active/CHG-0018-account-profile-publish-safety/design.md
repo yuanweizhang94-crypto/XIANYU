@@ -1,6 +1,6 @@
 # CHG-0018 Design
 
-Status: VERIFYING
+Status: IMPLEMENTING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -19,6 +19,10 @@ P3 extracts a shared `preflight_publish_form(context)` or equivalent from CHG-00
 P4 first confirms the existing responsibilities of `run_browser_task`, account locks, and global browser slots. Only publish, preflight, and Profile initialization are changed where missing or proven duplicate. Cookie renewal and password login are not refactored for symmetry.
 
 The auto-polish hardening stays inside pinned upstream scheduler services. `day_switch_task` fail-closes Redis read/update failures before resetting polish state. `polish_task` checks platform-day readiness before item processing, supports optional internal account scope and per-account item limit for canaries, masks account/item identifiers in touched polish logs, treats duplicate polish responses as successful same-day completion, and only schedules existing password login recovery when complete automatic-login credentials exist.
+
+The real batch publish recovery keeps the upstream-native publisher as the only executor. The backend batch service now passes authoritative `account_id` and `owner_id` into `XianyuPublisher.publish_item`, and each concrete publish attempt opens the canonical persistent Profile, runs shared preflight, publishes in the same context, then closes it. The canonical Profile root is provided by the existing Cookie browser renewal/Profile service and is mounted into both backend and websocket containers as the same persistent `browser_data` volume.
+
+Publish-page readiness is classified by a single 60-second polling path. The preflight no longer visits the login page first or treats arbitrary controls as a ready form. It returns specific existing-style failure reasons for `login_required`, `manual_verification_required`, `runtime_profile_path_mismatch`, `browser_busy`, `publish_page_load_failed`, and `publish_form_timeout`.
 
 Runtime enablement keeps the existing scheduler process model. The production canary enables only `day_switch`, `fetch_items`, and `polish` in `xy_scheduled_tasks`; all order, delivery, direct-message, token-renewal, and unrelated scheduler tasks remain disabled.
 

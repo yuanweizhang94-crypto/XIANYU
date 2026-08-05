@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0018-account-profile-publish-safety",
-    "status": "VERIFYING",
+    "status": "IMPLEMENTING",
     "path": "changes/active/CHG-0018-account-profile-publish-safety"
   },
   "tasks": {
-    "total": 10,
+    "total": 12,
     "completed": 10,
-    "next_task": null,
+    "next_task": "T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path.",
     "items": [
       {
         "text": "T1 Implement P0 credential safety and false-disable prevention.",
@@ -50,6 +50,14 @@
       {
         "text": "T10 Return CHG-0018 to VERIFYING after scoped runtime evidence and repository validation.",
         "completed": true
+      },
+      {
+        "text": "T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path.",
+        "completed": false
+      },
+      {
+        "text": "T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.",
+        "completed": false
       }
     ]
   },

@@ -21,25 +21,80 @@ index 752c006..c39bd89 100644
 +        if clear_login_password:
 +            account.login_password = None
 +        elif login_password is not None:
+diff --git a/backend-web/app/services/publish_execution_service.py b/backend-web/app/services/publish_execution_service.py
+index 08adcd6..3ca7798 100644
+--- a/backend-web/app/services/publish_execution_service.py
++++ b/backend-web/app/services/publish_execution_service.py
+@@ -312 +311,0 @@ class PublishExecutorService:
+-                        reuse = idx > 0
+@@ -316,2 +315,4 @@ class PublishExecutorService:
+-                            reuse_browser=reuse,
+-                            should_close=False,
++                            reuse_browser=False,
++                            should_close=True,
++                            account_id=account.account_id,
++                            owner_id=user_id,
 diff --git a/backend-web/app/services/xianyu_publisher.py b/backend-web/app/services/xianyu_publisher.py
-index 51d0994..a4da4bc 100644
+index 51d0994..4e3bb94 100644
 --- a/backend-web/app/services/xianyu_publisher.py
 +++ b/backend-web/app/services/xianyu_publisher.py
-@@ -50,0 +51,5 @@ class XianyuPublisher:
+@@ -24,0 +25,5 @@ from common.utils.browser_utils import ensure_playwright_browser_path, get_chrom
++from common.services.cookie_renew_browser_service import (
++    get_account_browser_profile_dir,
++    get_browser_data_root,
++    get_pure_account_id,
++)
+@@ -50,0 +56,5 @@ class XianyuPublisher:
 +        self.profile_account_id: Optional[str] = None
 +        self.profile_user_data_dir: Optional[Path] = None
 +        self._profile_lock_key: Optional[str] = None
 +        self._profile_slot_acquired = False
 +        self._profile_account_lock_acquired = False
-@@ -97,0 +103,187 @@ class XianyuPublisher:
+@@ -97,0 +108,339 @@ class XianyuPublisher:
 +    def _pure_account_id(self, account_id: str) -> str:
-+        return str(account_id).split("_", 1)[0].strip()
++        return get_pure_account_id(account_id)
 +
 +    def _profile_dir_for_account(self, account_id: str) -> Path:
-+        return Path(os.getcwd()) / "browser_data" / f"user_{self._pure_account_id(account_id)}"
++        return Path(get_account_browser_profile_dir(account_id))
++
++    def _profile_root_mounted(self, profile_root: Path) -> bool:
++        if os.name == "nt" or not Path("/.dockerenv").exists():
++            return True
++        try:
++            mountinfo = Path("/proc/self/mountinfo").read_text(encoding="utf-8", errors="ignore")
++        except Exception:
++            return False
++        resolved = str(profile_root.resolve())
++        return any(
++            len(parts) >= 5 and parts[4] == resolved
++            for parts in (line.split() for line in mountinfo.splitlines())
++        )
++
++    def _profile_runtime_diagnostics(self, account_id: str, profile_dir: Path) -> dict[str, Any]:
++        profile_root = Path(get_browser_data_root())
++        diagnostics = {
++            "canonical_profile_root_hash": self._hash_profile_value(str(profile_root)),
++            "resolved_profile_alias": self._hash_profile_value(self._pure_account_id(account_id)),
++            "directory_exists": profile_dir.exists(),
++            "directory_accessible": False,
++            "runtime_mount_present": self._profile_root_mounted(profile_root),
++        }
++        try:
++            diagnostics["directory_accessible"] = profile_dir.exists() and os.access(profile_dir, os.R_OK | os.W_OK)
++        except Exception:
++            diagnostics["directory_accessible"] = False
++        return diagnostics
++
++    def _hash_profile_value(self, value: str) -> str:
++        import hashlib
++
++        return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 +
 +    def _profile_state(self, account_id: str) -> tuple[str, Path]:
 +        profile_dir = self._profile_dir_for_account(account_id)
++        self.last_publish_diagnostics.update(self._profile_runtime_diagnostics(account_id, profile_dir))
++        if not self.last_publish_diagnostics.get("runtime_mount_present", True):
++            return "runtime_profile_path_mismatch", profile_dir
 +        if not profile_dir.exists() or not any(profile_dir.iterdir()):
 +            return "profile_missing", profile_dir
 +        if any((profile_dir / name).exists() for name in ("SingletonLock", "SingletonCookie", "SingletonSocket")):
@@ -162,74 +217,190 @@ index 51d0994..a4da4bc 100644
 +        self.profile_user_data_dir = profile_dir
 +        await self.set_cookies(authoritative_cookie)
 +
++    async def _detect_real_publish_controls(self) -> dict[str, int]:
++        selectors = {
++            "publish_route": "1",
++            "upload_control_count": "input[type=file], [class*=upload], [class*=Upload]",
++            "title_control_count": "input[placeholder*=title], input[maxlength], [contenteditable=true]",
++            "description_control_count": "textarea, [contenteditable=true]",
++            "price_control_count": "input[inputmode=decimal], input[type=number], input[placeholder*=price]",
++            "publish_button_count": "button[type=submit], button[class*=publish], [class*=publish][role=button]",
++        }
++        counts: dict[str, int] = {}
++        for key, selector in selectors.items():
++            if selector == "1":
++                counts[key] = 1 if self.page and "publish" in (self.page.url or "").lower() else 0
++                continue
++            try:
++                counts[key] = len(await self.page.query_selector_all(selector))
++            except Exception:
++                counts[key] = 0
++        return counts
++
++    async def _has_publish_quick_enter(self) -> bool:
++        if not self.page:
++            return False
++        for frame in self.page.frames:
++            if "passport.goofish.com" not in (frame.url or ""):
++                continue
++            try:
++                if await frame.locator("button").count() > 0:
++                    return True
++            except Exception:
++                continue
++        return False
++
++    async def _classify_publish_page_state(
++        self,
++        *,
++        elapsed_seconds: float,
++        quick_enter_clicked: bool,
++    ) -> dict[str, Any]:
++        current_url = self.page.url if self.page else ""
++        lowered_url = current_url.lower()
++        try:
++            page_text = await self.page.evaluate("() => document.body.innerText || ''")
++        except Exception:
++            page_text = ""
++
++        controls = await self._count_publish_form_controls()
++        real_controls = await self._detect_real_publish_controls()
++        diagnostics = {
++            "final_url_category": self._classify_publish_url(current_url),
++            "page_title_category": await self._classify_publish_title(),
++            "quick_enter_detected": await self._has_publish_quick_enter(),
++            "quick_enter_clicked": quick_enter_clicked,
++            "login_marker_detected": False,
++            "verification_marker_detected": False,
++            "shell_element_count": controls.get("input_count", 0) + controls.get("button_count", 0),
++            "real_publish_control_count": sum(real_controls.values()),
++            "elapsed_seconds": round(elapsed_seconds, 1),
++            **controls,
++            **real_controls,
++        }
++
++        login_terms = ("login", "passport", "auth", "sign")
++        if any(term in lowered_url for term in login_terms):
++            diagnostics["login_marker_detected"] = True
++            return {"state": "login_required", "diagnostics": diagnostics, "page_text": page_text}
++
++        risk_terms = ("punish", "captcha", "validate", "slider", "face")
++        if any(term in lowered_url for term in risk_terms):
++            diagnostics["verification_marker_detected"] = True
++            return {"state": "manual_verification_required", "diagnostics": diagnostics, "page_text": page_text}
++
++        try:
++            risk_selectors = ".nc-container, #nc_1_n1z, .captcha-container, iframe[src*=punish], iframe[src*=captcha]"
++            if await self.page.query_selector(risk_selectors):
++                diagnostics["verification_marker_detected"] = True
++                return {"state": "manual_verification_required", "diagnostics": diagnostics, "page_text": page_text}
++        except Exception:
++            pass
++
++        if diagnostics["quick_enter_detected"] and not quick_enter_clicked:
++            return {"state": "quick_enter_required", "diagnostics": diagnostics, "page_text": page_text}
++
++        ready_signals = 0
++        if real_controls.get("publish_route", 0) > 0:
++            ready_signals += 1
++        if real_controls.get("upload_control_count", 0) > 0:
++            ready_signals += 1
++        if real_controls.get("description_control_count", 0) > 0:
++            ready_signals += 1
++        if real_controls.get("price_control_count", 0) > 0:
++            ready_signals += 1
++        if real_controls.get("publish_button_count", 0) > 0:
++            ready_signals += 1
++        if ready_signals >= 3:
++            return {"state": "ready", "diagnostics": diagnostics, "page_text": page_text}
++
++        if elapsed_seconds >= 15 and not page_text.strip() and diagnostics["shell_element_count"] == 0:
++            return {"state": "publish_page_load_failed", "diagnostics": diagnostics, "page_text": page_text}
++
++        return {"state": "waiting", "diagnostics": diagnostics, "page_text": page_text}
++
++    def _classify_publish_url(self, url: str) -> str:
++        lowered = (url or "").lower()
++        if any(term in lowered for term in ("login", "passport", "auth")):
++            return "login"
++        if any(term in lowered for term in ("punish", "captcha", "validate")):
++            return "manual_verification"
++        if "publish" in lowered:
++            return "publish"
++        if "goofish.com" in lowered:
++            return "goofish"
++        if not lowered:
++            return "empty"
++        return "other"
++
++    async def _classify_publish_title(self) -> str:
++        try:
++            title = (await self.page.title()).lower()
++        except Exception:
++            return "unavailable"
++        if any(term in title for term in ("login", "登录")):
++            return "login"
++        if any(term in title for term in ("验证", "captcha", "security")):
++            return "manual_verification"
++        if title:
++            return "present"
++        return "empty"
++
 +    async def preflight_publish_form(self) -> dict[str, Any]:
 +        if not self.page:
 +            raise Exception("publish_form_not_rendered")
 +
 +        publish_url = "https://www.goofish.com/publish?spm=a21ybx.item.sidebar.1.297e3da6aDZAmV"
-+        await self.page.goto("https://www.goofish.com", wait_until="networkidle", timeout=30000)
++        await self.page.goto("https://www.goofish.com", wait_until="domcontentloaded", timeout=30000)
 +        await asyncio.sleep(1)
-+        await self.page.goto("https://login.taobao.com/member/login.jhtml", wait_until="domcontentloaded", timeout=30000)
-+        await asyncio.sleep(1)
-+        await self.page.goto(publish_url, wait_until="networkidle", timeout=60000)
-+        await asyncio.sleep(3)
++        await self.page.goto(publish_url, wait_until="domcontentloaded", timeout=60000)
 +
-+        current_url = self.page.url
-+        if "login" in current_url or "auth" in current_url:
-+            raise Exception("login_required")
++        loop = asyncio.get_running_loop()
++        start_time = loop.time()
++        deadline = start_time + 60
++        quick_enter_clicked = False
++        page_text = ""
++        last_state = "waiting"
 +
-+        quick_enter_clicked = await self._handle_publish_quick_enter()
-+        if quick_enter_clicked:
-+            await asyncio.sleep(12)
-+
-+        page_text = await self.page.evaluate("() => document.body.innerText")
-+        form_controls = await self._count_publish_form_controls()
-+        self.last_publish_diagnostics.update({
-+            "quick_enter_clicked": quick_enter_clicked,
-+            **form_controls,
-+        })
-+        if form_controls["input_count"] == 0 and form_controls["button_count"] == 0:
-+            await asyncio.sleep(5)
-+            page_text = await self.page.evaluate("() => document.body.innerText")
-+            form_controls = await self._count_publish_form_controls()
-+            self.last_publish_diagnostics.update(form_controls)
-+            if form_controls["input_count"] == 0 and form_controls["button_count"] == 0:
-+                raise Exception("publish_form_not_rendered")
-+
-+        try:
-+            await self.page.wait_for_selector("input, button, textarea", timeout=30000)
-+        except Exception:
-+            await self.page.wait_for_function(
-+                """
-+                () => document.querySelectorAll('input, button, textarea').length > 0
-+                """,
-+                timeout=30000,
++        while loop.time() < deadline:
++            elapsed = loop.time() - start_time
++            page_state = await self._classify_publish_page_state(
++                elapsed_seconds=elapsed,
++                quick_enter_clicked=quick_enter_clicked,
 +            )
++            last_state = page_state["state"]
++            page_text = page_state.get("page_text") or ""
++            self.last_publish_diagnostics.update(page_state["diagnostics"])
 +
-+        captcha_selectors = [".nc-container", "#nc_1_n1z", ".captcha-container"]
-+        for selector in captcha_selectors:
-+            if await self.page.query_selector(selector):
-+                self.last_publish_diagnostics["risk_verification"] = True
-+                raise Exception("platform_risk_verification")
++            if last_state == "ready":
++                return {
++                    "ready": True,
++                    "failure_reason": None,
++                    "diagnostics": self.last_publish_diagnostics,
++                    "page_text_length": len(page_text),
++                }
++            if last_state in {"login_required", "manual_verification_required", "publish_page_load_failed"}:
++                raise Exception(last_state)
++            if last_state == "quick_enter_required":
++                quick_enter_clicked = await self._handle_publish_quick_enter()
++                self.last_publish_diagnostics["quick_enter_clicked"] = quick_enter_clicked
++            await asyncio.sleep(1)
 +
-+        return {
-+            "ready": True,
-+            "failure_reason": None,
-+            "diagnostics": self.last_publish_diagnostics,
-+            "page_text_length": len(page_text or ""),
-+        }
++        self.last_publish_diagnostics["final_failure_reason"] = "publish_form_timeout"
++        self.last_publish_diagnostics["last_page_state"] = last_state
++        raise Exception("publish_form_timeout")
 +
-@@ -212 +404 @@ class XianyuPublisher:
+@@ -212 +561 @@ class XianyuPublisher:
 -        cookie_data: dict,
 +        cookie_data: dict | None = None,
-@@ -214,0 +407,3 @@ class XianyuPublisher:
+@@ -214,0 +564,3 @@ class XianyuPublisher:
 +        account_id: str | None = None,
 +        owner_id: int | None = None,
 +        preflight_only: bool = False,
-@@ -233 +428 @@ class XianyuPublisher:
+@@ -233 +585 @@ class XianyuPublisher:
 -            logger.info("🖥️ 使用无头模式（浏览器不可见）")
 +            logger.info("Using headless publish browser")
-@@ -235,4 +430,3 @@ class XianyuPublisher:
+@@ -235,4 +587,3 @@ class XianyuPublisher:
 -            should_reuse_context = reuse_browser and self.is_initialized and self.current_cookie == cookie_data["cookie"]
 -            if should_reuse_context:
 -                logger.info("🔄 复用现有浏览器，重新创建页面...")
@@ -237,7 +408,7 @@ index 51d0994..a4da4bc 100644
 +            cookie_value = (cookie_data or {}).get("cookie", "")
 +            if account_id:
 +                await self.initialize_account_profile(account_id=account_id, owner_id=owner_id, headless=headless)
-@@ -240,81 +434,4 @@ class XianyuPublisher:
+@@ -240,81 +591,4 @@ class XianyuPublisher:
 -                await self.initialize(headless=headless)
 -
 -            if not should_reuse_context:
@@ -323,10 +494,10 @@ index 51d0994..a4da4bc 100644
 +                if should_reuse_context:
 +                    logger.info("Reusing existing publish browser context")
 +                    await self.reinitialize_page()
-@@ -322 +439 @@ class XianyuPublisher:
+@@ -322 +596 @@ class XianyuPublisher:
 -                    logger.info("   ✅ 表单元素已存在")
 +                    await self.initialize(headless=headless)
-@@ -324,6 +441,2 @@ class XianyuPublisher:
+@@ -324,6 +598,2 @@ class XianyuPublisher:
 -                all_inputs = await self.page.query_selector_all("input")
 -                all_buttons = await self.page.query_selector_all("button")
 -                all_textareas = await self.page.query_selector_all("textarea")
@@ -335,7 +506,7 @@ index 51d0994..a4da4bc 100644
 -                )
 +                if not should_reuse_context:
 +                    await self.set_cookies(cookie_value)
-@@ -331,31 +443,0 @@ class XianyuPublisher:
+@@ -331,31 +600,0 @@ class XianyuPublisher:
 -            except Exception as e:
 -                logger.warning(f"   方法1失败，尝试方法2: {e}")
 -                await self.page.wait_for_function(
@@ -367,7 +538,7 @@ index 51d0994..a4da4bc 100644
 -                    logger.warning("需要通过滑块验证才能继续")
 -                    has_captcha = True
 -                    break
-@@ -363,2 +445,5 @@ class XianyuPublisher:
+@@ -363,2 +602,5 @@ class XianyuPublisher:
 -            if has_captcha:
 -                logger.warning("提示：可以集成滑块验证工具来自动处理")
 +            preflight_result = await self.preflight_publish_form()
@@ -375,14 +546,22 @@ index 51d0994..a4da4bc 100644
 +            if preflight_only:
 +                result.update({"success": True, "message": "publish preflight ready", "failure_reason": None})
 +                return result
-@@ -1825,0 +1911,4 @@ class XianyuPublisher:
+@@ -1825,0 +2068,12 @@ class XianyuPublisher:
 +        if "profile_missing" in message:
 +            return "profile_missing"
++        if "runtime_profile_path_mismatch" in message:
++            return "runtime_profile_path_mismatch"
 +        if "browser_busy" in message or "PROFILE_IN_USE" in message:
 +            return "browser_busy"
-@@ -2103,0 +2193 @@ class XianyuPublisher:
++        if "publish_form_timeout" in message:
++            return "publish_form_timeout"
++        if "publish_page_load_failed" in message:
++            return "publish_page_load_failed"
++        if "manual_verification_required" in message or "platform_risk_verification" in message:
++            return "manual_verification_required"
+@@ -2103,0 +2358 @@ class XianyuPublisher:
 +            await self._release_profile_guards()
-@@ -2122,0 +2213 @@ class XianyuPublisher:
+@@ -2122,0 +2378 @@ class XianyuPublisher:
 +            await self._release_profile_guards()
 diff --git a/common/schemas/account.py b/common/schemas/account.py
 index 948911e..155bc19 100644
@@ -393,6 +572,37 @@ index 948911e..155bc19 100644
 +    has_password: bool = False
 @@ -95,0 +96 @@ class AccountLoginInfoUpdate(BaseModel):
 +    clear_login_password: bool = Field(False, description="明确清空登录密码")
+diff --git a/common/services/cookie_renew_browser_service.py b/common/services/cookie_renew_browser_service.py
+index c5d24ca..2782564 100644
+--- a/common/services/cookie_renew_browser_service.py
++++ b/common/services/cookie_renew_browser_service.py
+@@ -69,0 +70,23 @@ _BROWSER_RENEW_HTTP_TIMEOUT_SECONDS = 300
++def get_pure_account_id(account_id: str) -> str:
++    """Return the stable upstream Profile id segment for an account."""
++    return str(account_id).split("_", 1)[0].strip()
++
++
++def get_browser_data_root() -> str:
++    """Return the canonical browser Profile root without depending on cwd."""
++    configured = (
++        os.environ.get("XIANYU_BROWSER_DATA_DIR")
++        or os.environ.get("BROWSER_DATA_DIR")
++    )
++    if configured:
++        return os.path.abspath(os.path.expanduser(configured))
++    return os.path.abspath(
++        os.path.join(os.path.dirname(__file__), "..", "..", "browser_data")
++    )
++
++
++def get_account_browser_profile_dir(account_id: str) -> str:
++    """Return the canonical persistent browser Profile path for an account."""
++    return os.path.join(get_browser_data_root(), f"user_{get_pure_account_id(account_id)}")
++
++
+@@ -365 +388 @@ class CookieRenewBrowserService:
+-        user_data_dir = os.path.join(os.getcwd(), "browser_data", f"user_{pure_user_id}")
++        user_data_dir = get_account_browser_profile_dir(pure_user_id)
 diff --git a/common/services/publish_execution_service.py b/common/services/publish_execution_service.py
 index d7b68f3..f4abd9e 100644
 --- a/common/services/publish_execution_service.py
@@ -420,6 +630,16 @@ index 0243e77..3b53ba2 100644
 +        account_id=account_id,
 +        owner_id=owner_id,
 +        preflight_only=preflight_only,
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 2122a62..0a9f65c 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -103,0 +104 @@ services:
++      - BROWSER_DATA_DIR=/app/browser_data
+@@ -108,0 +110 @@ services:
++      - browser_data:/app/browser_data
+@@ -156,0 +159 @@ services:
++      - BROWSER_DATA_DIR=/app/browser_data
 diff --git a/frontend/src/api/accounts.ts b/frontend/src/api/accounts.ts
 index d89f14a..2f5d96a 100644
 --- a/frontend/src/api/accounts.ts
@@ -887,6 +1107,24 @@ index a81cf79..3daf465 100644
 +                    f"【{self.task_name}】账号 {self._mask_identifier(account_id)} "
 +                    f"商品 {self._mask_identifier(item_id)} 处理失败: {self._classify_error(error_message or '')}"
 +                )
+diff --git a/tests/test_chg0017_publish_login_submit.py b/tests/test_chg0017_publish_login_submit.py
+index 0cf004e..cb35feb 100644
+--- a/tests/test_chg0017_publish_login_submit.py
++++ b/tests/test_chg0017_publish_login_submit.py
+@@ -58,0 +59,5 @@ def load_publisher_module():
++    cookie_service_module.get_pure_account_id = lambda account_id: str(account_id).split("_", 1)[0].strip()
++    cookie_service_module.get_browser_data_root = lambda: str(ROOT / "browser_data")
++    cookie_service_module.get_account_browser_profile_dir = (
++        lambda account_id: str(ROOT / "browser_data" / f"user_{str(account_id).split('_', 1)[0].strip()}")
++    )
+@@ -224,0 +230,2 @@ def test_publish_exception_classification_is_specific():
++    assert publisher._classify_publish_exception(Exception("publish_form_timeout")) == "publish_form_timeout"
++    assert publisher._classify_publish_exception(Exception("manual_verification_required")) == "manual_verification_required"
+@@ -241,2 +248,2 @@ def test_publish_form_zero_controls_has_explicit_classification():
+-    assert 'form_controls["input_count"] == 0 and form_controls["button_count"] == 0' in source
+-    assert 'raise Exception("publish_form_not_rendered")' in source
++    assert "deadline = start_time + 60" in source
++    assert 'raise Exception("publish_form_timeout")' in source
 diff --git a/tests/test_chg0018_auto_polish_safety.py b/tests/test_chg0018_auto_polish_safety.py
 new file mode 100644
 index 0000000..ba1cef8
@@ -1030,10 +1268,10 @@ index 0000000..f2db763
 +        assert "cookie field count" in source
 diff --git a/tests/test_chg0018_profile_publish_readiness.py b/tests/test_chg0018_profile_publish_readiness.py
 new file mode 100644
-index 0000000..99703ca
+index 0000000..26ab500
 --- /dev/null
 +++ b/tests/test_chg0018_profile_publish_readiness.py
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,101 @@
 +from __future__ import annotations
 +
 +from pathlib import Path
@@ -1067,14 +1305,22 @@ index 0000000..99703ca
 +
 +def test_publisher_uses_persistent_profile_and_authoritative_cookie_lookup() -> None:
 +    source = read("backend-web/app/services/xianyu_publisher.py")
++    cookie_source = read("common/services/cookie_renew_browser_service.py")
++    compose = read("docker-compose.yml")
 +
 +    assert "initialize_account_profile" in source
 +    assert "launch_persistent_context(str(profile_dir)" in source
 +    assert "_load_authoritative_cookie" in source
 +    assert "select(XYAccount).where(XYAccount.account_id == account_id)" in source
 +    assert "profile_missing" in source
++    assert "runtime_profile_path_mismatch" in source
 +    assert "browser_busy" in source
-+    assert '"browser_data" / f"user_{self._pure_account_id(account_id)}"' in source
++    assert "get_account_browser_profile_dir(account_id)" in source
++    assert 'Path(os.getcwd()) / "browser_data"' not in source
++    assert "def get_account_browser_profile_dir(account_id: str) -> str:" in cookie_source
++    assert "def get_browser_data_root() -> str:" in cookie_source
++    assert "BROWSER_DATA_DIR=/app/browser_data" in compose
++    assert compose.count("browser_data:/app/browser_data") >= 2
 +
 +
 +def test_publish_runs_shared_preflight_before_form_mutation_in_same_context() -> None:
@@ -1102,6 +1348,31 @@ index 0000000..99703ca
 +    assert "await self._release_profile_guards()" in source
 +    assert "class BrowserBroker" not in source
 +    assert "new_service" not in source
++
++
++def test_batch_publish_forwards_identity_and_uses_profile_context_per_item() -> None:
++    source = read("backend-web/app/services/publish_execution_service.py")
++
++    publish_call = source.index("result = await publisher.publish_item(")
++    call_block = source[publish_call: source.index(")", publish_call) + 1]
++    assert "account_id=account.account_id" in call_block
++    assert "owner_id=user_id" in call_block
++    assert "reuse_browser=False" in call_block
++    assert "should_close=True" in call_block
++
++
++def test_preflight_waits_for_real_publish_form_and_specific_failures() -> None:
++    source = read("backend-web/app/services/xianyu_publisher.py")
++
++    assert "deadline = start_time + 60" in source
++    assert "login.taobao.com" not in source
++    assert "quick_enter_required" in source
++    assert "manual_verification_required" in source
++    assert "publish_page_load_failed" in source
++    assert "publish_form_timeout" in source
++    assert "ready_signals >= 3" in source
++    assert 'form_controls["input_count"] == 0 and form_controls["button_count"] == 0' not in source
++    assert 'document.querySelectorAll(' not in source
 diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
 index 49ac450..e30d031 100644
 --- a/websocket/app/api/routes/internal.py
