@@ -1,6 +1,6 @@
 # CHG-0018 Design
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -26,6 +26,14 @@ Publish-page readiness is classified by a single 60-second polling path. The pre
 
 Runtime enablement keeps the existing scheduler process model. The production canary enables only `day_switch`, `fetch_items`, and `polish` in `xy_scheduled_tasks`; all order, delivery, direct-message, token-renewal, and unrelated scheduler tasks remain disabled.
 
+The exact-item/no-retry extension remains inside the same upstream-native scheduler and item-list methods. `PolishTaskService.execute` accepts default-off `platform_item_ids` and a backward-compatible `retry_on_token_expiry=True` control. Exact item scope is applied in the existing SQL `SELECT` together with account ownership, active account, `auto_polish`, session cooldown, unpolished state, and item limit. Item-list Token recovery is bounded to one retry; any rotated Cookie fields are persisted through the existing `merge_account_cookie_fields` path so later polish does not reload stale account Cookie state. The polish MTop method itself remains single-request and non-recursive; `PolishTaskService` may perform one native item-list auth recovery and one final polish retry only for explicit Session/Token expiry. No service, HTTP API, scheduler task, model, table, Cookie manager, Token system, or execution owner is added.
+
+Final production verification confirmed the lifecycle in the existing execution path: account `2219319284219` and four exact platform item IDs each returned explicit `SUCCESS::调用成功` on one polish request and each transitioned `is_polished=false -> true`, with zero auth failures and zero out-of-scope requests. The final Vendor Patch SHA256 is `94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`, and the production Scheduler image is `xianyu-chg0018-scheduler:56d62e2-94c8682`.
+
+Production global polish is re-enabled only through the existing scheduled-task management path; its interval is unchanged and `day_switch` remains enabled. One natural Scheduler cycle demonstrated that explicit successes continue normally, Session-expired accounts perform at most one bounded recovery attempt and stop that account on failure, later accounts continue, and the Scheduler remains running with `RestartCount=0`. Individual account Session expiry is therefore an operational account-health condition rather than a CHG-0018 code defect once the fail-closed bounded behavior is preserved.
+
+Repository governance does not define a `VERIFIED` status. Because the next formal state is merge-bound `MERGED` and PR #26 is explicitly required to remain Draft/Open/Unmerged, final production verification does not fabricate a new state or advance the Change past `VERIFYING`.
+
 ## Upstream capability audit
 
 The design reuses pinned upstream account management, password login refresh, Cookie browser renewal, publish execution, publish page diagnostics, and browser concurrency primitives.
@@ -44,7 +52,7 @@ Decision: PATCH_UPSTREAM
 
 ## Duplicate implementation risk
 
-The design forbids parallel account stores, Profile stores, browser brokers, queues, senders, Token systems, and publishers.
+The design forbids parallel account stores, Profile stores, browser brokers, queues, senders, Token systems, and publishers. The exact-item/no-retry extension changes only optional parameters and filters in existing methods, so duplicate-development risk remains low.
 
 ## Why upstream cannot satisfy the requirement
 
@@ -60,4 +68,4 @@ Pinned upstream remains the runtime owner; XIANYU owns the governance patch arti
 
 ## Retirement plan for overlapping local code
 
-No overlapping local production code is introduced.
+No overlapping local production code is introduced. Rollback is removal of the optional parameters from the existing methods or restoration of the prior scheduler image; no data migration is required.

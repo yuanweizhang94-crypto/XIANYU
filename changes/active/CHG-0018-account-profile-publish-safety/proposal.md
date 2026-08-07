@@ -1,6 +1,6 @@
 # CHG-0018 Account Profile Publish Safety
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -82,6 +82,10 @@ Implementation commits must preserve three auditable boundaries: P0 safety, P1-P
 - Frontend CHG-0018 image deployed without restarting WebSocket, backend, MySQL, or Redis.
 - Credential UI/API safety remained in effect during the canary: no raw password response path is accepted, and the target account has no automatic-login username or password configured.
 - Persistent Profile creation and read-only publish preflight completed without product creation, product publish, upload, or message sending.
-- Auto-polish used the pinned upstream native scheduler path, with `day_switch`, `fetch_items`, and `polish` as the only enabled scheduler tasks.
-- One scoped canary item was polished through `PolishTaskService.execute(account_ids=..., max_items_per_account=1)`, then the single scheduler handled only remaining CANARY-A01 eligible items.
-- Other accounts kept `auto_polish=false`; follow-up owner approval is required before enabling auto-polish for any other account.
+- Auto-polish continues to use the pinned upstream native scheduler path. Final controlled verification used explicit account and `platform_item_ids` scope with bounded Session/Token recovery.
+- Owner-recovered account `2219319284219` processed fixed platform items `1070297095320`, `1073348972265`, `1070510695919`, and `1073905692512`; all four returned `API_CODE=SUCCESS`, `API_MESSAGE=调用成功`, and changed `is_polished=false -> true`.
+- Final controlled totals were four platform polish requests, four explicit successes, zero auth failures, zero unknown failures, zero other-account requests, and zero out-of-scope requests. `END_TO_END_ACCOUNT_POLISH_VERIFIED=true`.
+- Final Vendor Patch SHA256 is `94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`; production Scheduler image is `xianyu-chg0018-scheduler:56d62e2-94c8682`.
+- The existing scheduled-task management path re-enabled global `polish` with its existing interval; `day_switch` remains enabled. One natural Scheduler cycle completed with `RestartCount=0`, and Session-expired accounts failed closed without preventing later accounts from continuing.
+- Account Session expiry is an operational account-health state rather than a CHG-0018 code defect after the bounded fail-closed behavior is proven.
+- Repository governance defines no `VERIFIED` state. Because the next formal state is merge-bound and PR #26 must remain Draft/Open/Unmerged, CHG-0018 remains truthfully `VERIFYING` pending a separate PR decision.

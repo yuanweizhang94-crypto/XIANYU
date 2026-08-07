@@ -1,6 +1,6 @@
 # CHG-0018 Tasks
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -14,6 +14,9 @@ Change ID: CHG-0018-account-profile-publish-safety
 - [x] T8 Generate CHG-0018 patch artifact, evidence, and full validation.
 - [x] T9 Complete CANARY-A01 UI/Profile/preflight runtime verification and native auto-polish canary hardening.
 - [x] T10 Return CHG-0018 to VERIFYING after scoped runtime evidence and repository validation.
+- [x] T10A Add default-off exact platform-item scope and default-compatible item-list no-retry control to the existing upstream-native paths.
+- [x] T10B Validate the exact-item/no-retry patch, regenerate the Vendor Patch, and deploy only the scheduler image while global polish remains disabled.
+- [x] T10C Repair item-list-to-polish Session handoff, add one bounded polish auth recovery, validate, deploy only Scheduler, and run the owner-authorized four-item fixed-account polish validation.
 - [ ] T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path.
 - [ ] T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.
 
@@ -28,6 +31,38 @@ Change ID: CHG-0018-account-profile-publish-safety
 ## T10 result
 
 - CHG-0018 returned to `VERIFYING` after targeted tests, repository validation, patch clean-apply checks, and masked runtime evidence.
+
+## T10A result
+
+- `PolishTaskService.execute` now accepts internal optional `platform_item_ids` and `retry_on_token_expiry` controls without adding a second execution path.
+- Exact platform-item scope is enforced inside the existing unpolished-item SQL `SELECT`; absent, cross-account, and already-polished targets fail closed without fallback.
+- `ItemInfoManager.get_item_list_info` keeps retry enabled by default and supports a one-request strict mode that performs no recursive retry or response-Cookie update.
+- The existing polish HTTP method has no recursive retry path; T10C may orchestrate one native auth recovery and one final retry only after explicit Session/Token expiry.
+
+## T10B result
+
+- CHG-0018 targeted tests passed 30/30; CHG-0017 regression tests passed 58/58; repository verification passed 595/595.
+- Vendor Patch parse, staged-base clean apply, and current-source byte equivalence checks passed; new SHA256 is `03F79D07F1177786CF9F9A8B835E71D106BBC4099627A7D39CCA0A3D2F317CCF`.
+- Only `xianyu_chg0017_scheduler` was replaced with `xianyu-chg0018-scheduler:56d62e2-03f79d0`; the prior scheduler container and image were retained for rollback.
+- Backend, frontend, MySQL, Redis, and WebSocket were not restarted. `polish=false` and `day_switch=true` were confirmed after deployment.
+- No real polish, publish, login, Cookie refresh, message send, database business write, Redis write, GitHub write, or PR #26 change occurred.
+
+## T10C result
+
+- Item-list Token/Cookie rotation is handed back through the existing `merge_account_cookie_fields` path so later polish does not reload stale account Cookie fields.
+- An explicit polish Session/Token expiry may perform at most one existing auth recovery plus one final polish retry; no third polish request is allowed.
+- CHG-0018 targeted tests passed 36/36, CHG-0017 regression tests passed 58/58, and repository tests passed 595/595 before final deployment.
+- Final Vendor Patch SHA256: `94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`.
+- Final production Scheduler image: `xianyu-chg0018-scheduler:56d62e2-94c8682`.
+- Owner-recovered account `2219319284219` processed the four fixed platform items with four explicit `SUCCESS::调用成功` responses, four `is_polished=false -> true` transitions, zero auth failures, zero unknown failures, zero other-account requests, and zero out-of-scope requests.
+- `END_TO_END_ACCOUNT_POLISH_VERIFIED=true` and the existing scheduled-task path subsequently re-enabled global polish while `day_switch=true` remained unchanged.
+- One natural global Scheduler cycle completed with `RestartCount=0`; expired-account sessions failed closed after one bounded recovery attempt while later accounts continued.
+
+## Governance closeout boundary
+
+- Repository status definitions do not contain `VERIFIED`; the next formal status after `VERIFYING` is merge-bound `MERGED`.
+- PR #26 must remain Draft/Open/Unmerged, so this task truthfully keeps CHG-0018 at `VERIFYING` and does not invent a status.
+- T11/T12 remain open because the final polish production evidence does not prove the separate real-batch-publish runtime recovery. They are not falsely marked complete during this closeout.
 
 ## T11 target
 

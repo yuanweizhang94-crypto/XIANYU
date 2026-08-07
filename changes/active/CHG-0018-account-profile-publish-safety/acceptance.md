@@ -1,6 +1,6 @@
 # CHG-0018 Acceptance
 
-Status: IMPLEMENTING
+Status: VERIFYING
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -21,9 +21,13 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Backend publisher and websocket/Profile execution containers use the same mounted canonical `browser_data` Profile root.
 - Publish-page preflight waits up to 60 seconds and returns specific failure reasons instead of using `publish_form_not_rendered` for slow load, login, verification, or page-structure mismatch.
 - Each browser task acquires at most one account lock and one global browser slot.
-- No real account operation, message sending, true publish, CHG-0017 T17, archive, merge, or PR #26 state change occurs.
-- Runtime verification may perform only the project-owner authorized CANARY-A01 read-only Profile/preflight checks and at most one native auto-polish canary item. It must not create products, publish products, send messages, start a second scheduler path, or affect PR #26.
-- Auto-polish must use the pinned upstream native scheduler path with an explicit account scope and max-one-item limit for the canary.
+- No message sending, true product publish, CHG-0017 T17, archive, merge, or PR #26 state change occurs. Real polish is limited to the project-owner authorized controlled validation and normal production Scheduler operation after explicit global re-enable authorization.
+- Runtime verification may perform the project-owner authorized fixed-account polish validation for account `2219319284219` and only platform items `1070297095320`, `1073348972265`, `1070510695919`, and `1073905692512`. It must not create products, publish products, send messages, start a second scheduler path, or affect PR #26.
+- Auto-polish validation must use the pinned upstream native `PolishTaskService.execute` path with explicit account and `platform_item_ids` scope. Each item normally receives one polish request; only an explicit Session/Token-expiry response may trigger one native auth recovery and one final polish retry, with no third request.
+- Internal controlled auto-polish may additionally provide `platform_item_ids`; when provided, the existing SQL query must select only the intersection of the scoped account, unpolished state, and requested platform item IDs, with no fallback to another item.
+- `platform_item_ids=None` and `retry_on_token_expiry=True` must preserve default production behavior.
+- `ItemInfoManager.get_item_list_info(..., retry_on_token_expiry=False)` must send at most one HTTP request and return the first auth, token, risk, or unknown failure without recursive retry or response-Cookie update.
+- The polish request path must remain the existing single-request method; no parallel MTop executor or new scheduler/API path is allowed.
 - Redis platform day read failures must fail closed without resetting polish state or running polish.
 - Missing platform day must block polish until the day switch task safely initializes the platform day after a successful item-state reset.
 - Missing or bad account credentials in polish must not trigger password login for accounts without complete credentials and must not disable the account.
@@ -36,6 +40,7 @@ Change ID: CHG-0018-account-profile-publish-safety
 - P0 targeted credential/API/frontend/password-refresh tests.
 - P1-P4 targeted Profile, preflight, and lock lifecycle tests.
 - Existing CHG-0017 regression tests.
+- Exact-item SQL-scope, target-not-eligible, duplicate-unverified, and item-list no-retry/default-retry tests in `tests/test_chg0018_auto_polish_safety.py`.
 - Actual frontend scripts discovered from `package.json`.
 - `python scripts/validate_change.py`.
 - `python scripts/verify_repository.py`.
@@ -69,6 +74,20 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Targeted upstream tests: `python -m pytest tests/test_chg0018_credential_safety.py tests/test_chg0018_profile_publish_readiness.py -q`.
 - CHG-0017 regression tests: `python -m pytest tests/test_chg0017_publish_login_submit.py tests/test_chg0017_reply_allowlist.py tests/test_chg0017_ai_prompt_validation.py tests/test_chg0017_gemini_response_parser.py -q`.
 
+## Exact-item/no-retry canary patch
+
+- Reuse decision remains `PATCH_UPSTREAM`.
+- No new service, HTTP API, frontend control, scheduler task, model, database table, Token system, Cookie recovery system, or Profile manager is introduced.
+- Controlled parameters are internal and default-safe: `platform_item_ids=None` and `retry_on_token_expiry=True`.
+- Exact item selection is applied in the existing `XYCatalogItem` `SELECT`, not by post-query Python filtering.
+- Missing, cross-account, or already-polished targets fail closed as `target_item_not_eligible` and do not select another item.
+- Item-list strict mode disables recursive Token-expiry and exception retry and suppresses response-Cookie updates for that call.
+- The polish request method itself contains no recursive retry path. `PolishTaskService` may orchestrate at most one native Session/Token recovery followed by one final polish retry, so the per-item polish request ceiling is two.
+- The controlled validation phase kept `polish.enabled=false` and `day_switch.enabled=true` until the four-item end-to-end run succeeded. After owner authorization and successful verification, the existing scheduled-task management path re-enabled `polish.enabled=true` without changing its interval; `day_switch.enabled=true` remains unchanged.
+- Final validation result before production enablement: CHG-0018 targeted tests 36/36, CHG-0017 regressions 58/58, repository verification 595/595, patch parse/clean-apply/source-equivalence passed.
+- Final production Scheduler image: `xianyu-chg0018-scheduler:56d62e2-94c8682`; Vendor Patch SHA256: `94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`.
+- Historical exact-item deployment evidence remains in `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260807-exact-item-no-retry-canary-patch.md`; current production state is recorded in `evidence/20260807-final-production-enable-closeout.md`.
+
 ## Final validation result
 
 - Combined upstream targeted and regression tests: 68 passed.
@@ -78,7 +97,7 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Patch staged-base apply check: passed with `git apply --check --cached --whitespace=error-all --unidiff-zero`.
 - Patch diff check: passed for `vendor/patches/xianyu-auto-reply/4c5e1ac-chg0018-account-profile-publish-safety.patch`.
 - Evidence: `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260805-final-validation.md`.
-- Production operations executed: none.
+- This subsection is historical pre-runtime validation; later controlled production polish and global enablement supersede its former no-production-operation boundary.
 - PR #26 state changed: no.
 
 ## Runtime verification result
@@ -109,7 +128,32 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Scheduler running: yes.
 - Scheduler enabled tasks: `day_switch,fetch_items,polish`.
 - `fetch_orders`, `dm_send`, and `auto_order` executed: false.
-- Patch SHA256: `F15F2161213EE7CD8B952D3DD475DEA18BA12F56570E332CE4711BD87D6350E2`.
+- Historical runtime patch SHA256 at that stage: `F15F2161213EE7CD8B952D3DD475DEA18BA12F56570E332CE4711BD87D6350E2`; this is superseded by the final production Patch SHA below.
+
+## Final production verification and enablement
+
+- `SESSION_RECOVERY_CONFIRMED=true` for controlled account `2219319284219` before the final fixed-scope run.
+- Fixed platform items: `1070297095320`, `1073348972265`, `1070510695919`, and `1073905692512`.
+- All four returned `API_CODE=SUCCESS` and `API_MESSAGE=调用成功`.
+- All four changed `is_polished=false -> true` through the formal service path.
+- `TOTAL_PLATFORM_POLISH_REQUESTS=4`, `SUCCESS_ITEM_COUNT=4`, `DUPLICATE_ITEM_COUNT=0`, `AUTH_FAILURE_ITEM_COUNT=0`, `UNKNOWN_FAILURE_ITEM_COUNT=0`, `SKIPPED_AFTER_FAILURE_COUNT=0`.
+- `OTHER_ACCOUNT_PLATFORM_REQUESTS=0` and `OUT_OF_SCOPE_ITEM_REQUESTS=0` for the controlled run.
+- `END_TO_END_ACCOUNT_POLISH_VERIFIED=true` and `SAFE_TO_REENABLE_GLOBAL_POLISH=true`.
+- Duplicate classification remains `duplicate_unverified` and does not become explicit API success.
+- Session/Token expiry remains fail-closed. Authentication recovery is bounded to at most one existing recovery plus one final polish retry; no third request or infinite recovery is allowed.
+- Global `polish.enabled=true` was persisted through the existing scheduled-task management path and reloaded by the existing Scheduler internal reload path. The 60-second interval was unchanged and `day_switch.enabled=true` remained unchanged.
+- One natural production Scheduler cycle completed. Healthy accounts continued to explicit success, expired sessions stopped their own account after one bounded recovery attempt while later accounts continued, and the already-completed controlled account had no remaining eligible items.
+- Production Scheduler remained running with `RestartCount=0`; no second Scheduler or other-service restart occurred.
+- Final Vendor Patch SHA256: `94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`.
+- Final production Scheduler image: `xianyu-chg0018-scheduler:56d62e2-94c8682`.
+- Evidence: `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260807-final-production-enable-closeout.md`.
+- Account Session expiry is an operational account-health condition and is no longer a CHG-0018 code acceptance blocker when the bounded fail-closed behavior is preserved.
+
+## Governance closeout boundary
+
+- The repository defines `DRAFT`, `APPROVED`, `IMPLEMENTING`, `VERIFYING`, `MERGED`, and `ARCHIVED`; it does not define `VERIFIED`.
+- The next formal status after `VERIFYING` is merge-bound. PR #26 must remain Draft/Open/Unmerged in this task, so CHG-0018 remains `VERIFYING` rather than inventing a new status or falsely setting `MERGED`.
+- T11/T12 real-batch-publish runtime recovery remains unproven by the final polish evidence and is not falsely marked complete.
 
 ## Upstream capability audit
 

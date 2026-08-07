@@ -87,28 +87,44 @@ HMAC values.
 - Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
 - Applies after: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
 - Patch file: `4c5e1ac-chg0018-account-profile-publish-safety.patch`
-- SHA256: `8FA58C8F2674EE7A16C36689F962612DC1619C211ACAA390105778A64CD20EEE`
+- SHA256: `94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`
 - Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
 - Patch parse check: passed with `git apply --numstat --unidiff-zero`
 - Patch staged-base apply check: passed with `git apply --check --cached --whitespace=error-all --unidiff-zero`
-- Targeted tests: passed with `python -m pytest tests/test_chg0018_credential_safety.py tests/test_chg0018_profile_publish_readiness.py -q`
-- Combined CHG-0017 regression and CHG-0018 targeted tests: 68 passed
-- Frontend build: passed with `npm run build`
+- Final CHG-0018 targeted tests: 36 passed with the CHG-0018 credential, Profile/publish-readiness, and auto-polish safety suites.
+- CHG-0017 regression tests: 58 passed.
+- Combined CHG-0017 regression and CHG-0018 targeted tests: 94 passed.
+- Full repository tests before final production enablement: 595/595 passed.
+- Frontend build: passed with `npm --prefix frontend run build`
 - Frontend lint note: `npm run lint` exists, but the upstream frontend checkout has no ESLint config file; recorded as a non-blocking upstream tooling gap.
 - Changed files:
   - `backend-web/app/api/routes/cookies.py`
   - `backend-web/app/services/account_service.py`
+  - `backend-web/app/services/ai_reply_service.py`
+  - `backend-web/app/services/publish_execution_service.py`
   - `backend-web/app/services/xianyu_publisher.py`
   - `common/schemas/account.py`
+  - `common/services/cookie_renew_browser_service.py`
+  - `common/services/item_service.py`
   - `common/services/publish_execution_service.py`
   - `common/services/xianyu_publish_service.py`
+  - `common/utils/item_info_manager.py`
+  - `docker-compose.yml`
   - `frontend/src/api/accounts.ts`
   - `frontend/src/pages/accounts/Accounts.tsx`
+  - `frontend/src/pages/items/Items.tsx`
+  - `frontend/src/pages/polishLogs/PolishBatchDetail.tsx`
   - `frontend/src/types/index.ts`
-  - `websocket/app/api/routes/internal.py`
-  - `websocket/app/services/xianyu/cookie_token_manager.py`
+  - `scheduler/app/services/scheduler/day_switch_task.py`
+  - `scheduler/app/services/scheduler/polish_task.py`
+  - `tests/test_chg0017_publish_login_submit.py`
+  - `tests/test_chg0018_auto_polish_safety.py`
   - `tests/test_chg0018_credential_safety.py`
   - `tests/test_chg0018_profile_publish_readiness.py`
+  - `websocket/app/api/routes/internal.py`
+  - `websocket/app/services/xianyu/ai_reply_engine.py`
+  - `websocket/app/services/xianyu/auto_reply_service.py`
+  - `websocket/app/services/xianyu/cookie_token_manager.py`
 
 The patch removes raw `login_password` from ordinary account detail responses,
 adds explicit password-clear intent, keeps saved passwords out of the default
@@ -121,6 +137,31 @@ loads the latest Cookie inside the existing publisher path, opens the account's
 persistent Profile, runs shared read-only preflight before any publish form
 mutation in the same context, and reuses the existing captcha concurrency
 managers for one browser slot and one account lock.
+
+The auto-polish path now treats only the explicit `SUCCESS::调用成功` response as
+confirmed API success. Duplicate responses remain `duplicate_unverified`,
+session and token failures remain non-success, unknown responses fail closed,
+and only confirmed API success can set `is_polished=true`. Existing polish log
+fields store a structured, non-sensitive summary containing `api_code`,
+`api_message`, `result_status`, and `attempted_at`. The item and polish-log UI
+no longer presents local state as platform readback confirmation.
+
+Controlled execution also supports optional exact `platform_item_ids` scope and
+default-compatible `retry_on_token_expiry`. Item-list Token/Cookie rotation is
+persisted through the existing account-Cookie merge path so a later polish does
+not reload stale Token fields. For explicit Session/Token expiry,
+`PolishTaskService` permits at most one existing auth recovery followed by one
+final polish retry; no third polish request or unbounded auth-recovery loop is
+allowed.
+
+Final production verification used account `2219319284219` with four exact item
+IDs. All four returned explicit `SUCCESS::调用成功` on one request each and moved
+from local `is_polished=false` to `true`, with zero auth failures, zero unknown
+failures, zero other-account requests, and zero out-of-scope requests. The final
+production Scheduler is `xianyu-chg0018-scheduler:56d62e2-94c8682`. Global
+polish was subsequently re-enabled through the existing scheduled-task
+management path while `day_switch` remained enabled; one natural cycle completed
+with bounded Session failure handling and Scheduler restart count zero.
 
 ## Artifact Format
 
