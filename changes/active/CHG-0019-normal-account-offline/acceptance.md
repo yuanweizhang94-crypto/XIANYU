@@ -47,4 +47,28 @@ Change ID: CHG-0019-normal-account-offline
 - Route result and UI result were successful. Independent post-action page evidence showed `下架` absent and explicit `已下架` text.
 - `PLATFORM_OFFSHELF_CONFIRMED=true` and `REAL_OFFSHELF_CANARY_SUCCESS=true`.
 - One existing item synchronization completed successfully. Local cached status remained `-9`, which does not negate explicit platform success.
-- No manual database/Redis write, other item/account product action, delete, publish, relist, edit, polish, Git commit, Git push, GitHub write, or PR #26 change occurred.
+- No manual database/Redis write, other item/account product action, delete, publish, relist, edit, polish, Git push, GitHub write, or PR #26 change occurred during the real canary.
+
+## Formal frontend delivery acceptance
+
+- `BACKEND_REAL_CANARY=PASSED` and the explicit platform final state is `已下架` for the fixed authorized canary item.
+- `FRONTEND_LIVE_MUTATION_CANARY=NOT_REQUIRED`: frontend delivery does not repeat a real product mutation because it only calls the already real-canary-verified Backend route.
+- Product management reuses the pre-existing checkbox/batch-offline flow and the pre-existing `batchOfflineItems()` API wrapper; no duplicate API client or alternate off-shelf route exists.
+- A row-level single-item `下架` entry exists and is visually/semantically separate from `删除`.
+- Single-item confirmation explicitly says `下架后不会删除商品` and cancel performs no API call.
+- Batch confirmation displays the selected count, requires a non-empty selection, preserves the existing explicit single-account selection rule, and rejects cross-account selection rather than merging accounts implicitly.
+- Single and batch requests have in-flight locks so repeated clicks cannot create duplicate submissions.
+- Full success, partial success, auth/session failure, verification-required failure, and request exception have human-readable UI feedback; no internal stack or `cookies_str` is rendered.
+- Successful off-shelf responses refresh the list. If a successfully off-shelved item remains visible, current-page session state shows `已下架` and disables another off-shelf attempt.
+- `item_status=-9` is never treated as an authoritative offline state; no database state is fabricated.
+- Frontend unit/contract tests pass 27/27, including the explicit IPv4 container-health regression; lint passes, and TypeScript/Vite production build passes.
+- Backend targeted tests remain 37/37 PASS and publish/Profile regressions remain 19/19 PASS after frontend work.
+- Production frontend image `xianyu-chg0019-frontend:2b672d2-offline-ui-health` serves HTTP 200 and reports Docker Health `healthy`, while the verified Backend remains `xianyu-chg0019-backend-web:44c8ae9-nonsemantic-confirm` and healthy.
+- Production read-only smoke uses actual deployed assets with synthetic intercepted data; row entry, confirmation, cancel, list load, zero page errors, zero sensitive render, and zero real `/items/batch-offline` forwarding are all verified.
+- Mocked deployed-asset frontend-backend contract scenarios cover success, partial failure, auth failure, and server/network exception with correct payloads and zero real Backend forwarding.
+- No new real product action or real off-shelf action occurs during frontend delivery.
+
+IMPLEMENTATION_COMPLETE=true
+BACKEND_REAL_CANARY_PASSED=true
+FRONTEND_DELIVERY_VERIFIED=true
+DELIVERY_READY=true

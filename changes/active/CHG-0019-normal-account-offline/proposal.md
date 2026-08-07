@@ -25,6 +25,8 @@ ROOT_CAUSE=CURRENT_BACKEND_USES_WRONG_PC_SELLER_OFFSHELF_API
 - Batch results remain independent per item and preserve `success`, `message`, `suc_count`, `fail_count`, `results`, and `cookies_str` compatibility.
 - Preserve the old PC Seller MTop service source for future account types, but do not use it as the default route in this Change.
 - Real canary is limited to ACCOUNT_ID `2221384086829`, LOCAL_ITEM_ID `49`, PLATFORM_ITEM_ID `1070515947040`.
+- Formal delivery also reuses and completes the existing product-management frontend off-shelf entry/API wiring. Frontend verification uses unit/contract tests and production read-only smoke only; no second real mutation is required after the Backend real canary has passed.
+- `item_status=-9` is not an authoritative offline state and must never be used alone to label an item off-shelf.
 
 ## Upstream capability audit
 
@@ -61,6 +63,12 @@ Existing backend `/items/batch-offline` route plus existing `XianyuPublisher` Pl
 ## Retirement plan for overlapping local code
 
 No overlapping runtime is added. If upstream later exposes a verified normal-account off-shelf method or fully documented `mtop.taobao.idle.item.downshelf` contract, this UI patch should be reviewed for retirement in favor of that upstream-native method.
+
+## Formal delivery completion
+
+`BACKEND_REAL_CANARY=PASSED`.
+
+`FRONTEND_LIVE_MUTATION_CANARY=NOT_REQUIRED` because the backend platform mutation path was already verified on the fixed real item and the frontend is a thin caller of the verified existing route. Frontend formal delivery is established by 26 frontend tests, lint/build, production read-only smoke, and deployed-asset mocked contract scenarios with zero new real product actions.
 
 ## Forbidden work
 

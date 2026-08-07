@@ -18,4 +18,14 @@ Success requires an explicit UI outcome: an off-shelf-success toast/message or o
 
 The old `mtop.alibaba.idle.seller.pc.item.batch.offline` implementation remains in source but is no longer the default path for `/items/batch-offline` during this Change. No direct implementation of `mtop.taobao.idle.item.downshelf` is added because its full signing/body/header contract is not yet approved.
 
-Deployment scope is backend only if source/deployment inspection confirms the route and publisher are both served by the backend image. MySQL, Redis, Scheduler, WebSocket, and Frontend are not restarted.
+Initial mutation deployment scope is backend only if source/deployment inspection confirms the route and publisher are both served by the backend image. MySQL, Redis, Scheduler, and WebSocket are not restarted.
+
+## Formal frontend delivery design
+
+The product-management frontend reuses the existing `batchOfflineItems()` wrapper and existing checkbox/batch selection, `ConfirmModal`, Toast, and `loadItems()` refresh infrastructure. The missing row-level single-item entry is added without creating another route or API client.
+
+Single-item and batch off-shelf actions require an explicit project confirmation stating that off-shelf does not delete the item. Single-item requests use the row item's authoritative `cookie_id` and platform `item_id`. Batch requests preserve the existing explicit single-account filter design; cross-account selections fail closed rather than being regrouped implicitly.
+
+Frontend request state is locked per item and per batch to prevent double submission. Response interpretation uses `success`, `message`, and `data.results/suc_count/fail_count`, never `cookies_str`. Success refreshes the item list. Because the local catalog does not persist an authoritative platform sale status, a successful item that remains visible is marked `已下架` only in current page-session state and cannot be re-submitted; `item_status=-9` is never inferred as off-shelf.
+
+Frontend mutation wiring is verified with intercepted synthetic requests against actual deployed assets. Production smoke opens the project confirmation and cancels, with real `/items/batch-offline` forwarding required to remain zero. A repeated live platform mutation is intentionally excluded because the Backend real canary already proved the executor.

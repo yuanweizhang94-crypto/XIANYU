@@ -7,8 +7,8 @@
     "path": "changes/active/CHG-0019-normal-account-offline"
   },
   "tasks": {
-    "total": 6,
-    "completed": 6,
+    "total": 8,
+    "completed": 8,
     "next_task": null,
     "items": [
       {
@@ -33,6 +33,14 @@
       },
       {
         "text": "T6 Run the owner-authorized single-item canary, perform one existing post-success item sync/read-only refresh, and stop before commit/push.",
+        "completed": true
+      },
+      {
+        "text": "T7 Reuse the existing product-management batch-offline UI/API path, add the missing single-item entry and fail-closed UI state handling, and pass 26 frontend contract tests, lint, and production build.",
+        "completed": true
+      },
+      {
+        "text": "T8 Deploy only the formal frontend image, run production read-only smoke plus mocked frontend-backend contract scenarios, preserve the verified Backend unchanged, and record formal delivery evidence.",
         "completed": true
       }
     ]

@@ -10,6 +10,8 @@ Change ID: CHG-0019-normal-account-offline
 - [x] T4 Run `scripts/validate_change.py` and `scripts/verify_repository.py`.
 - [x] T5 Build and replace only the backend component that serves `/items/batch-offline` and Playwright off-shelf.
 - [x] T6 Run the owner-authorized single-item canary, perform one existing post-success item sync/read-only refresh, and stop before commit/push.
+- [x] T7 Reuse the existing product-management batch-offline UI/API path, add the missing single-item entry and fail-closed UI state handling, and pass 26 frontend contract tests, lint, and production build.
+- [x] T8 Deploy only the formal frontend image, run production read-only smoke plus mocked frontend-backend contract scenarios, preserve the verified Backend unchanged, and record formal delivery evidence.
 
 ## T5 result
 
@@ -37,3 +39,15 @@ Change ID: CHG-0019-normal-account-offline
 - Exactly one existing item sync then completed successfully (`total_count=6`, `saved_count=6`). Local cached status remained `-9`; explicit platform evidence remains authoritative and no manual database/Redis status write was made.
 - No other account/item product action, delete, publish, relist, edit, polish, Git commit, Git push, GitHub write, or PR #26 change occurred.
 - Final evidence: `evidence/20260808-final-authorized-offline-end-to-end.md`.
+
+## T7-T8 formal frontend delivery result
+
+- Existing batch-offline entry and `batchOfflineItems()` API wrapper were reused; no duplicate route or API client was created.
+- Added the missing row-level single-item off-shelf entry, explicit project confirmation, in-flight/double-submit protection, partial/auth failure feedback, success refresh, and page-session `已下架` protection without treating local `item_status=-9` as authority.
+- Frontend tests passed 27/27, including the explicit IPv4 container-health regression; TypeScript/Vite build passed; frontend lint passed after adding the previously missing minimal ESLint configuration without new dependencies or unrelated hook refactors.
+- Backend CHG-0019 targeted tests remained 37/37 PASS and publish/Profile regressions remained 19/19 PASS.
+- Final formal frontend image `xianyu-chg0019-frontend:2b672d2-offline-ui-health` was deployed by replacing only the frontend container. It serves HTTP 200 and reports Docker Health `healthy`. Backend, MySQL, Redis, Scheduler, and WebSocket were not restarted.
+- Production read-only smoke used the actual deployed assets with synthetic intercepted data: page/list/entry/dialog/cancel passed, JavaScript errors were zero, sensitive text was absent, and real `/items/batch-offline` forwarding was zero.
+- Mocked deployed-asset contract scenarios for success, partial failure, auth failure, and network exception passed with zero real Backend forwarding.
+- `BACKEND_REAL_CANARY=PASSED`; `FRONTEND_LIVE_MUTATION_CANARY=NOT_REQUIRED` because the mutation executor was already proven by the controlled real canary and this UI only calls the verified API.
+- Formal delivery evidence: `evidence/20260808-formal-delivery-frontend.md`.

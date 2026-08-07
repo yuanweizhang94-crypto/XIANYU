@@ -184,6 +184,37 @@ with bounded Session failure handling and Scheduler restart count zero.
 
 This artifact is a standalone cumulative backend recovery patch for the exact source files used by the verified CHG-0019 backend image. It preserves the normal-Web Playwright off-shelf route, fail-closed item/control validation, dialog-local exact-text confirmation logic, non-semantic confirm-control fallback, and the CHG-0019 regression suite. It contains no runtime Cookie, Token, Authorization value, password, API key, private key, or browser Profile.
 
+## CHG-0019 formal delivery patch
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`
+- Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
+- Applies after: `4c5e1ac-chg0017-reply-identity-allowlist.patch`, then `4c5e1ac-chg0018-account-profile-publish-safety.patch`
+- Patch file: `4c5e1ac-chg0019-normal-account-offline-formal-delivery.patch`
+- SHA256: `410308F81A2484C469694E8790E9C9C689DEDAEF5C73AB0D67DD3518D557C3CF`
+- Clean synthetic prior-patch apply check: passed.
+- Final Git blob equivalence: 11/11 target files match the exact formal-delivery source snapshot.
+- Backend targeted tests: 37/37 passed.
+- Publish/Profile regressions: 19/19 passed.
+- Frontend offline UI tests: 27/27 passed, including the explicit IPv4 container-health regression.
+- Frontend lint: passed.
+- Frontend TypeScript/Vite build: passed.
+- Production frontend image: `xianyu-chg0019-frontend:2b672d2-offline-ui-health`.
+- Backend real canary remains authoritative and passed; frontend live mutation canary was not repeated.
+- Changed/restored files:
+  - `backend-web/app/services/xianyu_publisher.py`
+  - `common/services/xianyu_publish_service.py`
+  - `backend-web/app/api/routes/items.py`
+  - `tests/test_chg0019_normal_account_offline.py`
+  - `frontend/src/api/items.ts`
+  - `frontend/src/pages/items/Items.tsx`
+  - `frontend/src/pages/items/offlineUi.ts`
+  - `frontend/tests/itemsOffline.test.mjs`
+  - `frontend/package.json`
+  - `frontend/.eslintrc.cjs`
+  - `docker/frontend/Dockerfile`
+
+This is the incremental formal-delivery artifact for CHG-0019 when restoring the repository in documented CHG-0017 -> CHG-0018 -> CHG-0019 order. It combines the verified normal-account off-shelf Backend path with the completed product-management single/batch UI while preserving fail-closed semantics and avoiding a second live product mutation.
+
 ## Artifact Format
 
 Git-generated zero-context unified diff.
