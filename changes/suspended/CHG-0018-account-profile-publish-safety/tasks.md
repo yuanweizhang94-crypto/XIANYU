@@ -1,8 +1,10 @@
 # CHG-0018 Tasks
 
-Status: VERIFYING
+Status: SUSPENDED
 
 Change ID: CHG-0018-account-profile-publish-safety
+
+SUSPEND_REASON=Production verification complete; local closeout commit exists, but remote GitHub branch synchronization remains unresolved. Suspended to allow CHG-0019 execution. Production CHG-0018 behavior remains enabled and unchanged.
 
 - [x] T1 Implement P0 credential safety and false-disable prevention.
 - [x] T2 Run P0 targeted tests and commit the P0 boundary.

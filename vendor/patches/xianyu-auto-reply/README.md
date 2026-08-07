@@ -163,6 +163,27 @@ polish was subsequently re-enabled through the existing scheduled-task
 management path while `day_switch` remained enabled; one natural cycle completed
 with bounded Session failure handling and Scheduler restart count zero.
 
+## CHG-0019 verified normal-account off-shelf backend patch
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`
+- Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
+- Patch file: `4c5e1ac-chg0019-normal-account-offline-backend-verified.patch`
+- SHA256: `1CF41E1889872CE0030B5FBA58301C4FE3FE9E11C8C2437E146527B4075D3FB9`
+- Local source workspace: `D:/xianyu-upstream-delivery-chg0017`
+- Runtime image verified by controlled real canary: `xianyu-chg0019-backend-web:44c8ae9-nonsemantic-confirm`
+- Patch apply check: passed with `git apply --check --unidiff-zero`.
+- Git blob equivalence: 4/4 target files match the exact verified source snapshot after patch application.
+- Targeted CHG-0019 tests: 37/37 passed.
+- Publish/Profile regressions: 19/19 passed.
+- Repository verification after the real canary: 590/590 passed.
+- Changed/restored files:
+  - `backend-web/app/services/xianyu_publisher.py`
+  - `common/services/xianyu_publish_service.py`
+  - `backend-web/app/api/routes/items.py`
+  - `tests/test_chg0019_normal_account_offline.py`
+
+This artifact is a standalone cumulative backend recovery patch for the exact source files used by the verified CHG-0019 backend image. It preserves the normal-Web Playwright off-shelf route, fail-closed item/control validation, dialog-local exact-text confirmation logic, non-semantic confirm-control fallback, and the CHG-0019 regression suite. It contains no runtime Cookie, Token, Authorization value, password, API key, private key, or browser Profile.
+
 ## Artifact Format
 
 Git-generated zero-context unified diff.
