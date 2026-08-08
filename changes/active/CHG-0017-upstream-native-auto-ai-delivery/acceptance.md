@@ -1,5 +1,5 @@
 Change ID: CHG-0017-upstream-native-auto-ai-delivery
-Status: VERIFYING
+Status: ARCHIVED
 # Acceptance
 
 ## Execution Contract
@@ -200,3 +200,16 @@ CHG-0018 T11/T12 execution, PR #28 change, or CHG-0019 business-code change.
 
 OWNER_CLOSEOUT_AND_MERGE_AUTHORIZATION_RECORDED=true
 T17_POST_MERGE_ONLY=true
+
+## Post-merge closeout
+
+PR #26 was successfully merged on 2026-08-08 at merge commit
+`6b2c233c6176620ca38fd7bab84366f57d6034f6`. The exact pre-merge head
+`f2752244561bd3eadb3ff930ecd3f68efb8374b4` had green quality/tests/security
+CI and passed the recorded acceptance, upstream-targeted, and repository
+verification gates. T17 is therefore eligible for completion and this Change
+is archived without any new platform, runtime, container, database, Redis, or
+CHG-0018/CHG-0019 business action.
+
+PR26_MERGED=true
+T17_COMPLETED=true
