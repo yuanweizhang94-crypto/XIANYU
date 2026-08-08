@@ -163,6 +163,76 @@ polish was subsequently re-enabled through the existing scheduled-task
 management path while `day_switch` remained enabled; one natural cycle completed
 with bounded Session failure handling and Scheduler restart count zero.
 
+## CHG-0019 verified normal-account off-shelf backend patch
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`
+- Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
+- Patch file: `4c5e1ac-chg0019-normal-account-offline-backend-verified.patch`
+- SHA256: `1CF41E1889872CE0030B5FBA58301C4FE3FE9E11C8C2437E146527B4075D3FB9`
+- Local source workspace: `D:/xianyu-upstream-delivery-chg0017`
+- Runtime image verified by controlled real canary: `xianyu-chg0019-backend-web:44c8ae9-nonsemantic-confirm`
+- Patch apply check: passed with `git apply --check --unidiff-zero`.
+- Git blob equivalence: 4/4 target files match the exact verified source snapshot after patch application.
+- Targeted CHG-0019 tests: 37/37 passed.
+- Publish/Profile regressions: 19/19 passed.
+- Repository verification after the real canary: 590/590 passed.
+- Changed/restored files:
+  - `backend-web/app/services/xianyu_publisher.py`
+  - `common/services/xianyu_publish_service.py`
+  - `backend-web/app/api/routes/items.py`
+  - `tests/test_chg0019_normal_account_offline.py`
+
+This artifact is a standalone cumulative backend recovery patch for the exact source files used by the verified CHG-0019 backend image. It preserves the normal-Web Playwright off-shelf route, fail-closed item/control validation, dialog-local exact-text confirmation logic, non-semantic confirm-control fallback, and the CHG-0019 regression suite. It contains no runtime Cookie, Token, Authorization value, password, API key, private key, or browser Profile.
+
+## CHG-0019 formal delivery patch
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`
+- Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
+- Applies after: `4c5e1ac-chg0017-reply-identity-allowlist.patch`, then `4c5e1ac-chg0018-account-profile-publish-safety.patch`
+- Patch file: `4c5e1ac-chg0019-normal-account-offline-formal-delivery.patch`
+- SHA256: `410308F81A2484C469694E8790E9C9C689DEDAEF5C73AB0D67DD3518D557C3CF`
+- Clean synthetic prior-patch apply check: passed.
+- Final Git blob equivalence: 11/11 target files match the exact formal-delivery source snapshot.
+- Backend targeted tests: 37/37 passed.
+- Publish/Profile regressions: 19/19 passed.
+- Frontend offline UI tests: 27/27 passed, including the explicit IPv4 container-health regression.
+- Frontend lint: passed.
+- Frontend TypeScript/Vite build: passed.
+- Production frontend image: `xianyu-chg0019-frontend:2b672d2-offline-ui-health`.
+- Backend real canary remains authoritative and passed; frontend live mutation canary was not repeated.
+- Changed/restored files:
+  - `backend-web/app/services/xianyu_publisher.py`
+  - `common/services/xianyu_publish_service.py`
+  - `backend-web/app/api/routes/items.py`
+  - `tests/test_chg0019_normal_account_offline.py`
+  - `frontend/src/api/items.ts`
+  - `frontend/src/pages/items/Items.tsx`
+  - `frontend/src/pages/items/offlineUi.ts`
+  - `frontend/tests/itemsOffline.test.mjs`
+  - `frontend/package.json`
+  - `frontend/.eslintrc.cjs`
+  - `docker/frontend/Dockerfile`
+
+This is the incremental formal-delivery artifact for CHG-0019 when restoring the repository in documented CHG-0017 -> CHG-0018 -> CHG-0019 order. It combines the verified normal-account off-shelf Backend path with the completed product-management single/batch UI while preserving fail-closed semantics and avoiding a second live product mutation.
+
+## CHG-0019 PR #28 success-classification hardening patch
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`
+- Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
+- Applies after: CHG-0017 patch -> CHG-0018 patch -> `4c5e1ac-chg0019-normal-account-offline-formal-delivery.patch`
+- Patch file: `4c5e1ac-chg0019-pr28-review-success-classification-hardening.patch`
+- SHA256: `B4F9673CF486EC57FF235BAF97182066703FE6D2E4EE7910A3828AC769A1C912`
+- Clean layered apply check: passed.
+- Final Git blob equivalence: 2/2 target files match the hardened review source snapshot.
+- Backend targeted tests: 47/47 passed.
+- Publish/Profile regressions: 19/19 passed.
+- Frontend offline UI tests: 27/27 passed; lint and TypeScript/Vite build passed without frontend source changes.
+- Changed/restored files:
+  - `backend-web/app/services/xianyu_publisher.py`
+  - `tests/test_chg0019_normal_account_offline.py`
+
+This review-only layered patch removes whole-page success classification from the normal-Web off-shelf path. Success now requires the exact target item URL plus either a new post-action success notice relative to the pre-action notice snapshot or an exact reverse state in the same captured owner-operation DOM location after the unique `下架` control disappears. Control disappearance alone is not success. The existing detail URL, Cookie injection, off-shelf control resolution, delete isolation, dialog semantics, non-semantic confirm fallback, click sequence, batch route, and frontend API contract remain unchanged. No new real product action or real canary was performed.
+
 ## Artifact Format
 
 Git-generated zero-context unified diff.

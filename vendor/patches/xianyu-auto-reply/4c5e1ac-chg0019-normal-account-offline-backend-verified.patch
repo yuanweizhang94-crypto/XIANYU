@@ -1,0 +1,1885 @@
+diff --git a/backend-web/app/api/routes/items.py b/backend-web/app/api/routes/items.py
+index b2abd85bf3f832144a64203a73b9309c53ab1d5f..513bd2484f2a278d80455561d94b01a058ef85bd 100644
+--- a/backend-web/app/api/routes/items.py
++++ b/backend-web/app/api/routes/items.py
+@@ -20 +19,0 @@ from common.schemas.item import (
+-from common.services.item_offline_service import batch_offline_items_from_xianyu
+@@ -21,0 +21 @@ from common.services.item_delete_service import batch_delete_items_from_xianyu
++from common.services.xianyu_publish_service import offline_items_normal_web
+@@ -855,2 +855,3 @@ async def batch_offline_items(
+-    result = await batch_offline_items_from_xianyu(
+-        account.account_id, account.cookie, payload.item_ids
++    result = await offline_items_normal_web(
++        cookies_str=account.cookie,
++        item_ids=payload.item_ids,
+@@ -858,2 +859,2 @@ async def batch_offline_items(
+-    suc_count = result.get("suc_count", 0)
+-    fail_count = result.get("fail_count", 0)
++    suc_count = int(result.get("suc_count", 0) or 0)
++    fail_count = int(result.get("fail_count", 0) or 0)
+diff --git a/backend-web/app/services/xianyu_publisher.py b/backend-web/app/services/xianyu_publisher.py
+index 304a96e5856e5ac160826d123debadbe5e77ca9f..9ddd59a41a0b281684fe9ec7002d780d58a9230e 100644
+--- a/backend-web/app/services/xianyu_publisher.py
++++ b/backend-web/app/services/xianyu_publisher.py
+@@ -20 +20 @@ from pathlib import Path
+-from typing import Optional
++from typing import Any, Optional
+@@ -24,0 +25,5 @@ from common.utils.browser_utils import ensure_playwright_browser_path, get_chrom
++from common.services.cookie_renew_browser_service import (
++    get_account_browser_profile_dir,
++    get_browser_data_root,
++    get_pure_account_id,
++)
+@@ -30 +35 @@ class XianyuPublisher:
+-    
++
+@@ -49,0 +55,29 @@ class XianyuPublisher:
++        self.last_publish_diagnostics: dict[str, Any] = {}
++        self.profile_account_id: Optional[str] = None
++        self.profile_user_data_dir: Optional[Path] = None
++        self._profile_lock_key: Optional[str] = None
++        self._profile_slot_acquired = False
++        self._profile_account_lock_acquired = False
++
++    def _browser_user_agent(self) -> str:
++        return os.environ.get(
++            "PUBLISH_BROWSER_USER_AGENT",
++            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
++            "(KHTML, like Gecko) Chrome/151.0.7922.34 Safari/537.36",
++        )
++
++    def _sanitize_publish_text(self, value: Any) -> str:
++        text = "" if value is None else str(value)
++        emoji_pattern = re.compile(
++            "["
++            "\U0001F1E6-\U0001F1FF"
++            "\U0001F300-\U0001FAFF"
++            "\U00002700-\U000027BF"
++            "\U00002600-\U000026FF"
++            "\U0000FE0F"
++            "\U0000200D"
++            "]+",
++            flags=re.UNICODE,
++        )
++        text = emoji_pattern.sub("", text)
++        return re.sub(r"[ \t]+\n", "\n", text).strip()
+@@ -73,0 +108,339 @@ class XianyuPublisher:
++    def _pure_account_id(self, account_id: str) -> str:
++        return get_pure_account_id(account_id)
++
++    def _profile_dir_for_account(self, account_id: str) -> Path:
++        return Path(get_account_browser_profile_dir(account_id))
++
++    def _profile_root_mounted(self, profile_root: Path) -> bool:
++        if os.name == "nt" or not Path("/.dockerenv").exists():
++            return True
++        try:
++            mountinfo = Path("/proc/self/mountinfo").read_text(encoding="utf-8", errors="ignore")
++        except Exception:
++            return False
++        resolved = str(profile_root.resolve())
++        return any(
++            len(parts) >= 5 and parts[4] == resolved
++            for parts in (line.split() for line in mountinfo.splitlines())
++        )
++
++    def _profile_runtime_diagnostics(self, account_id: str, profile_dir: Path) -> dict[str, Any]:
++        profile_root = Path(get_browser_data_root())
++        diagnostics = {
++            "canonical_profile_root_hash": self._hash_profile_value(str(profile_root)),
++            "resolved_profile_alias": self._hash_profile_value(self._pure_account_id(account_id)),
++            "directory_exists": profile_dir.exists(),
++            "directory_accessible": False,
++            "runtime_mount_present": self._profile_root_mounted(profile_root),
++        }
++        try:
++            diagnostics["directory_accessible"] = profile_dir.exists() and os.access(profile_dir, os.R_OK | os.W_OK)
++        except Exception:
++            diagnostics["directory_accessible"] = False
++        return diagnostics
++
++    def _hash_profile_value(self, value: str) -> str:
++        import hashlib
++
++        return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
++
++    def _profile_state(self, account_id: str) -> tuple[str, Path]:
++        profile_dir = self._profile_dir_for_account(account_id)
++        self.last_publish_diagnostics.update(self._profile_runtime_diagnostics(account_id, profile_dir))
++        if not self.last_publish_diagnostics.get("runtime_mount_present", True):
++            return "runtime_profile_path_mismatch", profile_dir
++        if not profile_dir.exists() or not any(profile_dir.iterdir()):
++            return "profile_missing", profile_dir
++        if any((profile_dir / name).exists() for name in ("SingletonLock", "SingletonCookie", "SingletonSocket")):
++            return "browser_busy", profile_dir
++        return "ready", profile_dir
++
++    async def _load_authoritative_cookie(self, account_id: str, owner_id: int | None = None) -> str:
++        from sqlalchemy import desc, select
++        from common.db.session import async_session_maker
++        from common.models.xy_account import XYAccount
++
++        async with async_session_maker() as session:
++            stmt = select(XYAccount).where(XYAccount.account_id == account_id)
++            if owner_id is not None:
++                stmt = stmt.where(XYAccount.owner_id == owner_id)
++            stmt = stmt.order_by(desc(XYAccount.id)).limit(1)
++            result = await session.execute(stmt)
++            account = result.scalars().first()
++            if not account or not account.cookie:
++                raise Exception("login_required")
++            return str(account.cookie)
++
++    async def _acquire_profile_guards(self, account_id: str) -> None:
++        from common.services.captcha.concurrency import (
++            account_browser_lock_manager,
++            concurrency_manager,
++        )
++
++        lock_key = self._pure_account_id(account_id)
++        self._profile_lock_key = lock_key
++        slot_acquired = await asyncio.to_thread(concurrency_manager.wait_for_slot, lock_key)
++        if not slot_acquired:
++            raise Exception("browser_busy")
++        self._profile_slot_acquired = True
++
++        try:
++            account_lock_timeout = float(getattr(concurrency_manager, "wait_timeout", 120) or 120)
++        except Exception:
++            account_lock_timeout = 120.0
++        account_lock_acquired = await asyncio.to_thread(
++            account_browser_lock_manager.acquire,
++            lock_key,
++            account_lock_timeout,
++        )
++        if not account_lock_acquired:
++            await asyncio.to_thread(concurrency_manager.unregister_instance, lock_key)
++            self._profile_slot_acquired = False
++            raise Exception("browser_busy")
++        self._profile_account_lock_acquired = True
++
++    async def _release_profile_guards(self) -> None:
++        if not self._profile_lock_key:
++            return
++        from common.services.captcha.concurrency import (
++            account_browser_lock_manager,
++            concurrency_manager,
++        )
++
++        lock_key = self._profile_lock_key
++        if self._profile_account_lock_acquired:
++            await asyncio.to_thread(account_browser_lock_manager.release, lock_key)
++            self._profile_account_lock_acquired = False
++        if self._profile_slot_acquired:
++            await asyncio.to_thread(concurrency_manager.unregister_instance, lock_key)
++            self._profile_slot_acquired = False
++        self._profile_lock_key = None
++
++    async def initialize_account_profile(
++        self,
++        account_id: str,
++        owner_id: int | None = None,
++        headless: bool = True,
++    ) -> None:
++        profile_state, profile_dir = self._profile_state(account_id)
++        if profile_state != "ready":
++            raise Exception(profile_state)
++
++        authoritative_cookie = await self._load_authoritative_cookie(account_id, owner_id)
++        await self._acquire_profile_guards(account_id)
++
++        ensure_playwright_browser_path()
++        self.playwright = await async_playwright().start()
++        browser_args = [
++            "--disable-blink-features=AutomationControlled",
++            "--disable-dev-shm-usage",
++            "--no-sandbox",
++            "--disable-setuid-sandbox",
++            "--disable-web-security",
++            "--disable-features=IsolateOrigins,site-per-process",
++            "--window-size=1920,1080",
++            "--start-maximized",
++        ]
++        launch_kwargs = dict(
++            headless=headless,
++            args=browser_args,
++            viewport={"width": 1920, "height": 1080},
++            user_agent=self._browser_user_agent(),
++            permissions=["geolocation", "notifications"],
++            java_script_enabled=True,
++            locale="zh-CN",
++            timezone_id="Asia/Shanghai",
++        )
++        chromium_path = get_chromium_executable_path()
++        if chromium_path:
++            launch_kwargs["executable_path"] = chromium_path
++
++        self.context = await self.playwright.chromium.launch_persistent_context(str(profile_dir), **launch_kwargs)
++        self.browser = self.context.browser
++        self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
++        await self.page.add_init_script("""
++            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
++            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
++            Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
++            window.chrome = { runtime: {} };
++        """)
++        self.page.set_default_timeout(30000)
++        self.page.set_default_navigation_timeout(60000)
++        self.is_initialized = True
++        self.profile_account_id = account_id
++        self.profile_user_data_dir = profile_dir
++        await self.set_cookies(authoritative_cookie)
++
++    async def _detect_real_publish_controls(self) -> dict[str, int]:
++        selectors = {
++            "publish_route": "1",
++            "upload_control_count": "input[type=file], [class*=upload], [class*=Upload]",
++            "title_control_count": "input[placeholder*=title], input[maxlength], [contenteditable=true]",
++            "description_control_count": "textarea, [contenteditable=true]",
++            "price_control_count": "input[inputmode=decimal], input[type=number], input[placeholder*=price]",
++            "publish_button_count": "button[type=submit], button[class*=publish], [class*=publish][role=button]",
++        }
++        counts: dict[str, int] = {}
++        for key, selector in selectors.items():
++            if selector == "1":
++                counts[key] = 1 if self.page and "publish" in (self.page.url or "").lower() else 0
++                continue
++            try:
++                counts[key] = len(await self.page.query_selector_all(selector))
++            except Exception:
++                counts[key] = 0
++        return counts
++
++    async def _has_publish_quick_enter(self) -> bool:
++        if not self.page:
++            return False
++        for frame in self.page.frames:
++            if "passport.goofish.com" not in (frame.url or ""):
++                continue
++            try:
++                if await frame.locator("button").count() > 0:
++                    return True
++            except Exception:
++                continue
++        return False
++
++    async def _classify_publish_page_state(
++        self,
++        *,
++        elapsed_seconds: float,
++        quick_enter_clicked: bool,
++    ) -> dict[str, Any]:
++        current_url = self.page.url if self.page else ""
++        lowered_url = current_url.lower()
++        try:
++            page_text = await self.page.evaluate("() => document.body.innerText || ''")
++        except Exception:
++            page_text = ""
++
++        controls = await self._count_publish_form_controls()
++        real_controls = await self._detect_real_publish_controls()
++        diagnostics = {
++            "final_url_category": self._classify_publish_url(current_url),
++            "page_title_category": await self._classify_publish_title(),
++            "quick_enter_detected": await self._has_publish_quick_enter(),
++            "quick_enter_clicked": quick_enter_clicked,
++            "login_marker_detected": False,
++            "verification_marker_detected": False,
++            "shell_element_count": controls.get("input_count", 0) + controls.get("button_count", 0),
++            "real_publish_control_count": sum(real_controls.values()),
++            "elapsed_seconds": round(elapsed_seconds, 1),
++            **controls,
++            **real_controls,
++        }
++
++        login_terms = ("login", "passport", "auth", "sign")
++        if any(term in lowered_url for term in login_terms):
++            diagnostics["login_marker_detected"] = True
++            return {"state": "login_required", "diagnostics": diagnostics, "page_text": page_text}
++
++        risk_terms = ("punish", "captcha", "validate", "slider", "face")
++        if any(term in lowered_url for term in risk_terms):
++            diagnostics["verification_marker_detected"] = True
++            return {"state": "manual_verification_required", "diagnostics": diagnostics, "page_text": page_text}
++
++        try:
++            risk_selectors = ".nc-container, #nc_1_n1z, .captcha-container, iframe[src*=punish], iframe[src*=captcha]"
++            if await self.page.query_selector(risk_selectors):
++                diagnostics["verification_marker_detected"] = True
++                return {"state": "manual_verification_required", "diagnostics": diagnostics, "page_text": page_text}
++        except Exception:
++            pass
++
++        if diagnostics["quick_enter_detected"] and not quick_enter_clicked:
++            return {"state": "quick_enter_required", "diagnostics": diagnostics, "page_text": page_text}
++
++        ready_signals = 0
++        if real_controls.get("publish_route", 0) > 0:
++            ready_signals += 1
++        if real_controls.get("upload_control_count", 0) > 0:
++            ready_signals += 1
++        if real_controls.get("description_control_count", 0) > 0:
++            ready_signals += 1
++        if real_controls.get("price_control_count", 0) > 0:
++            ready_signals += 1
++        if real_controls.get("publish_button_count", 0) > 0:
++            ready_signals += 1
++        if ready_signals >= 3:
++            return {"state": "ready", "diagnostics": diagnostics, "page_text": page_text}
++
++        if elapsed_seconds >= 15 and not page_text.strip() and diagnostics["shell_element_count"] == 0:
++            return {"state": "publish_page_load_failed", "diagnostics": diagnostics, "page_text": page_text}
++
++        return {"state": "waiting", "diagnostics": diagnostics, "page_text": page_text}
++
++    def _classify_publish_url(self, url: str) -> str:
++        lowered = (url or "").lower()
++        if any(term in lowered for term in ("login", "passport", "auth")):
++            return "login"
++        if any(term in lowered for term in ("punish", "captcha", "validate")):
++            return "manual_verification"
++        if "publish" in lowered:
++            return "publish"
++        if "goofish.com" in lowered:
++            return "goofish"
++        if not lowered:
++            return "empty"
++        return "other"
++
++    async def _classify_publish_title(self) -> str:
++        try:
++            title = (await self.page.title()).lower()
++        except Exception:
++            return "unavailable"
++        if any(term in title for term in ("login", "登录")):
++            return "login"
++        if any(term in title for term in ("验证", "captcha", "security")):
++            return "manual_verification"
++        if title:
++            return "present"
++        return "empty"
++
++    async def preflight_publish_form(self) -> dict[str, Any]:
++        if not self.page:
++            raise Exception("publish_form_not_rendered")
++
++        publish_url = "https://www.goofish.com/publish?spm=a21ybx.item.sidebar.1.297e3da6aDZAmV"
++        await self.page.goto("https://www.goofish.com", wait_until="domcontentloaded", timeout=30000)
++        await asyncio.sleep(1)
++        await self.page.goto(publish_url, wait_until="domcontentloaded", timeout=60000)
++
++        loop = asyncio.get_running_loop()
++        start_time = loop.time()
++        deadline = start_time + 60
++        quick_enter_clicked = False
++        page_text = ""
++        last_state = "waiting"
++
++        while loop.time() < deadline:
++            elapsed = loop.time() - start_time
++            page_state = await self._classify_publish_page_state(
++                elapsed_seconds=elapsed,
++                quick_enter_clicked=quick_enter_clicked,
++            )
++            last_state = page_state["state"]
++            page_text = page_state.get("page_text") or ""
++            self.last_publish_diagnostics.update(page_state["diagnostics"])
++
++            if last_state == "ready":
++                return {
++                    "ready": True,
++                    "failure_reason": None,
++                    "diagnostics": self.last_publish_diagnostics,
++                    "page_text_length": len(page_text),
++                }
++            if last_state in {"login_required", "manual_verification_required", "publish_page_load_failed"}:
++                raise Exception(last_state)
++            if last_state == "quick_enter_required":
++                quick_enter_clicked = await self._handle_publish_quick_enter()
++                self.last_publish_diagnostics["quick_enter_clicked"] = quick_enter_clicked
++            await asyncio.sleep(1)
++
++        self.last_publish_diagnostics["final_failure_reason"] = "publish_form_timeout"
++        self.last_publish_diagnostics["last_page_state"] = last_state
++        raise Exception("publish_form_timeout")
++
+@@ -76 +449 @@ class XianyuPublisher:
+-        
++
+@@ -121,4 +494 @@ class XianyuPublisher:
+-            user_agent=(
+-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+-                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+-            ),
++            user_agent=self._browser_user_agent(),
+@@ -149 +519 @@ class XianyuPublisher:
+-        
++
+@@ -171 +540,0 @@ class XianyuPublisher:
+-
+@@ -188,0 +558,388 @@ class XianyuPublisher:
++    @staticmethod
++    def normal_item_detail_url(item_id: str) -> str:
++        """Build the normal-account item detail URL used by goofish Web."""
++        normalized = str(item_id or "").strip()
++        if not normalized or not normalized.isdigit():
++            raise ValueError("invalid_item_id")
++        return f"https://www.goofish.com/item?id={normalized}"
++
++    @staticmethod
++    def _normalize_action_text(value: Any) -> str:
++        return re.sub(r"\s+", "", "" if value is None else str(value))
++
++    @classmethod
++    def _is_safe_offline_action_text(cls, value: Any) -> bool:
++        return cls._normalize_action_text(value) == "下架"
++
++    @classmethod
++    def _is_delete_semantics(cls, value: Any) -> bool:
++        return "删除" in cls._normalize_action_text(value)
++
++    @classmethod
++    def _is_safe_offline_confirmation(cls, dialog_text: Any, button_text: Any) -> bool:
++        """Classify one confirm control using only its local dialog semantics."""
++        dialog = cls._normalize_action_text(dialog_text)
++        button = cls._normalize_action_text(button_text)
++        offline_markers = ("下架", "停止出售", "暂停出售", "停止销售")
++        dangerous_markers = ("删除", "永久删除", "注销", "清空", "编辑", "发布", "上架")
++        if not any(marker in dialog for marker in offline_markers):
++            return False
++        if any(marker in dialog for marker in dangerous_markers):
++            return False
++        if any(marker in button for marker in dangerous_markers):
++            return False
++        return button in {"确认下架", "确定下架", "确认", "确定"}
++
++    @classmethod
++    def _is_offline_cancel_control(cls, value: Any) -> bool:
++        return cls._normalize_action_text(value) in {"取消", "关闭"}
++
++    @classmethod
++    def _is_offline_positive_control(cls, value: Any) -> bool:
++        return cls._normalize_action_text(value) in {"确定", "确认", "确定下架", "确认下架"}
++
++    async def _dialog_control_is_usable(self, element) -> bool:
++        """Validate one dialog-local click target without following handlers outside the dialog."""
++        try:
++            if not await element.is_visible() or not await element.is_enabled():
++                return False
++            box = await element.bounding_box()
++            if not box or box.get("width", 0) <= 0 or box.get("height", 0) <= 0:
++                return False
++            pointer_events = await element.evaluate("(el) => getComputedStyle(el).pointerEvents || ''")
++            if str(pointer_events or "").lower() == "none":
++                return False
++            center_is_clear = await element.evaluate(
++                """
++                (el) => {
++                    const rect = el.getBoundingClientRect();
++                    if (!rect || rect.width <= 0 || rect.height <= 0) return false;
++                    const hit = document.elementFromPoint(
++                        rect.left + rect.width / 2,
++                        rect.top + rect.height / 2
++                    );
++                    if (!hit) return false;
++                    const dialog = el.closest('[role="dialog"], .ant-modal-content');
++                    if (!dialog || !dialog.contains(el) || !dialog.contains(hit)) return false;
++                    if (hit === el || el.contains(hit)) return true;
++                    let node = el.parentElement;
++                    while (node && node !== dialog) {
++                        const style = getComputedStyle(node);
++                        const interactive =
++                            node.tagName === 'BUTTON' ||
++                            node.getAttribute('role') === 'button' ||
++                            style.cursor === 'pointer';
++                        if (interactive && (hit === node || node.contains(hit))) return true;
++                        node = node.parentElement;
++                    }
++                    return false;
++                }
++                """
++            )
++            return bool(center_is_clear)
++        except Exception:
++            return False
++
++    async def _dialog_control_has_deeper_exact_candidate(
++        self,
++        element,
++        allowed_texts: set[str],
++    ) -> bool:
++        """Drop wrapper nodes when a deeper visible descendant carries the same exact action text."""
++        normalized_allowed = sorted({self._normalize_action_text(text) for text in allowed_texts})
++        try:
++            return bool(
++                await element.evaluate(
++                    """
++                    (el, allowed) => {
++                        const normalize = (value) => (value || '').replace(/\\s+/g, '');
++                        return Array.from(el.querySelectorAll('button,[role="button"],div,span')).some((child) => {
++                            if (!allowed.includes(normalize(child.innerText || child.textContent || ''))) return false;
++                            const style = getComputedStyle(child);
++                            const rect = child.getBoundingClientRect();
++                            return style.display !== 'none' &&
++                                style.visibility !== 'hidden' &&
++                                Number(style.opacity || '1') !== 0 &&
++                                rect.width > 0 && rect.height > 0;
++                        });
++                    }
++                    """,
++                    normalized_allowed,
++                )
++            )
++        except Exception:
++            return False
++
++    async def _collect_dialog_exact_controls(
++        self,
++        dialog,
++        selector: str,
++        allowed_texts: set[str],
++    ) -> list[Any]:
++        """Collect leaf-most, visible, exact-text controls from the selected dialog only."""
++        try:
++            elements = await dialog.query_selector_all(selector)
++        except Exception:
++            return []
++        controls: list[Any] = []
++        for element in elements:
++            try:
++                text = await element.inner_text()
++                if self._normalize_action_text(text) not in {
++                    self._normalize_action_text(value) for value in allowed_texts
++                }:
++                    continue
++                if not await self._dialog_control_is_usable(element):
++                    continue
++                if await self._dialog_control_has_deeper_exact_candidate(element, allowed_texts):
++                    continue
++                controls.append(element)
++            except Exception:
++                continue
++        return controls
++
++    @classmethod
++    def _is_offline_success_text(cls, value: Any) -> bool:
++        normalized = cls._normalize_action_text(value)
++        return any(marker in normalized for marker in ("下架成功", "已下架", "商品已下架"))
++
++    async def _page_auth_or_verification_failure(self) -> str | None:
++        if not self.page:
++            return "browser_not_initialized"
++        current_url = (self.page.url or "").lower()
++        if any(marker in current_url for marker in ("login", "passport", "auth")):
++            return "login_required"
++        try:
++            page_text = await self.page.evaluate("() => document.body.innerText || ''")
++        except Exception:
++            page_text = ""
++        if any(marker in page_text for marker in ("扫码登录", "登录后可以", "请先登录")):
++            return "login_required"
++        if any(marker in page_text for marker in ("滑块验证", "人脸验证", "验证码", "安全验证")):
++            return "manual_verification_required"
++        return None
++
++    async def _owner_action_context_text(self, element) -> str:
++        """Return the smallest nearby container that looks like owner operations."""
++        try:
++            return await element.evaluate(
++                """
++                (el) => {
++                    let node = el;
++                    for (let depth = 0; node && depth < 7; depth += 1, node = node.parentElement) {
++                        const text = (node.innerText || node.textContent || '').replace(/\\s+/g, ' ').trim();
++                        if (text.includes('下架') && text.includes('删除') && text.length <= 500) {
++                            return text;
++                        }
++                    }
++                    return '';
++                }
++                """
++            )
++        except Exception:
++            return ""
++
++    async def _find_unique_offline_control(self) -> tuple[Any | None, bool]:
++        """Resolve exactly one actionable owner `下架` control or fail closed."""
++        if not self.page:
++            return None, False
++        candidates = []
++        try:
++            elements = await self.page.query_selector_all("button, [role='button'], a, div, span")
++        except Exception:
++            return None, False
++        for element in elements:
++            try:
++                text = await element.inner_text()
++                if not self._is_safe_offline_action_text(text):
++                    continue
++                if not await element.is_visible() or not await element.is_enabled():
++                    continue
++                box = await element.bounding_box()
++                if not box or box.get("width", 0) <= 0 or box.get("height", 0) <= 0:
++                    continue
++                context_text = await self._owner_action_context_text(element)
++                if not context_text or "下架" not in context_text or "删除" not in context_text:
++                    continue
++                await element.click(trial=True, timeout=2000)
++                candidates.append(element)
++            except Exception:
++                continue
++        if len(candidates) != 1:
++            return None, len(candidates) > 1
++        return candidates[0], False
++
++    async def _find_safe_offline_confirmation(self) -> tuple[Any | None, bool, bool]:
++        """Return one safe confirm control from one visible local dialog, or fail closed."""
++        if not self.page:
++            return None, True, False
++
++        # Prefer semantic dialog roots. Ant Modal can expose nested `.ant-modal` and
++        # `.ant-modal-content` nodes for one logical dialog, so mixing broad selectors
++        # would double-count the same confirmation UI.
++        visible_dialogs: list[tuple[Any, str]] = []
++        for selector in ("[role='dialog']", ".ant-modal-content"):
++            try:
++                dialogs = await self.page.query_selector_all(selector)
++            except Exception:
++                dialogs = []
++            current: list[tuple[Any, str]] = []
++            for dialog in dialogs:
++                try:
++                    if not await dialog.is_visible():
++                        continue
++                    text = await dialog.inner_text()
++                    if self._normalize_action_text(text):
++                        current.append((dialog, text))
++                except Exception:
++                    continue
++            if current:
++                visible_dialogs = current
++                break
++
++        # This method is called after the owner `下架` click. Missing or multiple
++        # confirmation dialogs are therefore an unknown outcome and must fail closed.
++        if len(visible_dialogs) != 1:
++            return None, True, False
++
++        dialog, dialog_text = visible_dialogs[0]
++        normalized_dialog = self._normalize_action_text(dialog_text)
++        offline_markers = ("下架", "停止出售", "暂停出售", "停止销售")
++        dangerous_markers = ("删除", "永久删除", "注销", "清空", "编辑", "发布", "上架")
++        if not any(marker in normalized_dialog for marker in offline_markers):
++            return None, True, False
++        if any(marker in normalized_dialog for marker in dangerous_markers):
++            return None, True, False
++
++        positive_texts = {"确定", "确认", "确定下架", "确认下架"}
++        cancel_texts = {"取消", "关闭"}
++
++        # Preserve the semantic-button path first. If the official dialog renders its
++        # controls as non-semantic div/span nodes, fall back strictly inside this same
++        # dialog using normalized exact text and leaf-most deduplication.
++        semantic_selector = "button, [role='button']"
++        semantic_positive = await self._collect_dialog_exact_controls(
++            dialog, semantic_selector, positive_texts
++        )
++        semantic_cancel = await self._collect_dialog_exact_controls(
++            dialog, semantic_selector, cancel_texts
++        )
++        if len(semantic_positive) > 1:
++            return None, True, False
++        if len(semantic_positive) == 1 and semantic_cancel:
++            return semantic_positive[0], True, True
++
++        fallback_selector = "button, [role='button'], div, span"
++        fallback_positive = await self._collect_dialog_exact_controls(
++            dialog, fallback_selector, positive_texts
++        )
++        fallback_cancel = await self._collect_dialog_exact_controls(
++            dialog, fallback_selector, cancel_texts
++        )
++
++        # The official normal-Web confirm helper has one cancel/close escape action and
++        # one positive action. Exact text prevents the title `确定要下架这个宝贝吗？` from
++        # becoming a positive candidate; leaf-most dedup prevents div > span wrappers
++        # from counting the same action twice. Any remaining ambiguity fails closed.
++        if len(fallback_positive) != 1 or not fallback_cancel:
++            return None, True, False
++        return fallback_positive[0], True, True
++
++    async def _wait_for_offline_ui_success(self) -> bool:
++        if not self.page:
++            return False
++        loop = asyncio.get_running_loop()
++        deadline = loop.time() + 10
++        while loop.time() < deadline:
++            try:
++                body_text = await self.page.evaluate("() => document.body.innerText || ''")
++            except Exception:
++                body_text = ""
++            if self._is_offline_success_text(body_text):
++                return True
++            offline_control, ambiguous = await self._find_unique_offline_control()
++            if not ambiguous and offline_control is None:
++                try:
++                    reverse = self.page.locator("text=/^(上架|重新上架)$/")
++                    count = await reverse.count()
++                    for index in range(count):
++                        if await reverse.nth(index).is_visible():
++                            return True
++                except Exception:
++                    pass
++            await asyncio.sleep(0.5)
++        return False
++
++    async def offline_item(self, *, item_id: str, cookies_str: str) -> dict[str, Any]:
++        """Take one normal-account item off sale through its official Web owner UI."""
++        normalized_item_id = str(item_id or "").strip()
++        result: dict[str, Any] = {
++            "item_id": normalized_item_id,
++            "success": False,
++            "message": "",
++            "ui_actions": 0,
++            "unique_offline_control_found": False,
++            "ambiguous_offline_control": False,
++            "confirm_dialog_required": False,
++            "confirm_dialog_safe": False,
++            "ui_success": False,
++            "auth_failure": False,
++        }
++        try:
++            detail_url = self.normal_item_detail_url(normalized_item_id)
++            await self.initialize(headless=True)
++            await self.set_cookies(cookies_str)
++            if not self.page:
++                raise Exception("browser_not_initialized")
++            await self.page.goto("https://www.goofish.com/", wait_until="domcontentloaded", timeout=30000)
++            await asyncio.sleep(1)
++            await self.page.goto(detail_url, wait_until="domcontentloaded", timeout=30000)
++            await asyncio.sleep(3)
++
++            failure = await self._page_auth_or_verification_failure()
++            if failure:
++                result["auth_failure"] = failure == "login_required"
++                result["message"] = failure
++                return result
++
++            current_url = self.page.url or ""
++            match = re.search(r"[?&]id=(\d+)", current_url)
++            if not match or match.group(1) != normalized_item_id:
++                result["message"] = "target_item_mismatch"
++                return result
++
++            offline_control, ambiguous = await self._find_unique_offline_control()
++            result["ambiguous_offline_control"] = ambiguous
++            if ambiguous:
++                result["message"] = "ambiguous_offline_control"
++                return result
++            if offline_control is None:
++                result["message"] = "offline_control_not_found"
++                return result
++            result["unique_offline_control_found"] = True
++
++            await offline_control.click(timeout=5000)
++            result["ui_actions"] += 1
++            await asyncio.sleep(0.8)
++
++            confirm_button, dialog_required, dialog_safe = await self._find_safe_offline_confirmation()
++            result["confirm_dialog_required"] = dialog_required
++            result["confirm_dialog_safe"] = dialog_safe
++            if dialog_required and not dialog_safe:
++                result["message"] = "unsafe_or_ambiguous_offline_confirmation"
++                return result
++            if confirm_button is not None:
++                await confirm_button.click(timeout=5000)
++                result["ui_actions"] += 1
++
++            result["ui_success"] = await self._wait_for_offline_ui_success()
++            result["success"] = bool(result["ui_success"])
++            result["message"] = "offline_success" if result["success"] else "offline_state_unconfirmed"
++            return result
++        except Exception as exc:
++            result["message"] = f"browser_failure:{type(exc).__name__}"
++            logger.warning(f"普通Web下架失败 item={normalized_item_id}: {type(exc).__name__}")
++            return result
++        finally:
++            await self.close()
++
+@@ -192 +949 @@ class XianyuPublisher:
+-        cookie_data: dict,
++        cookie_data: dict | None = None,
+@@ -194,0 +952,3 @@ class XianyuPublisher:
++        account_id: str | None = None,
++        owner_id: int | None = None,
++        preflight_only: bool = False,
+@@ -213 +973 @@ class XianyuPublisher:
+-            logger.info("🖥️ 使用无头模式（浏览器不可见）")
++            logger.info("Using headless publish browser")
+@@ -215,3 +975,3 @@ class XianyuPublisher:
+-            if reuse_browser and self.is_initialized and self.current_cookie == cookie_data["cookie"]:
+-                logger.info("🔄 复用现有浏览器，重新创建页面...")
+-                await self.reinitialize_page()
++            cookie_value = (cookie_data or {}).get("cookie", "")
++            if account_id:
++                await self.initialize_account_profile(account_id=account_id, owner_id=owner_id, headless=headless)
+@@ -219,63 +979,4 @@ class XianyuPublisher:
+-                await self.initialize(headless=headless)
+-
+-            if not (reuse_browser and self.is_initialized and self.current_cookie == cookie_data["cookie"]):
+-                await self.set_cookies(cookie_data["cookie"])
+-
+-            await self.set_cookies(cookie_data["cookie"])
+-
+-            logger.info("\n[步骤1] 🌐 先访问闲鱼首页，触发Cookie初始化...")
+-            await self.page.goto("https://www.goofish.com", wait_until="networkidle", timeout=30000)
+-            await asyncio.sleep(1)
+-
+-            logger.info("\n[步骤2] 🌐 访问登录页面...")
+-            await self.page.goto(
+-                "https://login.taobao.com/member/login.jhtml",
+-                wait_until="domcontentloaded",
+-                timeout=30000,
+-            )
+-            await asyncio.sleep(1)
+-
+-            publish_url = "https://www.goofish.com/publish?spm=a21ybx.item.sidebar.1.297e3da6aDZAmV"
+-            logger.info(f"\n[步骤3] 🌐 访问发布页面: {publish_url}")
+-            await self.page.goto(publish_url, wait_until="networkidle", timeout=60000)
+-            await asyncio.sleep(3)
+-
+-            current_url = self.page.url
+-            logger.info("✅ 页面已加载")
+-            logger.info(f"当前URL: {current_url}")
+-
+-            if "login" in current_url or "auth" in current_url:
+-                raise Exception("Cookie已失效，页面跳转到登录页")
+-
+-            page_title = await self.page.title()
+-            logger.info(f"页面标题: {page_title}")
+-
+-            page_text = await self.page.evaluate("() => document.body.innerText")
+-
+-            if "登录后可以" in page_text or ("立即登录" in page_text and "扫码登录" not in page_text):
+-                logger.error("Cookie已失效，页面内容包含未登录提示")
+-                raise Exception("Cookie已失效，页面显示未登录状态")
+-
+-            if "添加首图" not in page_text and "宝贝图片" not in page_text:
+-                logger.info("⏳ 等待React渲染发布页面...")
+-                await asyncio.sleep(5)
+-                page_text = await self.page.evaluate("() => document.body.innerText")
+-
+-                if "添加首图" not in page_text and "宝贝图片" not in page_text:
+-                    logger.error("页面可能不是发布页面，或者Cookie无效")
+-                    logger.error(f"页面内容: {page_text[:500]}")
+-                    raise Exception("页面可能不是发布页面，或者Cookie无效")
+-
+-            screenshot = await self.page.screenshot(full_page=True)
+-            result["screenshot"] = base64.b64encode(screenshot).decode()
+-
+-            logger.info("✅ 登录状态正常")
+-            logger.info("\n⏳ 等待React应用渲染表单元素...")
+-            try:
+-                initial_inputs = await self.page.query_selector_all("input")
+-                logger.info(f"   初始状态: 找到 {len(initial_inputs)} 个input元素")
+-
+-                if len(initial_inputs) == 0:
+-                    logger.info("   React应用可能还在渲染，等待表单元素出现...")
+-                    await self.page.wait_for_selector("input, button, textarea", timeout=30000)
+-                    logger.info("   ✅ 表单元素已渲染")
++                should_reuse_context = reuse_browser and self.is_initialized and self.current_cookie == cookie_value
++                if should_reuse_context:
++                    logger.info("Reusing existing publish browser context")
++                    await self.reinitialize_page()
+@@ -283 +984 @@ class XianyuPublisher:
+-                    logger.info("   ✅ 表单元素已存在")
++                    await self.initialize(headless=headless)
+@@ -285,6 +986,2 @@ class XianyuPublisher:
+-                all_inputs = await self.page.query_selector_all("input")
+-                all_buttons = await self.page.query_selector_all("button")
+-                all_textareas = await self.page.query_selector_all("textarea")
+-                logger.info(
+-                    f"   验证结果: {len(all_inputs)} 个input, {len(all_buttons)} 个button, {len(all_textareas)} 个textarea"
+-                )
++                if not should_reuse_context:
++                    await self.set_cookies(cookie_value)
+@@ -292,12 +988,0 @@ class XianyuPublisher:
+-            except Exception as e:
+-                logger.warning(f"   方法1失败，尝试方法2: {e}")
+-                await self.page.wait_for_function(
+-                    """
+-                    () => {
+-                        const inputs = document.querySelectorAll('input, button, textarea');
+-                        return inputs.length > 0;
+-                    }
+-                    """,
+-                    timeout=30000,
+-                )
+-                logger.info("   ✅ 表单元素已渲染（通过JavaScript）")
+@@ -305,21 +990,5 @@ class XianyuPublisher:
+-                all_inputs = await self.page.query_selector_all("input")
+-                all_buttons = await self.page.query_selector_all("button")
+-                all_textareas = await self.page.query_selector_all("textarea")
+-                logger.info(
+-                    f"   验证结果: {len(all_inputs)} 个input, {len(all_buttons)} 个button, {len(all_textareas)} 个textarea"
+-                )
+-
+-            logger.info("✅ React应用渲染完成")
+-
+-            captcha_selectors = [".nc-container", "#nc_1_n1z", ".captcha-container"]
+-            has_captcha = False
+-            for selector in captcha_selectors:
+-                captcha = await self.page.query_selector(selector)
+-                if captcha:
+-                    logger.warning(f"\n⚠️ 检测到滑块验证: {selector}")
+-                    logger.warning("需要通过滑块验证才能继续")
+-                    has_captcha = True
+-                    break
+-
+-            if has_captcha:
+-                logger.warning("提示：可以集成滑块验证工具来自动处理")
++            preflight_result = await self.preflight_publish_form()
++            result["diagnostics"] = preflight_result.get("diagnostics")
++            if preflight_only:
++                result.update({"success": True, "message": "publish preflight ready", "failure_reason": None})
++                return result
+@@ -378,0 +1048,2 @@ class XianyuPublisher:
++            result["failure_reason"] = self._classify_publish_exception(e)
++            result["diagnostics"] = self.last_publish_diagnostics
+@@ -1088,2 +1759,2 @@ class XianyuPublisher:
+-        title = item_data.get("title", "")
+-        description = item_data.get("description", "")
++        title = self._sanitize_publish_text(item_data.get("title", ""))
++        description = self._sanitize_publish_text(item_data.get("description", ""))
+@@ -1101 +1772,8 @@ class XianyuPublisher:
+-        await desc_input.evaluate(f"el => el.innerText = {json.dumps(full_description, ensure_ascii=False)}")
++        await desc_input.fill(full_description)
++        await desc_input.evaluate(
++            """el => {
++                el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: el.innerText || el.value || '' }));
++                el.dispatchEvent(new Event('change', { bubbles: true }));
++                el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
++            }"""
++        )
+@@ -1605,0 +2284,194 @@ class XianyuPublisher:
++    def _sanitize_url(self, url: str) -> str:
++        if not url:
++            return ""
++        return url.split("?", 1)[0]
++
++    def _is_publish_request_url(self, url: str) -> bool:
++        lowered = (url or "").lower()
++        return any(token in lowered for token in ("publish", "item", "idle", "goofish"))
++
++    def _redact_message(self, message: str, limit: int = 180) -> str:
++        text = re.sub(r"https?://\S+", "<url_redacted>", str(message or ""))
++        text = re.sub(r"(?<!\d)\d{6,}(?!\d)", "<id_redacted>", text)
++        text = re.sub(r"(?i)(cookie|token|authorization|x5sec)[^,\s;]*", r"\1=<redacted>", text)
++        return text[:limit]
++
++    async def _visible_text(self, selector: str, limit: int = 12) -> list[str]:
++        try:
++            values = await self.page.locator(selector).evaluate_all(
++                """
++                (nodes, limit) => nodes
++                    .filter((node) => {
++                        const rect = node.getBoundingClientRect();
++                        const style = window.getComputedStyle(node);
++                        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
++                    })
++                    .slice(0, limit)
++                    .map((node) => (node.innerText || node.textContent || '').trim().slice(0, 80))
++                """,
++                limit,
++            )
++            return [self._redact_message(value) for value in values if value]
++        except Exception:
++            return []
++
++    async def _count_publish_form_controls(self) -> dict[str, int]:
++        selectors = {
++            "input_count": "input",
++            "button_count": "button, [role=button]",
++            "textarea_count": "textarea",
++            "file_input_count": "input[type=file]",
++            "uploadish_count": "[class*=upload], [class*=Upload], [class*=image], [class*=Image]",
++        }
++        counts: dict[str, int] = {}
++        for key, selector in selectors.items():
++            try:
++                counts[key] = len(await self.page.query_selector_all(selector))
++            except Exception:
++                counts[key] = 0
++        return counts
++
++    async def _handle_publish_quick_enter(self) -> bool:
++        """Handle the upstream official quick-enter login iframe before filling the publish form."""
++        if not self.page:
++            return False
++        for frame in self.page.frames:
++            if "passport.goofish.com" not in (frame.url or ""):
++                continue
++            buttons = frame.locator("button")
++            try:
++                count = await buttons.count()
++            except Exception:
++                continue
++            for index in range(count):
++                button = buttons.nth(index)
++                try:
++                    if await button.is_visible(timeout=1000) and await button.is_enabled(timeout=1000):
++                        await button.click(timeout=5000)
++                        logger.info("✅ 已通过官方快速进入恢复发布页登录态")
++                        return True
++                except Exception as exc:
++                    logger.warning(f"官方快速进入点击失败: {self._redact_message(str(exc))}")
++                    return False
++        return False
++
++    async def _collect_publish_form_diagnostics(self, publish_selector: str | None = None) -> dict[str, Any]:
++        diagnostics: dict[str, Any] = {
++            "url": self._sanitize_url(self.page.url if self.page else ""),
++            "title": "",
++            "visible_buttons": [],
++            "error_texts": [],
++            "risk_verification": False,
++            "publish_button_selector": publish_selector,
++            "publish_button_enabled": None,
++            "publish_button_visible": None,
++            "publish_button_box": None,
++        }
++        if not self.page:
++            return diagnostics
++
++        try:
++            diagnostics["title"] = await self.page.title()
++        except Exception:
++            pass
++        diagnostics["visible_buttons"] = await self._visible_text("button, [role=button]")
++        diagnostics["error_texts"] = await self._visible_text(
++            '[class*="error"], [class*="toast"], [class*="message"], [role=alert]',
++            limit=8,
++        )
++        diagnostics.update(await self._count_publish_form_controls())
++        try:
++            body_text = await self.page.evaluate("() => document.body.innerText || ''")
++            risk_terms = ("验证码", "滑块", "人脸", "验证", "punish", "风控", "安全")
++            diagnostics["risk_verification"] = any(term in body_text for term in risk_terms)
++        except Exception:
++            pass
++        if publish_selector:
++            locator = self.page.locator(publish_selector).first
++            try:
++                diagnostics["publish_button_visible"] = await locator.is_visible()
++                diagnostics["publish_button_enabled"] = await locator.is_enabled()
++                diagnostics["publish_button_box"] = await locator.bounding_box()
++            except Exception:
++                pass
++        return diagnostics
++
++    async def _find_publish_button(self) -> tuple[Any | None, str | None]:
++        publish_selectors = [
++            '.publish-button--KBpTVopQ',
++            'button.publish-button--KBpTVopQ',
++            'button:has-text("发布")',
++            'button:has-text("立即发布")',
++            'button.publish-btn',
++            '.publish-btn button',
++            'button[type="submit"]',
++        ]
++
++        for selector in publish_selectors:
++            try:
++                locator = self.page.locator(selector).first
++                if not await locator.is_visible():
++                    continue
++                if not await locator.is_enabled():
++                    self.last_publish_diagnostics = await self._collect_publish_form_diagnostics(selector)
++                    self.last_publish_diagnostics["failure_classification"] = "publish_button_disabled"
++                    continue
++                box = await locator.bounding_box()
++                if not box or box.get("width", 0) <= 0 or box.get("height", 0) <= 0:
++                    continue
++                await locator.click(trial=True, timeout=3000)
++                return locator, selector
++            except Exception as exc:
++                self.last_publish_diagnostics = await self._collect_publish_form_diagnostics(selector)
++                self.last_publish_diagnostics["trial_click_error"] = self._redact_message(str(exc))
++                continue
++        return None, None
++
++    def _classify_publish_after_click(self, result: dict, events: dict[str, Any], diagnostics: dict[str, Any]) -> str:
++        if diagnostics.get("risk_verification"):
++            return "platform_risk_verification"
++        if diagnostics.get("error_texts") and not events.get("requests"):
++            return "platform_client_validation_error"
++        if diagnostics.get("error_texts"):
++            return "platform_validation_error"
++        if events.get("failed"):
++            return "network_request_failed"
++        if not events.get("requests"):
++            return "network_request_not_sent"
++        statuses = [item.get("status") for item in events.get("responses", []) if item.get("status") is not None]
++        if any(int(status) >= 400 for status in statuses):
++            return "network_request_failed"
++        if any(200 <= int(status) < 300 for status in statuses):
++            return "request_succeeded_page_not_updated"
++        return result.get("failure_reason") or "unknown"
++
++    def _classify_publish_exception(self, exc: Exception) -> str:
++        message = str(exc)
++        if "profile_missing" in message:
++            return "profile_missing"
++        if "runtime_profile_path_mismatch" in message:
++            return "runtime_profile_path_mismatch"
++        if "browser_busy" in message or "PROFILE_IN_USE" in message:
++            return "browser_busy"
++        if "publish_form_timeout" in message:
++            return "publish_form_timeout"
++        if "publish_page_load_failed" in message:
++            return "publish_page_load_failed"
++        if "manual_verification_required" in message or "platform_risk_verification" in message:
++            return "manual_verification_required"
++        if "publish_form_not_rendered" in message:
++            return "publish_form_not_rendered"
++        if "quick_enter_required" in message:
++            return "quick_enter_required"
++        if any(term in message for term in ("Cookie", "登录", "未登录", "login", "auth")):
++            return "login_required"
++        if any(term in message for term in ("添加首图", "宝贝图片", "图片", "文件输入框")):
++            return "image_upload_incomplete"
++        if any(term in message for term in ("分类", "category")):
++            return "category_not_selected"
++        if any(term in message for term in ("地址", "所在地", "address")):
++            return "address_not_selected"
++        if any(term in message for term in ("价格", "price")):
++            return "price_not_accepted"
++        return "unknown"
++
+@@ -1687,0 +2560,7 @@ class XianyuPublisher:
++        publish_btn, publish_btn_selector = await self._find_publish_button()
++        self.last_publish_diagnostics = await self._collect_publish_form_diagnostics(publish_btn_selector)
++        if not publish_btn:
++            self.last_publish_diagnostics["failure_classification"] = "publish_button_not_found"
++            result["failure_reason"] = "publish_button_not_found"
++            result["diagnostics"] = self.last_publish_diagnostics
++
+@@ -1692,0 +2572,58 @@ class XianyuPublisher:
++            publish_events: dict[str, Any] = {"requests": [], "responses": [], "failed": []}
++
++            def on_request(request):
++                if request.method in ("POST", "PUT") and self._is_publish_request_url(request.url):
++                    publish_events["requests"].append({
++                        "method": request.method,
++                        "url": self._sanitize_url(request.url),
++                    })
++
++            async def record_response(response):
++                request = response.request
++                if request.method in ("POST", "PUT") and self._is_publish_request_url(response.url):
++                    response_record: dict[str, Any] = {
++                        "method": request.method,
++                        "url": self._sanitize_url(response.url),
++                        "status": response.status,
++                    }
++                    try:
++                        content_type = response.headers.get("content-type", "")
++                        if "json" in content_type:
++                            payload = await response.json()
++                            if isinstance(payload, dict):
++                                response_record["success"] = bool(
++                                    payload.get("success")
++                                    or payload.get("isSuccess")
++                                    or payload.get("succeed")
++                                )
++                                response_record["code"] = self._redact_message(payload.get("code") or payload.get("ret") or "")
++                                response_record["message"] = self._redact_message(
++                                    payload.get("message")
++                                    or payload.get("msg")
++                                    or payload.get("errorMessage")
++                                    or ""
++                                )
++                                data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
++                                response_record["item_id_present"] = bool(
++                                    data.get("itemId") or data.get("item_id") or data.get("id")
++                                )
++                    except Exception:
++                        pass
++                    publish_events["responses"].append(response_record)
++
++            def on_response(response):
++                asyncio.create_task(record_response(response))
++
++            def on_request_failed(request):
++                if request.method in ("POST", "PUT") and self._is_publish_request_url(request.url):
++                    failure = request.failure or ""
++                    publish_events["failed"].append({
++                        "method": request.method,
++                        "url": self._sanitize_url(request.url),
++                        "failure": self._redact_message(str(failure)),
++                    })
++
++            self.page.on("request", on_request)
++            self.page.on("response", on_response)
++            self.page.on("requestfailed", on_request_failed)
++
+@@ -1712,0 +2650,2 @@ class XianyuPublisher:
++            self.last_publish_diagnostics.update(await self._collect_publish_form_diagnostics(publish_btn_selector))
++            self.last_publish_diagnostics["publish_events"] = publish_events
+@@ -1750 +2689,4 @@ class XianyuPublisher:
+-                result["failure_reason"] = 'error_message_detected'
++                result["failure_reason"] = self._classify_publish_after_click(
++                    result, publish_events, self.last_publish_diagnostics
++                )
++                result["diagnostics"] = self.last_publish_diagnostics
+@@ -1756 +2698,4 @@ class XianyuPublisher:
+-                result["failure_reason"] = 'page_not_redirected'
++                result["failure_reason"] = self._classify_publish_after_click(
++                    result, publish_events, self.last_publish_diagnostics
++                )
++                result["diagnostics"] = self.last_publish_diagnostics
+@@ -1765 +2710,4 @@ class XianyuPublisher:
+-                result["failure_reason"] = 'unknown'
++                result["failure_reason"] = self._classify_publish_after_click(
++                    result, publish_events, self.last_publish_diagnostics
++                )
++                result["diagnostics"] = self.last_publish_diagnostics
+@@ -1791,0 +2740 @@ class XianyuPublisher:
++            await self._release_profile_guards()
+@@ -1810,0 +2760 @@ class XianyuPublisher:
++            await self._release_profile_guards()
+diff --git a/common/services/xianyu_publish_service.py b/common/services/xianyu_publish_service.py
+index 0243e772948694f08891584d8a1a2b80f067ad33..e95b5fe7a1da1c7f5a41535e2cb25b83b8de2795 100644
+--- a/common/services/xianyu_publish_service.py
++++ b/common/services/xianyu_publish_service.py
+@@ -30,0 +31,48 @@ def create_xianyu_publisher(static_root: str | Path | None = None) -> Any:
++async def offline_items_normal_web(
++    *,
++    cookies_str: str,
++    item_ids: list[str],
++) -> dict[str, Any]:
++    """逐商品使用普通 Web owner UI 下架，保持旧批量下架返回结构。"""
++    cleaned_ids: list[str] = []
++    seen: set[str] = set()
++    for raw_item_id in item_ids or []:
++        item_id = str(raw_item_id or "").strip()
++        if item_id and item_id not in seen:
++            seen.add(item_id)
++            cleaned_ids.append(item_id)
++
++    results: list[dict[str, Any]] = []
++    messages: list[str] = []
++    suc_count = 0
++    fail_count = 0
++    for item_id in cleaned_ids:
++        publisher = create_xianyu_publisher()
++        item_result = await publisher.offline_item(
++            item_id=item_id,
++            cookies_str=cookies_str,
++        )
++        success = bool(item_result.get("success"))
++        results.append({"item_id": item_id, "success": success})
++        if success:
++            suc_count += 1
++        else:
++            fail_count += 1
++            messages.append(str(item_result.get("message") or "下架失败"))
++
++    if not cleaned_ids:
++        message = "没有有效的商品ID"
++    elif suc_count == 0:
++        message = messages[0] if messages else "下架失败"
++    else:
++        message = f"下架成功 {suc_count} 个，失败 {fail_count} 个"
++    return {
++        "success": suc_count > 0,
++        "message": message,
++        "suc_count": suc_count,
++        "fail_count": fail_count,
++        "results": results,
++        "cookies_str": cookies_str,
++    }
++
++
+@@ -33 +81 @@ async def publish_single_item(
+-    cookie: str,
++    cookie: str | None = None,
+@@ -34,0 +83,3 @@ async def publish_single_item(
++    account_id: str | None = None,
++    owner_id: int | None = None,
++    preflight_only: bool = False,
+@@ -40 +91 @@ async def publish_single_item(
+-        cookie_data={"cookie": cookie},
++        cookie_data={"cookie": cookie} if cookie is not None else None,
+@@ -42,0 +94,3 @@ async def publish_single_item(
++        account_id=account_id,
++        owner_id=owner_id,
++        preflight_only=preflight_only,
+diff --git a/tests/test_chg0019_normal_account_offline.py b/tests/test_chg0019_normal_account_offline.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..b02bd8e49e75efdec50ade3e245ba80aa8cc65b9
+--- /dev/null
++++ b/tests/test_chg0019_normal_account_offline.py
+@@ -0,0 +1,562 @@
++from __future__ import annotations
++
++import asyncio
++import importlib.util
++import sys
++import types
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++PUBLISHER_PATH = ROOT / "backend-web" / "app" / "services" / "xianyu_publisher.py"
++ITEMS_ROUTE_PATH = ROOT / "backend-web" / "app" / "api" / "routes" / "items.py"
++
++
++def load_publisher_module():
++    loguru_module = types.ModuleType("loguru")
++    loguru_module.logger = types.SimpleNamespace(
++        info=lambda *args, **kwargs: None,
++        warning=lambda *args, **kwargs: None,
++        error=lambda *args, **kwargs: None,
++    )
++    sys.modules.setdefault("loguru", loguru_module)
++
++    playwright_module = types.ModuleType("playwright")
++    playwright_async_module = types.ModuleType("playwright.async_api")
++    playwright_async_module.Browser = object
++    playwright_async_module.BrowserContext = object
++    playwright_async_module.Page = object
++    playwright_async_module.async_playwright = lambda: None
++    sys.modules.setdefault("playwright", playwright_module)
++    sys.modules.setdefault("playwright.async_api", playwright_async_module)
++
++    common_module = types.ModuleType("common")
++    common_module.__path__ = [str(ROOT / "common")]
++    sys.modules.setdefault("common", common_module)
++    common_utils_module = types.ModuleType("common.utils")
++    common_utils_module.__path__ = [str(ROOT / "common" / "utils")]
++    sys.modules.setdefault("common.utils", common_utils_module)
++    browser_utils_module = types.ModuleType("common.utils.browser_utils")
++    browser_utils_module.ensure_playwright_browser_path = lambda: None
++    browser_utils_module.get_chromium_executable_path = lambda: None
++    sys.modules.setdefault("common.utils.browser_utils", browser_utils_module)
++
++    common_services_module = types.ModuleType("common.services")
++    common_services_module.__path__ = [str(ROOT / "common" / "services")]
++    sys.modules.setdefault("common.services", common_services_module)
++    image_service_module = types.ModuleType("common.services.publish_image_service")
++    image_service_module.cleanup_temp_images = lambda paths: None
++
++    async def download_remote_image(url):
++        return url
++
++    image_service_module.download_remote_image = download_remote_image
++    sys.modules.setdefault("common.services.publish_image_service", image_service_module)
++    cookie_service_module = types.ModuleType("common.services.cookie_renew_browser_service")
++    cookie_service_module.get_pure_account_id = lambda account_id: str(account_id).split("_", 1)[0].strip()
++    cookie_service_module.get_browser_data_root = lambda: str(ROOT / "browser_data")
++    cookie_service_module.get_account_browser_profile_dir = (
++        lambda account_id: str(ROOT / "browser_data" / f"user_{str(account_id).split('_', 1)[0].strip()}")
++    )
++    sys.modules.setdefault("common.services.cookie_renew_browser_service", cookie_service_module)
++
++    spec = importlib.util.spec_from_file_location("chg0019_xianyu_publisher", PUBLISHER_PATH)
++    assert spec and spec.loader
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
++
++
++class FakeElement:
++    def __init__(
++        self,
++        text: str,
++        context: str = "下架 删除",
++        visible: bool = True,
++        enabled: bool = True,
++        *,
++        tag: str = "button",
++        role: str | None = None,
++        pointer_events: str = "auto",
++        obscured: bool = False,
++    ):
++        self.text = text
++        self.context = context
++        self.visible = visible
++        self.enabled = enabled
++        self.tag = tag.lower()
++        self.role = role
++        self.pointer_events = pointer_events
++        self.obscured = obscured
++        self.clicks = 0
++        self.children: list[FakeElement] = []
++
++    async def inner_text(self):
++        return self.text
++
++    async def is_visible(self):
++        return self.visible
++
++    async def is_enabled(self):
++        return self.enabled
++
++    async def bounding_box(self):
++        return {"width": 80, "height": 30} if self.visible else None
++
++    def _descendants(self):
++        result = []
++        for child in self.children:
++            result.append(child)
++            result.extend(child._descendants())
++        return result
++
++    @staticmethod
++    def _matches_selector(element, selector: str) -> bool:
++        parts = {part.strip() for part in selector.split(",")}
++        return (
++            element.tag in parts
++            or ("[role='button']" in parts and element.role == "button")
++            or ('[role="button"]' in parts and element.role == "button")
++        )
++
++    async def evaluate(self, script, *args):
++        if "pointerEvents" in script and "elementFromPoint" not in script:
++            return self.pointer_events
++        if "elementFromPoint" in script:
++            return not self.obscured
++        if "querySelectorAll('button,[role=\"button\"],div,span')" in script:
++            allowed = set(args[0] if args else [])
++            for child in self._descendants():
++                normalized = "".join(child.text.split())
++                if normalized in allowed and child.visible:
++                    box = await child.bounding_box()
++                    if box and box["width"] > 0 and box["height"] > 0:
++                        return True
++            return False
++        return self.context
++
++    async def click(self, **kwargs):
++        if not kwargs.get("trial"):
++            self.clicks += 1
++
++    async def query_selector_all(self, selector):
++        return [element for element in self._descendants() if self._matches_selector(element, selector)]
++
++
++class FakePage:
++    def __init__(
++        self,
++        elements=None,
++        *,
++        url="https://www.goofish.com/item?id=1070515947040",
++        body="",
++        selector_map=None,
++    ):
++        self.elements = list(elements or [])
++        self.url = url
++        self.body = body
++        self.selector_map = dict(selector_map or {})
++
++    async def query_selector_all(self, selector):
++        if selector in self.selector_map:
++            return self.selector_map[selector]
++        return self.elements
++
++    async def evaluate(self, script):
++        return self.body
++
++
++def run_dialog_classifier(
++    title: str,
++    buttons: list[str],
++    *,
++    page_body: str = "",
++    tag: str = "button",
++    role: str | None = None,
++):
++    module = load_publisher_module()
++    dialog = FakeElement(title, tag="div", role="dialog")
++    dialog.children = [FakeElement(text, context="", tag=tag, role=role) for text in buttons]
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(
++        body=page_body,
++        selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []},
++    )
++    return asyncio.run(publisher._find_safe_offline_confirmation())
++
++
++def test_normal_item_detail_url_is_deterministic():
++    module = load_publisher_module()
++    assert module.XianyuPublisher.normal_item_detail_url("1070515947040") == "https://www.goofish.com/item?id=1070515947040"
++
++
++def test_unique_offline_control_is_required():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage([FakeElement("下架")])
++    control, ambiguous = asyncio.run(publisher._find_unique_offline_control())
++    assert control is not None
++    assert ambiguous is False
++
++
++def test_missing_offline_control_fails_closed():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage([FakeElement("编辑"), FakeElement("删除")])
++    control, ambiguous = asyncio.run(publisher._find_unique_offline_control())
++    assert control is None
++    assert ambiguous is False
++
++
++def test_multiple_offline_controls_fail_closed():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage([FakeElement("下架"), FakeElement("下架")])
++    control, ambiguous = asyncio.run(publisher._find_unique_offline_control())
++    assert control is None
++    assert ambiguous is True
++
++
++def test_delete_is_never_an_offline_action():
++    module = load_publisher_module()
++    cls = module.XianyuPublisher
++    assert cls._is_safe_offline_action_text("删除") is False
++    assert cls._is_safe_offline_action_text("确认删除") is False
++    assert cls._is_delete_semantics("永久删除") is True
++
++
++def test_confirmation_requires_explicit_offline_semantics():
++    module = load_publisher_module()
++    cls = module.XianyuPublisher
++    assert cls._is_safe_offline_confirmation("确认下架该商品？", "确定") is True
++    assert cls._is_safe_offline_confirmation("确认删除该商品？", "确定") is False
++    assert cls._is_safe_offline_confirmation("确认操作？", "确定") is False
++    assert cls._is_safe_offline_confirmation("确认下架？", "下架") is False
++
++
++def test_dialog_confirm_offline_with_cancel_and_ok_is_safe():
++    button, required, safe = run_dialog_classifier("确认下架该商品？", ["取消", "确定"])
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_confirm_offline_with_cancel_and_confirm_is_safe():
++    button, required, safe = run_dialog_classifier("确认下架？", ["取消", "确认"])
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_confirm_offline_with_explicit_confirm_text_is_safe():
++    button, required, safe = run_dialog_classifier("确认下架？", ["取消", "确定下架"])
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_delete_semantics_with_generic_ok_is_unsafe():
++    button, required, safe = run_dialog_classifier("确认删除该商品？", ["取消", "确定"])
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_dialog_irreversible_delete_semantics_is_unsafe():
++    button, required, safe = run_dialog_classifier("删除后无法恢复", ["取消", "确定"])
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_background_delete_text_does_not_pollute_local_offline_dialog():
++    button, required, safe = run_dialog_classifier(
++        "确认下架？",
++        ["取消", "确定"],
++        page_body="页面背景卖家操作：下架 删除 编辑",
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_without_offline_semantics_is_unsafe():
++    button, required, safe = run_dialog_classifier("确认操作？", ["取消", "确定"])
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_dialog_with_multiple_positive_confirm_controls_is_unsafe():
++    button, required, safe = run_dialog_classifier("确认下架？", ["取消", "确定", "确认"])
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_missing_dialog_is_unsafe_after_offline_click():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(selector_map={"[role='dialog']": [], ".ant-modal-content": []})
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_dialog_with_offline_and_delete_conflict_is_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确认下架该商品？删除后无法恢复",
++        ["取消", "确定"],
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nested_ant_modal_container_is_not_double_counted_when_role_dialog_exists():
++    module = load_publisher_module()
++    dialog = FakeElement("确定要下架这个宝贝吗？")
++    dialog.children = [FakeElement("取消", context=""), FakeElement("确定", context="")]
++    nested = FakeElement("确定要下架这个宝贝吗？")
++    nested.children = dialog.children
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(
++        selector_map={"[role='dialog']": [dialog], ".ant-modal-content": [nested]},
++    )
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is dialog.children[1]
++    assert required is True
++    assert safe is True
++
++
++def test_nonsemantic_div_cancel_and_ok_is_safe():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["取消", "确定"], tag="div"
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++    assert button.text == "确定"
++
++
++def test_nonsemantic_span_cancel_and_ok_is_safe():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["取消", "确定"], tag="span"
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++    assert button.text == "确定"
++
++
++def test_nonsemantic_nested_div_span_uses_leaf_most_exact_text_once():
++    module = load_publisher_module()
++    dialog = FakeElement("确定要下架这个宝贝吗？", tag="div", role="dialog")
++    cancel = FakeElement("取消", context="", tag="div")
++    positive_wrapper = FakeElement("确定", context="", tag="div")
++    positive_leaf = FakeElement("确定", context="", tag="span")
++    positive_wrapper.children = [positive_leaf]
++    dialog.children = [cancel, positive_wrapper]
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []})
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is positive_leaf
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_title_starting_with_ok_is_not_treated_as_ok_control():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["取消"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_delete_dialog_with_generic_ok_is_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确定要删除这个宝贝吗？", ["取消", "确定"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_two_independent_positive_leaf_nodes_are_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["取消", "确定", "确定"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_positive_without_cancel_escape_is_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["确定"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_background_dangerous_and_ok_text_do_not_pollute_nonsemantic_dialog():
++    button, required, safe = run_dialog_classifier(
++        "确认下架？",
++        ["取消", "确定"],
++        tag="div",
++        page_body="页面背景：删除 确定 编辑 上架",
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_external_extra_ok_does_not_pollute_local_fallback():
++    module = load_publisher_module()
++    dialog = FakeElement("确认下架？", tag="div", role="dialog")
++    dialog.children = [
++        FakeElement("取消", context="", tag="div"),
++        FakeElement("确定", context="", tag="div"),
++    ]
++    external_ok = FakeElement("确定", context="", tag="div")
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(
++        elements=[external_ok],
++        selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []},
++    )
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is dialog.children[1]
++    assert required is True
++    assert safe is True
++
++
++def test_hidden_duplicate_nonsemantic_ok_does_not_count():
++    module = load_publisher_module()
++    dialog = FakeElement("确认下架？", tag="div", role="dialog")
++    visible_ok = FakeElement("确定", context="", tag="div")
++    hidden_ok = FakeElement("确定", context="", tag="span", visible=False)
++    dialog.children = [
++        FakeElement("取消", context="", tag="div"),
++        visible_ok,
++        hidden_ok,
++    ]
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []})
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is visible_ok
++    assert required is True
++    assert safe is True
++
++
++def test_original_button_confirm_path_remains_safe():
++    button, required, safe = run_dialog_classifier("确认下架？", ["取消", "确定"], tag="button")
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_original_role_button_confirm_path_remains_safe():
++    button, required, safe = run_dialog_classifier(
++        "确认下架？", ["取消", "确定"], tag="div", role="button"
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_nonsemantic_ok_obscured_by_overlay_is_unsafe():
++    module = load_publisher_module()
++    dialog = FakeElement("确认下架？", tag="div", role="dialog")
++    obscured_ok = FakeElement("确定", context="", tag="div", obscured=True)
++    dialog.children = [FakeElement("取消", context="", tag="div"), obscured_ok]
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []})
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_controls_without_offline_semantics_are_unsafe():
++    button, required, safe = run_dialog_classifier("确认操作？", ["取消", "确定"], tag="div")
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_offline_delete_conflict_is_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确认下架？删除后无法恢复", ["取消", "确定"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_login_page_is_auth_failure():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(url="https://login.taobao.com/member/login.jhtml")
++    assert asyncio.run(publisher._page_auth_or_verification_failure()) == "login_required"
++
++
++def test_offline_success_state_parser():
++    module = load_publisher_module()
++    cls = module.XianyuPublisher
++    assert cls._is_offline_success_text("下架成功") is True
++    assert cls._is_offline_success_text("商品已下架") is True
++    assert cls._is_offline_success_text("点击下架") is False
++
++
++def test_batch_results_are_independent(monkeypatch):
++    from common.services import xianyu_publish_service as service
++
++    outcomes = iter([
++        {"success": True, "message": "offline_success"},
++        {"success": False, "message": "offline_control_not_found"},
++    ])
++
++    class FakePublisher:
++        async def offline_item(self, **kwargs):
++            return next(outcomes)
++
++    monkeypatch.setattr(service, "create_xianyu_publisher", lambda: FakePublisher())
++    result = asyncio.run(
++        service.offline_items_normal_web(cookies_str="masked", item_ids=["1", "2"])
++    )
++    assert result["suc_count"] == 1
++    assert result["fail_count"] == 1
++    assert result["results"] == [
++        {"item_id": "1", "success": True},
++        {"item_id": "2", "success": False},
++    ]
++
++
++def test_batch_offline_route_reads_counts_from_normal_web_result():
++    source = ITEMS_ROUTE_PATH.read_text(encoding="utf-8")
++    call_index = source.index("result = await offline_items_normal_web(")
++    success_count_index = source.index('suc_count = int(result.get("suc_count", 0) or 0)', call_index)
++    failure_count_index = source.index('fail_count = int(result.get("fail_count", 0) or 0)', call_index)
++    logger_index = source.index("logger.info(", failure_count_index)
++    assert call_index < success_count_index < failure_count_index < logger_index
++
++
++def test_browser_exception_returns_failure_not_success():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++
++    async def broken_initialize(*args, **kwargs):
++        raise RuntimeError("browser exploded")
++
++    async def harmless_close():
++        return None
++
++    publisher.initialize = broken_initialize
++    publisher.close = harmless_close
++    result = asyncio.run(publisher.offline_item(item_id="1070515947040", cookies_str="masked"))
++    assert result["success"] is False
++    assert result["ui_success"] is False
++    assert result["message"].startswith("browser_failure:")
