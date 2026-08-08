@@ -2,6 +2,19 @@
 
 These rules apply to any AI or automation agent and are not specific to one vendor or model.
 
+## P0 non-negotiable rule: upstream first, never reinvent an existing wheel
+
+- After safety, legality, credentials, permissions, platform-verification boundaries, and explicit project-owner instructions, this is the highest development priority. It outranks speed, convenience, refactoring preferences, architecture ambition, future scalability, and feature expansion.
+- Before proposing or writing any Xianyu code, inspect the upstream feature description, pinned upstream implementation, relevant newer upstream commits/issues, and the existing local implementation record. Do not design a local replacement first.
+- The mandatory decision order is: reuse the exact upstream function or native workflow -> configure the existing upstream capability -> apply the smallest auditable fix to the upstream path -> add a thin operations-only wrapper -> build a local exception only as the final approved resort.
+- If upstream already contains the needed method, service, model, route, UI, task, lock, cache, profile, log, or workflow, use it directly. If it contains the correct path with a confirmed defect, repair that path without replacing its execution owner or duplicating its data model.
+- A claim that upstream lacks a solution is invalid until the active work record lists the searched README/docs, UI, routes, services, models, workers, scheduler tasks, tests, configuration, logs, issues, and commits relevant to the capability.
+- New services, tables, APIs, workers, queues, schedulers, browser managers, Token implementations, Cookie implementations, login implementations, sender implementations, or execution owners are forbidden while an existing path can be reused or minimally repaired.
+- Every development task must record the reuse decision as one of `ADOPT_UPSTREAM`, `CONFIGURE_UPSTREAM`, `PATCH_UPSTREAM`, `WRAP_FOR_OPERATIONS`, or approved `BUILD_LOCAL_EXCEPTION`, together with duplicate-development risk and rollback.
+- Any minimal patch must preserve upstream APIs, return shapes, data ownership, UI workflow, and execution ownership wherever possible, and must include a default-off or otherwise deterministic rollback path when runtime behavior changes.
+- When upstream later provides an equivalent capability, overlapping local code must be reviewed for retirement rather than expanded.
+- The current formal direction and capability disposition are recorded in `docs/FORMAL_DEVELOPMENT_DIRECTION.md`. A future Change may refine implementation details but may not weaken this P0 rule.
+
 ## Highest delivery priority: smallest safe solution, no duplicate development
 
 - After safety, legality, credentials, permissions, and explicit project-owner boundaries, the highest delivery priority is to complete the user's stated business outcome with the smallest proven, reversible change.

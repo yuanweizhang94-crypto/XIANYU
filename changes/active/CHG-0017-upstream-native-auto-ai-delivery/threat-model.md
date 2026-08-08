@@ -1,0 +1,50 @@
+Change ID: CHG-0017-upstream-native-auto-ai-delivery
+Status: VERIFYING
+# Threat Model
+
+## Primary Risks
+
+- A second local sender or worker could send duplicate replies.
+- AI configuration could be incomplete or accidentally enabled outside the approved test scope.
+- Keyword/default rules could trigger on real customer messages.
+- Token or Cookie material could be printed or committed.
+- Scheduler/order/shipping/rating automation could create business side effects.
+- Platform verification could require owner action or create risk-control state.
+- A local item catalog miss could be misclassified as platform ownership proof,
+  either blocking account-level replies unnecessarily or enabling item-scoped
+  side effects without local item configuration.
+
+## Controls
+
+- Use only upstream-native runtime paths.
+- Keep CHG-0010 frozen, deprecated, and stopped.
+- Require whitelist-only accounts for live tests.
+- Capture only counts, states, aliases, and redacted hashes.
+- Stop on platform verification, unknown sender, unknown account identity, or any non-whitelist message.
+- Do not start scheduler or Docker websocket unless the active task explicitly requires the approved upstream candidate service.
+- Enforce a hard cap of 8 automatic test replies.
+- Treat local catalog misses as `item_catalog_missing`: allow only approved
+  account-level text keyword and Gemini paths after the sender allowlist, and
+  disable item-scoped keyword/default/image/card/delivery/order/rating/item
+  mutation paths.
+- Log item sync and catalog-missing diagnostics as counts and classifications
+  only.
+
+## Secret Handling
+
+Do not print, commit, or place in PR text:
+
+- Cookie
+- Token
+- API key
+- Device ID
+- UNB
+- Full account ID
+- Full chat/session/item ID
+- Customer message text
+- Verification URL
+- Database or Redis credential
+
+## Closeout Requirement
+
+CHG-0017 cannot close as a delivery success unless all test executors are stopped, the quiet period passes, and the final evidence shows zero non-whitelist sends and no business side effects.
