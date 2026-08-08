@@ -1,5 +1,5 @@
 Change ID: CHG-0017-upstream-native-auto-ai-delivery
-Status: VERIFYING
+Status: ARCHIVED
 # Tasks
 
 - [x] T1 Create proposal.
@@ -18,12 +18,12 @@ Status: VERIFYING
 - [x] T14 Generate redacted delivery report.
 - [x] T15 Wait for OWNER GO_LIVE.
 - [x] T16 Enable production and observe.
-- [ ] T17 Archive and deliver.
+- [x] T17 Archive and deliver.
 
 ## Current Progress
 
-Completed tasks: 16 / 17
-Next task: T17 Archive and deliver.
+Completed tasks: 17 / 17
+Next task: null
 
 ## Execution Contract
 
@@ -392,3 +392,16 @@ Pre-merge boundary:
 OWNER_CLOSEOUT_AND_MERGE_AUTHORIZATION_RECORDED=true
 PR_READY_AUTHORIZED_AFTER_GREEN_CI=true
 T17_POST_MERGE_ONLY=true
+
+## Post-merge T17 closeout
+
+PR #26 merged successfully on 2026-08-08 as merge commit
+`6b2c233c6176620ca38fd7bab84366f57d6034f6`. The exact pre-merge head
+`f2752244561bd3eadb3ff930ecd3f68efb8374b4` passed the final acceptance,
+upstream-targeted, repository verification, and GitHub quality/tests/security
+checks. T17 is complete. This archive closeout performs no new platform,
+account, message, product, login, Docker, database, Redis, CHG-0018 T11/T12,
+PR #28, or CHG-0019 business-code action.
+
+T17_COMPLETED=true
+PR26_MERGED=true
