@@ -1,5 +1,5 @@
 Change ID: CHG-0017-upstream-native-auto-ai-delivery
-Status: VERIFYING
+Status: ARCHIVED
 # Design
 
 ## Execution Contract
