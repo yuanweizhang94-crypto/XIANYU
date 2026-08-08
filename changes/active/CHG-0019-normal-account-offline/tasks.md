@@ -12,6 +12,7 @@ Change ID: CHG-0019-normal-account-offline
 - [x] T6 Run the owner-authorized single-item canary, perform one existing post-success item sync/read-only refresh, and stop before commit/push.
 - [x] T7 Reuse the existing product-management batch-offline UI/API path, add the missing single-item entry and fail-closed UI state handling, and pass 26 frontend contract tests, lint, and production build.
 - [x] T8 Deploy only the formal frontend image, run production read-only smoke plus mocked frontend-backend contract scenarios, preserve the verified Backend unchanged, and record formal delivery evidence.
+- [x] T9 Address PR #28 review findings by publishing the exact predecessor stack base and hardening off-shelf success classification to target-specific post-action evidence without changing the verified execution path or running a new real canary.
 
 ## T5 result
 
@@ -51,3 +52,14 @@ Change ID: CHG-0019-normal-account-offline
 - Mocked deployed-asset contract scenarios for success, partial failure, auth failure, and network exception passed with zero real Backend forwarding.
 - `BACKEND_REAL_CANARY=PASSED`; `FRONTEND_LIVE_MUTATION_CANARY=NOT_REQUIRED` because the mutation executor was already proven by the controlled real canary and this UI only calls the verified API.
 - Formal delivery evidence: `evidence/20260808-formal-delivery-frontend.md`.
+
+## T9 PR review hardening result
+
+- Review predecessor `44c8ae98ac576f9ab486fae473d56f26480b8868` is an ancestor of formal delivery commit `0573db0581eee71620a0260f7b639cd1b69a3401`; the true pre-review CHG-0019 delta is 2 commits / 28 files.
+- Review-only stack base `review-base/CHG-0019-predecessor-44c8ae9` was pushed at the exact predecessor commit; it is not a production or CHG-0018-reactivation branch.
+- `_wait_for_offline_ui_success()` no longer accepts whole-page `document.body.innerText` as success evidence.
+- Success now requires the exact target item URL plus either a new post-action success notice or a reverse state from the same captured owner-operation DOM location after the `下架` control disappears. Button disappearance alone is insufficient.
+- Targeted Backend tests passed 47/47; publish/Profile regressions passed 19/19; Frontend tests remained 27/27 with lint/build PASS.
+- Layered review-fix patch applies after the formal-delivery patch and reproduces the two hardened target files with 2/2 Git blob equivalence.
+- No new real off-shelf action, product action, production deployment, container change, database/Redis write, or Xianyu login occurred.
+- Review evidence: `evidence/20260808-pr28-review-success-classification-hardening.md`.

@@ -215,6 +215,24 @@ This artifact is a standalone cumulative backend recovery patch for the exact so
 
 This is the incremental formal-delivery artifact for CHG-0019 when restoring the repository in documented CHG-0017 -> CHG-0018 -> CHG-0019 order. It combines the verified normal-account off-shelf Backend path with the completed product-management single/batch UI while preserving fail-closed semantics and avoiding a second live product mutation.
 
+## CHG-0019 PR #28 success-classification hardening patch
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`
+- Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
+- Applies after: CHG-0017 patch -> CHG-0018 patch -> `4c5e1ac-chg0019-normal-account-offline-formal-delivery.patch`
+- Patch file: `4c5e1ac-chg0019-pr28-review-success-classification-hardening.patch`
+- SHA256: `B4F9673CF486EC57FF235BAF97182066703FE6D2E4EE7910A3828AC769A1C912`
+- Clean layered apply check: passed.
+- Final Git blob equivalence: 2/2 target files match the hardened review source snapshot.
+- Backend targeted tests: 47/47 passed.
+- Publish/Profile regressions: 19/19 passed.
+- Frontend offline UI tests: 27/27 passed; lint and TypeScript/Vite build passed without frontend source changes.
+- Changed/restored files:
+  - `backend-web/app/services/xianyu_publisher.py`
+  - `tests/test_chg0019_normal_account_offline.py`
+
+This review-only layered patch removes whole-page success classification from the normal-Web off-shelf path. Success now requires the exact target item URL plus either a new post-action success notice relative to the pre-action notice snapshot or an exact reverse state in the same captured owner-operation DOM location after the unique `下架` control disappears. Control disappearance alone is not success. The existing detail URL, Cookie injection, off-shelf control resolution, delete isolation, dialog semantics, non-semantic confirm fallback, click sequence, batch route, and frontend API contract remain unchanged. No new real product action or real canary was performed.
+
 ## Artifact Format
 
 Git-generated zero-context unified diff.

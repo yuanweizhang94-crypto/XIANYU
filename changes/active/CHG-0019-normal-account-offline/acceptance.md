@@ -19,7 +19,8 @@ Change ID: CHG-0019-normal-account-offline
 - Multiple plausible off-shelf controls fail closed with ambiguous-control classification.
 - `删除`, `确认删除`, `永久删除`, or delete-containing owner/dialog contexts are never accepted as off-shelf actions.
 - Confirmation is clicked only when the dialog is explicitly off-shelf semantics, contains no delete semantics, and has exactly one safe enabled confirmation action.
-- Click completion alone never means success. Success requires an explicit success toast/message or a state transition from `下架` to `上架`/`重新上架`.
+- Click completion alone never means success. Success requires target-specific post-action evidence: the exact target item URL must still match, and either a new success notice appears after the pre-action notice snapshot or the same captured owner-operation DOM location transitions from `下架` to exact visible `上架`/`重新上架`/`已下架` state.
+- Whole-page `document.body.innerText` is never accepted as off-shelf success evidence. Unrelated/recommended/stale `已下架` text cannot confirm the target item, and `下架` control disappearance alone is insufficient.
 - Batch processing records each item independently; one failure must not mark other items successful.
 - Browser exceptions return failure, never success.
 - Tests cover URL generation, unique/missing/multiple controls, delete exclusion, confirmation semantics, auth failure, success parsing, per-item batch result isolation, and browser exception handling.
@@ -67,6 +68,7 @@ Change ID: CHG-0019-normal-account-offline
 - Production read-only smoke uses actual deployed assets with synthetic intercepted data; row entry, confirmation, cancel, list load, zero page errors, zero sensitive render, and zero real `/items/batch-offline` forwarding are all verified.
 - Mocked deployed-asset frontend-backend contract scenarios cover success, partial failure, auth failure, and server/network exception with correct payloads and zero real Backend forwarding.
 - No new real product action or real off-shelf action occurs during frontend delivery.
+- PR #28 review hardening changes only success classification, preserves the already real-canary-verified click/confirmation execution path, requires no new real canary, and passes 47/47 targeted Backend tests plus the existing 19/19 publish/Profile regressions and 27/27 Frontend tests.
 
 IMPLEMENTATION_COMPLETE=true
 BACKEND_REAL_CANARY_PASSED=true

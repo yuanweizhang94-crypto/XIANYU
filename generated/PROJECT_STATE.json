@@ -7,8 +7,8 @@
     "path": "changes/active/CHG-0019-normal-account-offline"
   },
   "tasks": {
-    "total": 8,
-    "completed": 8,
+    "total": 9,
+    "completed": 9,
     "next_task": null,
     "items": [
       {
@@ -41,6 +41,10 @@
       },
       {
         "text": "T8 Deploy only the formal frontend image, run production read-only smoke plus mocked frontend-backend contract scenarios, preserve the verified Backend unchanged, and record formal delivery evidence.",
+        "completed": true
+      },
+      {
+        "text": "T9 Address PR #28 review findings by publishing the exact predecessor stack base and hardening off-shelf success classification to target-specific post-action evidence without changing the verified execution path or running a new real canary.",
         "completed": true
       }
     ]
