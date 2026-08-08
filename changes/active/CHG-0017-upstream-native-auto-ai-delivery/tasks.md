@@ -1,5 +1,5 @@
 Change ID: CHG-0017-upstream-native-auto-ai-delivery
-Status: IMPLEMENTING
+Status: VERIFYING
 # Tasks
 
 - [x] T1 Create proposal.
@@ -372,3 +372,23 @@ Delivery report verdict: `CHG0017_DELIVERY_REPORT_READY`.
 
 T17 remains unchecked because the owner explicitly did not authorize archive or
 merge in this run.
+
+## PR #26 Final Governance Authorization
+
+On 2026-08-08 the project owner explicitly authorized CHG-0017 governance
+closeout, exact-head validation, normal push, PR #26 Ready transition after
+green CI, normal merge, and post-merge T17/archive synchronization.
+
+Pre-merge boundary:
+
+- Change status is `VERIFYING`.
+- Completed tasks remain `16 / 17`.
+- T17 remains unchecked until PR #26 is actually merged.
+- No runtime, account, message, product, login, Docker, database, Redis, CHG-0018
+  T11/T12, PR #28, or CHG-0019 business-code action is authorized by this
+  governance closeout.
+- Archive is post-merge only for this successful delivery path.
+
+OWNER_CLOSEOUT_AND_MERGE_AUTHORIZATION_RECORDED=true
+PR_READY_AUTHORIZED_AFTER_GREEN_CI=true
+T17_POST_MERGE_ONLY=true

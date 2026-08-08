@@ -1,5 +1,5 @@
 Change ID: CHG-0017-upstream-native-auto-ai-delivery
-Status: IMPLEMENTING
+Status: VERIFYING
 # Acceptance
 
 ## Execution Contract
@@ -185,3 +185,18 @@ source synchronization into existing Draft PR #26:
 - Targeted offline tests passed: `58`.
 - Only masked Markdown evidence is submitted to Git.
 - PR #26 remains Draft, Open, and Unmerged; T17 remains unchecked.
+
+## PR #26 Final Governance Closeout Gate
+
+On 2026-08-08 the project owner explicitly authorized CHG-0017 governance
+closeout and normal PR #26 delivery. Before merge, the Change remains
+`VERIFYING` and T17 remains unchecked. PR #26 may transition from Draft to Ready
+only after the exact pushed governance head passes local validation and GitHub
+CI. T17/archive may be completed only after PR #26 is successfully merged.
+
+This authorization does not permit any new runtime validation, platform action,
+account login, message send, product action, Docker change, database/Redis write,
+CHG-0018 T11/T12 execution, PR #28 change, or CHG-0019 business-code change.
+
+OWNER_CLOSEOUT_AND_MERGE_AUTHORIZATION_RECORDED=true
+T17_POST_MERGE_ONLY=true

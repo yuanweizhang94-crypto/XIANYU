@@ -1,5 +1,5 @@
 Change ID: CHG-0017-upstream-native-auto-ai-delivery
-Status: IMPLEMENTING
+Status: VERIFYING
 # Threat Model
 
 ## Primary Risks

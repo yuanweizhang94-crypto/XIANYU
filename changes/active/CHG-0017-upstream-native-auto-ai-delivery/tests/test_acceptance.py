@@ -12,11 +12,11 @@ def read_doc(name: str) -> str:
     return (CHANGE_DIR / name).read_text(encoding="utf-8")
 
 
-def test_change_documents_are_implementing() -> None:
+def test_change_documents_are_verifying() -> None:
     for name in CHANGE_FILES:
         text = read_doc(name)
         assert f"Change ID: {CHANGE_ID}" in text
-        assert "Status: IMPLEMENTING" in text
+        assert "Status: VERIFYING" in text
 
 
 def test_execution_contract_is_recorded() -> None:
@@ -80,7 +80,7 @@ def test_generated_state_points_to_active_change() -> None:
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": CHANGE_ID,
-        "status": "IMPLEMENTING",
+        "status": "VERIFYING",
         "path": f"changes/active/{CHANGE_ID}",
     }
     assert state["tasks"]["total"] == 17
@@ -93,6 +93,23 @@ def test_owner_implementation_approval_is_recorded() -> None:
     assert "Project-owner implementation approval:" in proposal
     assert "Do not rebuild existing upstream capabilities." in proposal
     assert "Do not enable production customer replies before `GO_LIVE ACCOUNT-A`." in proposal
+
+
+def test_pr26_final_governance_authorization_is_recorded_pre_merge() -> None:
+    evidence = (
+        CHANGE_DIR / "evidence" / "20260808-pr26-final-governance-authorization.md"
+    ).read_text(encoding="utf-8")
+    tasks = read_doc("tasks.md")
+    acceptance = read_doc("acceptance.md")
+
+    assert "OWNER_CLOSEOUT_AND_MERGE_AUTHORIZATION_RECORDED=true" in evidence
+    assert "PR_READY_AUTHORIZED_AFTER_GREEN_CI=true" in evidence
+    assert "T17_POST_MERGE_ONLY=true" in evidence
+    assert "Status: VERIFYING" in evidence
+    assert "- [ ] T17 Archive and deliver." in tasks
+    assert "Completed tasks: 16 / 17" in tasks
+    assert "Archive is post-merge only" in tasks
+    assert "T17/archive may be completed only after PR #26 is successfully merged." in acceptance
 
 
 def test_owner_test_account_resolution_is_recorded_without_runtime_start() -> None:

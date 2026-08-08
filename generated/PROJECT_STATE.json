@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0017-upstream-native-auto-ai-delivery",
-    "status": "IMPLEMENTING",
+    "status": "VERIFYING",
     "path": "changes/active/CHG-0017-upstream-native-auto-ai-delivery"
   },
   "tasks": {
