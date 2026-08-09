@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
 CHANGE_ID = "CHG-0018-account-profile-publish-safety"
-CHANGE_DIR = ROOT / "changes" / "active" / CHANGE_ID
+CHANGE_DIR = ROOT / "changes" / "archive" / CHANGE_ID
 ARCHIVED_CHG_0017 = ROOT / "changes" / "archive" / "CHG-0017-upstream-native-auto-ai-delivery"
 SUSPENDED_CHG_0017 = ROOT / "changes" / "suspended" / "CHG-0017-upstream-native-auto-ai-delivery"
 
@@ -19,17 +19,19 @@ def project_state() -> dict[str, object]:
     return json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
 
 
-def test_chg0018_is_active_verifying_change() -> None:
+def test_chg0018_is_archived_after_merge() -> None:
     for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]:
         text = read(CHANGE_DIR / name)
         assert f"Change ID: {CHANGE_ID}" in text
-        assert "Status: VERIFYING" in text
+        assert "Status: ARCHIVED" in text
 
     state = project_state()
-    assert state["active_change"] == {
-        "id": CHANGE_ID,
-        "status": "VERIFYING",
-        "path": f"changes/active/{CHANGE_ID}",
+    assert state["active_change"] is None
+    assert state["tasks"] == {
+        "total": 0,
+        "completed": 0,
+        "next_task": None,
+        "items": [],
     }
 
 

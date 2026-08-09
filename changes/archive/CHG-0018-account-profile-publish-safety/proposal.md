@@ -1,6 +1,6 @@
 # CHG-0018 Account Profile Publish Safety
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -89,3 +89,9 @@ Implementation commits must preserve three auditable boundaries: P0 safety, P1-P
 - The existing scheduled-task management path re-enabled global `polish` with its existing interval; `day_switch` remains enabled. One natural Scheduler cycle completed with `RestartCount=0`, and Session-expired accounts failed closed without preventing later accounts from continuing.
 - Account Session expiry is an operational account-health state rather than a CHG-0018 code defect after the bounded fail-closed behavior is proven.
 - Repository governance defines no `VERIFIED` state. Because the next formal state is merge-bound and PR #26 must remain Draft/Open/Unmerged, CHG-0018 remains truthfully `VERIFYING` pending a separate PR decision.
+
+## Post-merge archive closeout
+
+- PR #31 merged normally into `main` at merge commit `64c37d20a00f77d7e860705123244692d134dd48` after exact-head quality/tests/security CI succeeded.
+- T1-T12 were complete before merge, including duplicate-safe T11 recovery with zero new publish attempts.
+- This Change is now archived as governance closeout; no production runtime, product, message, login, container, database, or Redis action is part of this archive step.

@@ -1,6 +1,6 @@
 # CHG-0018 Tasks
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -96,6 +96,12 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Secret scans passed for T11 evidence, T12 evidence, the formal Patch, and T12 Git additions. Real product actions and real publish attempts remained zero.
 - CHG-0018 remains `VERIFYING`; T12 completion does not set `MERGED`, `ARCHIVED`, or any invented `VERIFIED` state. Remote delivery readiness additionally requires the normal PR #31 push and exact-final-head GitHub CI to be green.
 - Evidence: `evidence/20260809-t12-final-validation-and-ci.md`.
+
+## Post-merge archive closeout
+
+- PR #31 merged normally into `main` at merge commit `64c37d20a00f77d7e860705123244692d134dd48`.
+- All 12 formal T1-T12 task groups are complete and the Change is archived after merge.
+- Exact PR #31 head CI was green before merge; the archive operation contains governance-only state movement and no product/runtime side effects.
 
 ## Upstream capability audit
 
