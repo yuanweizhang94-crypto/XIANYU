@@ -1,0 +1,306 @@
+diff --git a/backend-web/app/services/xianyu_publisher.py b/backend-web/app/services/xianyu_publisher.py
+index 9ddd59a41a0b281684fe9ec7002d780d58a9230e..11ca459f3baf28b7d520e196f2827268f9b6d743 100644
+--- a/backend-web/app/services/xianyu_publisher.py
++++ b/backend-web/app/services/xianyu_publisher.py
+@@ -705,0 +706,6 @@ class XianyuPublisher:
++    @classmethod
++    def _is_offline_success_notice_text(cls, value: Any) -> bool:
++        """Accept explicit off-shelf success semantics only from notice containers."""
++        normalized = cls._normalize_action_text(value)
++        return any(marker in normalized for marker in ("下架成功", "商品已下架", "已成功下架"))
++
+@@ -741,0 +748,32 @@ class XianyuPublisher:
++    async def _owner_action_context_path(self, element) -> list[int] | None:
++        """Capture the exact pre-action owner-operation DOM location for post-action verification."""
++        try:
++            path = await element.evaluate(
++                """
++                (el) => {
++                    let node = el;
++                    for (let depth = 0; node && depth < 7; depth += 1, node = node.parentElement) {
++                        const text = (node.innerText || node.textContent || '').replace(/\\s+/g, ' ').trim();
++                        if (!text.includes('下架') || !text.includes('删除') || text.length > 500) continue;
++                        const path = [];
++                        let current = node;
++                        while (current && current !== document.body) {
++                            const parent = current.parentElement;
++                            if (!parent) return null;
++                            const index = Array.prototype.indexOf.call(parent.children, current);
++                            if (index < 0) return null;
++                            path.unshift(index);
++                            current = parent;
++                        }
++                        return current === document.body ? path : null;
++                    }
++                    return null;
++                }
++                """
++            )
++            if not isinstance(path, list):
++                return None
++            return [int(index) for index in path]
++        except Exception:
++            return None
++
+@@ -848 +886,103 @@ class XianyuPublisher:
+-    async def _wait_for_offline_ui_success(self) -> bool:
++    async def _snapshot_offline_success_notices(self) -> dict[str, int]:
++        """Count visible explicit off-shelf success notices without scanning page body text."""
++        if not self.page:
++            return {}
++        selector = "[role='alert'], [class*='toast'], [class*='message']"
++        try:
++            elements = await self.page.query_selector_all(selector)
++        except Exception:
++            return {}
++        notices: dict[str, int] = {}
++        for element in elements:
++            try:
++                if not await element.is_visible():
++                    continue
++                text = self._normalize_action_text(await element.inner_text())
++                if not self._is_offline_success_notice_text(text):
++                    continue
++                notices[text] = notices.get(text, 0) + 1
++            except Exception:
++                continue
++        return notices
++
++    @staticmethod
++    def _has_new_offline_success_notice(
++        previous: dict[str, int],
++        current: dict[str, int],
++    ) -> bool:
++        return any(count > int(previous.get(text, 0) or 0) for text, count in current.items())
++
++    async def _current_detail_item_matches(self, item_id: str) -> bool:
++        if not self.page:
++            return False
++        current_url = self.page.url or ""
++        match = re.search(r"[?&]id=(\d+)", current_url)
++        return bool(match and match.group(1) == str(item_id))
++
++    async def _owner_action_reverse_state(self, owner_context_path: list[int] | None) -> str | None:
++        """Read an exact reverse state only from the same pre-action owner-operation DOM location."""
++        if not self.page or owner_context_path is None:
++            return None
++        try:
++            return await self.page.evaluate(
++                """
++                (path) => {
++                    let node = document.body;
++                    for (const index of path) {
++                        if (!node || !node.children || index < 0 || index >= node.children.length) return null;
++                        node = node.children[index];
++                    }
++                    if (!node) return null;
++                    const contextText = (node.innerText || node.textContent || '').replace(/\\s+/g, ' ').trim();
++                    if (!contextText.includes('删除') || contextText.length > 500) return null;
++                    const normalize = (value) => (value || '').replace(/\\s+/g, '');
++                    const nodes = [node, ...node.querySelectorAll('button,[role="button"],a,div,span')];
++                    for (const expected of ['重新上架', '上架', '已下架']) {
++                        for (const element of nodes) {
++                            const style = getComputedStyle(element);
++                            const rect = element.getBoundingClientRect();
++                            if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') === 0) continue;
++                            if (!rect || rect.width <= 0 || rect.height <= 0) continue;
++                            if (normalize(element.innerText || element.textContent || '') === expected) return expected;
++                        }
++                    }
++                    return null;
++                }
++                """,
++                owner_context_path,
++            )
++        except Exception:
++            return None
++
++    async def _offline_ui_success_evidence(
++        self,
++        *,
++        item_id: str,
++        previous_success_notices: dict[str, int],
++        owner_context_path: list[int] | None,
++    ) -> bool:
++        """Confirm off-shelf success only with target-bound post-action evidence."""
++        if not await self._current_detail_item_matches(item_id):
++            return False
++        if await self._page_auth_or_verification_failure():
++            return False
++
++        current_notices = await self._snapshot_offline_success_notices()
++        if self._has_new_offline_success_notice(previous_success_notices, current_notices):
++            return await self._current_detail_item_matches(item_id)
++
++        offline_control, ambiguous = await self._find_unique_offline_control()
++        if ambiguous or offline_control is not None:
++            return False
++        reverse_state = await self._owner_action_reverse_state(owner_context_path)
++        if reverse_state not in {"上架", "重新上架", "已下架"}:
++            return False
++        return await self._current_detail_item_matches(item_id)
++
++    async def _wait_for_offline_ui_success(
++        self,
++        *,
++        item_id: str,
++        previous_success_notices: dict[str, int],
++        owner_context_path: list[int] | None,
++    ) -> bool:
+@@ -854,5 +994,5 @@ class XianyuPublisher:
+-            try:
+-                body_text = await self.page.evaluate("() => document.body.innerText || ''")
+-            except Exception:
+-                body_text = ""
+-            if self._is_offline_success_text(body_text):
++            if await self._offline_ui_success_evidence(
++                item_id=item_id,
++                previous_success_notices=previous_success_notices,
++                owner_context_path=owner_context_path,
++            ):
+@@ -860,10 +1000,4 @@ class XianyuPublisher:
+-            offline_control, ambiguous = await self._find_unique_offline_control()
+-            if not ambiguous and offline_control is None:
+-                try:
+-                    reverse = self.page.locator("text=/^(上架|重新上架)$/")
+-                    count = await reverse.count()
+-                    for index in range(count):
+-                        if await reverse.nth(index).is_visible():
+-                            return True
+-                except Exception:
+-                    pass
++            if not await self._current_detail_item_matches(item_id):
++                return False
++            if await self._page_auth_or_verification_failure():
++                return False
+@@ -919,0 +1054,2 @@ class XianyuPublisher:
++            owner_context_path = await self._owner_action_context_path(offline_control)
++            previous_success_notices = await self._snapshot_offline_success_notices()
+@@ -935 +1071,5 @@ class XianyuPublisher:
+-            result["ui_success"] = await self._wait_for_offline_ui_success()
++            result["ui_success"] = await self._wait_for_offline_ui_success(
++                item_id=normalized_item_id,
++                previous_success_notices=previous_success_notices,
++                owner_context_path=owner_context_path,
++            )
+diff --git a/tests/test_chg0019_normal_account_offline.py b/tests/test_chg0019_normal_account_offline.py
+index b02bd8e49e75efdec50ade3e245ba80aa8cc65b9..1bf35c6f25f767f055830a2660fa5dade096dc39 100644
+--- a/tests/test_chg0019_normal_account_offline.py
++++ b/tests/test_chg0019_normal_account_offline.py
+@@ -153,0 +154 @@ class FakePage:
++        owner_context_state=None,
+@@ -158,0 +160 @@ class FakePage:
++        self.owner_context_state = owner_context_state
+@@ -165 +167,3 @@ class FakePage:
+-    async def evaluate(self, script):
++    async def evaluate(self, script, *args):
++        if "for (const expected of ['重新上架', '上架', '已下架'])" in script:
++            return self.owner_context_state
+@@ -187,0 +192,31 @@ def run_dialog_classifier(
++def run_offline_success_evidence(
++    *,
++    body="",
++    url="https://www.goofish.com/item?id=1070515947040",
++    target_offline_control_present=False,
++    current_notices=None,
++    previous_notices=None,
++    owner_context_state=None,
++    owner_context_present=True,
++):
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    notice_selector = "[role='alert'], [class*='toast'], [class*='message']"
++    publisher.page = FakePage(
++        elements=[FakeElement("下架")] if target_offline_control_present else [],
++        url=url,
++        body=body,
++        selector_map={
++            notice_selector: [FakeElement(text, context="") for text in (current_notices or [])]
++        },
++        owner_context_state=owner_context_state,
++    )
++    return asyncio.run(
++        publisher._offline_ui_success_evidence(
++            item_id="1070515947040",
++            previous_success_notices=dict(previous_notices or {}),
++            owner_context_path=[0] if owner_context_present else None,
++        )
++    )
++
++
+@@ -513,0 +549,75 @@ def test_offline_success_state_parser():
++def test_page_body_offline_text_does_not_confirm_target_still_has_offline_control():
++    assert run_offline_success_evidence(
++        body="页面其他区域 已下架",
++        target_offline_control_present=True,
++    ) is False
++
++
++def test_recommended_item_offline_text_does_not_confirm_target_item():
++    assert run_offline_success_evidence(
++        body="推荐商品：商品已下架",
++        target_offline_control_present=True,
++    ) is False
++
++
++def test_stale_success_toast_does_not_confirm_current_transaction():
++    assert run_offline_success_evidence(
++        current_notices=["下架成功"],
++        previous_notices={"下架成功": 1},
++        target_offline_control_present=True,
++    ) is False
++
++
++def test_new_success_toast_confirms_current_target_transaction():
++    assert run_offline_success_evidence(
++        current_notices=["下架成功"],
++        previous_notices={},
++        target_offline_control_present=True,
++    ) is True
++
++
++def test_target_owner_context_offline_disappears_and_relist_appears():
++    assert run_offline_success_evidence(
++        target_offline_control_present=False,
++        owner_context_state="上架",
++    ) is True
++
++
++def test_target_owner_context_offline_disappears_and_explicit_offline_state_appears():
++    assert run_offline_success_evidence(
++        target_offline_control_present=False,
++        owner_context_state="已下架",
++    ) is True
++
++
++def test_offline_control_disappearance_alone_is_not_success():
++    assert run_offline_success_evidence(
++        target_offline_control_present=False,
++        owner_context_state=None,
++    ) is False
++
++
++def test_url_change_to_other_item_rejects_success_evidence():
++    assert run_offline_success_evidence(
++        url="https://www.goofish.com/item?id=9999999999999",
++        body="已下架",
++        current_notices=["下架成功"],
++        owner_context_state="已下架",
++    ) is False
++
++
++def test_login_or_verification_page_rejects_success():
++    assert run_offline_success_evidence(
++        body="请先登录后继续",
++        current_notices=["下架成功"],
++    ) is False
++
++
++def test_missing_target_owner_context_does_not_use_body_offline_text():
++    assert run_offline_success_evidence(
++        body="已下架",
++        target_offline_control_present=False,
++        owner_context_present=False,
++    ) is False
++
++
