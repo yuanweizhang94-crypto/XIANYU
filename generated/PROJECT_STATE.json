@@ -219,7 +219,6 @@
           "tests/contract/test_publish_persistence.py",
           "tests/contract/test_publish_security.py",
           "tests/contract/test_migrations.py",
-          "tests/contract/test_core_runtime.py",
           "tests/contract/test_capability_registry.py",
           "changes/archive/CHG-0006-xianyu-publish-boundary/tests/test_acceptance.py"
         ],
@@ -252,7 +251,6 @@
           "tests/contract/test_schedule_persistence.py",
           "tests/contract/test_schedule_security.py",
           "tests/contract/test_migrations.py",
-          "tests/contract/test_core_runtime.py",
           "tests/contract/test_capability_registry.py",
           "changes/archive/CHG-0007-xianyu-schedule-boundary/tests/test_acceptance.py"
         ],
