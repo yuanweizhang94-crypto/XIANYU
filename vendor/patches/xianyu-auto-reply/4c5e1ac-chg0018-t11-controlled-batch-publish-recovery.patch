@@ -1,0 +1,128 @@
+diff --git a/backend-web/app/services/publish_execution_service.py b/backend-web/app/services/publish_execution_service.py
+index 3ca77981152a8167df66c106857b34ba650be2d6..a78cf8a26025d78a6828d80d414d69267a625a26 100644
+--- a/backend-web/app/services/publish_execution_service.py
++++ b/backend-web/app/services/publish_execution_service.py
+@@ -233 +233 @@ class PublishExecutorService:
+-        """批量发布（多账号×多商品，每账号复用同一浏览器实例）"""
++        """批量发布（多账号×多商品；每条发布记录使用独立浏览器 context）"""
+@@ -318 +318 @@ class PublishExecutorService:
+-                            owner_id=user_id,
++                            owner_id=account.owner_id,
+diff --git a/backend-web/app/services/xianyu_publisher.py b/backend-web/app/services/xianyu_publisher.py
+index 6e1ed6efaf9aa59c3cc931016e89d36ba76904bc..5b4dcf251590441f0c6a48e0b0319b361e9bcd6c 100644
+--- a/backend-web/app/services/xianyu_publisher.py
++++ b/backend-web/app/services/xianyu_publisher.py
+@@ -344 +344 @@ class XianyuPublisher:
+-            return {"state": "manual_verification_required", "diagnostics": diagnostics, "page_text": page_text}
++            return {"state": "verification_required", "diagnostics": diagnostics, "page_text": page_text}
+@@ -350 +350 @@ class XianyuPublisher:
+-                return {"state": "manual_verification_required", "diagnostics": diagnostics, "page_text": page_text}
++                return {"state": "verification_required", "diagnostics": diagnostics, "page_text": page_text}
+@@ -371,3 +370,0 @@ class XianyuPublisher:
+-        if elapsed_seconds >= 15 and not page_text.strip() and diagnostics["shell_element_count"] == 0:
+-            return {"state": "publish_page_load_failed", "diagnostics": diagnostics, "page_text": page_text}
+-
+@@ -405 +402 @@ class XianyuPublisher:
+-            raise Exception("publish_form_not_rendered")
++            raise Exception("page_structure_mismatch")
+@@ -408,3 +405,8 @@ class XianyuPublisher:
+-        await self.page.goto("https://www.goofish.com", wait_until="domcontentloaded", timeout=30000)
+-        await asyncio.sleep(1)
+-        await self.page.goto(publish_url, wait_until="domcontentloaded", timeout=60000)
++        try:
++            await self.page.goto("https://www.goofish.com", wait_until="domcontentloaded", timeout=30000)
++            await asyncio.sleep(1)
++            await self.page.goto(publish_url, wait_until="domcontentloaded", timeout=60000)
++        except Exception as exc:
++            if "timeout" in str(exc).lower():
++                raise Exception("page_load_timeout") from exc
++            raise
+@@ -436 +438 @@ class XianyuPublisher:
+-            if last_state in {"login_required", "manual_verification_required", "publish_page_load_failed"}:
++            if last_state in {"login_required", "verification_required"}:
+@@ -443 +445,6 @@ class XianyuPublisher:
+-        self.last_publish_diagnostics["final_failure_reason"] = "publish_form_timeout"
++        shell_element_count = int(self.last_publish_diagnostics.get("shell_element_count") or 0)
++        if not page_text.strip() and shell_element_count == 0:
++            final_failure_reason = "page_load_timeout"
++        else:
++            final_failure_reason = "page_structure_mismatch"
++        self.last_publish_diagnostics["final_failure_reason"] = final_failure_reason
+@@ -445 +452 @@ class XianyuPublisher:
+-        raise Exception("publish_form_timeout")
++        raise Exception(final_failure_reason)
+@@ -2068,8 +2075,6 @@ class XianyuPublisher:
+-        if "publish_form_timeout" in message:
+-            return "publish_form_timeout"
+-        if "publish_page_load_failed" in message:
+-            return "publish_page_load_failed"
+-        if "manual_verification_required" in message or "platform_risk_verification" in message:
+-            return "manual_verification_required"
+-        if "publish_form_not_rendered" in message:
+-            return "publish_form_not_rendered"
++        if "page_load_timeout" in message or "publish_page_load_failed" in message:
++            return "page_load_timeout"
++        if "page_structure_mismatch" in message or "publish_form_timeout" in message or "publish_form_not_rendered" in message:
++            return "page_structure_mismatch"
++        if "verification_required" in message or "manual_verification_required" in message or "platform_risk_verification" in message:
++            return "verification_required"
+diff --git a/tests/test_chg0017_publish_login_submit.py b/tests/test_chg0017_publish_login_submit.py
+index cb35febf0d7d714b6bb7758e66ac7a4549ad28a2..95f8b651f430dd4ffca8af639424cdf3fb564f33 100644
+--- a/tests/test_chg0017_publish_login_submit.py
++++ b/tests/test_chg0017_publish_login_submit.py
+@@ -229,3 +229,3 @@ def test_publish_exception_classification_is_specific():
+-    assert publisher._classify_publish_exception(Exception("publish_form_not_rendered")) == "publish_form_not_rendered"
+-    assert publisher._classify_publish_exception(Exception("publish_form_timeout")) == "publish_form_timeout"
+-    assert publisher._classify_publish_exception(Exception("manual_verification_required")) == "manual_verification_required"
++    assert publisher._classify_publish_exception(Exception("publish_form_not_rendered")) == "page_structure_mismatch"
++    assert publisher._classify_publish_exception(Exception("publish_form_timeout")) == "page_structure_mismatch"
++    assert publisher._classify_publish_exception(Exception("manual_verification_required")) == "verification_required"
+@@ -249 +249,3 @@ def test_publish_form_zero_controls_has_explicit_classification():
+-    assert 'raise Exception("publish_form_timeout")' in source
++    assert 'final_failure_reason = "page_load_timeout"' in source
++    assert 'final_failure_reason = "page_structure_mismatch"' in source
++    assert 'raise Exception("publish_form_timeout")' not in source
+diff --git a/tests/test_chg0018_profile_publish_readiness.py b/tests/test_chg0018_profile_publish_readiness.py
+index 26ab50061bd838bd3596ce8bebbbc1530bdf32d5..635f9465e6b67289136af901fd3051fbffd0db76 100644
+--- a/tests/test_chg0018_profile_publish_readiness.py
++++ b/tests/test_chg0018_profile_publish_readiness.py
+@@ -85 +85 @@ def test_batch_publish_forwards_identity_and_uses_profile_context_per_item() ->
+-    assert "owner_id=user_id" in call_block
++    assert "owner_id=account.owner_id" in call_block
+@@ -87,0 +88,11 @@ def test_batch_publish_forwards_identity_and_uses_profile_context_per_item() ->
++    batch_method = source[source.index("async def batch_publish("):]
++    assert batch_method.count("publisher.publish_item(") == 1
++    assert "每条发布记录使用独立浏览器 context" in batch_method
++
++
++def test_batch_publish_has_no_automatic_second_publish_attempt() -> None:
++    source = read("backend-web/app/services/publish_execution_service.py")
++    batch_method = source[source.index("async def batch_publish("):]
++
++    assert batch_method.count("publisher.publish_item(") == 1
++    assert "retry" not in batch_method.lower()
+@@ -96,3 +107,3 @@ def test_preflight_waits_for_real_publish_form_and_specific_failures() -> None:
+-    assert "manual_verification_required" in source
+-    assert "publish_page_load_failed" in source
+-    assert "publish_form_timeout" in source
++    assert "verification_required" in source
++    assert "page_load_timeout" in source
++    assert "page_structure_mismatch" in source
+@@ -99,0 +111,5 @@ def test_preflight_waits_for_real_publish_form_and_specific_failures() -> None:
++    assert 'elapsed_seconds >= 15' not in source
++    preflight = source[source.index("async def preflight_publish_form("): source.index("async def initialize(")]
++    assert 'raise Exception("publish_form_not_rendered")' not in preflight
++    assert 'raise Exception("publish_form_timeout")' not in preflight
++    assert 'raise Exception("publish_page_load_failed")' not in preflight
+@@ -101,0 +118,11 @@ def test_preflight_waits_for_real_publish_form_and_specific_failures() -> None:
++
++
++def test_legacy_readiness_failures_are_normalized_to_t11_categories() -> None:
++    source = read("backend-web/app/services/xianyu_publisher.py")
++
++    assert 'if "page_load_timeout" in message or "publish_page_load_failed" in message:' in source
++    assert 'return "page_load_timeout"' in source
++    assert '"publish_form_timeout" in message or "publish_form_not_rendered" in message' in source
++    assert 'return "page_structure_mismatch"' in source
++    assert '"manual_verification_required" in message or "platform_risk_verification" in message' in source
++    assert 'return "verification_required"' in source

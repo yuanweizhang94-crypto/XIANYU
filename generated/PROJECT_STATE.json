@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 12,
-    "completed": 10,
-    "next_task": "T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path.",
+    "completed": 11,
+    "next_task": "T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.",
     "items": [
       {
         "text": "T1 Implement P0 credential safety and false-disable prevention.",
@@ -53,7 +53,7 @@
       },
       {
         "text": "T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.",

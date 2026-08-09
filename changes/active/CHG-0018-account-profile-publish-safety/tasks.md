@@ -17,7 +17,7 @@ Change ID: CHG-0018-account-profile-publish-safety
 - [x] T10A Add default-off exact platform-item scope and default-compatible item-list no-retry control to the existing upstream-native paths.
 - [x] T10B Validate the exact-item/no-retry patch, regenerate the Vendor Patch, and deploy only the scheduler image while global polish remains disabled.
 - [x] T10C Repair item-list-to-polish Session handoff, add one bounded polish auth recovery, validate, deploy only Scheduler, and run the owner-authorized four-item fixed-account polish validation.
-- [ ] T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path.
+- [x] T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path.
 - [ ] T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.
 
 ## T9 result
@@ -71,6 +71,20 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Ensure batch publish passes authoritative `account_id` and `owner_id`, not only caller-supplied Cookie data.
 - Replace the old early `publish_form_not_rendered` check with 60-second page-state polling and specific failure reasons.
 - Retry only owner-authorized failed records classified as `NOT_PUBLISHED` after duplicate checks.
+
+## T11 result
+
+- Recovered exactly the four owner-authorized historical failed publish logs `56`, `59`, `60`, and `61` from batch `a74c06a5-690a-414a-b9a7-57511941c270`; no successful historical record or unrelated record entered the recovery scope.
+- Database and current catalog post-check proved all four records had later formal publish successes for the same owner/account/material and matching platform-item identity/title, so all four were classified `ALREADY_PUBLISHED` and `NOT_PUBLISHED_CONFIRMED=0`.
+- Duplicate-safe gating therefore produced `REAL_PUBLISH_ATTEMPTS=0`; no duplicate product was published merely to satisfy the controlled-validation authorization.
+- The production backend remains the native real batch executor. Backend and WebSocket share the same `xianyu_chg0017_browser_data` volume at `/app/browser_data`; the four authorized account Profiles exist under that canonical root.
+- The running Pilot backend has no browser-data mount and no Chromium/Chrome executable, and no Pilot Scheduler/WebSocket is running; `SECOND_EXECUTOR_RUNNING=false` for the publish browser path.
+- T11 keeps `PATCH_UPSTREAM`: batch publish forwards the database-loaded account identity and authoritative owner, each record uses an independent context, and the existing publisher continues to own the account lock/global browser slot and authoritative Cookie lookup.
+- Publish readiness now waits up to 60 seconds and classifies `verification_required`, `page_load_timeout`, and `page_structure_mismatch` instead of early `publish_form_not_rendered`/generic timeout failures. Legacy exception inputs are compatibility-normalized.
+- T11 supplemental Vendor Patch SHA256 is `99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882`; clean apply and source Git-blob equivalence passed 4/4.
+- CHG-0018 targeted suites passed 38/38, CHG-0017 regression suites passed 58/58, `validate_change.py` passed, CHG-0018 governance acceptance passed 9/9, and repository verification passed 596/596 with worktree-local module resolution.
+- No frontend source changed and no production container was replaced or restarted. T12 remains open and is not implied complete by T11.
+- Evidence: `evidence/20260809-t11-controlled-real-batch-publish-recovery.md`.
 
 ## Upstream capability audit
 

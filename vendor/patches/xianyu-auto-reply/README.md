@@ -163,6 +163,26 @@ polish was subsequently re-enabled through the existing scheduled-task
 management path while `day_switch` remained enabled; one natural cycle completed
 with bounded Session failure handling and Scheduler restart count zero.
 
+## CHG-0018 T11 controlled batch publish recovery supplement
+
+- Applies after: `4c5e1ac-chg0018-account-profile-publish-safety.patch`
+- Patch file: `4c5e1ac-chg0018-t11-controlled-batch-publish-recovery.patch`
+- SHA256: `99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882`
+- Changed upstream files: 4
+  - `backend-web/app/services/publish_execution_service.py`
+  - `backend-web/app/services/xianyu_publisher.py`
+  - `tests/test_chg0017_publish_login_submit.py`
+  - `tests/test_chg0018_profile_publish_readiness.py`
+- The supplement keeps the existing backend Publisher as the sole execution owner, forwards the owner from the database-loaded account row, preserves one persistent Profile context per concrete publish attempt, and adds no service, queue, Profile store, Token system, login system, browser broker, or table.
+- Readiness keeps the 60-second maximum wait and classifies `verification_required`, `page_load_timeout`, and `page_structure_mismatch`; legacy `publish_form_not_rendered`, `publish_form_timeout`, `publish_page_load_failed`, and `manual_verification_required` inputs are normalized for compatibility.
+- The batch method contains one `publisher.publish_item()` call site and no automatic publish retry loop.
+- Clean apply check: PASS on the exact CHG-0017 -> CHG-0018 Git-blob preimage.
+- Applied source Git-blob equivalence: 4/4 PASS.
+- CHG-0018 targeted suites: 38/38 PASS.
+- CHG-0017 regression suites: 58/58 PASS.
+- `validate_change.py`: PASS; repository verification: 596/596 PASS with worktree-local module resolution.
+- Controlled duplicate check found all four owner-authorized historical failures already formally published and present in the current account catalog, so T11 correctly performed zero new real publish attempts and no production container replacement.
+
 ## Artifact Format
 
 Git-generated zero-context unified diff.

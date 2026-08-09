@@ -112,6 +112,28 @@ def test_final_validation_evidence_is_recorded() -> None:
     assert "`security`: success" in evidence_text
 
 
+def test_t11_controlled_batch_publish_recovery_is_recorded_without_t12() -> None:
+    tasks = read(CHANGE_DIR / "tasks.md")
+    evidence = CHANGE_DIR / "evidence" / "20260809-t11-controlled-real-batch-publish-recovery.md"
+    patch = ROOT / "vendor" / "patches" / "xianyu-auto-reply" / "4c5e1ac-chg0018-t11-controlled-batch-publish-recovery.patch"
+    readme = read(ROOT / "vendor" / "patches" / "xianyu-auto-reply" / "README.md")
+
+    assert "- [x] T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path." in tasks
+    assert "- [ ] T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI." in tasks
+    assert evidence.is_file()
+    evidence_text = read(evidence)
+    assert "AUTHORIZED_FAILED_RECORDS=4" in evidence_text
+    assert "FAILED_RECORDS_RECOVERED=4" in evidence_text
+    assert "NOT_PUBLISHED_CONFIRMED=0" in evidence_text
+    assert "ALREADY_PUBLISHED_SKIPPED=4" in evidence_text
+    assert "REAL_PUBLISH_ATTEMPTS=0" in evidence_text
+    assert "SECOND_EXECUTOR_RUNNING=false" in evidence_text
+    assert "CHG0018_T11_COMPLETE=true" in evidence_text
+    assert "T12 remains explicitly incomplete" in evidence_text
+    assert patch.is_file()
+    assert "99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882" in readme
+
+
 def test_runtime_profile_preflight_auto_polish_evidence_is_recorded() -> None:
     tasks = read(CHANGE_DIR / "tasks.md")
     acceptance = read(CHANGE_DIR / "acceptance.md")
