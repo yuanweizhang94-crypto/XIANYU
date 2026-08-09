@@ -81,23 +81,137 @@ The artifact contains no runtime account identifiers, platform identifiers,
 Cookie, Token, Gemini key, item IDs, chat IDs, customer messages, or runtime
 HMAC values.
 
+## CHG-0018 account credential safety patch
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`
+- Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
+- Applies after: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
+- Patch file: `4c5e1ac-chg0018-account-profile-publish-safety.patch`
+- SHA256: `B379A7286D10EF1988361940AB9DB6C84AF0D0BB50D13F6910B52011BB0BD111`
+- T12 patch builder: isolated disposable worktree; production upstream checkout was not modified.
+- Patch parse check: passed with `git apply --numstat --unidiff-zero`.
+- Patch strict clean-apply check: passed with `git apply --check --whitespace=error-all --unidiff-zero`.
+- Applied source Git-blob equivalence: 27/27 PASS.
+- Final CHG-0018 targeted tests: 38 passed with the CHG-0018 credential, Profile/publish-readiness, auto-polish safety, and T11 batch-readiness coverage.
+- CHG-0017 regression tests: 58 passed.
+- Combined CHG-0017 regression and CHG-0018 targeted tests: 96 passed.
+- Full repository tests before final production enablement historically passed 595/595; the current main-based T12 exact final repository validation passed 588/588 and is recorded in the T12 evidence.
+- Frontend build: passed with `npm --prefix frontend run build`
+- Frontend lint note: `npm run lint` exists, but the upstream frontend checkout has no ESLint config file; recorded as a non-blocking upstream tooling gap.
+- Changed files:
+  - `backend-web/app/api/routes/cookies.py`
+  - `backend-web/app/services/account_service.py`
+  - `backend-web/app/services/ai_reply_service.py`
+  - `backend-web/app/services/publish_execution_service.py`
+  - `backend-web/app/services/xianyu_publisher.py`
+  - `common/schemas/account.py`
+  - `common/services/cookie_renew_browser_service.py`
+  - `common/services/item_service.py`
+  - `common/services/publish_execution_service.py`
+  - `common/services/xianyu_publish_service.py`
+  - `common/utils/item_info_manager.py`
+  - `docker-compose.yml`
+  - `frontend/src/api/accounts.ts`
+  - `frontend/src/pages/accounts/Accounts.tsx`
+  - `frontend/src/pages/items/Items.tsx`
+  - `frontend/src/pages/polishLogs/PolishBatchDetail.tsx`
+  - `frontend/src/types/index.ts`
+  - `scheduler/app/services/scheduler/day_switch_task.py`
+  - `scheduler/app/services/scheduler/polish_task.py`
+  - `tests/test_chg0017_publish_login_submit.py`
+  - `tests/test_chg0018_auto_polish_safety.py`
+  - `tests/test_chg0018_credential_safety.py`
+  - `tests/test_chg0018_profile_publish_readiness.py`
+  - `websocket/app/api/routes/internal.py`
+  - `websocket/app/services/xianyu/ai_reply_engine.py`
+  - `websocket/app/services/xianyu/auto_reply_service.py`
+  - `websocket/app/services/xianyu/cookie_token_manager.py`
+
+The patch removes raw `login_password` from ordinary account detail responses,
+adds explicit password-clear intent, keeps saved passwords out of the default
+account edit form, and prevents `no_credentials` or `bad_credentials` password
+refresh failures from disabling an account. Touched refresh logs report Cookie
+field counts instead of full Cookie values.
+
+The patch also routes publish execution through authoritative account identity,
+loads the latest Cookie inside the existing publisher path, opens the account's
+persistent Profile, runs shared read-only preflight before any publish form
+mutation in the same context, and reuses the existing captcha concurrency
+managers for one browser slot and one account lock.
+
+The auto-polish path now treats only the explicit `SUCCESS::调用成功` response as
+confirmed API success. Duplicate responses remain `duplicate_unverified`,
+session and token failures remain non-success, unknown responses fail closed,
+and only confirmed API success can set `is_polished=true`. Existing polish log
+fields store a structured, non-sensitive summary containing `api_code`,
+`api_message`, `result_status`, and `attempted_at`. The item and polish-log UI
+no longer presents local state as platform readback confirmation.
+
+Controlled execution also supports optional exact `platform_item_ids` scope and
+default-compatible `retry_on_token_expiry`. Item-list Token/Cookie rotation is
+persisted through the existing account-Cookie merge path so a later polish does
+not reload stale Token fields. For explicit Session/Token expiry,
+`PolishTaskService` permits at most one existing auth recovery followed by one
+final polish retry; no third polish request or unbounded auth-recovery loop is
+allowed.
+
+Final production verification used account `2219319284219` with four exact item
+IDs. All four returned explicit `SUCCESS::调用成功` on one request each and moved
+from local `is_polished=false` to `true`, with zero auth failures, zero unknown
+failures, zero other-account requests, and zero out-of-scope requests. The final
+production Scheduler is `xianyu-chg0018-scheduler:56d62e2-94c8682`. Global
+polish was subsequently re-enabled through the existing scheduled-task
+management path while `day_switch` remained enabled; one natural cycle completed
+with bounded Session failure handling and Scheduler restart count zero.
+
+## CHG-0018 T11 controlled batch publish recovery supplement
+
+- Historical apply base: pre-T12 formal CHG-0018 Patch SHA256 `94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`.
+- The current T12 formal `4c5e1ac-chg0018-account-profile-publish-safety.patch` already contains this supplement; do not apply the supplement a second time after the current formal Patch.
+- Patch file: `4c5e1ac-chg0018-t11-controlled-batch-publish-recovery.patch`
+- SHA256: `99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882`
+- Changed upstream files: 4
+  - `backend-web/app/services/publish_execution_service.py`
+  - `backend-web/app/services/xianyu_publisher.py`
+  - `tests/test_chg0017_publish_login_submit.py`
+  - `tests/test_chg0018_profile_publish_readiness.py`
+- The supplement keeps the existing backend Publisher as the sole execution owner, forwards the owner from the database-loaded account row, preserves one persistent Profile context per concrete publish attempt, and adds no service, queue, Profile store, Token system, login system, browser broker, or table.
+- Readiness keeps the 60-second maximum wait and classifies `verification_required`, `page_load_timeout`, and `page_structure_mismatch`; legacy `publish_form_not_rendered`, `publish_form_timeout`, `publish_page_load_failed`, and `manual_verification_required` inputs are normalized for compatibility.
+- The batch method contains one `publisher.publish_item()` call site and no automatic publish retry loop.
+- Clean apply check: PASS on the exact CHG-0017 -> CHG-0018 Git-blob preimage.
+- Applied source Git-blob equivalence: 4/4 PASS.
+- CHG-0018 targeted suites: 38/38 PASS.
+- CHG-0017 regression suites: 58/58 PASS.
+- `validate_change.py`: PASS; repository verification: 596/596 PASS with worktree-local module resolution.
+- Controlled duplicate check found all four owner-authorized historical failures already formally published and present in the current account catalog, so T11 correctly performed zero new real publish attempts and no production container replacement.
+
+## CHG-0018 T12 formal integration Patch
+
+- T11 historical supplemental SHA256 remains locked at `99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882`.
+- T12 regenerated the single formal CHG-0018 Patch from the exact archived CHG-0017 target blobs, the prior CHG-0018 target blobs, and the locked T11 supplement. No hunk was hand-spliced.
+- Final formal SHA256: `B379A7286D10EF1988361940AB9DB6C84AF0D0BB50D13F6910B52011BB0BD111`.
+- Patch parse: PASS; strict clean apply: PASS; applied `git diff --check`: PASS; source Git-blob equivalence: 27/27 PASS.
+- A temporary candidate generated with `--ignore-space-at-eol` was discarded before commit because it reconstructed only 13/27 exact target blobs. A second exact text candidate reached 27/27 but was also discarded because historical whitespace-bearing patch lines caused the outer XIANYU repository `git diff --check` to fail.
+- The final Patch is generated entirely by Git from the same staged target. In the disposable builder only, `.git/info/attributes` marks the 27 upstream target paths `-diff`, so `git diff --binary --full-index` emits 27 `GIT binary patch` records. That builder-only attribute file is not tracked or delivered. The result preserves 27/27 exact target blobs and does not change business behavior relative to the prior formal Patch followed by the T11 supplement.
+- Git binary patch syntax requires a terminating blank separator line. This vendor directory therefore tracks a `.gitattributes` entry that marks only the current formal CHG-0018 Patch as `binary`, allowing the outer XIANYU repository `git diff --check` to treat the generated artifact as opaque data without changing its bytes.
+- T12 does not change frontend source or deploy any production runtime.
+
 ## Artifact Format
 
-Git-generated zero-context unified diff.
+Historical text artifacts use Git-generated zero-context unified diffs. The T12 current formal CHG-0018 Patch uses Git-generated binary patch records for exact source preservation.
 
-Generation command:
+Historical zero-context generation command:
 
 ```text
 git diff --cached --binary --full-index --no-ext-diff
 --unified=0 --ignore-space-at-eol --src-prefix=a/ --dst-prefix=b/ HEAD
 ```
 
+T12 current formal generation command uses the same staged target and `--binary --full-index`; the disposable builder marks only its target paths `-diff` in local `.git/info/attributes` before running `git diff`. No repository `.gitattributes` change is introduced.
+
 Reason:
 
-The pinned upstream source contains unchanged whitespace-bearing context lines.
-Including those lines in a vendor patch causes repository whitespace checks to
-inspect upstream baseline formatting rather than the recorded target change
-itself.
+The pinned historical source includes whitespace-only blob differences. Ignoring those differences breaks exact blob equivalence, while emitting them as ordinary text makes the outer repository patch artifact fail `git diff --check`. Git binary patch records preserve the exact blobs without either problem.
 
 Safety:
 
