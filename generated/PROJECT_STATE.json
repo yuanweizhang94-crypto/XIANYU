@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 12,
-    "completed": 11,
-    "next_task": "T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.",
+    "completed": 12,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Implement P0 credential safety and false-disable prevention.",
@@ -57,7 +57,7 @@
       },
       {
         "text": "T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.",
-        "completed": false
+        "completed": true
       }
     ]
   },

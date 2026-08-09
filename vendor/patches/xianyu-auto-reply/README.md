@@ -87,14 +87,15 @@ HMAC values.
 - Base pinned SHA: `4c5e1ac5f532c7313365d70409ae115305de8a55`
 - Applies after: `4c5e1ac-chg0017-reply-identity-allowlist.patch`
 - Patch file: `4c5e1ac-chg0018-account-profile-publish-safety.patch`
-- SHA256: `94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`
-- Local patch worktree: `D:/xianyu-upstream-delivery-chg0017`
-- Patch parse check: passed with `git apply --numstat --unidiff-zero`
-- Patch staged-base apply check: passed with `git apply --check --cached --whitespace=error-all --unidiff-zero`
-- Final CHG-0018 targeted tests: 36 passed with the CHG-0018 credential, Profile/publish-readiness, and auto-polish safety suites.
+- SHA256: `B379A7286D10EF1988361940AB9DB6C84AF0D0BB50D13F6910B52011BB0BD111`
+- T12 patch builder: isolated disposable worktree; production upstream checkout was not modified.
+- Patch parse check: passed with `git apply --numstat --unidiff-zero`.
+- Patch strict clean-apply check: passed with `git apply --check --whitespace=error-all --unidiff-zero`.
+- Applied source Git-blob equivalence: 27/27 PASS.
+- Final CHG-0018 targeted tests: 38 passed with the CHG-0018 credential, Profile/publish-readiness, auto-polish safety, and T11 batch-readiness coverage.
 - CHG-0017 regression tests: 58 passed.
-- Combined CHG-0017 regression and CHG-0018 targeted tests: 94 passed.
-- Full repository tests before final production enablement: 595/595 passed.
+- Combined CHG-0017 regression and CHG-0018 targeted tests: 96 passed.
+- Full repository tests before final production enablement historically passed 595/595; the current main-based T12 exact final repository validation passed 588/588 and is recorded in the T12 evidence.
 - Frontend build: passed with `npm --prefix frontend run build`
 - Frontend lint note: `npm run lint` exists, but the upstream frontend checkout has no ESLint config file; recorded as a non-blocking upstream tooling gap.
 - Changed files:
@@ -165,7 +166,8 @@ with bounded Session failure handling and Scheduler restart count zero.
 
 ## CHG-0018 T11 controlled batch publish recovery supplement
 
-- Applies after: `4c5e1ac-chg0018-account-profile-publish-safety.patch`
+- Historical apply base: pre-T12 formal CHG-0018 Patch SHA256 `94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`.
+- The current T12 formal `4c5e1ac-chg0018-account-profile-publish-safety.patch` already contains this supplement; do not apply the supplement a second time after the current formal Patch.
 - Patch file: `4c5e1ac-chg0018-t11-controlled-batch-publish-recovery.patch`
 - SHA256: `99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882`
 - Changed upstream files: 4
@@ -183,23 +185,33 @@ with bounded Session failure handling and Scheduler restart count zero.
 - `validate_change.py`: PASS; repository verification: 596/596 PASS with worktree-local module resolution.
 - Controlled duplicate check found all four owner-authorized historical failures already formally published and present in the current account catalog, so T11 correctly performed zero new real publish attempts and no production container replacement.
 
+## CHG-0018 T12 formal integration Patch
+
+- T11 historical supplemental SHA256 remains locked at `99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882`.
+- T12 regenerated the single formal CHG-0018 Patch from the exact archived CHG-0017 target blobs, the prior CHG-0018 target blobs, and the locked T11 supplement. No hunk was hand-spliced.
+- Final formal SHA256: `B379A7286D10EF1988361940AB9DB6C84AF0D0BB50D13F6910B52011BB0BD111`.
+- Patch parse: PASS; strict clean apply: PASS; applied `git diff --check`: PASS; source Git-blob equivalence: 27/27 PASS.
+- A temporary candidate generated with `--ignore-space-at-eol` was discarded before commit because it reconstructed only 13/27 exact target blobs. A second exact text candidate reached 27/27 but was also discarded because historical whitespace-bearing patch lines caused the outer XIANYU repository `git diff --check` to fail.
+- The final Patch is generated entirely by Git from the same staged target. In the disposable builder only, `.git/info/attributes` marks the 27 upstream target paths `-diff`, so `git diff --binary --full-index` emits 27 `GIT binary patch` records. That builder-only attribute file is not tracked or delivered. The result preserves 27/27 exact target blobs and does not change business behavior relative to the prior formal Patch followed by the T11 supplement.
+- Git binary patch syntax requires a terminating blank separator line. This vendor directory therefore tracks a `.gitattributes` entry that marks only the current formal CHG-0018 Patch as `binary`, allowing the outer XIANYU repository `git diff --check` to treat the generated artifact as opaque data without changing its bytes.
+- T12 does not change frontend source or deploy any production runtime.
+
 ## Artifact Format
 
-Git-generated zero-context unified diff.
+Historical text artifacts use Git-generated zero-context unified diffs. The T12 current formal CHG-0018 Patch uses Git-generated binary patch records for exact source preservation.
 
-Generation command:
+Historical zero-context generation command:
 
 ```text
 git diff --cached --binary --full-index --no-ext-diff
 --unified=0 --ignore-space-at-eol --src-prefix=a/ --dst-prefix=b/ HEAD
 ```
 
+T12 current formal generation command uses the same staged target and `--binary --full-index`; the disposable builder marks only its target paths `-diff` in local `.git/info/attributes` before running `git diff`. No repository `.gitattributes` change is introduced.
+
 Reason:
 
-The pinned upstream source contains unchanged whitespace-bearing context lines.
-Including those lines in a vendor patch causes repository whitespace checks to
-inspect upstream baseline formatting rather than the recorded target change
-itself.
+The pinned historical source includes whitespace-only blob differences. Ignoring those differences breaks exact blob equivalence, while emitting them as ordinary text makes the outer repository patch artifact fail `git diff --check`. Git binary patch records preserve the exact blobs without either problem.
 
 Safety:
 

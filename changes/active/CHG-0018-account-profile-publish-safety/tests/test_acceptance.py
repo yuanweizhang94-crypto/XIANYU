@@ -112,26 +112,42 @@ def test_final_validation_evidence_is_recorded() -> None:
     assert "`security`: success" in evidence_text
 
 
-def test_t11_controlled_batch_publish_recovery_is_recorded_without_t12() -> None:
+def test_t11_t12_final_batch_publish_recovery_delivery_is_recorded() -> None:
     tasks = read(CHANGE_DIR / "tasks.md")
-    evidence = CHANGE_DIR / "evidence" / "20260809-t11-controlled-real-batch-publish-recovery.md"
-    patch = ROOT / "vendor" / "patches" / "xianyu-auto-reply" / "4c5e1ac-chg0018-t11-controlled-batch-publish-recovery.patch"
+    t11_evidence = CHANGE_DIR / "evidence" / "20260809-t11-controlled-real-batch-publish-recovery.md"
+    t12_evidence = CHANGE_DIR / "evidence" / "20260809-t12-final-validation-and-ci.md"
+    supplement = ROOT / "vendor" / "patches" / "xianyu-auto-reply" / "4c5e1ac-chg0018-t11-controlled-batch-publish-recovery.patch"
+    formal_patch = ROOT / "vendor" / "patches" / "xianyu-auto-reply" / "4c5e1ac-chg0018-account-profile-publish-safety.patch"
+    attributes = ROOT / "vendor" / "patches" / "xianyu-auto-reply" / ".gitattributes"
     readme = read(ROOT / "vendor" / "patches" / "xianyu-auto-reply" / "README.md")
 
     assert "- [x] T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path." in tasks
-    assert "- [ ] T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI." in tasks
-    assert evidence.is_file()
-    evidence_text = read(evidence)
-    assert "AUTHORIZED_FAILED_RECORDS=4" in evidence_text
-    assert "FAILED_RECORDS_RECOVERED=4" in evidence_text
-    assert "NOT_PUBLISHED_CONFIRMED=0" in evidence_text
-    assert "ALREADY_PUBLISHED_SKIPPED=4" in evidence_text
-    assert "REAL_PUBLISH_ATTEMPTS=0" in evidence_text
-    assert "SECOND_EXECUTOR_RUNNING=false" in evidence_text
-    assert "CHG0018_T11_COMPLETE=true" in evidence_text
-    assert "T12 remains explicitly incomplete" in evidence_text
-    assert patch.is_file()
+    assert "- [x] T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI." in tasks
+    assert t11_evidence.is_file()
+    t11_text = read(t11_evidence)
+    assert "AUTHORIZED_FAILED_RECORDS=4" in t11_text
+    assert "FAILED_RECORDS_RECOVERED=4" in t11_text
+    assert "NOT_PUBLISHED_CONFIRMED=0" in t11_text
+    assert "ALREADY_PUBLISHED_SKIPPED=4" in t11_text
+    assert "REAL_PUBLISH_ATTEMPTS=0" in t11_text
+    assert "SECOND_EXECUTOR_RUNNING=false" in t11_text
+    assert "CHG0018_T11_COMPLETE=true" in t11_text
+    assert "T12 remains explicitly incomplete" in t11_text
+
+    assert t12_evidence.is_file()
+    t12_text = read(t12_evidence)
+    assert "ALREADY_PUBLISHED_SKIPPED=4" in t12_text
+    assert "NOT_PUBLISHED_CONFIRMED=0" in t12_text
+    assert "REAL_PUBLISH_ATTEMPTS=0" in t12_text
+    assert "must not be described as four new real publish successes" in t12_text
+    assert "B379A7286D10EF1988361940AB9DB6C84AF0D0BB50D13F6910B52011BB0BD111" in t12_text
+
+    assert supplement.is_file()
+    assert formal_patch.is_file()
+    assert attributes.is_file()
+    assert "4c5e1ac-chg0018-account-profile-publish-safety.patch binary" in read(attributes)
     assert "99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882" in readme
+    assert "B379A7286D10EF1988361940AB9DB6C84AF0D0BB50D13F6910B52011BB0BD111" in readme
 
 
 def test_runtime_profile_preflight_auto_polish_evidence_is_recorded() -> None:

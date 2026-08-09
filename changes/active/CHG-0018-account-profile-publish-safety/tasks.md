@@ -18,7 +18,7 @@ Change ID: CHG-0018-account-profile-publish-safety
 - [x] T10B Validate the exact-item/no-retry patch, regenerate the Vendor Patch, and deploy only the scheduler image while global polish remains disabled.
 - [x] T10C Repair item-list-to-polish Session handoff, add one bounded polish auth recovery, validate, deploy only Scheduler, and run the owner-authorized four-item fixed-account polish validation.
 - [x] T11 Fix real batch publish Profile runtime, readiness classification, and duplicate-safe retry path.
-- [ ] T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.
+- [x] T12 Return CHG-0018 to VERIFYING after real batch publish recovery evidence, repository validation, and CI.
 
 ## T9 result
 
@@ -62,7 +62,7 @@ Change ID: CHG-0018-account-profile-publish-safety
 
 - Repository status definitions do not contain `VERIFIED`; the next formal status after `VERIFYING` is merge-bound `MERGED`.
 - PR #26 must remain Draft/Open/Unmerged, so this task truthfully keeps CHG-0018 at `VERIFYING` and does not invent a status.
-- T11/T12 remain open because the final polish production evidence does not prove the separate real-batch-publish runtime recovery. They are not falsely marked complete during this closeout.
+- The historical polish closeout did not prove real-batch-publish recovery; that gap is now separately closed by T11/T12 evidence. CHG-0018 nevertheless remains `VERIFYING` until its merge-bound transition.
 
 ## T11 target
 
@@ -83,8 +83,19 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Publish readiness now waits up to 60 seconds and classifies `verification_required`, `page_load_timeout`, and `page_structure_mismatch` instead of early `publish_form_not_rendered`/generic timeout failures. Legacy exception inputs are compatibility-normalized.
 - T11 supplemental Vendor Patch SHA256 is `99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882`; clean apply and source Git-blob equivalence passed 4/4.
 - CHG-0018 targeted suites passed 38/38, CHG-0017 regression suites passed 58/58, `validate_change.py` passed, CHG-0018 governance acceptance passed 9/9, and repository verification passed 596/596 with worktree-local module resolution.
-- No frontend source changed and no production container was replaced or restarted. T12 remains open and is not implied complete by T11.
+- No frontend source changed and no production container was replaced or restarted. T11 does not imply that any of the four historical failures were newly published.
 - Evidence: `evidence/20260809-t11-controlled-real-batch-publish-recovery.md`.
+
+## T12 result
+
+- T11 commit `8ffce692140d77a0b8bb46a84afc879d5d6b68a0` was cleanly integrated into the main-based PR #31 lineage without reintroducing the archived CHG-0017 suspended path.
+- The single formal CHG-0018 Vendor Patch was regenerated from exact Git source layers and now includes T11; final SHA256 is `B379A7286D10EF1988361940AB9DB6C84AF0D0BB50D13F6910B52011BB0BD111` while the historical T11 supplement remains locked at `99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882`.
+- Patch parse, strict clean apply, applied diff check, and source Git-blob equivalence passed; equivalence is 27/27.
+- Exact final upstream suites are CHG-0018 targeted 38/38 and CHG-0017 regressions 58/58. The main-based repository passed 588/588 before the checkbox transition and again 588/588 after T12 completion and generated-state refresh.
+- Frontend source did not change in T11/T12; no frontend or production runtime was deployed, restarted, or rebuilt.
+- Secret scans passed for T11 evidence, T12 evidence, the formal Patch, and T12 Git additions. Real product actions and real publish attempts remained zero.
+- CHG-0018 remains `VERIFYING`; T12 completion does not set `MERGED`, `ARCHIVED`, or any invented `VERIFIED` state. Remote delivery readiness additionally requires the normal PR #31 push and exact-final-head GitHub CI to be green.
+- Evidence: `evidence/20260809-t12-final-validation-and-ci.md`.
 
 ## Upstream capability audit
 

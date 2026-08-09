@@ -149,11 +149,21 @@ Change ID: CHG-0018-account-profile-publish-safety
 - Evidence: `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260807-final-production-enable-closeout.md`.
 - Account Session expiry is an operational account-health condition and is no longer a CHG-0018 code acceptance blocker when the bounded fail-closed behavior is preserved.
 
+## T11/T12 final integration result
+
+- Historical publish failures are not treated as proof of platform non-publication. All four owner-authorized failed records were duplicate/platform-state checked and classified `ALREADY_PUBLISHED`; `NOT_PUBLISHED_CONFIRMED=0` and `REAL_PUBLISH_ATTEMPTS=0`.
+- T11 preserves the existing backend Publisher as the sole publish executor, the shared canonical persistent Profile root, authoritative `account_id` and `owner_id`, one context per concrete publish attempt, one account lock plus one global slot, and the 60-second specific readiness classification.
+- The T12 single formal Vendor Patch includes the complete prior CHG-0018 source plus T11 and has SHA256 `B379A7286D10EF1988361940AB9DB6C84AF0D0BB50D13F6910B52011BB0BD111`; the historical T11 supplemental SHA256 remains `99FDB0B8688AE0D45D1B2725D1DC7AFE1C883424F5B3C245F532DA8FC3535882`.
+- Formal Patch parse, strict clean apply, applied diff check, and exact source Git-blob equivalence passed 27/27.
+- Exact upstream validation passed CHG-0018 targeted 38/38 and CHG-0017 regressions 58/58. Main-based repository pre-final verification passed 588/588 before the T12 checkbox transition, and exact final-state repository validation after generated state refresh also passed 588/588.
+- T11/T12 changed no frontend source and performed no production runtime deployment, container restart, real publish, product mutation, login, QR scan, message send, database business write, or Redis business write.
+- Evidence: `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260809-t11-controlled-real-batch-publish-recovery.md` and `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260809-t12-final-validation-and-ci.md`.
+
 ## Governance closeout boundary
 
 - The repository defines `DRAFT`, `APPROVED`, `IMPLEMENTING`, `VERIFYING`, `MERGED`, and `ARCHIVED`; it does not define `VERIFIED`.
-- The next formal status after `VERIFYING` is merge-bound. PR #26 must remain Draft/Open/Unmerged in this task, so CHG-0018 remains `VERIFYING` rather than inventing a new status or falsely setting `MERGED`.
-- T11/T12 real-batch-publish runtime recovery remains unproven by the final polish evidence and is not falsely marked complete.
+- T11 and T12 are complete as delivery-validation tasks, but the next formal status after `VERIFYING` is merge-bound. CHG-0018 therefore remains `VERIFYING` until PR #31 is explicitly reviewed and merged in a separate decision.
+- PR #31 must remain Draft/Open/Unmerged at T12 completion; T12 completion itself does not Ready, Merge, Close, or retarget it.
 
 ## Upstream capability audit
 
