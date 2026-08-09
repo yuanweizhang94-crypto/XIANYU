@@ -1,6 +1,6 @@
 # CHG-0018 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -69,3 +69,7 @@ Pinned upstream remains the runtime owner; XIANYU owns the governance patch arti
 ## Retirement plan for overlapping local code
 
 No overlapping local production code is introduced. Rollback is removal of the optional parameters from the existing methods or restoration of the prior scheduler image; no data migration is required.
+
+## Post-merge archive closeout
+
+PR #31 merged at `64c37d20a00f77d7e860705123244692d134dd48`; the verified design is preserved under `changes/archive` without further runtime modification.

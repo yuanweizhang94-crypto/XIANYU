@@ -1,6 +1,6 @@
 # CHG-0018 Acceptance
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0018-account-profile-publish-safety
 
@@ -164,6 +164,12 @@ Change ID: CHG-0018-account-profile-publish-safety
 - The repository defines `DRAFT`, `APPROVED`, `IMPLEMENTING`, `VERIFYING`, `MERGED`, and `ARCHIVED`; it does not define `VERIFIED`.
 - T11 and T12 are complete as delivery-validation tasks, but the next formal status after `VERIFYING` is merge-bound. CHG-0018 therefore remains `VERIFYING` until PR #31 is explicitly reviewed and merged in a separate decision.
 - PR #31 must remain Draft/Open/Unmerged at T12 completion; T12 completion itself does not Ready, Merge, Close, or retarget it.
+
+## Post-merge archive closeout
+
+- PR #31 merged normally into `main` at `64c37d20a00f77d7e860705123244692d134dd48` after exact-head CI passed.
+- CHG-0018 T1-T12 were all complete before merge; T11 correctly performed zero duplicate publishes because all four authorized historical failures were proven already published.
+- The Change is archived with no additional production, account, product, message, container, database, or Redis operation.
 
 ## Upstream capability audit
 
