@@ -1,13 +1,13 @@
 # CHG-0019 Acceptance
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0019-normal-account-offline
 
 ## Acceptance
 
 - CHG-0017 and CHG-0018 exist under `changes/archive/` with `ARCHIVED` governance status after their predecessor PRs merged; CHG-0018 production behavior remains enabled/unchanged and no suspended predecessor state is reintroduced by the CHG-0019 main integration.
-- Exactly one active Change exists: `CHG-0019-normal-account-offline`.
+- After post-merge closeout, no active Change remains and `CHG-0019-normal-account-offline` exists under `changes/archive/` with `ARCHIVED` governance status.
 - Root cause is fixed as `CURRENT_BACKEND_USES_WRONG_PC_SELLER_OFFSHELF_API`; this Change does not continue PC Seller COMMONPRO/member-id investigation.
 - Public `POST /items/batch-offline` remains compatible.
 - The default off-shelf execution uses existing XianyuPublisher/Playwright/Cookie/browser lifecycle and normal `www.goofish.com/item?id=<item_id>` detail pages.
@@ -30,7 +30,7 @@ Change ID: CHG-0019-normal-account-offline
 - Before canary, session is healthy and detail page item ID/title plus owner context match the fixed target; price is auxiliary evidence and is not the sole identity gate.
 - At most one real off-shelf target item is acted upon. No retry of an ambiguous/unknown real outcome is allowed.
 - If UI success is explicit, one existing item synchronization/read-only refresh may run; no manual database or Redis status write is allowed.
-- No product delete, publish, relist, edit, polish, Git commit, Git push, GitHub write, or PR #26 change occurs in this task.
+- No product delete, publish, relist, edit, polish, Git commit, Git push, GitHub write, or PR #26 change occurs in the real-canary task.
 - Explicit platform UI evidence (`已下架`, off-shelf success message, or equivalent state transition) is sufficient to establish canary success; no extra Owner App/Web confirmation is required when that evidence is clear.
 
 ## Canary success rule
@@ -72,12 +72,14 @@ Change ID: CHG-0019-normal-account-offline
 
 ## Main integration reconciliation
 
-- CHG-0017 and CHG-0018 are already merged and archived on `main` before this clean CHG-0019 integration candidate is created.
-- The clean integration candidate carries CHG-0019 governance and the previously verified Vendor Patch artifacts only; it does not restore either predecessor under `changes/suspended/`.
-- The previous review-only PR #28 remains historical review evidence and is not the branch merged to `main`.
-- No additional real product mutation or new real canary is required for this reconciliation.
+- CHG-0017 and CHG-0018 were already merged and archived on `main` before the clean CHG-0019 integration was created.
+- PR #33 merged the CHG-0019 main integration at merge commit `a4220ee2350394409dfa77c8d6906180867268e5` after exact-head review and green quality/tests/security checks.
+- The current CHG-0019 main integration Vendor Patch layers after the CHG-0018 T12 artifact and preserves both CHG-0018 T11 publish-readiness invariants and the CHG-0019 hardened target-specific success classifier.
+- The previous review-only PR #28 remains historical review evidence and was not the branch merged to `main`.
+- No additional real product mutation or new real canary was required for reconciliation or archive closeout.
 
 IMPLEMENTATION_COMPLETE=true
 BACKEND_REAL_CANARY_PASSED=true
 FRONTEND_DELIVERY_VERIFIED=true
 DELIVERY_READY=true
+ARCHIVE_COMPLETE=true

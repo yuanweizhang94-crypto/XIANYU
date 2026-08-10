@@ -1,53 +1,12 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": {
-    "id": "CHG-0019-normal-account-offline",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0019-normal-account-offline"
-  },
+  "active_change": null,
   "tasks": {
-    "total": 9,
-    "completed": 9,
+    "total": 0,
+    "completed": 0,
     "next_task": null,
-    "items": [
-      {
-        "text": "T1 Suspend CHG-0018 without production rollback, create CHG-0019 governance boundary, regenerate state, and validate exactly one active Change.",
-        "completed": true
-      },
-      {
-        "text": "T2 Patch the existing normal-Web XianyuPublisher/off-shelf route with fail-closed unique-control and confirmation handling.",
-        "completed": true
-      },
-      {
-        "text": "T3 Add and pass targeted normal-account off-shelf tests.",
-        "completed": true
-      },
-      {
-        "text": "T4 Run `scripts/validate_change.py` and `scripts/verify_repository.py`.",
-        "completed": true
-      },
-      {
-        "text": "T5 Build and replace only the backend component that serves `/items/batch-offline` and Playwright off-shelf.",
-        "completed": true
-      },
-      {
-        "text": "T6 Run the owner-authorized single-item canary, perform one existing post-success item sync/read-only refresh, and stop before commit/push.",
-        "completed": true
-      },
-      {
-        "text": "T7 Reuse the existing product-management batch-offline UI/API path, add the missing single-item entry and fail-closed UI state handling, and pass 26 frontend contract tests, lint, and production build.",
-        "completed": true
-      },
-      {
-        "text": "T8 Deploy only the formal frontend image, run production read-only smoke plus mocked frontend-backend contract scenarios, preserve the verified Backend unchanged, and record formal delivery evidence.",
-        "completed": true
-      },
-      {
-        "text": "T9 Address PR #28 review findings by publishing the exact predecessor stack base and hardening off-shelf success classification to target-specific post-action evidence without changing the verified execution path or running a new real canary.",
-        "completed": true
-      }
-    ]
+    "items": []
   },
   "capabilities": {
     "total": 10,

@@ -1,6 +1,6 @@
 # CHG-0019 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0019-normal-account-offline
 
@@ -29,3 +29,7 @@ Single-item and batch off-shelf actions require an explicit project confirmation
 Frontend request state is locked per item and per batch to prevent double submission. Response interpretation uses `success`, `message`, and `data.results/suc_count/fail_count`, never `cookies_str`. Success refreshes the item list. Because the local catalog does not persist an authoritative platform sale status, a successful item that remains visible is marked `已下架` only in current page-session state and cannot be re-submitted; `item_status=-9` is never inferred as off-shelf.
 
 Frontend mutation wiring is verified with intercepted synthetic requests against actual deployed assets. Production smoke opens the project confirmation and cancels, with real `/items/batch-offline` forwarding required to remain zero. A repeated live platform mutation is intentionally excluded because the Backend real canary already proved the executor.
+
+## Archive closeout
+
+The verified implementation is preserved through the current CHG-0017 → CHG-0018 T12 → CHG-0019 main-integration Vendor Patch chain. Archive closeout changes governance state only and does not alter runtime design or execute another live mutation.
