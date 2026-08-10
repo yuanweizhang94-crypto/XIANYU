@@ -1,6 +1,6 @@
 # CHG-0019 Tasks
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0019-normal-account-offline
 
@@ -63,3 +63,10 @@ Change ID: CHG-0019-normal-account-offline
 - Layered review-fix patch applies after the formal-delivery patch and reproduces the two hardened target files with 2/2 Git blob equivalence.
 - No new real off-shelf action, product action, production deployment, container change, database/Redis write, or Xianyu login occurred.
 - Review evidence: `evidence/20260808-pr28-review-success-classification-hardening.md`.
+
+## Post-merge archive closeout
+
+- PR #33 merged the current main-layered CHG-0019 delivery after exact-head review and CI.
+- Post-merge `main` quality, tests, and security completed successfully.
+- CHG-0019 is moved from `changes/active/` to `changes/archive/` and its governance status is `ARCHIVED`.
+- No new real canary, product action, login, message, deployment, container change, database write, or Redis write was performed for this closeout.

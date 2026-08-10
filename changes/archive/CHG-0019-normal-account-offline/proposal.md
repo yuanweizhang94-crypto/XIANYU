@@ -1,6 +1,6 @@
 # CHG-0019 Normal Account Offline
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0019-normal-account-offline
 
@@ -73,3 +73,7 @@ No overlapping runtime is added. If upstream later exposes a verified normal-acc
 ## Forbidden work
 
 No delete, publish, relist, edit, polish, other account/item operation, automatic login, QR scan, database/Redis manual write, new browser system, GitHub write, PR #26 change, CHG-0018 production rollback, or modification of CHG-0018 business code/Vendor Patch.
+
+## Archive closeout
+
+PR #33 merged the verified CHG-0019 main integration. The Change is archived after successful post-merge `main` quality, tests, and security workflows; no additional real product or production-runtime action was performed for archive closeout.
