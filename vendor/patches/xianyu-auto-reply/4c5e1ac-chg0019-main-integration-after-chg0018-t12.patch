@@ -1,0 +1,1832 @@
+diff --git a/backend-web/app/api/routes/items.py b/backend-web/app/api/routes/items.py
+index b2abd85bf3f832144a64203a73b9309c53ab1d5f..513bd2484f2a278d80455561d94b01a058ef85bd 100644
+--- a/backend-web/app/api/routes/items.py
++++ b/backend-web/app/api/routes/items.py
+@@ -20 +19,0 @@ from common.schemas.item import (
+-from common.services.item_offline_service import batch_offline_items_from_xianyu
+@@ -21,0 +21 @@ from common.services.item_delete_service import batch_delete_items_from_xianyu
++from common.services.xianyu_publish_service import offline_items_normal_web
+@@ -855,2 +855,3 @@ async def batch_offline_items(
+-    result = await batch_offline_items_from_xianyu(
+-        account.account_id, account.cookie, payload.item_ids
++    result = await offline_items_normal_web(
++        cookies_str=account.cookie,
++        item_ids=payload.item_ids,
+@@ -858,2 +859,2 @@ async def batch_offline_items(
+-    suc_count = result.get("suc_count", 0)
+-    fail_count = result.get("fail_count", 0)
++    suc_count = int(result.get("suc_count", 0) or 0)
++    fail_count = int(result.get("fail_count", 0) or 0)
+diff --git a/backend-web/app/services/xianyu_publisher.py b/backend-web/app/services/xianyu_publisher.py
+index 5b4dcf251590441f0c6a48e0b0319b361e9bcd6c..58e5e0a82bb99ae1f0262253050bd0fa69e9ca7d 100644
+--- a/backend-web/app/services/xianyu_publisher.py
++++ b/backend-web/app/services/xianyu_publisher.py
+@@ -564,0 +565,528 @@ class XianyuPublisher:
++    @staticmethod
++    def normal_item_detail_url(item_id: str) -> str:
++        """Build the normal-account item detail URL used by goofish Web."""
++        normalized = str(item_id or "").strip()
++        if not normalized or not normalized.isdigit():
++            raise ValueError("invalid_item_id")
++        return f"https://www.goofish.com/item?id={normalized}"
++
++    @staticmethod
++    def _normalize_action_text(value: Any) -> str:
++        return re.sub(r"\s+", "", "" if value is None else str(value))
++
++    @classmethod
++    def _is_safe_offline_action_text(cls, value: Any) -> bool:
++        return cls._normalize_action_text(value) == "下架"
++
++    @classmethod
++    def _is_delete_semantics(cls, value: Any) -> bool:
++        return "删除" in cls._normalize_action_text(value)
++
++    @classmethod
++    def _is_safe_offline_confirmation(cls, dialog_text: Any, button_text: Any) -> bool:
++        """Classify one confirm control using only its local dialog semantics."""
++        dialog = cls._normalize_action_text(dialog_text)
++        button = cls._normalize_action_text(button_text)
++        offline_markers = ("下架", "停止出售", "暂停出售", "停止销售")
++        dangerous_markers = ("删除", "永久删除", "注销", "清空", "编辑", "发布", "上架")
++        if not any(marker in dialog for marker in offline_markers):
++            return False
++        if any(marker in dialog for marker in dangerous_markers):
++            return False
++        if any(marker in button for marker in dangerous_markers):
++            return False
++        return button in {"确认下架", "确定下架", "确认", "确定"}
++
++    @classmethod
++    def _is_offline_cancel_control(cls, value: Any) -> bool:
++        return cls._normalize_action_text(value) in {"取消", "关闭"}
++
++    @classmethod
++    def _is_offline_positive_control(cls, value: Any) -> bool:
++        return cls._normalize_action_text(value) in {"确定", "确认", "确定下架", "确认下架"}
++
++    async def _dialog_control_is_usable(self, element) -> bool:
++        """Validate one dialog-local click target without following handlers outside the dialog."""
++        try:
++            if not await element.is_visible() or not await element.is_enabled():
++                return False
++            box = await element.bounding_box()
++            if not box or box.get("width", 0) <= 0 or box.get("height", 0) <= 0:
++                return False
++            pointer_events = await element.evaluate("(el) => getComputedStyle(el).pointerEvents || ''")
++            if str(pointer_events or "").lower() == "none":
++                return False
++            center_is_clear = await element.evaluate(
++                """
++                (el) => {
++                    const rect = el.getBoundingClientRect();
++                    if (!rect || rect.width <= 0 || rect.height <= 0) return false;
++                    const hit = document.elementFromPoint(
++                        rect.left + rect.width / 2,
++                        rect.top + rect.height / 2
++                    );
++                    if (!hit) return false;
++                    const dialog = el.closest('[role="dialog"], .ant-modal-content');
++                    if (!dialog || !dialog.contains(el) || !dialog.contains(hit)) return false;
++                    if (hit === el || el.contains(hit)) return true;
++                    let node = el.parentElement;
++                    while (node && node !== dialog) {
++                        const style = getComputedStyle(node);
++                        const interactive =
++                            node.tagName === 'BUTTON' ||
++                            node.getAttribute('role') === 'button' ||
++                            style.cursor === 'pointer';
++                        if (interactive && (hit === node || node.contains(hit))) return true;
++                        node = node.parentElement;
++                    }
++                    return false;
++                }
++                """
++            )
++            return bool(center_is_clear)
++        except Exception:
++            return False
++
++    async def _dialog_control_has_deeper_exact_candidate(
++        self,
++        element,
++        allowed_texts: set[str],
++    ) -> bool:
++        """Drop wrapper nodes when a deeper visible descendant carries the same exact action text."""
++        normalized_allowed = sorted({self._normalize_action_text(text) for text in allowed_texts})
++        try:
++            return bool(
++                await element.evaluate(
++                    """
++                    (el, allowed) => {
++                        const normalize = (value) => (value || '').replace(/\\s+/g, '');
++                        return Array.from(el.querySelectorAll('button,[role="button"],div,span')).some((child) => {
++                            if (!allowed.includes(normalize(child.innerText || child.textContent || ''))) return false;
++                            const style = getComputedStyle(child);
++                            const rect = child.getBoundingClientRect();
++                            return style.display !== 'none' &&
++                                style.visibility !== 'hidden' &&
++                                Number(style.opacity || '1') !== 0 &&
++                                rect.width > 0 && rect.height > 0;
++                        });
++                    }
++                    """,
++                    normalized_allowed,
++                )
++            )
++        except Exception:
++            return False
++
++    async def _collect_dialog_exact_controls(
++        self,
++        dialog,
++        selector: str,
++        allowed_texts: set[str],
++    ) -> list[Any]:
++        """Collect leaf-most, visible, exact-text controls from the selected dialog only."""
++        try:
++            elements = await dialog.query_selector_all(selector)
++        except Exception:
++            return []
++        controls: list[Any] = []
++        for element in elements:
++            try:
++                text = await element.inner_text()
++                if self._normalize_action_text(text) not in {
++                    self._normalize_action_text(value) for value in allowed_texts
++                }:
++                    continue
++                if not await self._dialog_control_is_usable(element):
++                    continue
++                if await self._dialog_control_has_deeper_exact_candidate(element, allowed_texts):
++                    continue
++                controls.append(element)
++            except Exception:
++                continue
++        return controls
++
++    @classmethod
++    def _is_offline_success_text(cls, value: Any) -> bool:
++        normalized = cls._normalize_action_text(value)
++        return any(marker in normalized for marker in ("下架成功", "已下架", "商品已下架"))
++
++    @classmethod
++    def _is_offline_success_notice_text(cls, value: Any) -> bool:
++        """Accept explicit off-shelf success semantics only from notice containers."""
++        normalized = cls._normalize_action_text(value)
++        return any(marker in normalized for marker in ("下架成功", "商品已下架", "已成功下架"))
++
++    async def _page_auth_or_verification_failure(self) -> str | None:
++        if not self.page:
++            return "browser_not_initialized"
++        current_url = (self.page.url or "").lower()
++        if any(marker in current_url for marker in ("login", "passport", "auth")):
++            return "login_required"
++        try:
++            page_text = await self.page.evaluate("() => document.body.innerText || ''")
++        except Exception:
++            page_text = ""
++        if any(marker in page_text for marker in ("扫码登录", "登录后可以", "请先登录")):
++            return "login_required"
++        if any(marker in page_text for marker in ("滑块验证", "人脸验证", "验证码", "安全验证")):
++            return "manual_verification_required"
++        return None
++
++    async def _owner_action_context_text(self, element) -> str:
++        """Return the smallest nearby container that looks like owner operations."""
++        try:
++            return await element.evaluate(
++                """
++                (el) => {
++                    let node = el;
++                    for (let depth = 0; node && depth < 7; depth += 1, node = node.parentElement) {
++                        const text = (node.innerText || node.textContent || '').replace(/\\s+/g, ' ').trim();
++                        if (text.includes('下架') && text.includes('删除') && text.length <= 500) {
++                            return text;
++                        }
++                    }
++                    return '';
++                }
++                """
++            )
++        except Exception:
++            return ""
++
++    async def _owner_action_context_path(self, element) -> list[int] | None:
++        """Capture the exact pre-action owner-operation DOM location for post-action verification."""
++        try:
++            path = await element.evaluate(
++                """
++                (el) => {
++                    let node = el;
++                    for (let depth = 0; node && depth < 7; depth += 1, node = node.parentElement) {
++                        const text = (node.innerText || node.textContent || '').replace(/\\s+/g, ' ').trim();
++                        if (!text.includes('下架') || !text.includes('删除') || text.length > 500) continue;
++                        const path = [];
++                        let current = node;
++                        while (current && current !== document.body) {
++                            const parent = current.parentElement;
++                            if (!parent) return null;
++                            const index = Array.prototype.indexOf.call(parent.children, current);
++                            if (index < 0) return null;
++                            path.unshift(index);
++                            current = parent;
++                        }
++                        return current === document.body ? path : null;
++                    }
++                    return null;
++                }
++                """
++            )
++            if not isinstance(path, list):
++                return None
++            return [int(index) for index in path]
++        except Exception:
++            return None
++
++    async def _find_unique_offline_control(self) -> tuple[Any | None, bool]:
++        """Resolve exactly one actionable owner `下架` control or fail closed."""
++        if not self.page:
++            return None, False
++        candidates = []
++        try:
++            elements = await self.page.query_selector_all("button, [role='button'], a, div, span")
++        except Exception:
++            return None, False
++        for element in elements:
++            try:
++                text = await element.inner_text()
++                if not self._is_safe_offline_action_text(text):
++                    continue
++                if not await element.is_visible() or not await element.is_enabled():
++                    continue
++                box = await element.bounding_box()
++                if not box or box.get("width", 0) <= 0 or box.get("height", 0) <= 0:
++                    continue
++                context_text = await self._owner_action_context_text(element)
++                if not context_text or "下架" not in context_text or "删除" not in context_text:
++                    continue
++                await element.click(trial=True, timeout=2000)
++                candidates.append(element)
++            except Exception:
++                continue
++        if len(candidates) != 1:
++            return None, len(candidates) > 1
++        return candidates[0], False
++
++    async def _find_safe_offline_confirmation(self) -> tuple[Any | None, bool, bool]:
++        """Return one safe confirm control from one visible local dialog, or fail closed."""
++        if not self.page:
++            return None, True, False
++
++        # Prefer semantic dialog roots. Ant Modal can expose nested `.ant-modal` and
++        # `.ant-modal-content` nodes for one logical dialog, so mixing broad selectors
++        # would double-count the same confirmation UI.
++        visible_dialogs: list[tuple[Any, str]] = []
++        for selector in ("[role='dialog']", ".ant-modal-content"):
++            try:
++                dialogs = await self.page.query_selector_all(selector)
++            except Exception:
++                dialogs = []
++            current: list[tuple[Any, str]] = []
++            for dialog in dialogs:
++                try:
++                    if not await dialog.is_visible():
++                        continue
++                    text = await dialog.inner_text()
++                    if self._normalize_action_text(text):
++                        current.append((dialog, text))
++                except Exception:
++                    continue
++            if current:
++                visible_dialogs = current
++                break
++
++        # This method is called after the owner `下架` click. Missing or multiple
++        # confirmation dialogs are therefore an unknown outcome and must fail closed.
++        if len(visible_dialogs) != 1:
++            return None, True, False
++
++        dialog, dialog_text = visible_dialogs[0]
++        normalized_dialog = self._normalize_action_text(dialog_text)
++        offline_markers = ("下架", "停止出售", "暂停出售", "停止销售")
++        dangerous_markers = ("删除", "永久删除", "注销", "清空", "编辑", "发布", "上架")
++        if not any(marker in normalized_dialog for marker in offline_markers):
++            return None, True, False
++        if any(marker in normalized_dialog for marker in dangerous_markers):
++            return None, True, False
++
++        positive_texts = {"确定", "确认", "确定下架", "确认下架"}
++        cancel_texts = {"取消", "关闭"}
++
++        # Preserve the semantic-button path first. If the official dialog renders its
++        # controls as non-semantic div/span nodes, fall back strictly inside this same
++        # dialog using normalized exact text and leaf-most deduplication.
++        semantic_selector = "button, [role='button']"
++        semantic_positive = await self._collect_dialog_exact_controls(
++            dialog, semantic_selector, positive_texts
++        )
++        semantic_cancel = await self._collect_dialog_exact_controls(
++            dialog, semantic_selector, cancel_texts
++        )
++        if len(semantic_positive) > 1:
++            return None, True, False
++        if len(semantic_positive) == 1 and semantic_cancel:
++            return semantic_positive[0], True, True
++
++        fallback_selector = "button, [role='button'], div, span"
++        fallback_positive = await self._collect_dialog_exact_controls(
++            dialog, fallback_selector, positive_texts
++        )
++        fallback_cancel = await self._collect_dialog_exact_controls(
++            dialog, fallback_selector, cancel_texts
++        )
++
++        # The official normal-Web confirm helper has one cancel/close escape action and
++        # one positive action. Exact text prevents the title `确定要下架这个宝贝吗？` from
++        # becoming a positive candidate; leaf-most dedup prevents div > span wrappers
++        # from counting the same action twice. Any remaining ambiguity fails closed.
++        if len(fallback_positive) != 1 or not fallback_cancel:
++            return None, True, False
++        return fallback_positive[0], True, True
++
++    async def _snapshot_offline_success_notices(self) -> dict[str, int]:
++        """Count visible explicit off-shelf success notices without scanning page body text."""
++        if not self.page:
++            return {}
++        selector = "[role='alert'], [class*='toast'], [class*='message']"
++        try:
++            elements = await self.page.query_selector_all(selector)
++        except Exception:
++            return {}
++        notices: dict[str, int] = {}
++        for element in elements:
++            try:
++                if not await element.is_visible():
++                    continue
++                text = self._normalize_action_text(await element.inner_text())
++                if not self._is_offline_success_notice_text(text):
++                    continue
++                notices[text] = notices.get(text, 0) + 1
++            except Exception:
++                continue
++        return notices
++
++    @staticmethod
++    def _has_new_offline_success_notice(
++        previous: dict[str, int],
++        current: dict[str, int],
++    ) -> bool:
++        return any(count > int(previous.get(text, 0) or 0) for text, count in current.items())
++
++    async def _current_detail_item_matches(self, item_id: str) -> bool:
++        if not self.page:
++            return False
++        current_url = self.page.url or ""
++        match = re.search(r"[?&]id=(\d+)", current_url)
++        return bool(match and match.group(1) == str(item_id))
++
++    async def _owner_action_reverse_state(self, owner_context_path: list[int] | None) -> str | None:
++        """Read an exact reverse state only from the same pre-action owner-operation DOM location."""
++        if not self.page or owner_context_path is None:
++            return None
++        try:
++            return await self.page.evaluate(
++                """
++                (path) => {
++                    let node = document.body;
++                    for (const index of path) {
++                        if (!node || !node.children || index < 0 || index >= node.children.length) return null;
++                        node = node.children[index];
++                    }
++                    if (!node) return null;
++                    const contextText = (node.innerText || node.textContent || '').replace(/\\s+/g, ' ').trim();
++                    if (!contextText.includes('删除') || contextText.length > 500) return null;
++                    const normalize = (value) => (value || '').replace(/\\s+/g, '');
++                    const nodes = [node, ...node.querySelectorAll('button,[role="button"],a,div,span')];
++                    for (const expected of ['重新上架', '上架', '已下架']) {
++                        for (const element of nodes) {
++                            const style = getComputedStyle(element);
++                            const rect = element.getBoundingClientRect();
++                            if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') === 0) continue;
++                            if (!rect || rect.width <= 0 || rect.height <= 0) continue;
++                            if (normalize(element.innerText || element.textContent || '') === expected) return expected;
++                        }
++                    }
++                    return null;
++                }
++                """,
++                owner_context_path,
++            )
++        except Exception:
++            return None
++
++    async def _offline_ui_success_evidence(
++        self,
++        *,
++        item_id: str,
++        previous_success_notices: dict[str, int],
++        owner_context_path: list[int] | None,
++    ) -> bool:
++        """Confirm off-shelf success only with target-bound post-action evidence."""
++        if not await self._current_detail_item_matches(item_id):
++            return False
++        if await self._page_auth_or_verification_failure():
++            return False
++
++        current_notices = await self._snapshot_offline_success_notices()
++        if self._has_new_offline_success_notice(previous_success_notices, current_notices):
++            return await self._current_detail_item_matches(item_id)
++
++        offline_control, ambiguous = await self._find_unique_offline_control()
++        if ambiguous or offline_control is not None:
++            return False
++        reverse_state = await self._owner_action_reverse_state(owner_context_path)
++        if reverse_state not in {"上架", "重新上架", "已下架"}:
++            return False
++        return await self._current_detail_item_matches(item_id)
++
++    async def _wait_for_offline_ui_success(
++        self,
++        *,
++        item_id: str,
++        previous_success_notices: dict[str, int],
++        owner_context_path: list[int] | None,
++    ) -> bool:
++        if not self.page:
++            return False
++        loop = asyncio.get_running_loop()
++        deadline = loop.time() + 10
++        while loop.time() < deadline:
++            if await self._offline_ui_success_evidence(
++                item_id=item_id,
++                previous_success_notices=previous_success_notices,
++                owner_context_path=owner_context_path,
++            ):
++                return True
++            if not await self._current_detail_item_matches(item_id):
++                return False
++            if await self._page_auth_or_verification_failure():
++                return False
++            await asyncio.sleep(0.5)
++        return False
++
++    async def offline_item(self, *, item_id: str, cookies_str: str) -> dict[str, Any]:
++        """Take one normal-account item off sale through its official Web owner UI."""
++        normalized_item_id = str(item_id or "").strip()
++        result: dict[str, Any] = {
++            "item_id": normalized_item_id,
++            "success": False,
++            "message": "",
++            "ui_actions": 0,
++            "unique_offline_control_found": False,
++            "ambiguous_offline_control": False,
++            "confirm_dialog_required": False,
++            "confirm_dialog_safe": False,
++            "ui_success": False,
++            "auth_failure": False,
++        }
++        try:
++            detail_url = self.normal_item_detail_url(normalized_item_id)
++            await self.initialize(headless=True)
++            await self.set_cookies(cookies_str)
++            if not self.page:
++                raise Exception("browser_not_initialized")
++            await self.page.goto("https://www.goofish.com/", wait_until="domcontentloaded", timeout=30000)
++            await asyncio.sleep(1)
++            await self.page.goto(detail_url, wait_until="domcontentloaded", timeout=30000)
++            await asyncio.sleep(3)
++
++            failure = await self._page_auth_or_verification_failure()
++            if failure:
++                result["auth_failure"] = failure == "login_required"
++                result["message"] = failure
++                return result
++
++            current_url = self.page.url or ""
++            match = re.search(r"[?&]id=(\d+)", current_url)
++            if not match or match.group(1) != normalized_item_id:
++                result["message"] = "target_item_mismatch"
++                return result
++
++            offline_control, ambiguous = await self._find_unique_offline_control()
++            result["ambiguous_offline_control"] = ambiguous
++            if ambiguous:
++                result["message"] = "ambiguous_offline_control"
++                return result
++            if offline_control is None:
++                result["message"] = "offline_control_not_found"
++                return result
++            result["unique_offline_control_found"] = True
++            owner_context_path = await self._owner_action_context_path(offline_control)
++            previous_success_notices = await self._snapshot_offline_success_notices()
++
++            await offline_control.click(timeout=5000)
++            result["ui_actions"] += 1
++            await asyncio.sleep(0.8)
++
++            confirm_button, dialog_required, dialog_safe = await self._find_safe_offline_confirmation()
++            result["confirm_dialog_required"] = dialog_required
++            result["confirm_dialog_safe"] = dialog_safe
++            if dialog_required and not dialog_safe:
++                result["message"] = "unsafe_or_ambiguous_offline_confirmation"
++                return result
++            if confirm_button is not None:
++                await confirm_button.click(timeout=5000)
++                result["ui_actions"] += 1
++
++            result["ui_success"] = await self._wait_for_offline_ui_success(
++                item_id=normalized_item_id,
++                previous_success_notices=previous_success_notices,
++                owner_context_path=owner_context_path,
++            )
++            result["success"] = bool(result["ui_success"])
++            result["message"] = "offline_success" if result["success"] else "offline_state_unconfirmed"
++            return result
++        except Exception as exc:
++            result["message"] = f"browser_failure:{type(exc).__name__}"
++            logger.warning(f"普通Web下架失败 item={normalized_item_id}: {type(exc).__name__}")
++            return result
++        finally:
++            await self.close()
++
+diff --git a/common/services/xianyu_publish_service.py b/common/services/xianyu_publish_service.py
+index 3b53ba2a1111166d47bf47399e1e7f13c61fb001..e95b5fe7a1da1c7f5a41535e2cb25b83b8de2795 100644
+--- a/common/services/xianyu_publish_service.py
++++ b/common/services/xianyu_publish_service.py
+@@ -30,0 +31,48 @@ def create_xianyu_publisher(static_root: str | Path | None = None) -> Any:
++async def offline_items_normal_web(
++    *,
++    cookies_str: str,
++    item_ids: list[str],
++) -> dict[str, Any]:
++    """逐商品使用普通 Web owner UI 下架，保持旧批量下架返回结构。"""
++    cleaned_ids: list[str] = []
++    seen: set[str] = set()
++    for raw_item_id in item_ids or []:
++        item_id = str(raw_item_id or "").strip()
++        if item_id and item_id not in seen:
++            seen.add(item_id)
++            cleaned_ids.append(item_id)
++
++    results: list[dict[str, Any]] = []
++    messages: list[str] = []
++    suc_count = 0
++    fail_count = 0
++    for item_id in cleaned_ids:
++        publisher = create_xianyu_publisher()
++        item_result = await publisher.offline_item(
++            item_id=item_id,
++            cookies_str=cookies_str,
++        )
++        success = bool(item_result.get("success"))
++        results.append({"item_id": item_id, "success": success})
++        if success:
++            suc_count += 1
++        else:
++            fail_count += 1
++            messages.append(str(item_result.get("message") or "下架失败"))
++
++    if not cleaned_ids:
++        message = "没有有效的商品ID"
++    elif suc_count == 0:
++        message = messages[0] if messages else "下架失败"
++    else:
++        message = f"下架成功 {suc_count} 个，失败 {fail_count} 个"
++    return {
++        "success": suc_count > 0,
++        "message": message,
++        "suc_count": suc_count,
++        "fail_count": fail_count,
++        "results": results,
++        "cookies_str": cookies_str,
++    }
++
++
+diff --git a/docker/frontend/Dockerfile b/docker/frontend/Dockerfile
+index a456e1833f132b5264b1108b743184ca17a51886..c114001796774083cd3c0385b94bdc2b45a0f191 100644
+--- a/docker/frontend/Dockerfile
++++ b/docker/frontend/Dockerfile
+@@ -47 +47 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+-    CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
++    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1
+diff --git a/frontend/.eslintrc.cjs b/frontend/.eslintrc.cjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..29c43944e848954ebee4e4ea644727dbe87b2032
+--- /dev/null
++++ b/frontend/.eslintrc.cjs
+@@ -0,0 +1,17 @@
++module.exports = {
++  root: true,
++  env: {
++    browser: true,
++    es2021: true,
++    node: true,
++  },
++  parser: '@typescript-eslint/parser',
++  parserOptions: {
++    ecmaVersion: 'latest',
++    sourceType: 'module',
++    ecmaFeatures: { jsx: true },
++  },
++  plugins: ['react-hooks', 'react-refresh'],
++  ignorePatterns: ['dist/', 'node_modules/'],
++  rules: {},
++}
+diff --git a/frontend/package.json b/frontend/package.json
+index 4bfd6ac2613e58fc21c4a3d09250c603cf7109bc..3b37871dd454545eff603a82833fd1d20f3e2a31 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -9 +9,2 @@
+-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
++    "lint": "eslint . --ext ts,tsx --max-warnings 0",
++    "test:offline-ui": "node --test tests/itemsOffline.test.mjs",
+diff --git a/frontend/src/api/items.ts b/frontend/src/api/items.ts
+index f71efb9a3453aaf0af300a7ea9ee75c64650f5f6..165f0856b2c5442f999e59fffc278111a173a06a 100644
+--- a/frontend/src/api/items.ts
++++ b/frontend/src/api/items.ts
+@@ -120 +120,15 @@ export const batchDeleteItems = (ids: { cookie_id: string; item_id: string }[]):
+-export const batchOfflineItems = (cookieId: string, itemIds: string[]): Promise<ApiResponse> => {
++export interface OfflineItemResult {
++  item_id: string
++  success: boolean
++}
++
++export interface BatchOfflineResponseData {
++  results?: OfflineItemResult[]
++  suc_count?: number
++  fail_count?: number
++}
++
++export const batchOfflineItems = (
++  cookieId: string,
++  itemIds: string[],
++): Promise<ApiResponse<BatchOfflineResponseData>> => {
+diff --git a/frontend/src/pages/items/Items.tsx b/frontend/src/pages/items/Items.tsx
+index 98bd894918e335312caa5e8d7b91bb38d84670f8..8e2ef829012c022752e848019595997632730263 100644
+--- a/frontend/src/pages/items/Items.tsx
++++ b/frontend/src/pages/items/Items.tsx
+@@ -12,0 +13 @@ import type { Account, Item } from '@/types'
++import { buildBatchOfflinePlan, canStartSingleOffline, getOfflineFailureMessage, summarizeOfflineResponse } from './offlineUi'
+@@ -102,0 +104 @@ export function Items() {
++  const [singleOfflineConfirm, setSingleOfflineConfirm] = useState<Item | null>(null)
+@@ -104,0 +107,4 @@ export function Items() {
++  const batchOffliningRef = useRef(false)
++  const [offliningItemIds, setOffliningItemIds] = useState<Set<string>>(new Set())
++  const offliningItemIdsRef = useRef<Set<string>>(new Set())
++  const [offlineSucceededItemIds, setOfflineSucceededItemIds] = useState<Set<string>>(new Set())
+@@ -355 +361 @@ export function Items() {
+-  // ==================== 批量下架 ====================
++  // ==================== 商品下架 ====================
+@@ -357,4 +363,21 @@ export function Items() {
+-  // 打开批量下架确认框（账号下拉复用顶部「筛选账号」，必须选具体账号）
+-  const openBatchOffline = () => {
+-    if (selectedIds.size === 0) {
+-      addToast({ type: 'warning', message: '请先选择要下架的商品' })
++  const selectedOfflineItems = () => items.filter((item) => selectedIds.has(item.id))
++
++  const addSessionOfflineItems = (itemIds: string[]) => {
++    if (itemIds.length === 0) return
++    setOfflineSucceededItemIds((previous) => {
++      const next = new Set(previous)
++      itemIds.forEach((itemId) => next.add(itemId))
++      return next
++    })
++  }
++
++  const batchPlanFailureMessage = (reason: 'EMPTY' | 'ACCOUNT_REQUIRED' | 'MULTI_ACCOUNT' | 'ALREADY_OFFLINE') => {
++    if (reason === 'EMPTY') return '请先选择要下架的商品'
++    if (reason === 'ACCOUNT_REQUIRED') return '请先在顶部「筛选账号」选择具体账号后再下架'
++    if (reason === 'MULTI_ACCOUNT') return '选中商品包含其他账号，请重新筛选账号后选择'
++    return '选中商品包含本次页面会话中已下架的商品，请刷新后重新选择'
++  }
++
++  const openSingleOffline = (item: Item) => {
++    if (!canStartSingleOffline(item.item_id, offlineSucceededItemIds, offliningItemIdsRef.current)) {
++      addToast({ type: 'warning', message: '该商品已下架或正在下架，请勿重复提交' })
+@@ -363,2 +386,40 @@ export function Items() {
+-    if (!selectedAccount) {
+-      addToast({ type: 'warning', message: '请先在顶部「筛选账号」选择具体账号后再下架' })
++    setSingleOfflineConfirm(item)
++  }
++
++  const handleSingleOffline = async () => {
++    const item = singleOfflineConfirm
++    if (!item) return
++    if (!canStartSingleOffline(item.item_id, offlineSucceededItemIds, offliningItemIdsRef.current)) return
++
++    offliningItemIdsRef.current.add(item.item_id)
++    setOffliningItemIds((previous) => new Set(previous).add(item.item_id))
++    try {
++      const result = await batchOfflineItems(item.cookie_id, [item.item_id])
++      const summary = summarizeOfflineResponse(result, [item.item_id])
++      if (summary.successCount === 1 && summary.failCount === 0) {
++        addSessionOfflineItems([item.item_id])
++        addToast({ type: 'success', message: '商品已成功下架' })
++        setSingleOfflineConfirm(null)
++        await loadItems()
++      } else {
++        setSingleOfflineConfirm(null)
++        addToast({ type: 'error', message: getOfflineFailureMessage(result.message) })
++      }
++    } catch {
++      setSingleOfflineConfirm(null)
++      addToast({ type: 'error', message: '下架失败，请检查账号登录状态后重试。' })
++    } finally {
++      offliningItemIdsRef.current.delete(item.item_id)
++      setOffliningItemIds((previous) => {
++        const next = new Set(previous)
++        next.delete(item.item_id)
++        return next
++      })
++    }
++  }
++
++  const openBatchOffline = () => {
++    if (batchOffliningRef.current) return
++    const plan = buildBatchOfflinePlan(selectedOfflineItems(), selectedAccount, offlineSucceededItemIds)
++    if (!plan.ok) {
++      addToast({ type: 'warning', message: batchPlanFailureMessage(plan.reason) })
+@@ -370 +430,0 @@ export function Items() {
+-  // 执行批量下架（调用闲鱼接口，使用所选账号的Cookie）
+@@ -372,5 +432,3 @@ export function Items() {
+-    const itemIds = items
+-      .filter((item) => selectedIds.has(item.id))
+-      .map((item) => item.item_id)
+-    if (itemIds.length === 0) {
+-      addToast({ type: 'warning', message: '未找到选中的商品' })
++    if (batchOffliningRef.current) return
++    const plan = buildBatchOfflinePlan(selectedOfflineItems(), selectedAccount, offlineSucceededItemIds)
++    if (!plan.ok) {
+@@ -377,0 +436 @@ export function Items() {
++      addToast({ type: 'warning', message: batchPlanFailureMessage(plan.reason) })
+@@ -379,0 +439,2 @@ export function Items() {
++
++    batchOffliningRef.current = true
+@@ -382,11 +443,7 @@ export function Items() {
+-      const result = await batchOfflineItems(selectedAccount, itemIds)
+-      const data = result.data as
+-        | { results?: { item_id: string; success: boolean }[]; fail_count?: number }
+-        | undefined
+-      const failCount = data?.fail_count ?? 0
+-      if (result.success) {
+-        if (failCount > 0) {
+-          // 部分成功：用 warning 提示，并列出失败的商品ID（最多展示5个）
+-          const failedIds = (data?.results || []).filter((r) => !r.success).map((r) => r.item_id)
+-          const preview = failedIds.slice(0, 5).join('、')
+-          const suffix = failedIds.length > 5 ? ` 等 ${failedIds.length} 个` : ''
++      const result = await batchOfflineItems(plan.cookieId, plan.itemIds)
++      const summary = summarizeOfflineResponse(result, plan.itemIds)
++      if (summary.successCount > 0) {
++        addSessionOfflineItems(summary.successfulIds)
++        if (summary.partialFailure) {
++          const preview = summary.failedIds.slice(0, 5).join('、')
++          const suffix = summary.failedIds.length > 5 ? ` 等 ${summary.failedIds.length} 个` : ''
+@@ -395 +452 @@ export function Items() {
+-            message: `${result.message || '下架完成'}${preview ? `；失败商品：${preview}${suffix}` : ''}`,
++            message: `成功下架 ${summary.successCount} 个商品，失败 ${summary.failCount} 个${preview ? `；失败商品：${preview}${suffix}` : ''}`,
+@@ -398 +455 @@ export function Items() {
+-          addToast({ type: 'success', message: result.message || '下架成功' })
++          addToast({ type: 'success', message: `成功下架 ${summary.successCount} 个商品` })
+@@ -402 +459 @@ export function Items() {
+-        loadItems()
++        await loadItems()
+@@ -405 +462 @@ export function Items() {
+-        addToast({ type: 'error', message: result.message || '下架失败' })
++        addToast({ type: 'error', message: getOfflineFailureMessage(result.message) })
+@@ -409 +466 @@ export function Items() {
+-      addToast({ type: 'error', message: '批量下架失败' })
++      addToast({ type: 'error', message: '下架失败，请检查账号登录状态后重试。' })
+@@ -410,0 +468 @@ export function Items() {
++      batchOffliningRef.current = false
+@@ -1140,3 +1198,7 @@ export function Items() {
+-              <button onClick={openBatchOffline} className="btn-ios-secondary btn-sm whitespace-nowrap">
+-                <PackageX className="w-3.5 h-3.5" />
+-                下架选中 ({selectedIds.size})
++              <button
++                onClick={openBatchOffline}
++                disabled={offlining}
++                className="btn-ios-secondary btn-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
++              >
++                {offlining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PackageX className="w-3.5 h-3.5" />}
++                {offlining ? '下架中...' : `下架选中 (${selectedIds.size})`}
+@@ -1507 +1569,20 @@ export function Items() {
+-                      <div className="flex gap-1">
++                      <div className="flex gap-1 items-center">
++                        {offlineSucceededItemIds.has(item.item_id) ? (
++                          <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300" title="本次页面会话已确认下架">
++                            已下架
++                          </span>
++                        ) : (
++                          <button
++                            onClick={() => openSingleOffline(item)}
++                            disabled={offliningItemIds.has(item.item_id)}
++                            className="table-action-btn hover:!bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed"
++                            title="下架"
++                            data-offline-action="single"
++                          >
++                            {offliningItemIds.has(item.item_id) ? (
++                              <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
++                            ) : (
++                              <PackageX className="w-4 h-4 text-amber-500" />
++                            )}
++                          </button>
++                        )}
+@@ -2483,0 +2565,13 @@ export function Items() {
++      {/* 单商品下架确认弹窗 */}
++      <ConfirmModal
++        isOpen={singleOfflineConfirm !== null}
++        title="确认下架商品？"
++        message="确认将该商品从闲鱼下架吗？下架后不会删除商品。"
++        confirmText="确认下架"
++        cancelText="取消"
++        type="warning"
++        loading={singleOfflineConfirm ? offliningItemIds.has(singleOfflineConfirm.item_id) : false}
++        onConfirm={handleSingleOffline}
++        onCancel={() => setSingleOfflineConfirm(null)}
++      />
++
+@@ -2487,3 +2581,3 @@ export function Items() {
+-        title="批量下架确认"
+-        message={`确定要用账号「${selectedAccount}」下架选中的 ${selectedIds.size} 个商品吗？下架后商品将从在卖中移除（可在卖家后台重新上架）。`}
+-        confirmText="下架"
++        title="确认批量下架商品？"
++        message={`已选择 ${selectedIds.size} 个商品。确认下架这些商品吗？下架后不会删除商品。`}
++        confirmText="确认下架"
+@@ -2494 +2588,3 @@ export function Items() {
+-        onCancel={() => setBatchOfflineConfirm(false)}
++        onCancel={() => {
++          if (!batchOffliningRef.current) setBatchOfflineConfirm(false)
++        }}
+diff --git a/frontend/src/pages/items/offlineUi.ts b/frontend/src/pages/items/offlineUi.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..9d87290579f960bdbeac0576bb535b6387c8fa2a
+--- /dev/null
++++ b/frontend/src/pages/items/offlineUi.ts
+@@ -0,0 +1,115 @@
++import type { BatchOfflineResponseData } from '@/api/items'
++import type { ApiResponse, Item } from '@/types'
++
++export type OfflinePlanFailure = 'EMPTY' | 'ACCOUNT_REQUIRED' | 'MULTI_ACCOUNT' | 'ALREADY_OFFLINE'
++
++export type BatchOfflinePlan =
++  | { ok: true; cookieId: string; itemIds: string[] }
++  | { ok: false; reason: OfflinePlanFailure }
++
++export interface OfflineResultSummary {
++  successCount: number
++  failCount: number
++  successfulIds: string[]
++  failedIds: string[]
++  partialFailure: boolean
++  authFailure: boolean
++  verificationRequired: boolean
++}
++
++const normalizeMessage = (value?: string) => (value || '').trim().toLowerCase()
++
++export const isOfflineAuthFailureMessage = (message?: string): boolean => {
++  const value = normalizeMessage(message)
++  return [
++    'login_required',
++    'session_expired',
++    'session expired',
++    'cookie为空',
++    'cookie expired',
++    '登录状态',
++    '请先登录',
++  ].some((marker) => value.includes(marker))
++}
++
++export const isOfflineVerificationMessage = (message?: string): boolean => {
++  const value = normalizeMessage(message)
++  return [
++    'manual_verification_required',
++    '滑块验证',
++    '人脸验证',
++    '安全验证',
++    '验证码',
++  ].some((marker) => value.includes(marker))
++}
++
++export const getOfflineFailureMessage = (message?: string): string => {
++  if (isOfflineAuthFailureMessage(message)) {
++    return '账号登录状态已失效，请先恢复登录。'
++  }
++  if (isOfflineVerificationMessage(message)) {
++    return '账号需要人工验证，请先完成官方验证。'
++  }
++  return '下架失败，请检查账号登录状态后重试。'
++}
++
++export const buildBatchOfflinePlan = (
++  selectedItems: Item[],
++  selectedAccount: string,
++  sessionOfflineItemIds: ReadonlySet<string>,
++): BatchOfflinePlan => {
++  if (selectedItems.length === 0) return { ok: false, reason: 'EMPTY' }
++  if (!selectedAccount) return { ok: false, reason: 'ACCOUNT_REQUIRED' }
++  if (selectedItems.some((item) => item.cookie_id !== selectedAccount)) {
++    return { ok: false, reason: 'MULTI_ACCOUNT' }
++  }
++  if (selectedItems.some((item) => sessionOfflineItemIds.has(item.item_id))) {
++    return { ok: false, reason: 'ALREADY_OFFLINE' }
++  }
++  return {
++    ok: true,
++    cookieId: selectedAccount,
++    itemIds: Array.from(new Set(selectedItems.map((item) => item.item_id))),
++  }
++}
++
++export const summarizeOfflineResponse = (
++  response: ApiResponse<BatchOfflineResponseData>,
++  requestedIds: string[],
++): OfflineResultSummary => {
++  const results = Array.isArray(response.data?.results) ? response.data?.results || [] : []
++  const countedSuccess = results.filter((item) => item.success).length
++  const countedFailure = results.filter((item) => !item.success).length
++  const explicitSuccess = Number.isFinite(response.data?.suc_count)
++    ? Number(response.data?.suc_count)
++    : undefined
++  const explicitFailure = Number.isFinite(response.data?.fail_count)
++    ? Number(response.data?.fail_count)
++    : undefined
++
++  const successCount = explicitSuccess ?? (results.length > 0 ? countedSuccess : response.success ? requestedIds.length : 0)
++  const failCount = explicitFailure ?? (results.length > 0 ? countedFailure : response.success ? 0 : requestedIds.length)
++
++  const successfulIds = results.length > 0
++    ? results.filter((item) => item.success).map((item) => item.item_id)
++    : successCount === requestedIds.length
++      ? [...requestedIds]
++      : []
++  const failedIds = results.filter((item) => !item.success).map((item) => item.item_id)
++
++  return {
++    successCount,
++    failCount,
++    successfulIds,
++    failedIds,
++    partialFailure: successCount > 0 && failCount > 0,
++    authFailure: isOfflineAuthFailureMessage(response.message),
++    verificationRequired: isOfflineVerificationMessage(response.message),
++  }
++}
++
++export const canStartSingleOffline = (
++  itemId: string,
++  sessionOfflineItemIds: ReadonlySet<string>,
++  inFlightItemIds: ReadonlySet<string>,
++): boolean => !sessionOfflineItemIds.has(itemId) && !inFlightItemIds.has(itemId)
+diff --git a/frontend/tests/itemsOffline.test.mjs b/frontend/tests/itemsOffline.test.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..bfdd56df9f66806e7dbb65cc2d445883508790fa
+--- /dev/null
++++ b/frontend/tests/itemsOffline.test.mjs
+@@ -0,0 +1,167 @@
++import assert from 'node:assert/strict'
++import fs from 'node:fs'
++import path from 'node:path'
++import test from 'node:test'
++import ts from 'typescript'
++
++const frontendRoot = path.resolve(import.meta.dirname, '..')
++const helperPath = path.join(frontendRoot, 'src/pages/items/offlineUi.ts')
++const itemsPagePath = path.join(frontendRoot, 'src/pages/items/Items.tsx')
++const itemsApiPath = path.join(frontendRoot, 'src/api/items.ts')
++
++const helperSource = fs.readFileSync(helperPath, 'utf8')
++const itemsPageSource = fs.readFileSync(itemsPagePath, 'utf8')
++const itemsApiSource = fs.readFileSync(itemsApiPath, 'utf8')
++const transpiled = ts.transpileModule(helperSource, {
++  compilerOptions: {
++    module: ts.ModuleKind.ES2022,
++    target: ts.ScriptTarget.ES2020,
++  },
++}).outputText
++const helper = await import(`data:text/javascript;base64,${Buffer.from(transpiled).toString('base64')}`)
++
++const item = (id, account = 'acct-1') => ({ id, item_id: String(id), cookie_id: account })
++
++test('single item offline entry exists', () => {
++  assert.match(itemsPageSource, /data-offline-action="single"/)
++  assert.match(itemsPageSource, /onClick=\{\(\) => openSingleOffline\(item\)\}/)
++})
++
++test('single offline opens project confirmation dialog', () => {
++  assert.match(itemsPageSource, /title="确认下架商品？"/)
++  assert.match(itemsPageSource, /确认将该商品从闲鱼下架吗？下架后不会删除商品。/)
++})
++
++test('single cancel only closes dialog and confirm owns submit', () => {
++  assert.match(itemsPageSource, /onConfirm=\{handleSingleOffline\}/)
++  assert.match(itemsPageSource, /onCancel=\{\(\) => setSingleOfflineConfirm\(null\)\}/)
++})
++
++test('offline api uses existing batch-offline route and contract', () => {
++  assert.match(itemsApiSource, /post\(`\$\{ITEM_PREFIX\}\/batch-offline`, \{ cookie_id: cookieId, item_ids: itemIds \}\)/)
++})
++
++test('single handler sends exact item id through existing api', () => {
++  assert.match(itemsPageSource, /batchOfflineItems\(item\.cookie_id, \[item\.item_id\]\)/)
++})
++
++test('single success feedback is explicit', () => {
++  assert.match(itemsPageSource, /商品已成功下架/)
++})
++
++test('single success refreshes item list', () => {
++  const start = itemsPageSource.indexOf('const handleSingleOffline')
++  const end = itemsPageSource.indexOf('const openBatchOffline', start)
++  assert.ok(start >= 0 && end > start)
++  assert.match(itemsPageSource.slice(start, end), /await loadItems\(\)/)
++})
++
++test('single in-flight item cannot start again', () => {
++  assert.equal(helper.canStartSingleOffline('1', new Set(), new Set(['1'])), false)
++  assert.match(itemsPageSource, /disabled=\{offliningItemIds\.has\(item\.item_id\)\}/)
++})
++
++test('single session-confirmed offline item cannot submit again', () => {
++  assert.equal(helper.canStartSingleOffline('1', new Set(['1']), new Set()), false)
++})
++
++test('all-failure result remains failure', () => {
++  const summary = helper.summarizeOfflineResponse(
++    { success: false, message: 'offline_state_unconfirmed', data: { suc_count: 0, fail_count: 1, results: [{ item_id: '1', success: false }] } },
++    ['1'],
++  )
++  assert.equal(summary.successCount, 0)
++  assert.equal(summary.failCount, 1)
++  assert.deepEqual(summary.failedIds, ['1'])
++})
++
++test('partial success reports both counts and failed ids', () => {
++  const summary = helper.summarizeOfflineResponse(
++    { success: true, data: { suc_count: 1, fail_count: 1, results: [{ item_id: '1', success: true }, { item_id: '2', success: false }] } },
++    ['1', '2'],
++  )
++  assert.equal(summary.partialFailure, true)
++  assert.equal(summary.successCount, 1)
++  assert.equal(summary.failCount, 1)
++  assert.deepEqual(summary.failedIds, ['2'])
++})
++
++test('session expiry gets restore-login guidance', () => {
++  assert.equal(helper.getOfflineFailureMessage('login_required'), '账号登录状态已失效，请先恢复登录。')
++})
++
++test('verification requirement is not exposed as stack text', () => {
++  assert.equal(helper.getOfflineFailureMessage('manual_verification_required'), '账号需要人工验证，请先完成官方验证。')
++})
++
++test('frontend does not consume or display cookies_str', () => {
++  assert.equal(itemsPageSource.includes('cookies_str'), false)
++  assert.equal(helperSource.includes('cookies_str'), false)
++})
++
++test('delete row action remains separate from offline action', () => {
++  assert.match(itemsPageSource, /setDeleteItemConfirm\(\{ open: true, item \}\)/)
++  assert.match(itemsPageSource, /openSingleOffline\(item\)/)
++})
++
++test('single offline handler does not invoke delete api', () => {
++  const start = itemsPageSource.indexOf('const handleSingleOffline')
++  const end = itemsPageSource.indexOf('const openBatchOffline', start)
++  const block = itemsPageSource.slice(start, end)
++  assert.equal(block.includes('deleteItem('), false)
++  assert.equal(block.includes('batchDelete'), false)
++})
++
++test('item_status minus nine is not an offline authority', () => {
++  assert.equal(itemsPageSource.includes('item_status'), false)
++  assert.equal(helperSource.includes('item_status'), false)
++})
++
++test('empty batch selection never produces an api plan', () => {
++  assert.deepEqual(helper.buildBatchOfflinePlan([], 'acct-1', new Set()), { ok: false, reason: 'EMPTY' })
++})
++
++test('batch requires explicit account selection', () => {
++  assert.deepEqual(helper.buildBatchOfflinePlan([item(1)], '', new Set()), { ok: false, reason: 'ACCOUNT_REQUIRED' })
++})
++
++test('multi-account batch is rejected by current single-account design', () => {
++  assert.deepEqual(helper.buildBatchOfflinePlan([item(1, 'acct-1'), item(2, 'acct-2')], 'acct-1', new Set()), { ok: false, reason: 'MULTI_ACCOUNT' })
++})
++
++test('batch rejects session-confirmed already-offline selections', () => {
++  assert.deepEqual(helper.buildBatchOfflinePlan([item(1)], 'acct-1', new Set(['1'])), { ok: false, reason: 'ALREADY_OFFLINE' })
++})
++
++test('batch plan deduplicates platform item ids', () => {
++  const plan = helper.buildBatchOfflinePlan([item(1), { ...item(2), item_id: '1' }], 'acct-1', new Set())
++  assert.equal(plan.ok, true)
++  assert.deepEqual(plan.itemIds, ['1'])
++})
++
++test('batch confirmation explicitly distinguishes offline from delete', () => {
++  assert.match(itemsPageSource, /确认批量下架商品？/)
++  assert.match(itemsPageSource, /下架后不会删除商品。/)
++})
++
++test('batch has double-submit guard', () => {
++  assert.match(itemsPageSource, /if \(batchOffliningRef\.current\) return/)
++  assert.match(itemsPageSource, /batchOffliningRef\.current = true/)
++  assert.match(itemsPageSource, /batchOffliningRef\.current = false/)
++})
++
++test('batch partial failure ui shows success and failure counts', () => {
++  assert.match(itemsPageSource, /成功下架 \$\{summary\.successCount\} 个商品，失败 \$\{summary\.failCount\} 个/)
++})
++
++test('api exception always releases single and batch loading locks', () => {
++  assert.match(itemsPageSource, /offliningItemIdsRef\.current\.delete\(item\.item_id\)/)
++  assert.match(itemsPageSource, /batchOffliningRef\.current = false/)
++  assert.match(itemsPageSource, /setOfflining\(false\)/)
++})
++
++test('frontend container healthcheck uses explicit IPv4 loopback', () => {
++  const dockerfile = fs.readFileSync(path.join(frontendRoot, '..', 'docker/frontend/Dockerfile'), 'utf8')
++  assert.match(dockerfile, /http:\/\/127\.0\.0\.1:80\//)
++  assert.equal(dockerfile.includes('http://localhost:80/'), false)
++})
+diff --git a/tests/test_chg0019_normal_account_offline.py b/tests/test_chg0019_normal_account_offline.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..1bf35c6f25f767f055830a2660fa5dade096dc39
+--- /dev/null
++++ b/tests/test_chg0019_normal_account_offline.py
+@@ -0,0 +1,672 @@
++from __future__ import annotations
++
++import asyncio
++import importlib.util
++import sys
++import types
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++PUBLISHER_PATH = ROOT / "backend-web" / "app" / "services" / "xianyu_publisher.py"
++ITEMS_ROUTE_PATH = ROOT / "backend-web" / "app" / "api" / "routes" / "items.py"
++
++
++def load_publisher_module():
++    loguru_module = types.ModuleType("loguru")
++    loguru_module.logger = types.SimpleNamespace(
++        info=lambda *args, **kwargs: None,
++        warning=lambda *args, **kwargs: None,
++        error=lambda *args, **kwargs: None,
++    )
++    sys.modules.setdefault("loguru", loguru_module)
++
++    playwright_module = types.ModuleType("playwright")
++    playwright_async_module = types.ModuleType("playwright.async_api")
++    playwright_async_module.Browser = object
++    playwright_async_module.BrowserContext = object
++    playwright_async_module.Page = object
++    playwright_async_module.async_playwright = lambda: None
++    sys.modules.setdefault("playwright", playwright_module)
++    sys.modules.setdefault("playwright.async_api", playwright_async_module)
++
++    common_module = types.ModuleType("common")
++    common_module.__path__ = [str(ROOT / "common")]
++    sys.modules.setdefault("common", common_module)
++    common_utils_module = types.ModuleType("common.utils")
++    common_utils_module.__path__ = [str(ROOT / "common" / "utils")]
++    sys.modules.setdefault("common.utils", common_utils_module)
++    browser_utils_module = types.ModuleType("common.utils.browser_utils")
++    browser_utils_module.ensure_playwright_browser_path = lambda: None
++    browser_utils_module.get_chromium_executable_path = lambda: None
++    sys.modules.setdefault("common.utils.browser_utils", browser_utils_module)
++
++    common_services_module = types.ModuleType("common.services")
++    common_services_module.__path__ = [str(ROOT / "common" / "services")]
++    sys.modules.setdefault("common.services", common_services_module)
++    image_service_module = types.ModuleType("common.services.publish_image_service")
++    image_service_module.cleanup_temp_images = lambda paths: None
++
++    async def download_remote_image(url):
++        return url
++
++    image_service_module.download_remote_image = download_remote_image
++    sys.modules.setdefault("common.services.publish_image_service", image_service_module)
++    cookie_service_module = types.ModuleType("common.services.cookie_renew_browser_service")
++    cookie_service_module.get_pure_account_id = lambda account_id: str(account_id).split("_", 1)[0].strip()
++    cookie_service_module.get_browser_data_root = lambda: str(ROOT / "browser_data")
++    cookie_service_module.get_account_browser_profile_dir = (
++        lambda account_id: str(ROOT / "browser_data" / f"user_{str(account_id).split('_', 1)[0].strip()}")
++    )
++    sys.modules.setdefault("common.services.cookie_renew_browser_service", cookie_service_module)
++
++    spec = importlib.util.spec_from_file_location("chg0019_xianyu_publisher", PUBLISHER_PATH)
++    assert spec and spec.loader
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
++
++
++class FakeElement:
++    def __init__(
++        self,
++        text: str,
++        context: str = "下架 删除",
++        visible: bool = True,
++        enabled: bool = True,
++        *,
++        tag: str = "button",
++        role: str | None = None,
++        pointer_events: str = "auto",
++        obscured: bool = False,
++    ):
++        self.text = text
++        self.context = context
++        self.visible = visible
++        self.enabled = enabled
++        self.tag = tag.lower()
++        self.role = role
++        self.pointer_events = pointer_events
++        self.obscured = obscured
++        self.clicks = 0
++        self.children: list[FakeElement] = []
++
++    async def inner_text(self):
++        return self.text
++
++    async def is_visible(self):
++        return self.visible
++
++    async def is_enabled(self):
++        return self.enabled
++
++    async def bounding_box(self):
++        return {"width": 80, "height": 30} if self.visible else None
++
++    def _descendants(self):
++        result = []
++        for child in self.children:
++            result.append(child)
++            result.extend(child._descendants())
++        return result
++
++    @staticmethod
++    def _matches_selector(element, selector: str) -> bool:
++        parts = {part.strip() for part in selector.split(",")}
++        return (
++            element.tag in parts
++            or ("[role='button']" in parts and element.role == "button")
++            or ('[role="button"]' in parts and element.role == "button")
++        )
++
++    async def evaluate(self, script, *args):
++        if "pointerEvents" in script and "elementFromPoint" not in script:
++            return self.pointer_events
++        if "elementFromPoint" in script:
++            return not self.obscured
++        if "querySelectorAll('button,[role=\"button\"],div,span')" in script:
++            allowed = set(args[0] if args else [])
++            for child in self._descendants():
++                normalized = "".join(child.text.split())
++                if normalized in allowed and child.visible:
++                    box = await child.bounding_box()
++                    if box and box["width"] > 0 and box["height"] > 0:
++                        return True
++            return False
++        return self.context
++
++    async def click(self, **kwargs):
++        if not kwargs.get("trial"):
++            self.clicks += 1
++
++    async def query_selector_all(self, selector):
++        return [element for element in self._descendants() if self._matches_selector(element, selector)]
++
++
++class FakePage:
++    def __init__(
++        self,
++        elements=None,
++        *,
++        url="https://www.goofish.com/item?id=1070515947040",
++        body="",
++        selector_map=None,
++        owner_context_state=None,
++    ):
++        self.elements = list(elements or [])
++        self.url = url
++        self.body = body
++        self.selector_map = dict(selector_map or {})
++        self.owner_context_state = owner_context_state
++
++    async def query_selector_all(self, selector):
++        if selector in self.selector_map:
++            return self.selector_map[selector]
++        return self.elements
++
++    async def evaluate(self, script, *args):
++        if "for (const expected of ['重新上架', '上架', '已下架'])" in script:
++            return self.owner_context_state
++        return self.body
++
++
++def run_dialog_classifier(
++    title: str,
++    buttons: list[str],
++    *,
++    page_body: str = "",
++    tag: str = "button",
++    role: str | None = None,
++):
++    module = load_publisher_module()
++    dialog = FakeElement(title, tag="div", role="dialog")
++    dialog.children = [FakeElement(text, context="", tag=tag, role=role) for text in buttons]
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(
++        body=page_body,
++        selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []},
++    )
++    return asyncio.run(publisher._find_safe_offline_confirmation())
++
++
++def run_offline_success_evidence(
++    *,
++    body="",
++    url="https://www.goofish.com/item?id=1070515947040",
++    target_offline_control_present=False,
++    current_notices=None,
++    previous_notices=None,
++    owner_context_state=None,
++    owner_context_present=True,
++):
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    notice_selector = "[role='alert'], [class*='toast'], [class*='message']"
++    publisher.page = FakePage(
++        elements=[FakeElement("下架")] if target_offline_control_present else [],
++        url=url,
++        body=body,
++        selector_map={
++            notice_selector: [FakeElement(text, context="") for text in (current_notices or [])]
++        },
++        owner_context_state=owner_context_state,
++    )
++    return asyncio.run(
++        publisher._offline_ui_success_evidence(
++            item_id="1070515947040",
++            previous_success_notices=dict(previous_notices or {}),
++            owner_context_path=[0] if owner_context_present else None,
++        )
++    )
++
++
++def test_normal_item_detail_url_is_deterministic():
++    module = load_publisher_module()
++    assert module.XianyuPublisher.normal_item_detail_url("1070515947040") == "https://www.goofish.com/item?id=1070515947040"
++
++
++def test_unique_offline_control_is_required():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage([FakeElement("下架")])
++    control, ambiguous = asyncio.run(publisher._find_unique_offline_control())
++    assert control is not None
++    assert ambiguous is False
++
++
++def test_missing_offline_control_fails_closed():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage([FakeElement("编辑"), FakeElement("删除")])
++    control, ambiguous = asyncio.run(publisher._find_unique_offline_control())
++    assert control is None
++    assert ambiguous is False
++
++
++def test_multiple_offline_controls_fail_closed():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage([FakeElement("下架"), FakeElement("下架")])
++    control, ambiguous = asyncio.run(publisher._find_unique_offline_control())
++    assert control is None
++    assert ambiguous is True
++
++
++def test_delete_is_never_an_offline_action():
++    module = load_publisher_module()
++    cls = module.XianyuPublisher
++    assert cls._is_safe_offline_action_text("删除") is False
++    assert cls._is_safe_offline_action_text("确认删除") is False
++    assert cls._is_delete_semantics("永久删除") is True
++
++
++def test_confirmation_requires_explicit_offline_semantics():
++    module = load_publisher_module()
++    cls = module.XianyuPublisher
++    assert cls._is_safe_offline_confirmation("确认下架该商品？", "确定") is True
++    assert cls._is_safe_offline_confirmation("确认删除该商品？", "确定") is False
++    assert cls._is_safe_offline_confirmation("确认操作？", "确定") is False
++    assert cls._is_safe_offline_confirmation("确认下架？", "下架") is False
++
++
++def test_dialog_confirm_offline_with_cancel_and_ok_is_safe():
++    button, required, safe = run_dialog_classifier("确认下架该商品？", ["取消", "确定"])
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_confirm_offline_with_cancel_and_confirm_is_safe():
++    button, required, safe = run_dialog_classifier("确认下架？", ["取消", "确认"])
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_confirm_offline_with_explicit_confirm_text_is_safe():
++    button, required, safe = run_dialog_classifier("确认下架？", ["取消", "确定下架"])
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_delete_semantics_with_generic_ok_is_unsafe():
++    button, required, safe = run_dialog_classifier("确认删除该商品？", ["取消", "确定"])
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_dialog_irreversible_delete_semantics_is_unsafe():
++    button, required, safe = run_dialog_classifier("删除后无法恢复", ["取消", "确定"])
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_background_delete_text_does_not_pollute_local_offline_dialog():
++    button, required, safe = run_dialog_classifier(
++        "确认下架？",
++        ["取消", "确定"],
++        page_body="页面背景卖家操作：下架 删除 编辑",
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_without_offline_semantics_is_unsafe():
++    button, required, safe = run_dialog_classifier("确认操作？", ["取消", "确定"])
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_dialog_with_multiple_positive_confirm_controls_is_unsafe():
++    button, required, safe = run_dialog_classifier("确认下架？", ["取消", "确定", "确认"])
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_missing_dialog_is_unsafe_after_offline_click():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(selector_map={"[role='dialog']": [], ".ant-modal-content": []})
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_dialog_with_offline_and_delete_conflict_is_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确认下架该商品？删除后无法恢复",
++        ["取消", "确定"],
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nested_ant_modal_container_is_not_double_counted_when_role_dialog_exists():
++    module = load_publisher_module()
++    dialog = FakeElement("确定要下架这个宝贝吗？")
++    dialog.children = [FakeElement("取消", context=""), FakeElement("确定", context="")]
++    nested = FakeElement("确定要下架这个宝贝吗？")
++    nested.children = dialog.children
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(
++        selector_map={"[role='dialog']": [dialog], ".ant-modal-content": [nested]},
++    )
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is dialog.children[1]
++    assert required is True
++    assert safe is True
++
++
++def test_nonsemantic_div_cancel_and_ok_is_safe():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["取消", "确定"], tag="div"
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++    assert button.text == "确定"
++
++
++def test_nonsemantic_span_cancel_and_ok_is_safe():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["取消", "确定"], tag="span"
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++    assert button.text == "确定"
++
++
++def test_nonsemantic_nested_div_span_uses_leaf_most_exact_text_once():
++    module = load_publisher_module()
++    dialog = FakeElement("确定要下架这个宝贝吗？", tag="div", role="dialog")
++    cancel = FakeElement("取消", context="", tag="div")
++    positive_wrapper = FakeElement("确定", context="", tag="div")
++    positive_leaf = FakeElement("确定", context="", tag="span")
++    positive_wrapper.children = [positive_leaf]
++    dialog.children = [cancel, positive_wrapper]
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []})
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is positive_leaf
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_title_starting_with_ok_is_not_treated_as_ok_control():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["取消"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_delete_dialog_with_generic_ok_is_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确定要删除这个宝贝吗？", ["取消", "确定"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_two_independent_positive_leaf_nodes_are_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["取消", "确定", "确定"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_positive_without_cancel_escape_is_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确定要下架这个宝贝吗？", ["确定"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_background_dangerous_and_ok_text_do_not_pollute_nonsemantic_dialog():
++    button, required, safe = run_dialog_classifier(
++        "确认下架？",
++        ["取消", "确定"],
++        tag="div",
++        page_body="页面背景：删除 确定 编辑 上架",
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_dialog_external_extra_ok_does_not_pollute_local_fallback():
++    module = load_publisher_module()
++    dialog = FakeElement("确认下架？", tag="div", role="dialog")
++    dialog.children = [
++        FakeElement("取消", context="", tag="div"),
++        FakeElement("确定", context="", tag="div"),
++    ]
++    external_ok = FakeElement("确定", context="", tag="div")
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(
++        elements=[external_ok],
++        selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []},
++    )
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is dialog.children[1]
++    assert required is True
++    assert safe is True
++
++
++def test_hidden_duplicate_nonsemantic_ok_does_not_count():
++    module = load_publisher_module()
++    dialog = FakeElement("确认下架？", tag="div", role="dialog")
++    visible_ok = FakeElement("确定", context="", tag="div")
++    hidden_ok = FakeElement("确定", context="", tag="span", visible=False)
++    dialog.children = [
++        FakeElement("取消", context="", tag="div"),
++        visible_ok,
++        hidden_ok,
++    ]
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []})
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is visible_ok
++    assert required is True
++    assert safe is True
++
++
++def test_original_button_confirm_path_remains_safe():
++    button, required, safe = run_dialog_classifier("确认下架？", ["取消", "确定"], tag="button")
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_original_role_button_confirm_path_remains_safe():
++    button, required, safe = run_dialog_classifier(
++        "确认下架？", ["取消", "确定"], tag="div", role="button"
++    )
++    assert button is not None
++    assert required is True
++    assert safe is True
++
++
++def test_nonsemantic_ok_obscured_by_overlay_is_unsafe():
++    module = load_publisher_module()
++    dialog = FakeElement("确认下架？", tag="div", role="dialog")
++    obscured_ok = FakeElement("确定", context="", tag="div", obscured=True)
++    dialog.children = [FakeElement("取消", context="", tag="div"), obscured_ok]
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(selector_map={"[role='dialog']": [dialog], ".ant-modal-content": []})
++    button, required, safe = asyncio.run(publisher._find_safe_offline_confirmation())
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_controls_without_offline_semantics_are_unsafe():
++    button, required, safe = run_dialog_classifier("确认操作？", ["取消", "确定"], tag="div")
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_nonsemantic_offline_delete_conflict_is_unsafe():
++    button, required, safe = run_dialog_classifier(
++        "确认下架？删除后无法恢复", ["取消", "确定"], tag="div"
++    )
++    assert button is None
++    assert required is True
++    assert safe is False
++
++
++def test_login_page_is_auth_failure():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++    publisher.page = FakePage(url="https://login.taobao.com/member/login.jhtml")
++    assert asyncio.run(publisher._page_auth_or_verification_failure()) == "login_required"
++
++
++def test_offline_success_state_parser():
++    module = load_publisher_module()
++    cls = module.XianyuPublisher
++    assert cls._is_offline_success_text("下架成功") is True
++    assert cls._is_offline_success_text("商品已下架") is True
++    assert cls._is_offline_success_text("点击下架") is False
++
++
++def test_page_body_offline_text_does_not_confirm_target_still_has_offline_control():
++    assert run_offline_success_evidence(
++        body="页面其他区域 已下架",
++        target_offline_control_present=True,
++    ) is False
++
++
++def test_recommended_item_offline_text_does_not_confirm_target_item():
++    assert run_offline_success_evidence(
++        body="推荐商品：商品已下架",
++        target_offline_control_present=True,
++    ) is False
++
++
++def test_stale_success_toast_does_not_confirm_current_transaction():
++    assert run_offline_success_evidence(
++        current_notices=["下架成功"],
++        previous_notices={"下架成功": 1},
++        target_offline_control_present=True,
++    ) is False
++
++
++def test_new_success_toast_confirms_current_target_transaction():
++    assert run_offline_success_evidence(
++        current_notices=["下架成功"],
++        previous_notices={},
++        target_offline_control_present=True,
++    ) is True
++
++
++def test_target_owner_context_offline_disappears_and_relist_appears():
++    assert run_offline_success_evidence(
++        target_offline_control_present=False,
++        owner_context_state="上架",
++    ) is True
++
++
++def test_target_owner_context_offline_disappears_and_explicit_offline_state_appears():
++    assert run_offline_success_evidence(
++        target_offline_control_present=False,
++        owner_context_state="已下架",
++    ) is True
++
++
++def test_offline_control_disappearance_alone_is_not_success():
++    assert run_offline_success_evidence(
++        target_offline_control_present=False,
++        owner_context_state=None,
++    ) is False
++
++
++def test_url_change_to_other_item_rejects_success_evidence():
++    assert run_offline_success_evidence(
++        url="https://www.goofish.com/item?id=9999999999999",
++        body="已下架",
++        current_notices=["下架成功"],
++        owner_context_state="已下架",
++    ) is False
++
++
++def test_login_or_verification_page_rejects_success():
++    assert run_offline_success_evidence(
++        body="请先登录后继续",
++        current_notices=["下架成功"],
++    ) is False
++
++
++def test_missing_target_owner_context_does_not_use_body_offline_text():
++    assert run_offline_success_evidence(
++        body="已下架",
++        target_offline_control_present=False,
++        owner_context_present=False,
++    ) is False
++
++
++def test_batch_results_are_independent(monkeypatch):
++    from common.services import xianyu_publish_service as service
++
++    outcomes = iter([
++        {"success": True, "message": "offline_success"},
++        {"success": False, "message": "offline_control_not_found"},
++    ])
++
++    class FakePublisher:
++        async def offline_item(self, **kwargs):
++            return next(outcomes)
++
++    monkeypatch.setattr(service, "create_xianyu_publisher", lambda: FakePublisher())
++    result = asyncio.run(
++        service.offline_items_normal_web(cookies_str="masked", item_ids=["1", "2"])
++    )
++    assert result["suc_count"] == 1
++    assert result["fail_count"] == 1
++    assert result["results"] == [
++        {"item_id": "1", "success": True},
++        {"item_id": "2", "success": False},
++    ]
++
++
++def test_batch_offline_route_reads_counts_from_normal_web_result():
++    source = ITEMS_ROUTE_PATH.read_text(encoding="utf-8")
++    call_index = source.index("result = await offline_items_normal_web(")
++    success_count_index = source.index('suc_count = int(result.get("suc_count", 0) or 0)', call_index)
++    failure_count_index = source.index('fail_count = int(result.get("fail_count", 0) or 0)', call_index)
++    logger_index = source.index("logger.info(", failure_count_index)
++    assert call_index < success_count_index < failure_count_index < logger_index
++
++
++def test_browser_exception_returns_failure_not_success():
++    module = load_publisher_module()
++    publisher = module.XianyuPublisher()
++
++    async def broken_initialize(*args, **kwargs):
++        raise RuntimeError("browser exploded")
++
++    async def harmless_close():
++        return None
++
++    publisher.initialize = broken_initialize
++    publisher.close = harmless_close
++    result = asyncio.run(publisher.offline_item(item_id="1070515947040", cookies_str="masked"))
++    assert result["success"] is False
++    assert result["ui_success"] is False
++    assert result["message"].startswith("browser_failure:")

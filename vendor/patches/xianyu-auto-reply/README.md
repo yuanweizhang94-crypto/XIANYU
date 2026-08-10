@@ -196,6 +196,26 @@ with bounded Session failure handling and Scheduler restart count zero.
 - Git binary patch syntax requires a terminating blank separator line. This vendor directory therefore tracks a `.gitattributes` entry that marks only the current formal CHG-0018 Patch as `binary`, allowing the outer XIANYU repository `git diff --check` to treat the generated artifact as opaque data without changing its bytes.
 - T12 does not change frontend source or deploy any production runtime.
 
+## CHG-0019 main integration after CHG-0018 T12
+
+Current formal upstream layering for `main` is:
+
+1. `4c5e1ac-chg0017-reply-identity-allowlist.patch` — canonical SHA256 `14820F96672A67E5B63EB22C8A5A3F1C0C16F8002E5514FB956EF5FBB8BC3329`.
+2. `4c5e1ac-chg0018-account-profile-publish-safety.patch` — T12 SHA256 `B379A7286D10EF1988361940AB9DB6C84AF0D0BB50D13F6910B52011BB0BD111`; this already contains the locked T11 supplement and the supplement must not be applied again.
+3. `4c5e1ac-chg0019-main-integration-after-chg0018-t12.patch` — SHA256 `A0A07EA2EC4BC0046CBA39DA478EC9E530E1FBD10A9EEE23F3311D1A38677392`.
+
+The CHG-0019 main-integration Patch is a Git-generated incremental layer from the exact current T12 target to the reviewed CHG-0019 hardened target. Its three-way base is the historical pre-T12 CHG-0018 target (`94C8682263C17DBD416BE115534412E8EAC340E161AC5D24DAFDF202015FFDFD`); OURS is that base plus the locked T11 supplement, and THEIRS is that base plus the historical CHG-0019 formal-delivery and PR #28 hardening layers. Git completed the merge cleanly, including the overlapping `backend-web/app/services/xianyu_publisher.py`, with no manual business-conflict resolution.
+
+Validation for the current layer: Patch parse PASS, strict clean apply PASS, applied `git diff --check` PASS, and final source Git-tree equivalence PASS. The exact replay chain `PINNED -> CHG-0017 -> CHG-0018 T12 -> CHG-0019 main-integration` reproduces the merged target. CHG-0019 targeted tests pass 47/47, CHG-0018/T11 targeted regressions pass 38/38, CHG-0017 regressions pass 58/58, frontend offline UI tests pass 27/27, frontend lint passes, and frontend build passes. No new real canary or production deployment is part of this integration.
+
+Historical CHG-0019 artifacts are retained for audit and are **HISTORICAL / SUPERSEDED_FOR_CURRENT_MAIN_LAYERING**:
+
+- `4c5e1ac-chg0019-normal-account-offline-backend-verified.patch` — historical canonical SHA256 `1CF41E1889872CE0030B5FBA58301C4FE3FE9E11C8C2437E146527B4075D3FB9`.
+- `4c5e1ac-chg0019-normal-account-offline-formal-delivery.patch` — historical canonical SHA256 `410308F81A2484C469694E8790E9C9C689DEDAEF5C73AB0D67DD3518D557C3CF`.
+- `4c5e1ac-chg0019-pr28-review-success-classification-hardening.patch` — historical canonical SHA256 `B4F9673CF486EC57FF235BAF97182066703FE6D2E4EE7910A3828AC769A1C912`.
+
+These historical files are not deleted or rewritten. They remain evidence of the originally reviewed CHG-0019 delivery; the new main-integration Patch is the only current CHG-0019 layer applied after the B379 T12 CHG-0018 Patch.
+
 ## Artifact Format
 
 Historical text artifacts use Git-generated zero-context unified diffs. The T12 current formal CHG-0018 Patch uses Git-generated binary patch records for exact source preservation.
