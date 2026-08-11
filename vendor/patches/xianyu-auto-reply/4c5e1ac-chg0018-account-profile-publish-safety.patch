@@ -7585,10 +7585,18 @@ index 6fac0e8..055da25 100644
              logger.error(f"【{self.cookie_id}】检查买家订单记录失败: {e}")
              logger.error(traceback.format_exc())
 diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
-index 9dff7cd..0517943 100644
+index 9dff7cd..0b31010 100644
 --- a/websocket/app/services/xianyu/cookie_token_manager.py
 +++ b/websocket/app/services/xianyu/cookie_token_manager.py
-@@ -56,11 +56,11 @@ STARTUP_EXPIRED_CACHE_REFRESH_JITTER_SECONDS = 120
+@@ -24,6 +24,7 @@ from common.models.system_setting import SystemSetting
+ from common.models.token_cache import TokenCache
+ from common.services.im_token_api import (
+     extract_im_access_token,
++    is_session_expired_token_result,
+     request_im_token_with_fallback,
+ )
+ from common.services.risk_control_log_query_service import (
+@@ -56,11 +57,11 @@ STARTUP_EXPIRED_CACHE_REFRESH_JITTER_SECONDS = 120
  
  class CookieTokenManager:
      """Cookie/Token管理器"""
@@ -7602,7 +7610,7 @@ index 9dff7cd..0517943 100644
          Args:
              parent: XianyuLive实例，用于访问共享资源
          """
-@@ -68,57 +68,57 @@ class CookieTokenManager:
+@@ -68,57 +69,57 @@ class CookieTokenManager:
          self._startup_expired_cache_available = True
          self._last_cache_lookup_succeeded = True
          self._cached_token_in_use: str | None = None
@@ -7674,7 +7682,7 @@ index 9dff7cd..0517943 100644
      @property
      def device_id(self):
          return self.parent.device_id
-@@ -130,35 +130,35 @@ class CookieTokenManager:
+@@ -130,35 +131,35 @@ class CookieTokenManager:
      @property
      def myid(self):
          return self.parent.myid
@@ -7719,7 +7727,7 @@ index 9dff7cd..0517943 100644
      async def send_token_refresh_notification(self, error_message: str, notification_type: str = "token_refresh",
                                               chat_id: str = None, attachment_path: str = None,
                                               verification_url: str = None):
-@@ -169,7 +169,7 @@ class CookieTokenManager:
+@@ -169,7 +170,7 @@ class CookieTokenManager:
              attachment_path=attachment_path,
              verification_url=verification_url
          )
@@ -7728,7 +7736,7 @@ index 9dff7cd..0517943 100644
      async def restart_instance(self, reason=None):
          return await self.parent.restart_instance(reason)
  
-@@ -258,7 +258,7 @@ class CookieTokenManager:
+@@ -258,7 +259,7 @@ class CookieTokenManager:
          expired_cache_reason: str = "local_slider_disabled",
      ) -> dict | None:
          """从数据库获取缓存的token和device_id
@@ -7737,7 +7745,7 @@ index 9dff7cd..0517943 100644
          原到期日有效时直接返回；原到期日失效但续期到期日有效时，
          将原到期日提升为续期到期日并返回续期 Token。启用本机滑块
          不处理时，可通过 allow_expired 继续返回已过期缓存。
-@@ -266,7 +266,7 @@ class CookieTokenManager:
+@@ -266,7 +267,7 @@ class CookieTokenManager:
          Args:
              allow_expired: 是否允许返回原到期日和续期到期日均已失效的缓存。
              expired_cache_reason: 允许使用过期缓存的原因，用于状态和日志区分。
@@ -7746,7 +7754,7 @@ index 9dff7cd..0517943 100644
          Returns:
              包含 token、device_id 和是否使用续期 Token 的字典；
              不存在或两个到期日都无效时返回 None。
-@@ -409,7 +409,7 @@ class CookieTokenManager:
+@@ -409,7 +410,7 @@ class CookieTokenManager:
  
      async def _set_cached_token(self, token: str, device_id: str):
          """将token和device_id缓存到数据库
@@ -7755,7 +7763,7 @@ index 9dff7cd..0517943 100644
          使用 INSERT ... ON DUPLICATE KEY UPDATE 实现插入或更新
          基础过期时间由环境变量 TOKEN_CACHE_TTL_MIN_HOURS / TOKEN_CACHE_TTL_MAX_HOURS 控制，
          再追加 1~5 小时的秒级随机偏移；未配置时最终 TTL 为 6~15 小时
-@@ -423,14 +423,14 @@ class CookieTokenManager:
+@@ -423,14 +424,14 @@ class CookieTokenManager:
  
              # 基础 TTL 默认 5~10 小时，再追加 1~5 小时秒级随机偏移
              expire_at, ttl_hours = random_token_cache_expiry()
@@ -7772,7 +7780,7 @@ index 9dff7cd..0517943 100644
                              token = VALUES(token),
                              device_id = VALUES(device_id),
                              expire_at = VALUES(expire_at),
-@@ -482,10 +482,10 @@ class CookieTokenManager:
+@@ -482,10 +483,10 @@ class CookieTokenManager:
                      # 打印要保存的x5sec值
                      cookies_dict = trans_cookies(self.cookies_str)
                      logger.warning(f"【{self.cookie_id}】update_config_cookies保存的x5sec: {cookies_dict.get('x5sec', '无')[:80]}...")
@@ -7785,7 +7793,7 @@ index 9dff7cd..0517943 100644
                          self.cookies_str,
                          owner_id=current_user_id,
                      )
-@@ -637,7 +637,7 @@ class CookieTokenManager:
+@@ -637,7 +638,7 @@ class CookieTokenManager:
          """处理滑块验证，返回新的cookies字符串"""
          try:
              import os
@@ -7794,7 +7802,7 @@ index 9dff7cd..0517943 100644
              # 检查消息接收冷却时间 - 收到消息后5分钟内不执行滑块验证
              current_time = time.time()
              time_since_last_message = current_time - self.last_message_received_time
-@@ -647,7 +647,7 @@ class CookieTokenManager:
+@@ -647,7 +648,7 @@ class CookieTokenManager:
                  remaining_seconds = int(remaining_time % 60)
                  logger.info(f"【{self.cookie_id}】收到消息后冷却中，暂停滑块验证，还需等待 {remaining_minutes}分{remaining_seconds}秒")
                  return None
@@ -7803,7 +7811,7 @@ index 9dff7cd..0517943 100644
              logger.info(f"【{self.cookie_id}】开始处理滑块验证...")
  
              # 获取验证URL
-@@ -661,7 +661,7 @@ class CookieTokenManager:
+@@ -661,7 +662,7 @@ class CookieTokenManager:
                  return None
  
              logger.info(f"【{self.cookie_id}】验证URL: {verification_url}")
@@ -7812,7 +7820,7 @@ index 9dff7cd..0517943 100644
              # 同账号的“检查处理中状态 + 创建日志”使用同一临界区，避免并发重复滑块。
              log_id = None
              captcha_start_time = time.time()
-@@ -791,7 +791,7 @@ class CookieTokenManager:
+@@ -791,7 +792,7 @@ class CookieTokenManager:
                      logger.info(f"【{self.cookie_id}】滑块验证成功，获取到新的cookies")
                      # 打印滑块验证返回的全部cookies
                      logger.warning(f"【{self.cookie_id}】滑块验证返回的全部cookies: {cookies}")
@@ -7821,7 +7829,7 @@ index 9dff7cd..0517943 100644
                      # 更新风控日志为成功状态
                      captcha_duration = time.time() - captcha_start_time
                      if log_id:
-@@ -871,7 +871,7 @@ class CookieTokenManager:
+@@ -871,7 +872,7 @@ class CookieTokenManager:
  
                          self.cookies_str = cookies_str
                          self.cookies = updated_cookies
@@ -7830,7 +7838,7 @@ index 9dff7cd..0517943 100644
                          # 打印更新后的x5sec值
                          logger.warning(f"【{self.cookie_id}】准备保存到数据库的x5sec: {updated_cookies.get('x5sec', '无')}")
  
-@@ -903,7 +903,7 @@ class CookieTokenManager:
+@@ -903,7 +904,7 @@ class CookieTokenManager:
                          logger.error(f"【{self.cookie_id}】滑块验证失败: {remote_fail_reason}")
                      else:
                          logger.error(f"【{self.cookie_id}】滑块验证失败")
@@ -7839,7 +7847,7 @@ index 9dff7cd..0517943 100644
                      # 更新风控日志为失败状态
                      captcha_duration = time.time() - captcha_start_time
                      if log_id:
-@@ -928,12 +928,12 @@ class CookieTokenManager:
+@@ -928,12 +929,12 @@ class CookieTokenManager:
                              )
                          except Exception as update_e:
                              logger.error(f"【{self.cookie_id}】更新风控日志失败: {update_e}")
@@ -7854,7 +7862,7 @@ index 9dff7cd..0517943 100644
                  # 更新风控日志为异常状态
                  if log_id:
                      try:
-@@ -945,7 +945,7 @@ class CookieTokenManager:
+@@ -945,7 +946,7 @@ class CookieTokenManager:
                          )
                      except Exception:
                          pass
@@ -7863,7 +7871,7 @@ index 9dff7cd..0517943 100644
                  await self.send_token_refresh_notification(
                      f"滑块验证功能不可用，请安装Playwright",
                      "captcha_dependency_missing"
-@@ -972,7 +972,7 @@ class CookieTokenManager:
+@@ -972,7 +973,7 @@ class CookieTokenManager:
              except Exception as stealth_e:
                  logger.error(f"【{self.cookie_id}】滑块验证异常: {self._safe_str(stealth_e)}")
                  await _persist_refetched_cookie_updates()
@@ -7872,7 +7880,7 @@ index 9dff7cd..0517943 100644
                  # 更新风控日志为异常状态
                  captcha_duration = time.time() - captcha_start_time
                  if log_id:
-@@ -986,7 +986,7 @@ class CookieTokenManager:
+@@ -986,7 +987,7 @@ class CookieTokenManager:
                          )
                      except Exception:
                          pass
@@ -7881,7 +7889,7 @@ index 9dff7cd..0517943 100644
                  return None
  
          except asyncio.CancelledError:
-@@ -1055,20 +1055,20 @@ class CookieTokenManager:
+@@ -1055,20 +1056,20 @@ class CookieTokenManager:
  
      async def refresh_token(self, captcha_retry_count: int = 0, token_expiry_retry_count: int = 0):
          """刷新token
@@ -7905,7 +7913,7 @@ index 9dff7cd..0517943 100644
              logger.info(f"【{self.cookie_id}】开始刷新token... (滑块验证重试次数: {captcha_retry_count})")
              self.last_token_refresh_status = "started"
  
-@@ -1077,7 +1077,7 @@ class CookieTokenManager:
+@@ -1077,7 +1078,7 @@ class CookieTokenManager:
                  and token_expiry_retry_count == 0
                  and getattr(self, "_startup_expired_cache_available", True)
              )
@@ -7914,10 +7922,56 @@ index 9dff7cd..0517943 100644
              # 开关每次均实时查库，确保运行中的 WebSocket 无需重启即可生效。
              local_slider_setting = await self._is_local_slider_disabled()
              local_slider_disabled = local_slider_setting is True
-@@ -1283,17 +1283,9 @@ class CookieTokenManager:
-                     refresh_result = await self.try_password_login_refresh("Session过期")
+@@ -1230,6 +1231,38 @@ class CookieTokenManager:
+                 await self._set_cached_token(new_token, self.device_id)
+                 return new_token
  
-                     if refresh_result == "no_credentials":
++            # Session过期先于滑块判断：Cookie 已失效时滑块验证结果同样无效，
++            # 无意义尝试滑块只会占用浏览器槽位并延迟现有续期链。
++            # 保留 CHG-0018 安全边界：未配置凭据或账密错误均不得禁用账号。
++            if is_session_expired_token_result(api_result):
++                refresh_result = await self.try_password_login_refresh("Session过期")
++
++                if refresh_result == "no_credentials":
++                    logger.warning(
++                        f"[{self.cookie_id}] no_credentials recorded after session expiry; account status is unchanged"
++                    )
++                    notification_sent = True
++                    return None
++                if refresh_result is True:
++                    # 刷新成功，清除旧缓存并重新获取token
++                    await self._delete_cached_token()
++                    return await self.refresh_token(captcha_retry_count + 1)
++                if refresh_result == "skipped_cooldown":
++                    # 密码登录冷却期内跳过：包括「上次登录冷却 300 秒内」与「账密错误
++                    # 冷却 5 小时内」两种确定性可恢复状态。账号本身一切正常，只是
++                    # 当下不能立即用密码登录刷新 cookie，应等待冷却结束 / 用户修正。
++                    self.last_token_refresh_status = "skipped_cooldown"
++                    self.current_token = None
++                    await self._delete_cached_token()
++                    return None
++
++                # 刷新失败（密码登录真实失败、账号信息缺失或风控等）：失败关闭，账号状态不改。
++                notification_sent = True
++                self.last_token_refresh_status = "failed_session_expired"
++                self.current_token = None
++                await self._delete_cached_token()
++                return None
++
+             # 检查是否需要滑块验证
+             if self.need_captcha_verification(res_json):
+                 if local_slider_disabled:
+@@ -1276,48 +1309,6 @@ class CookieTokenManager:
+                     await self._delete_cached_token()
+                     return None
+ 
+-            # 检查是否包含"Session过期"（仅Session过期触发密码登录，令牌过期不触发）
+-            if isinstance(res_json, dict):
+-                res_json_str = json.dumps(res_json, ensure_ascii=False, separators=(',', ':'))
+-                if 'Session过期' in res_json_str:
+-                    refresh_result = await self.try_password_login_refresh("Session过期")
+-
+-                    if refresh_result == "no_credentials":
 -                        # 未配置密码，禁用账号
 -                        logger.debug(f"【{self.cookie_id}】Session过期且未配置密码，立即禁用账号")
 -
@@ -7929,13 +7983,34 @@ index 9dff7cd..0517943 100644
 -                        except Exception as disable_e:
 -                            logger.error(f"【{self.cookie_id}】自动禁用账号失败: {self._safe_str(disable_e)}")
 -
-+                        logger.warning(
-+                            f"[{self.cookie_id}] no_credentials recorded after session expiry; account status is unchanged"
-+                        )
-                         notification_sent = True
-                         return None
-                     if refresh_result is True:
-@@ -1408,13 +1400,13 @@ class CookieTokenManager:
+-                        notification_sent = True
+-                        return None
+-                    if refresh_result is True:
+-                        # 刷新成功，清除旧缓存并重新获取token
+-                        await self._delete_cached_token()
+-                        return await self.refresh_token(captcha_retry_count + 1)
+-                    if refresh_result == "skipped_cooldown":
+-                        # 密码登录冷却期内跳过：包括「上次登录冷却 300 秒内」与「账密错误
+-                        # 冷却 5 小时内」两种确定性可恢复状态。账号本身一切正常，只是
+-                        # 当下不能立即用密码登录刷新 cookie，应等待冷却结束 / 用户修正
+-                        # 账密。标记为 skipped_cooldown（main 循环 non_counted_statuses
+-                        # 已包含此状态，不计入 _token_fetch_failures，避免被自动禁用）。
+-                        self.last_token_refresh_status = "skipped_cooldown"
+-                        self.current_token = None
+-                        await self._delete_cached_token()
+-                        return None
+-
+-                    # 刷新失败（密码登录真实失败：账号信息缺失等）
+-                    notification_sent = True
+-                    self.last_token_refresh_status = "failed_session_expired"
+-                    self.current_token = None
+-                    await self._delete_cached_token()
+-                    return None
+-
+             # FAIL_SYS_TOKEN_EXOIRED/EXPIRED：允许自动重试一次
+             try:
+                 if token_expiry_retry_count < 1 and is_token_expired_response(res_json):
+@@ -1408,13 +1399,13 @@ class CookieTokenManager:
  
          try:
              from common.db.compat import db_manager
@@ -7951,7 +8026,7 @@ index 9dff7cd..0517943 100644
              if last_password_login > 0 and time_since_last_login < password_login_cooldown:
                  remaining_time = password_login_cooldown - time_since_last_login
                  cooldown_msg = (
-@@ -1427,12 +1419,12 @@ class CookieTokenManager:
+@@ -1427,12 +1418,12 @@ class CookieTokenManager:
                  # 不计入禁用计数的 "skipped_cooldown"（避免 main 循环每 5 秒一次地累加
                  # _token_fetch_failures，1 分钟内达到 10 次后误把账号自动禁用）。
                  return "skipped_cooldown"
@@ -7966,7 +8041,7 @@ index 9dff7cd..0517943 100644
              if password_error_time > 0 and time_since_error < password_error_cooldown:
                  remaining_hours = (password_error_cooldown - time_since_error) / 3600
                  cooldown_msg = f"账密错误冷却期内（还需等待 {remaining_hours:.1f} 小时），跳过密码登录"
-@@ -1449,8 +1441,7 @@ class CookieTokenManager:
+@@ -1449,8 +1440,7 @@ class CookieTokenManager:
              try:
                  from common.services.cookie_renew_api_service import cookie_renew_api_service
                  logger.info(f"【{self.cookie_id}】先尝试接口续期（silentHasLogin + setLoginSettings）...")
@@ -7976,7 +8051,7 @@ index 9dff7cd..0517943 100644
                  renew_result = await cookie_renew_api_service.renew(self.cookies_str, self.cookie_id)
  
                  # 不管续期是否成功，只要有Cookie字段更新就先写入数据库
-@@ -1465,8 +1456,7 @@ class CookieTokenManager:
+@@ -1465,8 +1455,7 @@ class CookieTokenManager:
                          f"{', '.join(renew_result.updated_cookie_names)}"
                      )
  
@@ -7986,7 +8061,7 @@ index 9dff7cd..0517943 100644
  
                  if renew_result.success:
                      # 续期成功（可能是接口续期或浏览器续期），跳过密码登录
-@@ -1501,7 +1491,7 @@ class CookieTokenManager:
+@@ -1501,7 +1490,7 @@ class CookieTokenManager:
              _api_renew_fail_msg = "接口续期和浏览器续期均失败"
  
              account_info = await self._load_account_info()
@@ -7995,7 +8070,7 @@ index 9dff7cd..0517943 100644
              if not account_info:
                  err_msg = "无法获取账号信息"
                  logger.error(f"【{self.cookie_id}】{err_msg}")
-@@ -1510,7 +1500,7 @@ class CookieTokenManager:
+@@ -1510,7 +1499,7 @@ class CookieTokenManager:
  
              # 拿到 username 后赋给闭包变量，确保后续每条日志都带上账号快照
              login_username = (account_info.get('username') or '') or None
@@ -8004,7 +8079,7 @@ index 9dff7cd..0517943 100644
              # 检查数据库中的cookie是否已经更新
              db_cookie_value = account_info.get('cookie_value', '')
              if db_cookie_value and db_cookie_value != self.cookies_str:
-@@ -1524,11 +1514,11 @@ class CookieTokenManager:
+@@ -1524,11 +1513,11 @@ class CookieTokenManager:
                      "数据库中的Cookie已被外部更新，直接复用，无需密码登录",
                  )
                  return True
@@ -8018,7 +8093,7 @@ index 9dff7cd..0517943 100644
              if not username or not password:
                  err_msg = "未配置用户名或密码，无法自动刷新Cookie"
                  logger.warning(f"【{self.cookie_id}】{err_msg}")
-@@ -1538,16 +1528,16 @@ class CookieTokenManager:
+@@ -1538,16 +1527,16 @@ class CookieTokenManager:
                  )
                  _record_login_log("no_credentials", "no_credentials", err_msg)
                  return "no_credentials"  # 返回特殊值表示未配置密码，不触发重启
@@ -8038,7 +8113,7 @@ index 9dff7cd..0517943 100644
              # 同步回调函数（在工作线程中调用）
              def notification_callback_sync(message: str, screenshot_path: str = None, verification_url: str = None):
                  try:
-@@ -1564,7 +1554,7 @@ class CookieTokenManager:
+@@ -1564,7 +1553,7 @@ class CookieTokenManager:
                      future.result(timeout=10)  # 等待最多10秒
                  except Exception as e:
                      logger.warning(f"【{self.cookie_id}】发送通知失败: {e}")
@@ -8047,7 +8122,7 @@ index 9dff7cd..0517943 100644
              # 把构造函数和登录都放到线程中，避免阻塞事件循环
              def _do_password_login():
                  slider = XianyuSliderStealth(user_id=self.cookie_id, enable_learning=False, headless=not show_browser)
-@@ -1580,25 +1570,24 @@ class CookieTokenManager:
+@@ -1580,25 +1569,24 @@ class CookieTokenManager:
                          slider.close()
                      except Exception:
                          pass
@@ -8080,7 +8155,7 @@ index 9dff7cd..0517943 100644
                  try:
                      await self.send_token_refresh_notification(
                          f"账号密码登录成功，Cookie已获取，准备更新并重启",
-@@ -1606,9 +1595,9 @@ class CookieTokenManager:
+@@ -1606,9 +1594,9 @@ class CookieTokenManager:
                      )
                  except Exception as notify_e:
                      logger.warning(f"【{self.cookie_id}】发送通知失败: {self._safe_str(notify_e)}")
@@ -8092,7 +8167,7 @@ index 9dff7cd..0517943 100644
                  if update_success:
                      logger.info(f"【{self.cookie_id}】Cookie更新并重启任务成功")
                      _record_login_log("success", None, "密码登录成功，Cookie已更新且实例已重启")
-@@ -1618,7 +1607,7 @@ class CookieTokenManager:
+@@ -1618,7 +1606,7 @@ class CookieTokenManager:
                      logger.error(f"【{self.cookie_id}】{err_msg}")
                      _record_login_log("failed", "cookie_update_failed", err_msg)
                      return False
@@ -8101,7 +8176,7 @@ index 9dff7cd..0517943 100644
              else:
                  err_msg = "密码登录失败，未获取到Cookie"
                  logger.warning(f"【{self.cookie_id}】{err_msg}")
-@@ -1635,7 +1624,7 @@ class CookieTokenManager:
+@@ -1635,7 +1623,7 @@ class CookieTokenManager:
                  _is_baxia_punish = isinstance(refresh_e, BaxiaPunishCaptchaException)
              except Exception:
                  _is_baxia_punish = False
@@ -8110,7 +8185,7 @@ index 9dff7cd..0517943 100644
              if _is_baxia_punish:
                  punish_msg = self._safe_str(refresh_e)
                  logger.warning(
-@@ -1668,7 +1657,7 @@ class CookieTokenManager:
+@@ -1668,7 +1656,7 @@ class CookieTokenManager:
                  _record_login_log("failed", "baxia_punish_captcha", punish_msg)
                  return False
              # ============== baxia-punish 处理结束 ==============
@@ -8119,7 +8194,7 @@ index 9dff7cd..0517943 100644
              error_msg = self._safe_str(refresh_e)
              logger.error(f"【{self.cookie_id}】Cookie刷新或实例重启失败: {error_msg}")
  
-@@ -1680,21 +1669,16 @@ class CookieTokenManager:
+@@ -1680,21 +1668,16 @@ class CookieTokenManager:
                  or '用户名或密码错误' in error_msg
              )
              if is_bad_credentials:
@@ -8146,7 +8221,7 @@ index 9dff7cd..0517943 100644
                  try:
                      await self.send_token_refresh_notification(
                          (
-@@ -1705,7 +1689,7 @@ class CookieTokenManager:
+@@ -1705,7 +1688,7 @@ class CookieTokenManager:
                      )
                  except Exception as notify_e:
                      logger.warning(f"【{self.cookie_id}】发送账密错误通知失败: {self._safe_str(notify_e)}")
@@ -8155,7 +8230,7 @@ index 9dff7cd..0517943 100644
              # 异常分支统一记录登录日志：区分账密错误 / 其他异常
              _record_login_log(
                  "failed",
-@@ -1719,39 +1703,39 @@ class CookieTokenManager:
+@@ -1719,39 +1702,39 @@ class CookieTokenManager:
      async def verify_cookie_validity(self) -> dict:
          """验证Cookie的有效性，通过实际调用API测试"""
          logger.info(f"【{self.cookie_id}】开始验证Cookie有效性（使用真实API调用）...")
@@ -8204,7 +8279,7 @@ index 9dff7cd..0517943 100644
                  if upload_result:
                      logger.info(f"【{self.cookie_id}】✅ 图片上传API验证通过")
                      result['image_api'] = True
-@@ -1761,7 +1745,7 @@ class CookieTokenManager:
+@@ -1761,7 +1744,7 @@ class CookieTokenManager:
                      result['image_api'] = False
                      result['valid'] = False
                      result['details'].append("图片上传API: 上传失败，可能Cookie已失效")
@@ -8213,7 +8288,7 @@ index 9dff7cd..0517943 100644
              finally:
                  if os.path.exists(test_image_path):
                      try:
-@@ -1769,12 +1753,12 @@ class CookieTokenManager:
+@@ -1769,12 +1752,12 @@ class CookieTokenManager:
                          logger.info(f"【{self.cookie_id}】已清理测试图片")
                      except Exception:
                          pass
@@ -8228,3 +8303,694 @@ index 9dff7cd..0517943 100644
          result['details'] = '; '.join(result['details'])
          logger.info(f"【{self.cookie_id}】Cookie有效性验证完成: {result}")
          return result
+diff --git a/common/services/im_token_api.py b/common/services/im_token_api.py
+index 0d33923..6960ca9 100644
+--- a/common/services/im_token_api.py
++++ b/common/services/im_token_api.py
+@@ -10,6 +10,7 @@
+ from __future__ import annotations
+ 
+ import asyncio
++import json
+ import time
+ from dataclasses import dataclass, replace
+ from typing import Any
+@@ -37,6 +38,7 @@ from common.services.remote_token_risk_log_service import (
+     build_remote_fallback_event_description,
+     record_remote_token_risk_log,
+ )
++from common.utils.cookie_refresh import is_session_expired_error
+ from common.utils.xianyu_utils import generate_sign, trans_cookies
+ 
+ 
+@@ -68,6 +70,9 @@ class ImTokenApiResult:
+     duration_seconds: float
+     api_mode: str = DEFAULT_TOKEN_API_MODE
+     device_id: str = ""
++    # 远程接口回退失败时的原因文本。独立字段承载，不写入 response_json 的 ret / data，
++    # 避免污染滑块关键词与令牌过期的子串判断，也不覆盖本地响应里的滑块验证链接。
++    remote_failure_message: str = ""
+ 
+ 
+ def extract_im_access_token(response_json: Any) -> str | None:
+@@ -95,6 +100,30 @@ def extract_im_access_token(response_json: Any) -> str | None:
+     return access_token if isinstance(access_token, str) and access_token else None
+ 
+ 
++def is_session_expired_token_result(result: ImTokenApiResult) -> bool:
++    """判断取 Token 结果是否为 Session 过期（Cookie 已失效）。
++
++    同时检查本地响应体与远程接口回退失败原因：远程回退失败时响应体保留的是本地结果，
++    Session 过期信息只在 ``remote_failure_message`` 里，两处都要判。
++
++    Args:
++        result: 取 Token 的请求结果。
++
++    Returns:
++        True 表示 Session 已过期，需要走密码登录续期。
++    """
++    response_json = result.response_json
++    if isinstance(response_json, dict):
++        response_text = json.dumps(response_json, ensure_ascii=False, separators=(',', ':'))
++        if is_session_expired_error([response_text]):
++            return True
++
++    return bool(
++        result.remote_failure_message
++        and is_session_expired_error([result.remote_failure_message])
++    )
++
++
+ def _merge_cookie_string(cookies_str: str, cookie_updates: dict[str, str]) -> str:
+     """把接口下发的 Cookie 合并到下一次本地请求。
+ 
+@@ -245,9 +274,10 @@ def _remote_result_to_im_token_result(
+             device_id=result.device_id,
+         )
+ 
++    failure_message = result.message or "远程接口取Token失败"
+     return ImTokenApiResult(
+         response_json={
+-            "ret": [f"FAIL::{result.message or '远程接口取Token失败'}"],
++            "ret": [f"FAIL::{failure_message}"],
+             "data": result.response_json,
+         },
+         response_cookies={},
+@@ -255,6 +285,8 @@ def _remote_result_to_im_token_result(
+         duration_seconds=result.duration_seconds,
+         api_mode=TOKEN_API_MODE_REMOTE,
+         device_id=current_device_id,
++        # 远程失败原因单独留一份，供上层在回退失败、只剩本地响应时判断 Session 过期
++        remote_failure_message=failure_message,
+     )
+ 
+ 
+@@ -265,6 +297,7 @@ async def _request_remote_token_from_settings(
+     timeout_seconds: int,
+     log_tag: str,
+     local_failure_reason: str,
++    local_duration_seconds: float = 0,
+ ) -> ImTokenApiResult:
+     """调用远程 Token 接口并记录完整的风控日志。
+ 
+@@ -279,6 +312,7 @@ async def _request_remote_token_from_settings(
+         timeout_seconds: 单次 HTTP 请求总超时时间。
+         log_tag: 账号标识，用于日志定位。
+         local_failure_reason: 本地网页接口失败原因，写入风控日志事件描述。
++        local_duration_seconds: 本地网页接口已消耗的耗时，与远程耗时分开记入风控日志。
+     Returns:
+         统一的 Token 接口响应结果。
+     Raises:
+@@ -286,6 +320,9 @@ async def _request_remote_token_from_settings(
+     """
+     prefix = f"【{log_tag}】" if log_tag else ""
+     remote_result = None
++    # 远程整体耗时自行计时：超时/异常时拿不到 RemoteTokenResult.duration_seconds，
++    # 且连续重试与重试间隔的开销也需要体现在风控日志里
++    remote_started_at = time.monotonic()
+     for attempt in range(1, REMOTE_TOKEN_TIMEOUT_MAX_ATTEMPTS + 1):
+         try:
+             remote_result = await request_remote_xianyu_token_from_settings(
+@@ -313,6 +350,8 @@ async def _request_remote_token_from_settings(
+                 account_identifier=log_tag,
+                 success=False,
+                 message=f"连续{REMOTE_TOKEN_TIMEOUT_MAX_ATTEMPTS}次超时: {message}",
++                duration_seconds=time.monotonic() - remote_started_at,
++                local_duration_seconds=local_duration_seconds,
+                 event_description=build_remote_fallback_event_description(
+                     local_failure_reason=local_failure_reason,
+                     remote_outcome=REMOTE_OUTCOME_FAILED,
+@@ -326,6 +365,8 @@ async def _request_remote_token_from_settings(
+                 account_identifier=log_tag,
+                 success=False,
+                 message=message,
++                duration_seconds=time.monotonic() - remote_started_at,
++                local_duration_seconds=local_duration_seconds,
+                 event_description=build_remote_fallback_event_description(
+                     local_failure_reason=local_failure_reason,
+                     remote_outcome=REMOTE_OUTCOME_FAILED,
+@@ -349,6 +390,7 @@ async def _request_remote_token_from_settings(
+         api_mode=remote_result.api_mode,
+         status_code=remote_result.status_code,
+         duration_seconds=remote_result.duration_seconds,
++        local_duration_seconds=local_duration_seconds,
+         event_description=build_remote_fallback_event_description(
+             local_failure_reason=local_failure_reason,
+             remote_outcome=(
+@@ -366,6 +408,7 @@ async def _try_remote_token_fallback(
+     timeout_seconds: int,
+     log_tag: str,
+     local_failure_reason: str,
++    local_duration_seconds: float = 0,
+ ) -> ImTokenApiResult | None:
+     """在远程接口已配置时，尝试作为本地网页接口的回退。
+ 
+@@ -375,6 +418,7 @@ async def _try_remote_token_fallback(
+         timeout_seconds: HTTP 请求总超时时间。
+         log_tag: 账号标识，用于日志定位。
+         local_failure_reason: 本地接口失败原因。
++        local_duration_seconds: 本地网页接口耗时，与远程耗时分开记入风控日志。
+     Returns:
+         已调用远程接口时返回响应结果；远程未配置或读取失败时返回 None。
+     """
+@@ -410,6 +454,7 @@ async def _try_remote_token_fallback(
+             timeout_seconds=timeout_seconds,
+             log_tag=log_tag,
+             local_failure_reason=local_failure_reason,
++            local_duration_seconds=local_duration_seconds,
+         )
+     except Exception as exc:
+         logger.warning(
+@@ -419,6 +464,30 @@ async def _try_remote_token_fallback(
+         return None
+ 
+ 
++def _attach_remote_failure(
++    local_result: ImTokenApiResult,
++    remote_result: ImTokenApiResult | None,
++) -> ImTokenApiResult:
++    """远程回退失败时，把远程失败原因挂到即将返回的本地结果上。
++
++    只写 ``remote_failure_message`` 字段，本地响应的 ret / data 保持原样，
++    确保滑块关键词判断与滑块验证链接提取不受影响。
++
++    Args:
++        local_result: 本地网页接口的响应结果。
++        remote_result: 远程回退结果；未配置或读取失败时为 None。
++
++    Returns:
++        带上远程失败原因的本地结果；无远程失败信息时原样返回。
++    """
++    if not remote_result or not remote_result.remote_failure_message:
++        return local_result
++    return replace(
++        local_result,
++        remote_failure_message=remote_result.remote_failure_message,
++    )
++
++
+ async def request_im_token_with_fallback(
+     cookies_str: str,
+     device_id: str,
+@@ -450,6 +519,8 @@ async def request_im_token_with_fallback(
+     configured_mode = normalize_token_api_mode(api_mode)
+     remote_fallback_enabled = configured_mode == TOKEN_API_MODE_REMOTE
+ 
++    # 本地网页接口耗时单独累计（含令牌过期重试），与远程耗时分开记入风控日志
++    local_started_at = time.monotonic()
+     try:
+         local_result = await request_im_token(
+             cookies_str,
+@@ -466,9 +537,17 @@ async def request_im_token_with_fallback(
+             timeout_seconds=timeout_seconds,
+             log_tag=log_tag,
+             local_failure_reason=f"请求异常：{type(local_error).__name__}: {local_error}",
++            local_duration_seconds=time.monotonic() - local_started_at,
+         )
+         if remote_result and extract_im_access_token(remote_result.response_json):
+             return remote_result
++        # 本地请求本身已异常，没有可返回的响应体，远程失败原因只能记日志留痕
++        if remote_result and remote_result.remote_failure_message:
++            prefix = f"【{log_tag}】" if log_tag else ""
++            logger.warning(
++                f"{prefix}本地网页接口请求异常且远程回退失败: "
++                f"{remote_result.remote_failure_message}"
++            )
+         raise
+ 
+     if extract_im_access_token(local_result.response_json):
+@@ -508,13 +587,14 @@ async def request_im_token_with_fallback(
+                     "令牌过期后本地重试异常："
+                     f"{type(local_retry_error).__name__}: {local_retry_error}"
+                 ),
++                local_duration_seconds=time.monotonic() - local_started_at,
+             )
+             if remote_result and extract_im_access_token(remote_result.response_json):
+                 return replace(
+                     remote_result,
+                     response_cookies=local_result.response_cookies,
+                 )
+-            return local_result
++            return _attach_remote_failure(local_result, remote_result)
+ 
+         cumulative_response_cookies = dict(local_result.response_cookies)
+         cumulative_response_cookies.update(retried_local_result.response_cookies)
+@@ -532,6 +612,7 @@ async def request_im_token_with_fallback(
+         timeout_seconds=timeout_seconds,
+         log_tag=log_tag,
+         local_failure_reason=local_failure_reason,
++        local_duration_seconds=time.monotonic() - local_started_at,
+     )
+     if remote_result and extract_im_access_token(remote_result.response_json):
+         # 保留本地接口下发的 Cookie，避免本地响应更新的 _m_h5_tk 丢失。
+@@ -539,4 +620,4 @@ async def request_im_token_with_fallback(
+             remote_result,
+             response_cookies=local_result.response_cookies,
+         )
+-    return local_result
++    return _attach_remote_failure(local_result, remote_result)
+diff --git a/common/services/captcha/token_refetch.py b/common/services/captcha/token_refetch.py
+index c22d317..9be20d0 100644
+--- a/common/services/captcha/token_refetch.py
++++ b/common/services/captcha/token_refetch.py
+@@ -235,6 +235,7 @@ def _try_remote_token_fallback(
+     cookies_str: str,
+     timeout_seconds: float,
+     local_failure_reason: str,
++    local_duration_seconds: float = 0,
+ ) -> bool:
+     """在远程接口已配置时，以远程 Token 结果回退本地网页接口失败。
+ 
+@@ -244,6 +245,7 @@ def _try_remote_token_fallback(
+         cookies_str: 当前账号完整 Cookie 字符串，传给远程接口 data.cookies。
+         timeout_seconds: 远程请求可用的剩余超时预算。
+         local_failure_reason: 本地网页接口失败原因。
++        local_duration_seconds: 本地网页接口耗时，与远程耗时分开记入风控日志。
+     Returns:
+         远程接口是否成功返回有效 Token。
+     """
+@@ -271,6 +273,8 @@ def _try_remote_token_fallback(
+         f"【{cookie_id}】本地网页接口获取Token失败（{local_failure_reason}），"
+         "开始调用远程接口获取Token"
+     )
++    # 远程整体耗时自行计时：异常时拿不到 RemoteTokenResult.duration_seconds
++    remote_started_at = time.monotonic()
+     try:
+         remote_result = request_remote_xianyu_token_from_settings_sync(
+             cookies=cookies_str,
+@@ -282,6 +286,8 @@ def _try_remote_token_fallback(
+             account_identifier=cookie_id,
+             success=False,
+             message=error_message,
++            duration_seconds=time.monotonic() - remote_started_at,
++            local_duration_seconds=local_duration_seconds,
+             event_description=build_remote_fallback_event_description(
+                 local_failure_reason=local_failure_reason,
+                 remote_outcome=REMOTE_OUTCOME_FAILED,
+@@ -301,6 +307,7 @@ def _try_remote_token_fallback(
+         api_mode=remote_result.api_mode,
+         status_code=remote_result.status_code,
+         duration_seconds=remote_result.duration_seconds,
++        local_duration_seconds=local_duration_seconds,
+         event_description=build_remote_fallback_event_description(
+             local_failure_reason=local_failure_reason,
+             remote_outcome=(
+@@ -391,6 +398,10 @@ def request_fresh_captcha_url(
+                     local_failure_reason=(
+                         f"请求异常：{type(local_error).__name__}: {local_error}"
+                     ),
++                    # 本地耗时由总预算反推，避免额外调用 monotonic 影响超时预算计算
++                    local_duration_seconds=(
++                        _TOKEN_REFETCH_TOTAL_TIMEOUT_SECONDS - remaining_seconds
++                    ),
+                 )
+             return result
+         result["new_cookies"] = dict(response_cookies)
+@@ -411,6 +422,10 @@ def request_fresh_captcha_url(
+                 cookies_str=cookies_str,
+                 timeout_seconds=remaining_seconds,
+                 local_failure_reason="未返回有效Token",
++                # 本地耗时由总预算反推，避免额外调用 monotonic 影响超时预算计算
++                local_duration_seconds=(
++                    _TOKEN_REFETCH_TOTAL_TIMEOUT_SECONDS - remaining_seconds
++                ),
+             ):
+                 return result
+ 
+diff --git a/common/services/remote_token_risk_log_service.py b/common/services/remote_token_risk_log_service.py
+index efbc887..b591222 100644
+--- a/common/services/remote_token_risk_log_service.py
++++ b/common/services/remote_token_risk_log_service.py
+@@ -55,15 +55,20 @@ def build_remote_token_log_result(
+     api_mode: str = "",
+     status_code: int = 0,
+     duration_seconds: float = 0,
++    local_duration_seconds: float = 0,
+ ) -> str:
+     """构造远程 Token 获取结果文案。
+ 
++    取 Token 是「先本地网页接口、失败后再远程接口」两段串行流程，耗时分开记录，
++    便于排查究竟是本地慢还是远程慢；两段都有时额外给出总耗时。
++
+     Args:
+         success: 远程接口业务是否成功。
+         message: 远程接口返回或本地解析出的结果说明。
+         api_mode: 远程接口返回的实际 Token 接口。
+         status_code: HTTP 状态码。
+-        duration_seconds: 请求耗时。
++        duration_seconds: 远程接口耗时。
++        local_duration_seconds: 本地网页接口耗时（含令牌过期重试）。
+     Returns:
+         用于风控日志 processing_result 的中文结果文案。
+     """
+@@ -75,8 +80,12 @@ def build_remote_token_log_result(
+         parts.append(f"实际接口：{api_mode}")
+     if status_code:
+         parts.append(f"HTTP状态：{status_code}")
++    if local_duration_seconds:
++        parts.append(f"本地接口耗时：{local_duration_seconds:.2f}秒")
+     if duration_seconds:
+-        parts.append(f"耗时：{duration_seconds:.2f}秒")
++        parts.append(f"远程接口耗时：{duration_seconds:.2f}秒")
++    if local_duration_seconds and duration_seconds:
++        parts.append(f"总耗时：{local_duration_seconds + duration_seconds:.2f}秒")
+     return "；".join(parts)
+ 
+ 
+@@ -88,6 +97,7 @@ async def record_remote_token_risk_log(
+     api_mode: str = "",
+     status_code: int = 0,
+     duration_seconds: float = 0,
++    local_duration_seconds: float = 0,
+     owner_id: int | None = None,
+     call_user: str | None = None,
+     event_description: str = "远程接口获取闲鱼Token",
+@@ -100,7 +110,8 @@ async def record_remote_token_risk_log(
+         message: 结果说明。
+         api_mode: 实际 Token 接口。
+         status_code: HTTP 状态码。
+-        duration_seconds: 请求耗时。
++        duration_seconds: 远程接口耗时。
++        local_duration_seconds: 本地网页接口耗时；无本地调用时传 0。
+         owner_id: 所属用户 ID；账号不存在时使用该值。
+         call_user: 调用用户说明。
+         event_description: 事件描述。
+@@ -114,6 +125,7 @@ async def record_remote_token_risk_log(
+         api_mode=api_mode,
+         status_code=status_code,
+         duration_seconds=duration_seconds,
++        local_duration_seconds=local_duration_seconds,
+     )
+     try:
+         async with async_session_maker() as session:
+@@ -156,6 +168,7 @@ def record_remote_token_risk_log_sync(
+     api_mode: str = "",
+     status_code: int = 0,
+     duration_seconds: float = 0,
++    local_duration_seconds: float = 0,
+     event_description: str = "远程接口获取闲鱼Token",
+ ) -> None:
+     """同步记录远程 Token 获取风控日志。
+@@ -166,7 +179,8 @@ def record_remote_token_risk_log_sync(
+         message: 结果说明。
+         api_mode: 实际 Token 接口。
+         status_code: HTTP 状态码。
+-        duration_seconds: 请求耗时。
++        duration_seconds: 远程接口耗时。
++        local_duration_seconds: 本地网页接口耗时；无本地调用时传 0。
+         event_description: 事件描述。
+     Returns:
+         无返回值；写入失败只记录日志，不影响取 Token 主流程。
+@@ -178,6 +192,7 @@ def record_remote_token_risk_log_sync(
+         api_mode=api_mode,
+         status_code=status_code,
+         duration_seconds=duration_seconds,
++        local_duration_seconds=local_duration_seconds,
+     )
+     try:
+         log_id = db_manager.add_risk_control_log(
+diff --git a/tests/test_chg0018_session_token_upstream_sync.py b/tests/test_chg0018_session_token_upstream_sync.py
+new file mode 100644
+index 0000000..0afb533
+--- /dev/null
++++ b/tests/test_chg0018_session_token_upstream_sync.py
+@@ -0,0 +1,279 @@
++import asyncio
++import sys
++from pathlib import Path
++from types import SimpleNamespace
++from unittest.mock import AsyncMock, Mock, patch
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "websocket"))
++
++from common.services.im_token_api import (
++    ImTokenApiResult,
++    _attach_remote_failure,
++    is_session_expired_token_result,
++)
++from common.services.remote_token_risk_log_service import build_remote_token_log_result
++from websocket.app.services.xianyu.cookie_token_manager import CookieTokenManager
++
++
++ROOT = Path(__file__).resolve().parents[1]
++COOKIE_TOKEN_MANAGER = ROOT / "websocket/app/services/xianyu/cookie_token_manager.py"
++TOKEN_REFETCH = ROOT / "common/services/captcha/token_refetch.py"
++PUBLISHER = ROOT / "backend-web/app/services/xianyu_publisher.py"
++
++
++def _result(response_json, *, remote_failure_message: str = "") -> ImTokenApiResult:
++    return ImTokenApiResult(
++        response_json=response_json,
++        response_cookies={},
++        status_code=200,
++        duration_seconds=0.1,
++        remote_failure_message=remote_failure_message,
++    )
++
++
++def _manager_for_refresh():
++    parent = SimpleNamespace(
++        cookie_id="test-account",
++        cookies_str="a=b",
++        cookies={"a": "b"},
++        session=None,
++        current_token=None,
++        last_token_refresh_time=0,
++        last_token_refresh_status=None,
++        device_id="device-1",
++        myid="test-user",
++        max_captcha_verification_count=3,
++        last_message_received_time=0,
++        message_cookie_refresh_cooldown=300,
++        restarted_in_browser_refresh=False,
++        _using_expired_startup_token=False,
++        _safe_str=lambda value: str(value),
++        create_session=AsyncMock(),
++        send_token_refresh_notification=AsyncMock(),
++        restart_instance=AsyncMock(),
++    )
++    manager = CookieTokenManager(parent)
++    manager._is_local_slider_disabled = AsyncMock(return_value=False)
++    manager._get_cached_token = AsyncMock(return_value=None)
++    manager._get_processing_risk_control_skip_result = AsyncMock(return_value=(False, None))
++    manager._load_account_info = AsyncMock(return_value={"cookie_value": "a=b"})
++    manager._set_cached_token = AsyncMock()
++    manager._delete_cached_token = AsyncMock()
++    manager.handle_captcha_verification = AsyncMock()
++    manager.need_captcha_verification = Mock(return_value=False)
++    return manager, parent
++
++
++def test_healthy_session_is_not_misclassified_and_returns_before_login_path():
++    healthy = _result({"ret": ["SUCCESS::调用成功"], "data": {"accessToken": "token"}})
++    assert is_session_expired_token_result(healthy) is False
++
++    source = COOKIE_TOKEN_MANAGER.read_text(encoding="utf-8")
++    success_pos = source.index("if new_token:")
++    session_pos = source.index("if is_session_expired_token_result(api_result):")
++    assert success_pos < session_pos
++
++    manager, _parent = _manager_for_refresh()
++    manager.try_password_login_refresh = AsyncMock()
++    manager.handle_captcha_verification = AsyncMock()
++    healthy_api_result = _result(
++        {"ret": ["SUCCESS::调用成功"], "data": {"accessToken": "token-live"}}
++    )
++    with (
++        patch("app.services.captcha.concurrency.should_skip_account", return_value=False),
++        patch(
++            "websocket.app.services.xianyu.cookie_token_manager.load_token_api_mode",
++            new=AsyncMock(return_value="web"),
++        ),
++        patch(
++            "websocket.app.services.xianyu.cookie_token_manager.request_im_token_with_fallback",
++            new=AsyncMock(return_value=healthy_api_result),
++        ),
++    ):
++        token = asyncio.run(manager.refresh_token())
++
++    assert token == "token-live"
++    manager.try_password_login_refresh.assert_not_awaited()
++    manager.handle_captcha_verification.assert_not_awaited()
++
++
++def test_explicit_session_expiry_is_detected_from_local_or_remote_result():
++    local_expired = _result({"ret": ["FAIL_SYS_SESSION_EXPIRED::Session过期"], "data": {}})
++    remote_expired = _result(
++        {"ret": ["FAIL_SYS_UNKNOWN::temporary local result"], "data": {}},
++        remote_failure_message="FAIL_SYS_SESSION_EXPIRED::Session过期",
++    )
++
++    assert is_session_expired_token_result(local_expired) is True
++    assert is_session_expired_token_result(remote_expired) is True
++
++    manager, _parent = _manager_for_refresh()
++    manager.need_captcha_verification = Mock(return_value=True)
++    manager.try_password_login_refresh = AsyncMock(return_value="no_credentials")
++    manager.handle_captcha_verification = AsyncMock()
++    with (
++        patch("app.services.captcha.concurrency.should_skip_account", return_value=False),
++        patch(
++            "websocket.app.services.xianyu.cookie_token_manager.load_token_api_mode",
++            new=AsyncMock(return_value="web"),
++        ),
++        patch(
++            "websocket.app.services.xianyu.cookie_token_manager.request_im_token_with_fallback",
++            new=AsyncMock(return_value=local_expired),
++        ),
++    ):
++        assert asyncio.run(manager.refresh_token()) is None
++
++    manager.try_password_login_refresh.assert_awaited_once_with("Session过期")
++    manager.handle_captcha_verification.assert_not_awaited()
++
++
++def test_temporary_remote_failure_is_not_session_expiry():
++    temporary = _result(
++        {"ret": ["FAIL_SYS_NETWORK::temporary failure"], "data": {}},
++        remote_failure_message="TimeoutError: remote token endpoint timeout",
++    )
++    assert is_session_expired_token_result(temporary) is False
++
++    manager, _parent = _manager_for_refresh()
++    manager.try_password_login_refresh = AsyncMock()
++    manager.need_captcha_verification = Mock(return_value=False)
++    with (
++        patch("app.services.captcha.concurrency.should_skip_account", return_value=False),
++        patch(
++            "websocket.app.services.xianyu.cookie_token_manager.load_token_api_mode",
++            new=AsyncMock(return_value="remote"),
++        ),
++        patch(
++            "websocket.app.services.xianyu.cookie_token_manager.request_im_token_with_fallback",
++            new=AsyncMock(return_value=temporary),
++        ),
++    ):
++        assert asyncio.run(manager.refresh_token()) is None
++
++    manager.try_password_login_refresh.assert_not_awaited()
++
++
++def test_remote_failure_is_propagated_without_overwriting_local_response():
++    local = _result({"ret": ["FAIL_SYS_TOKEN_EMPTY::令牌为空"], "data": {"marker": "local"}})
++    remote = _result(
++        {"ret": ["FAIL::remote"], "data": {"marker": "remote"}},
++        remote_failure_message="FAIL_SYS_SESSION_EXPIRED::Session过期",
++    )
++
++    merged = _attach_remote_failure(local, remote)
++    assert merged.response_json == local.response_json
++    assert merged.remote_failure_message == remote.remote_failure_message
++    assert is_session_expired_token_result(merged) is True
++
++
++def test_session_expiry_check_precedes_captcha_and_preserves_chg0018_non_disable_boundary():
++    source = COOKIE_TOKEN_MANAGER.read_text(encoding="utf-8")
++    session_start = source.index("if is_session_expired_token_result(api_result):")
++    captcha_start = source.index("if self.need_captcha_verification(res_json):", session_start)
++    session_block = source[session_start:captcha_start]
++
++    assert session_start < captcha_start
++    assert 'await self.try_password_login_refresh("Session过期")' in session_block
++    assert "handle_captcha_verification" not in session_block
++    assert "disable_account" not in session_block
++    assert "account status is unchanged" in session_block
++
++
++def test_cookie_renew_success_reuses_session_without_password_or_qr_login():
++    manager, parent = _manager_for_refresh()
++    parent._last_password_login_time = {}
++    parent._password_error_cooldown_time = {}
++    manager.update_config_cookies = AsyncMock(return_value=True)
++    manager._load_account_info = AsyncMock()
++    renew_result = SimpleNamespace(
++        success=True,
++        renew_method="api",
++        updated_cookie_names=["_m_h5_tk"],
++        new_cookies_str="a=b; _m_h5_tk=fresh",
++        api_message="ok",
++    )
++    with (
++        patch(
++            "common.services.cookie_renew_api_service.cookie_renew_api_service.renew",
++            new=AsyncMock(return_value=renew_result),
++        ),
++        patch("common.db.compat.db_manager.add_account_login_log", return_value=1),
++    ):
++        assert asyncio.run(manager.try_password_login_refresh("Session过期")) is True
++
++    manager.update_config_cookies.assert_awaited_once()
++    manager._load_account_info.assert_not_awaited()
++    assert "_m_h5_tk=fresh" in manager.cookies_str
++
++
++def test_cookie_renew_unrecoverable_without_credentials_fails_closed_without_disable():
++    manager, parent = _manager_for_refresh()
++    parent._last_password_login_time = {}
++    parent._password_error_cooldown_time = {}
++    manager._load_account_info = AsyncMock(
++        return_value={
++            "cookie_value": "a=b",
++            "username": "",
++            "password": "",
++            "show_browser": False,
++        }
++    )
++    renew_result = SimpleNamespace(
++        success=False,
++        renew_method="api",
++        updated_cookie_names=[],
++        new_cookies_str="a=b",
++        api_message="renew failed",
++    )
++    with (
++        patch(
++            "common.services.cookie_renew_api_service.cookie_renew_api_service.renew",
++            new=AsyncMock(return_value=renew_result),
++        ),
++        patch("common.db.compat.db_manager.add_account_login_log", return_value=1),
++    ):
++        assert asyncio.run(manager.try_password_login_refresh("Session过期")) == "no_credentials"
++
++    parent.send_token_refresh_notification.assert_awaited()
++    assert manager.cookies_str == "a=b"
++
++
++def test_existing_renew_login_chain_has_no_qr_fallback_in_password_refresh_method():
++    source = COOKIE_TOKEN_MANAGER.read_text(encoding="utf-8")
++    start = source.index("async def try_password_login_refresh")
++    end = source.index("async def verify_cookie_validity", start)
++    renew_block = source[start:end]
++
++    assert "cookie_renew_api_service.renew" in renew_block
++    assert "no_credentials" in renew_block
++    assert "qr_login" not in renew_block.lower()
++    assert "generate_qr" not in renew_block.lower()
++
++
++def test_token_refetch_and_remote_log_separate_local_and_remote_timing():
++    source = TOKEN_REFETCH.read_text(encoding="utf-8")
++    assert "local_duration_seconds: float = 0" in source
++    assert "remote_started_at = time.monotonic()" in source
++    assert "local_duration_seconds=(" in source
++
++    text = build_remote_token_log_result(
++        success=False,
++        message="temporary",
++        duration_seconds=2.5,
++        local_duration_seconds=1.25,
++    )
++    assert "本地接口耗时：1.25秒" in text
++    assert "远程接口耗时：2.50秒" in text
++    assert "总耗时：3.75秒" in text
++
++
++def test_publisher_normal_flow_contains_no_second_qr_step():
++    source = PUBLISHER.read_text(encoding="utf-8")
++    publish_start = source.index("async def publish_item")
++    publish_end = source.index("async def _upload_images", publish_start)
++    publish_block = source[publish_start:publish_end]
++
++    assert "qr_login_manager" not in publish_block
++    assert "generate_qr_code" not in publish_block
++    assert "扫码登录" not in publish_block

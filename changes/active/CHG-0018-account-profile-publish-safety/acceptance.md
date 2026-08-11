@@ -179,6 +179,20 @@ Acceptance fails if the Change adds a parallel sender, publisher, login system, 
 
 Pinned upstream requires a minimal patch to satisfy the safety and Profile readiness acceptance criteria.
 
+## Upstream 5d690ac Session/Token minimal sync (2026-08-11)
+
+- [x] Selectively transplanted the missing Session-expiry recognition and remote fallback propagation from upstream `5d690ac6e77d415b886b1e87b5aaf446f0f29c48`; no blind cherry-pick.
+- [x] `ImTokenApiResult.remote_failure_message` and `is_session_expired_token_result()` preserve the local Token response while recognizing explicit Session expiry from either local or remote-fallback evidence.
+- [x] Token refetch/risk logging distinguishes local Web Token time, remote Token time, and combined time.
+- [x] WebSocket checks explicit Session expiry before captcha and enters the existing renew/login chain; a healthy Session or temporary remote failure does not trigger login.
+- [x] CHG-0018 credential safety remains authoritative: no-credential and bad-credential paths do not change account enabled/disabled status.
+- [x] Cookie renewal success reuses the existing Session and does not invoke password or QR login.
+- [x] Canonical Profile and Publisher ownership are unchanged; normal publish has no second-QR step.
+- [x] Runtime deployment changed only Backend and WebSocket images; MySQL, Redis, Scheduler, Frontend, and volumes were not replaced or deleted.
+- [x] Scoped Session/Token + credential + Profile + publish/auth regressions: `63 passed`.
+- [x] Governance full pytest: `595 passed, 1 warning`; non-pytest repository verification checks also passed.
+- [x] Evidence: `evidence/20260811-upstream-5d690ac-session-token-sync.md`.
+
 ## Approved exception ADR
 
 Not applicable.
