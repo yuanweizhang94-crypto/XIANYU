@@ -1,3 +1,20 @@
+# AI / DEVELOPER FIRST READ
+
+PRIORITY=HIGHEST
+
+FIRST_READ=docs/AI_PROJECT_HANDOFF.md
+
+UPSTREAM_FIRST=true
+LOCAL_EXISTING_CAPABILITY_FIRST=true
+CURRENT_RUNTIME_FIRST=true
+REUSE_FIRST=true
+MINIMAL_PATCH_ONLY=true
+NEW_IMPLEMENTATION_REQUIRES_PROOF=true
+
+Before modifying code, read `docs/AI_PROJECT_HANDOFF.md` and refresh CURRENT_GITHUB, CURRENT_LOCAL, and CURRENT_RUNTIME. If upstream/local/runtime capability has not been checked, `DO_NOT_WRITE_CODE=true`.
+
+---
+
 # XIANYU AI EXECUTION RULES
 
 PRIORITY=HIGHEST
@@ -16,7 +33,7 @@ PLATFORM_LIMITATION_FAIL_CLOSED=true
 UNKNOWN_NEVER_BLIND_RETRY=true
 DIFF_BASED_SYNC=true
 
-> FIRST_READ=AGENTS.md. These rules apply to every AI, Codex/ChatGPT agent, automation agent, and developer before operating, developing, repairing, or troubleshooting XIANYU.
+> FIRST_READ=docs/AI_PROJECT_HANDOFF.md. These rules apply to every AI, Codex/ChatGPT agent, automation agent, and developer before operating, developing, repairing, or troubleshooting XIANYU.
 
 ## Mandatory before writing code
 
@@ -316,11 +333,12 @@ Never commit Cookie values, Tokens, JWTs, Authorization headers, passwords, API 
 
 ## Required reading
 
-1. `AGENTS.md`
-2. `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`
-3. `docs/CURRENT_PRODUCTION_BASELINE.md`
-4. `docs/UPSTREAM_FIRST_POLICY.md`
-5. `docs/UPSTREAM_CAPABILITY_MATRIX.md`
-6. Current active Change/spec/acceptance files only when the task is actually Repair/Development and such a Change is applicable.
+1. `docs/AI_PROJECT_HANDOFF.md`
+2. `AGENTS.md`
+3. `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`
+4. `docs/CURRENT_PRODUCTION_BASELINE.md`
+5. `docs/UPSTREAM_FIRST_POLICY.md`
+6. `docs/UPSTREAM_CAPABILITY_MATRIX.md`
+7. Current active Change/spec/acceptance files only when the task is actually Repair/Development and such a Change is applicable.
 
 No lower-priority historical document may weaken these P0 rules.
