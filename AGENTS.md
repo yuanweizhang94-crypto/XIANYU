@@ -1,85 +1,326 @@
-# Repository Agent Rules
+# XIANYU AI EXECUTION RULES
 
-These rules apply to any AI or automation agent and are not specific to one vendor or model.
+PRIORITY=HIGHEST
 
-## P0 non-negotiable rule: upstream first, never reinvent an existing wheel
+UPSTREAM_FIRST=true
+LOCAL_EXISTING_CAPABILITY_FIRST=true
+CURRENT_RUNTIME_FIRST=true
+REUSE_FIRST=true
+MINIMAL_PATCH_ONLY=true
+NO_PARALLEL_IMPLEMENTATION=true
+NO_DUPLICATE_DEVELOPMENT=true
+NO_BYPASS=true
+BUSINESS_EXECUTION_BY_DEFAULT=true
+PLATFORM_UI_IS_AUTHORITATIVE=true
+PLATFORM_LIMITATION_FAIL_CLOSED=true
+UNKNOWN_NEVER_BLIND_RETRY=true
+DIFF_BASED_SYNC=true
 
-- After safety, legality, credentials, permissions, platform-verification boundaries, and explicit project-owner instructions, this is the highest development priority. It outranks speed, convenience, refactoring preferences, architecture ambition, future scalability, and feature expansion.
-- Before proposing or writing any Xianyu code, inspect the upstream feature description, pinned upstream implementation, relevant newer upstream commits/issues, and the existing local implementation record. Do not design a local replacement first.
-- The mandatory decision order is: reuse the exact upstream function or native workflow -> configure the existing upstream capability -> apply the smallest auditable fix to the upstream path -> add a thin operations-only wrapper -> build a local exception only as the final approved resort.
-- If upstream already contains the needed method, service, model, route, UI, task, lock, cache, profile, log, or workflow, use it directly. If it contains the correct path with a confirmed defect, repair that path without replacing its execution owner or duplicating its data model.
-- A claim that upstream lacks a solution is invalid until the active work record lists the searched README/docs, UI, routes, services, models, workers, scheduler tasks, tests, configuration, logs, issues, and commits relevant to the capability.
-- New services, tables, APIs, workers, queues, schedulers, browser managers, Token implementations, Cookie implementations, login implementations, sender implementations, or execution owners are forbidden while an existing path can be reused or minimally repaired.
-- Every development task must record the reuse decision as one of `ADOPT_UPSTREAM`, `CONFIGURE_UPSTREAM`, `PATCH_UPSTREAM`, `WRAP_FOR_OPERATIONS`, or approved `BUILD_LOCAL_EXCEPTION`, together with duplicate-development risk and rollback.
-- Any minimal patch must preserve upstream APIs, return shapes, data ownership, UI workflow, and execution ownership wherever possible, and must include a default-off or otherwise deterministic rollback path when runtime behavior changes.
-- When upstream later provides an equivalent capability, overlapping local code must be reviewed for retirement rather than expanded.
-- The current formal direction and capability disposition are recorded in `docs/FORMAL_DEVELOPMENT_DIRECTION.md`. A future Change may refine implementation details but may not weaken this P0 rule.
+> FIRST_READ=AGENTS.md. These rules apply to every AI, Codex/ChatGPT agent, automation agent, and developer before operating, developing, repairing, or troubleshooting XIANYU.
 
-## Highest delivery priority: smallest safe solution, no duplicate development
+## Mandatory before writing code
 
-- After safety, legality, credentials, permissions, and explicit project-owner boundaries, the highest delivery priority is to complete the user's stated business outcome with the smallest proven, reversible change.
-- Before editing code or configuration, write a three-line execution contract in the active work record: `User outcome`, `Confirmed blocker`, and `Smallest success test`. Work outside that contract is forbidden unless new evidence makes expansion unavoidable.
-- Use this order: existing native path -> configuration correction -> minimal defect fix -> reuse a proven local component -> new component as the last resort.
-- Fix only confirmed defects. Do not add speculative architecture, generic abstractions, unrelated hardening, cleanup, or future-facing features during a repair.
-- Do not add a new service, helper, bridge, UI, API, table, model, dependency, runtime, worker, sender, or execution owner when an existing path can be corrected.
-- Do not repeat an upstream audit, local-history audit, or root-cause investigation that is already recorded and still valid. Re-open it only when new evidence directly contradicts the recorded conclusion.
-- Do not create a parallel Change, PR, implementation, fallback runtime, or temporary executor for the same blocker.
-- Use one controlled reproduction, then targeted tests for the confirmed defect. Run full repository validation only after the targeted test passes. Repeated live retries are forbidden.
-- Stop at the first new blocker. Report the exact evidence and the smallest next action; do not improvise another layer of development.
-- Any unavoidable scope expansion or new runtime component requires explicit project-owner approval and recorded evidence explaining why configuration, an existing function, or a minimal patch cannot solve the problem.
-- Documentation, CI success, or a merged PR does not prove the user's business outcome. Do not mark work complete while the original blocker still exists.
-- Progress reports must use plain language: what is blocked, what exact change is being made, what result was observed, and whether the owner must act.
+Before any code modification, the AI MUST prove all of the following:
 
-## Required behavior
+1. The current upstream does not already provide the required capability.
+2. The current XIANYU local code does not already provide the required capability.
+3. The current production runtime is actually running the expected current code.
+4. The problem is not caused only by configuration, stale runtime/image/container, an unloaded patch, service/scheduler state, Session/account state, material/data state, backend authentication, browser lock, an incorrect invocation, or an official platform limitation.
+5. A modification to the existing implementation is actually necessary.
 
-- Do not rely on old chats, model memory, or external memory.
-- Run `python scripts/project_context.py` before development.
-- Treat `changes/active/`, `specs/`, `docs/adr/`, `contracts/`, `generated/PROJECT_STATE.json`, `scripts/`, and `tests/` as the fact sources.
-- Specific change scope must be read only from the current active change proposal, design, tasks, and acceptance files.
-- Root `AGENTS.md` must not store the feature boundary for any specific change.
-- The current active change `acceptance.md` has priority for defining what is allowed and forbidden in the current work.
-- DRAFT status is read-and-review only and must not be implemented.
-- APPROVED, IMPLEMENTING, and VERIFYING are executable statuses.
-- Do not modify business code when there is no executable active change.
-- Execute only the current executable active change.
-- Complete only one unfinished task at a time.
-- Search existing implementation, specs, ADRs, scripts, tests, and archived change research before adding new work.
-- Do not implement the same capability in parallel paths.
-- Do not manually edit generated files, especially `generated/PROJECT_STATE.json`.
-- Do not add unapproved dependencies.
-- Stop and fail closed when risk, credentials, permissions, platform verification, or scope is uncertain.
-- Do not commit Cookie, Token, Secret, private keys, real customer data, or browser Profiles.
-- Do not hardcode any specific change identifier in this file.
-- Run `python scripts/verify_repository.py` after completion.
+If any condition is not proven:
 
-## Mandatory upstream evidence before design, development, repair, or validation
+NEW_IMPLEMENTATION_ALLOWED=false
+DO_NOT_WRITE_CODE=true
 
-- Before proposing, designing, implementing, repairing, or live-validating a Xianyu capability, first inspect the original upstream project's feature description and intended workflow. Evidence may include upstream README/docs, UI labels and help text, API routes, models, services, tests, release notes, issues, and commits.
-- The pinned upstream SHA and pinned checkout are the runtime source of truth. Newer upstream branches or commits may be inspected only to identify an already-existing fix or intended behavior; they must not be silently adopted or treated as deployed behavior.
-- Record the upstream feature name, pinned SHA, evidence paths, documented/native workflow, configuration points, execution service, and expected logs or status signals in the active Change before implementation or validation begins.
-- Validation must exercise the upstream-native documented path first. Do not invent a replacement API, sender, worker, service, data model, or workflow merely to make a test pass.
-- If upstream already provides the capability, use `ADOPT_UPSTREAM`, `CONFIGURE_UPSTREAM`, or a minimal auditable `PATCH_UPSTREAM` decision. Local parallel development is forbidden.
-- Only when the original upstream does not provide the capability or does not address the observed problem may prior `D:/xianyu` implementations, archived changes, ADRs, experiments, tests, and research be considered as fallback evidence.
-- A claim that upstream lacks a capability or fix must cite the searched documentation and source areas. "Not found" without recorded search evidence is not sufficient.
-- No Change may enter implementation, repair, or live validation without both an upstream evidence record and a duplicate-development assessment.
+Do not create a parallel implementation. Do not build a workaround around the formal XIANYU flow.
 
-## CHG-0008 upstream pilot anti-drift rules
+## Mandatory development precheck
 
-- Before adding a new Xianyu capability, check existing Account, Message, Reply, Publish, and Schedule boundaries and reuse their facts instead of reimplementing them.
-- Do not create large adapter abstractions, fake sessions, mapping DTOs, or new runtimes only because they may be useful later.
-- Pin upstream repositories to exact commits before audit or execution; never silently follow floating main or master.
-- Do not copy upstream source code, deployment scripts, protocol constants, signing logic, decryption logic, or Cookie examples into this repository.
-- Local verified capability means deterministic local evidence only; it does not mean live Xianyu operation works.
-- Stop on CAPTCHA, slider, face verification, device verification, risk-control prompts, unknown outcomes, or uncertain permissions.
-- CHG-0008 is an upstream pilot governance and evidence change. It must not create CHG-0009 or `app/xianyu_system/adapters/xianyu/` without later pilot evidence proving a specific interface is needed.
+Before Repair or Development, record:
 
-## Upstream-first product direction
+```text
+DEVELOPMENT_PRECHECK
+TASK_TYPE=BUSINESS_EXECUTION / REPAIR / DEVELOPMENT
+FAILURE_REASON=
+RESPONSIBLE_LAYER=
+CURRENT_UPSTREAM_CAPABILITY=
+CURRENT_LOCAL_CAPABILITY=
+CURRENT_RUNTIME_CAPABILITY=
+CONFIGURATION_ISSUE=
+SESSION_OR_DATA_ISSUE=
+OFFICIAL_PLATFORM_LIMITATION=
+MINIMAL_EXISTING_FUNCTION_TO_CHANGE=
+WHY_EXISTING_FUNCTION_CANNOT_BE_REUSED_AS_IS=
+WHY_NEW_IMPLEMENTATION_IS_REQUIRED=
+```
 
-- Before creating or implementing any feature, search both `D:/xianyu` and the pinned upstream checkout at `D:/xianyu-upstream-pilot`.
-- Inspect upstream feature documentation and native workflow before reading local fallback solutions. The required order is: upstream description -> pinned upstream implementation/tests -> upstream-native validation plan -> prior local research only when upstream is absent or insufficient.
-- If pinned upstream has an equivalent capability, the Change must `ADOPT_UPSTREAM`, `CONFIGURE_UPSTREAM`, or `PATCH_UPSTREAM` instead of creating a parallel implementation in this repository.
-- `WRAP_FOR_OPERATIONS` is allowed only for safety, governance, operations, validation, monitoring, backup, restore, diagnostics, and upgrade control around the upstream engine.
-- `BUILD_LOCAL_EXCEPTION` is the last resort and requires pinned upstream evidence, local search evidence, duplicate-risk analysis, a referenced approved ADR, project-owner approval, component ownership, and a retirement or upstream-contribution plan.
-- Two automatic-reply send executors must never run at the same time.
-- The formal automatic-reply sole executor must be explicit in architecture documentation before any live automatic reply validation.
-- A Change without a capability matrix reference, upstream feature-description evidence, pinned source evidence, native validation workflow, and reuse decision must not enter `IMPLEMENTING` or `VERIFYING`.
+If `CURRENT_UPSTREAM_CAPABILITY=EXISTS`, `CURRENT_LOCAL_CAPABILITY=EXISTS`, or `CURRENT_RUNTIME_CAPABILITY=STALE_ONLY`, default to:
+
+```text
+NEW_IMPLEMENTATION_ALLOWED=false
+```
+
+Prefer `REUSE`, `CONFIG_FIX`, `RUNTIME_ACTIVATION`, or `MINIMAL_EXISTING_FUNCTION_FIX`.
+
+## Task classification is mandatory
+
+User requests such as “发布商品”, “继续发布”, “发布这些图片”, or “查询发布状态” are BUSINESS_EXECUTION by default. Do not automatically turn normal business execution into audit, development, Canary, refactor, upstream sync, broad source search, Docker rebuild, or source modification.
+
+Only escalate when a formal business call returns a system-level failure with direct evidence.
+
+## Formal business execution path
+
+```text
+receive_attachment
+→ xianyu_material_import
+→ xianyu_publish_single
+→ XIANYU Backend
+→ PublishExecutorService
+→ XianyuPublisher
+→ Goofish official platform flow
+```
+
+Normal real business execution must not use:
+
+- `run_program` for real publish
+- `container_run` for real publish
+- temporary Python/Node publish scripts
+- direct import of `execute_single_publish`
+- direct import of Publisher
+- a second Playwright publisher
+- direct bypass of the formal Backend
+
+## Existing capability first
+
+The following capability families already exist and MUST NOT be reimplemented without new direct evidence that the existing implementation is absent or fundamentally unusable:
+
+- Account
+- Cookie
+- Session
+- canonical Profile
+- Material
+- Publisher
+- Category
+- Playwright
+- Scheduler
+- WebSocket
+- Session Renew
+- QR Login
+- Browser Lock
+- Publish Status
+- Backend Auth
+- Material Bridge
+
+If one contains a defect, repair the existing implementation. Do not copy, bypass, or build a parallel owner.
+
+## Upstream First means compare, not overwrite
+
+Upstream business source: https://github.com/zhinianboke/xianyu-auto-reply
+
+Correct order:
+
+```text
+READ CURRENT UPSTREAM
+→ UNDERSTAND NATIVE CAPABILITY
+→ COMPARE CURRENT LOCAL
+→ PRESERVE LOCAL SAFETY/ENHANCEMENTS
+→ SYNC ONLY THE ACTUALLY MISSING PART
+```
+
+Never overwrite an entire local file merely because upstream has a version of it. XIANYU may contain local safety behavior that is ahead of upstream. `DIFF_BASED_SYNC=true`.
+
+## Runtime First
+
+When source appears fixed but behavior still fails, verify:
+
+```text
+CURRENT_SOURCE
+CURRENT_IMAGE
+CURRENT_CONTAINER
+CURRENT_RUNTIME
+```
+
+If source is image-baked, activate only the necessary image/container, perform health checks, and verify runtime source. Never use real product retries to discover that a patch was never loaded.
+
+## Stop Patch → Try → Patch → Try
+
+If the same issue has already received two fixes without resolution: STOP. Do not add a third isolated patch.
+
+Perform a complete comparison:
+
+```text
+CURRENT_UPSTREAM
+vs
+CURRENT_LOCAL
+vs
+CURRENT_RUNTIME
+```
+
+Then complete one controlled closure:
+
+```text
+ROOT_CAUSE
+→ SINGLE_STATE_MACHINE
+→ REMOVE_DUPLICATE_PATHS
+→ TARGETED_TESTS
+→ REGRESSION_TESTS
+→ RUNTIME_ACTIVATION
+→ STOP
+```
+
+Preferred sequence: Observe → Classify → Compare → Root Cause → Minimal Patch → Tests → Activate → Stop.
+
+## Category authority
+
+PLATFORM_UI_IS_AUTHORITATIVE=true.
+
+Current formal category model:
+
+```text
+platform auto-selected category → reuse it
+otherwise:
+read real platform candidates
+→ semantic logic may rank/assist only
+→ click a real candidate
+→ observe UI state machine
+```
+
+Supported states:
+
+- `FINAL_SELECTED`
+- `NEXT_LEVEL_REQUIRED`
+- `CLICK_NOT_EFFECTIVE`
+- `PC_WEB_UNSUPPORTED`
+- `LOGIN_REQUIRED`
+- `PLATFORM_VERIFICATION_REQUIRED`
+
+`MAX_CATEGORY_LEVELS=5`.
+
+Do not return `no_supported_category` solely because of `LOCAL_MAPPING_MISS`, `SEMANTIC_GATE_MISS`, or `SELECTED_CLASS_NOT_FOUND`.
+
+Do not reintroduce `SELECTED_CONFIRMED` as a local semantic hard gate without new platform evidence. Do not create a second category selector.
+
+## Official PC Web limitation
+
+If the platform explicitly reports “网页版暂不支持发布此分类”:
+
+```text
+CATEGORY_WEB_UNSUPPORTED
+→ FAIL_CLOSED
+```
+
+Do not force `categoryId`, force `channelCatId`, select an incorrect category, fabricate a category, or bypass the platform restriction. This is an `OFFICIAL_PLATFORM_LIMITATION`, not a new development requirement.
+
+## Publish status semantics
+
+HTTP 200 is not publish success.
+
+Formal states:
+
+- `SUBMITTED`
+- `RUNNING`
+- `SUCCESS`
+- `FAILED`
+- `UNKNOWN`
+
+`SUCCESS` requires at least one authoritative signal:
+
+- `platform_item_id`, or
+- `item_url`, or
+- `AUTHORITATIVE_SYNC_CONFIRMED=true`.
+
+`UNKNOWN` must never trigger a blind retry.
+
+## 502 / timeout with side effects
+
+A connector 502, timeout, or connection error does not prove the Windows/platform action did not execute.
+
+For publish, Git, or file mutation:
+
+```text
+STOP_NEW_EXECUTION
+→ READ_ONLY_STATUS_RECOVERY
+→ SUCCESS / FAILED / UNKNOWN
+```
+
+If `UNKNOWN`, do not execute again until authoritative state is recovered.
+
+## Session authority
+
+Final account publish readiness is `REAL_BROWSER_LOGIN_READY`, not merely Cookie presence, Profile presence, or a database `healthy` flag.
+
+Production Session maintenance uses the established Session renewal path. Do not create overlapping schedulers or a second renewal system.
+
+If a real page requires human QR verification during normal business execution, skip that account and use another healthy account. One account must not block the whole batch.
+
+## Change scope discipline
+
+Every Repair/Development must define:
+
+```text
+ALLOWED_CHANGE_SCOPE=
+FORBIDDEN_CHANGE_SCOPE=
+```
+
+Do not perform “while we are here” optimizations. Do not cross responsibility layers.
+
+## Testing discipline
+
+Repair sequence:
+
+```text
+TARGETED_TESTS
+→ RELATED_REGRESSION_TESTS
+→ REPOSITORY_VERIFY
+→ RUNTIME_ACTIVATION
+→ STOP
+```
+
+Do not substitute real product actions for tests. During Repair, default `REAL_PRODUCT_ACTIONS=0`. After tests and runtime activation are complete, stop development; execute real publishing only as a separate normal business task.
+
+## Responsibility layers
+
+- MCP / Proxy / Runner: `COMPANY_LOCAL_EXECUTION_TOOL`
+- Attachment persistence: `COMPANY_LOCAL_EXECUTION_TOOL`
+- Business Adapter transport: `COMPANY_LOCAL_EXECUTION_TOOL`
+- Material / Publisher / Category / Session / Profile / Account / Scheduler: `XIANYU`
+- QR / Slider / Face / official verification: `Official Platform / Human Interaction`
+- `CATEGORY_WEB_UNSUPPORTED`: `Official Platform Limitation`
+
+Execution infrastructure: https://github.com/yuanweizhang94-crypto/COMPANY_LOCAL_EXECUTION_TOOL
+
+Do not develop across layers to hide the actual owner of a failure.
+
+## Permanent prohibited development patterns
+
+- duplicate wheels
+- parallel architecture
+- second Publisher
+- second Login
+- second Session Renew
+- second Profile Manager
+- second Material system
+- second Category system
+- second Business Adapter
+- temporary publish bypass
+- evidence-free global refactor
+- evidence-free large source modification
+- repeated real-product Canary trial-and-error
+- blind retry of UNKNOWN
+- whole-file upstream overwrite that removes local safety improvements
+
+## Security
+
+Never commit Cookie values, Tokens, JWTs, Authorization headers, passwords, API keys, private keys, QR payloads, browser Profiles, real customer messages, or other secret material. Use state names and redacted placeholders only.
+
+## Required reading
+
+1. `AGENTS.md`
+2. `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`
+3. `docs/CURRENT_PRODUCTION_BASELINE.md`
+4. `docs/UPSTREAM_FIRST_POLICY.md`
+5. `docs/UPSTREAM_CAPABILITY_MATRIX.md`
+6. Current active Change/spec/acceptance files only when the task is actually Repair/Development and such a Change is applicable.
+
+No lower-priority historical document may weaken these P0 rules.
