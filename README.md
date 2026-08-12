@@ -1,12 +1,15 @@
 # XIANYU
 
-> ## IMPORTANT — AI / Developer Execution Rules
+> ## IMPORTANT — AI / Developer Entry Point
 >
-> Before changing or operating XIANYU, read:
+> Before operating, repairing, or modifying XIANYU, read:
 >
 > 1. [`AGENTS.md`](AGENTS.md)
-> 2. [`docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`](docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md)
-> 3. [`docs/CURRENT_PRODUCTION_BASELINE.md`](docs/CURRENT_PRODUCTION_BASELINE.md)
+> 2. [`docs/AI_PROJECT_HANDOFF.md`](docs/AI_PROJECT_HANDOFF.md)
+> 3. [`docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`](docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md)
+> 4. [`docs/CURRENT_PRODUCTION_BASELINE.md`](docs/CURRENT_PRODUCTION_BASELINE.md)
+>
+> `FIRST_READ=docs/AI_PROJECT_HANDOFF.md`
 >
 > Mandatory: `UPSTREAM_FIRST`, `LOCAL_EXISTING_CAPABILITY_FIRST`, `CURRENT_RUNTIME_FIRST`, `REUSE_FIRST`, `MINIMAL_PATCH_ONLY`, `NO_PARALLEL_IMPLEMENTATION`, `NO_DUPLICATE_DEVELOPMENT`, `NO_BYPASS`.
 >
@@ -17,8 +20,8 @@
 XIANYU uses `zhinianboke/xianyu-auto-reply` as the primary business capability source and execution foundation. XIANYU adds safety governance, minimal patches, validation, release control, evidence, CI, operations, and production hardening around the formal business path.
 
 - User repository: https://github.com/yuanweizhang94-crypto/XIANYU
-- Upstream business source: https://github.com/zhinianboke/xianyu-auto-reply
-- Execution infrastructure: https://github.com/yuanweizhang94-crypto/COMPANY_LOCAL_EXECUTION_TOOL
+- XIANYU Upstream: https://github.com/zhinianboke/xianyu-auto-reply
+- Execution Infrastructure: https://github.com/yuanweizhang94-crypto/COMPANY_LOCAL_EXECUTION_TOOL
 
 `UPSTREAM_FIRST=true` does **not** mean overwriting local files with upstream. Read upstream, compare local enhancements/safety fixes, compare current runtime, and sync only the missing delta. `DIFF_BASED_SYNC=true`.
 
@@ -59,7 +62,9 @@ NEW_IMPLEMENTATION_ALLOWED=false
 DO_NOT_WRITE_CODE=true
 ```
 
-Full precheck and scope rules: [`docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`](docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md).
+Full cross-project handoff and pre-code proof gate: [`docs/AI_PROJECT_HANDOFF.md`](docs/AI_PROJECT_HANDOFF.md).
+
+Full XIANYU-specific precheck and scope rules: [`docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`](docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md).
 
 ## Current production baseline
 
@@ -67,7 +72,7 @@ The current production authority, including the 2026-08-12 category-state-machin
 
 - [`docs/CURRENT_PRODUCTION_BASELINE.md`](docs/CURRENT_PRODUCTION_BASELINE.md)
 
-Historical Change records, ADRs, capability matrices, archived evidence, and older phase notes remain useful as historical evidence, but they do not override `AGENTS.md` or the current production baseline.
+Historical Change records, ADRs, capability matrices, archived evidence, and older phase notes remain useful as historical evidence, but they do not override current GitHub/local/runtime checks, `AGENTS.md`, the Living Handoff, or the current production baseline.
 
 ## Existing capability ownership
 
@@ -94,9 +99,10 @@ Never commit Cookies, Tokens, JWTs, Authorization headers, passwords, API keys, 
 ## Documentation priority
 
 - P0: `AGENTS.md`
+- P1: `docs/AI_PROJECT_HANDOFF.md`
 - P1: this README AI/developer entrypoint
 - P1: `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`
 - P1: `docs/CURRENT_PRODUCTION_BASELINE.md`
 - P2: architecture/history/ADR/archive evidence
 
-`FIRST_READ=AGENTS.md`.
+`FIRST_READ=docs/AI_PROJECT_HANDOFF.md`.
