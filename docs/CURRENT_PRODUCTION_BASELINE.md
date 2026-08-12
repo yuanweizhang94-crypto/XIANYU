@@ -2,7 +2,9 @@
 
 Authority timestamp: **2026-08-12 22:33 Asia/Taipei (UTC+8)**
 
-This document records current production facts needed for normal XIANYU operation and future Repair/Development decisions. Root `AGENTS.md` remains the highest-priority behavioral rule.
+AI/developer first-read Living Handoff: [`docs/AI_PROJECT_HANDOFF.md`](AI_PROJECT_HANDOFF.md).
+
+This document records current production facts needed for normal XIANYU operation and future Repair/Development decisions. Root `AGENTS.md` remains the highest-priority behavioral rule; current GitHub/local/runtime verification remains authoritative over dated snapshot values.
 
 ## Repository and responsibility
 
@@ -99,6 +101,10 @@ Do not force category IDs, use an inaccurate category, fabricate a category, or 
 
 ## Final real production verification — 2026-08-12
 
+```text
+HISTORICAL_SNAPSHOT_ONLY=true
+```
+
 Original five-item closure:
 
 | Material | Final state | Authoritative result |
@@ -109,7 +115,7 @@ Original five-item closure:
 | 6 | SUCCESS | `platform_item_id=1073637026044` |
 | 10 | CATEGORY_WEB_UNSUPPORTED | official PC-Web limitation; fail closed |
 
-Current production conclusions:
+Current production conclusions at that dated validation point:
 
 ```text
 PUBLISH_FLOW_FIXED=true
@@ -119,7 +125,7 @@ REAL_PUBLISH_VERIFIED=true
 REMAINING_SYSTEM_BLOCKER=NONE
 ```
 
-A future ordinary failure must be classified from its new `failure_reason`; do not assume a recurrence of the old Publisher/category defect.
+A future ordinary failure must be classified from its new `failure_reason`; do not assume a recurrence of the old Publisher/category defect. Do not use this dated snapshot to skip current GitHub/local/runtime verification.
 
 ## Session production authority
 
@@ -222,7 +228,7 @@ CURRENT_RUNTIME
 
 Only modify the existing implementation after proving the issue is not stale Runtime, configuration, Session/data/account state, incorrect invocation, or official platform limitation.
 
-See `AGENTS.md` and `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md` for the mandatory precheck.
+See `docs/AI_PROJECT_HANDOFF.md`, `AGENTS.md`, and `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md` for the mandatory precheck.
 
 ## Security
 
