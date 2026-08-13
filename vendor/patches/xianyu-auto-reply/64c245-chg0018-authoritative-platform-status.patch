@@ -1,0 +1,2489 @@
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+index c623a06..43b6165 100644
+--- a/backend-web/app/api/routes/cookies.py
++++ b/backend-web/app/api/routes/cookies.py
+@@ -10,6 +10,8 @@
+ """
+ from __future__ import annotations
+ 
++from typing import Any
++
+ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, UploadFile, File, Form, status
+ from sqlalchemy import func, select, text
+ 
+@@ -72,6 +74,90 @@ def _status_to_enabled(status: str | None) -> bool:
+     return normalized not in {"inactive", "disabled", "suspended", "deleted"}
+ 
+ 
++def _consumer_record(
++    session_maintenance: dict[str, Any],
++    name: str,
++    *,
++    fallback_state: str = "PENDING",
++) -> dict[str, Any]:
++    consumers = session_maintenance.get("consumers")
++    record = consumers.get(name) if isinstance(consumers, dict) else None
++    if not isinstance(record, dict):
++        return {"state": fallback_state, "updated_at": None, "reason": ""}
++    return {
++        "state": str(record.get("state") or fallback_state),
++        "updated_at": record.get("updated_at"),
++        "reason": str(record.get("reason") or ""),
++    }
++
++
++def _browser_state_from_session(session_maintenance: dict[str, Any]) -> str:
++    state = str(session_maintenance.get("state") or "SESSION_CHECK_PENDING")
++    return {
++        "REAL_BROWSER_LOGIN_READY": "READY",
++        "SESSION_CHECK_PENDING": "PENDING",
++        "SESSION_RENEWING": "PENDING",
++        "SESSION_RENEW_FAILED": "TEMPORARY_FAILURE",
++        "HUMAN_QR_REQUIRED": "HUMAN_QR_REQUIRED",
++        "PLATFORM_VERIFICATION_REQUIRED": "PLATFORM_VERIFICATION_REQUIRED",
++        "COOLDOWN": "COOLDOWN",
++    }.get(state, "PENDING")
++
++
++def _publish_state_from_session(session_maintenance: dict[str, Any]) -> str:
++    publish = _consumer_record(session_maintenance, "publish")
++    if publish["state"] != "PENDING":
++        return publish["state"]
++    browser_state = _browser_state_from_session(session_maintenance)
++    if browser_state in {"HUMAN_QR_REQUIRED", "PLATFORM_VERIFICATION_REQUIRED", "COOLDOWN"}:
++        return browser_state
++    return "PENDING"
++
++
++def _build_consumer_readiness(account: XYAccount, auto_reply_online: bool) -> dict[str, Any]:
++    metadata = account.metadata_json if isinstance(account.metadata_json, dict) else {}
++    session_maintenance = metadata.get("session_maintenance")
++    if not isinstance(session_maintenance, dict):
++        session_maintenance = {}
++
++    auto_reply_state = "READY" if auto_reply_online else "DISCONNECTED"
++    browser_state = _browser_state_from_session(session_maintenance)
++    chat = _consumer_record(session_maintenance, "chat")
++    publish = _consumer_record(session_maintenance, "publish")
++    publish_state = _publish_state_from_session(session_maintenance)
++
++    return {
++        "auto_reply_state": auto_reply_state,
++        "auto_reply_updated_at": None,
++        "auto_reply_reason": "websocket_online" if auto_reply_online else "websocket_offline",
++        "browser_session_state": browser_state,
++        "browser_session_updated_at": session_maintenance.get("updated_at"),
++        "browser_session_reason": str(session_maintenance.get("failure_reason") or ""),
++        "chat_state": chat["state"],
++        "chat_updated_at": chat["updated_at"],
++        "chat_reason": chat["reason"],
++        "publish_state": publish_state,
++        "publish_updated_at": publish["updated_at"],
++        "publish_reason": publish["reason"],
++    }
++
++
++def _build_platform_restriction(account: XYAccount) -> dict[str, Any]:
++    metadata = account.metadata_json if isinstance(account.metadata_json, dict) else {}
++    record = metadata.get("platform_restriction")
++    if not isinstance(record, dict):
++        record = {}
++    return {
++        "platform_restriction_state": str(record.get("state") or "UNKNOWN"),
++        "platform_restriction_reason": str(record.get("reason") or ""),
++        "platform_restriction_until": record.get("restriction_until"),
++        "platform_restriction_duration_seconds": record.get("duration_seconds"),
++        "platform_restriction_evidence_type": record.get("evidence_type"),
++        "platform_restriction_updated_at": record.get("updated_at") or record.get("last_checked_at"),
++        "platform_restriction_source": str(record.get("source") or ""),
++    }
++
++
+ def _normalize_delivery_excluded_items(raw: object) -> list[str]:
+     """归一化禁止发货排除商品列表，兼容 JSON 字段返回的 None / list / 字符串
+ 
+@@ -215,7 +301,7 @@ async def list_cookie_details(
+                 message_expire_time=account.message_expire_time if account.message_expire_time is not None else 3600,
+                 reply_delay_seconds=account.reply_delay_seconds if account.reply_delay_seconds is not None else 0,
+                 username=account.username or "",
+-                login_password=account.login_password or "",
++                has_password=bool((account.username or "").strip() and (account.login_password or "").strip()),
+                 show_browser=bool(account.show_browser),
+                 disable_reason=account.disable_reason or "",
+                 filter_count=filter_counts.get(account.account_id, 0),
+@@ -333,12 +419,17 @@ async def list_cookie_details_paginated(
+     details = []
+     for account in accounts:
+         ai_settings = (account.metadata_json or {}).get("ai_reply_settings") or {}
++        auto_reply_online = account.account_id in online_ids
++        consumer_readiness = _build_consumer_readiness(account, auto_reply_online)
++        platform_restriction = _build_platform_restriction(account)
+         details.append({
+             "pk": account.id,  # 数据库主键
+             "id": account.account_id,
+             "value": account.cookie or "",
+             "enabled": _status_to_enabled(account.status),
+-            "online": account.account_id in online_ids,
++            "online": auto_reply_online,
++            **consumer_readiness,
++            **platform_restriction,
+             "auto_confirm": bool(account.auto_confirm),
+             "scheduled_redelivery": bool(account.scheduled_redelivery),
+             "scheduled_rate": bool(account.scheduled_rate),
+@@ -359,7 +450,7 @@ async def list_cookie_details_paginated(
+             "message_expire_time": account.message_expire_time if account.message_expire_time is not None else 3600,
+             "reply_delay_seconds": account.reply_delay_seconds if account.reply_delay_seconds is not None else 0,
+             "username": account.username or "",
+-            "login_password": account.login_password or "",
++            "has_password": bool((account.username or "").strip() and (account.login_password or "").strip()),
+             "show_browser": bool(account.show_browser),
+             "disable_reason": account.disable_reason or "",
+             "filter_count": filter_counts.get(account.account_id, 0),
+diff --git a/backend-web/app/api/routes/items.py b/backend-web/app/api/routes/items.py
+index b2abd85..b2c8b8d 100644
+--- a/backend-web/app/api/routes/items.py
++++ b/backend-web/app/api/routes/items.py
+@@ -107,6 +107,7 @@ async def list_items_paginated(
+     is_polished: bool | None = Query(default=None, description="是否擦亮筛选"),
+     is_multi_spec: bool | None = Query(default=None, description="多规格筛选"),
+     multi_quantity_delivery: bool | None = Query(default=None, description="多数量发货筛选"),
++    platform_status: str | None = Query(default=None, description="platform status filter"),
+     current_user: User = Depends(deps.get_current_active_user),
+     item_service: ItemService = Depends(deps.get_item_service),
+ ):
+@@ -130,6 +131,7 @@ async def list_items_paginated(
+         is_polished=is_polished,
+         is_multi_spec=is_multi_spec,
+         multi_quantity_delivery=multi_quantity_delivery,
++        platform_status=platform_status,
+     )
+     
+     return {
+@@ -1098,6 +1100,22 @@ class ItemSearchRequest(PydanticBaseModel):
+     page_size: int = 20
+ 
+ 
++@items_router.post("/check-platform-status")
++async def check_platform_status(
++    payload: ItemFullFetchRequest,
++    current_user: User = Depends(deps.get_current_active_user),
++    account_service: AccountService = Depends(deps.get_account_service),
++    item_service: ItemService = Depends(deps.get_item_service),
++) -> Dict[str, Any]:
++    owner_id, _ = resolve_owner_scope(current_user)
++    if not payload.cookie_id:
++        return ApiResponse(success=False, message="cookie_id is required")
++    account = await account_service.get_account_for_user(owner_id, payload.cookie_id)
++    if not account:
++        return ApiResponse(success=False, message="account not found")
++    return await item_service.check_account_platform_status(account=account)
++
++
+ @items_router.post("/search")
+ async def search_items(
+     payload: ItemSearchRequest,
+diff --git a/backend-web/app/api/routes/qr_login.py b/backend-web/app/api/routes/qr_login.py
+index c3cecf4..b1909a0 100644
+--- a/backend-web/app/api/routes/qr_login.py
++++ b/backend-web/app/api/routes/qr_login.py
+@@ -181,6 +181,22 @@ async def get_qr_status(
+                     logger.info(
+                         f"扫码登录：{'创建新账号' if is_new_account else '更新现有账号'} {account.account_id}"
+                     )
++
++                    try:
++                        from app.services.chat_new import get_im_session_manager
++
++                        chat_invalidation = await get_im_session_manager().invalidate_auth_consumers(
++                            account.account_id,
++                            cookies_str,
++                        )
++                        logger.info(
++                            f"扫码登录：Chat auth consumer状态已失效 {account.account_id}: "
++                            f"{chat_invalidation}"
++                        )
++                    except Exception as chat_e:
++                        logger.warning(
++                            f"扫码登录：Chat auth consumer失效处理失败 {account.account_id}: {chat_e}"
++                        )
+                     
+                     # 调用 WebSocket 服务启动账号任务
+                     try:
+diff --git a/backend-web/app/api/routes/shared_scan.py b/backend-web/app/api/routes/shared_scan.py
+index 455b2ac..fe71906 100644
+--- a/backend-web/app/api/routes/shared_scan.py
++++ b/backend-web/app/api/routes/shared_scan.py
+@@ -578,6 +578,22 @@ async def _handle_scan_success(
+             f"共享扫码登录：{'创建新账号' if is_new else '更新现有账号'} unb={unb}, owner_id={owner_id}"
+         )
+ 
++        try:
++            from app.services.chat_new import get_im_session_manager
++
++            chat_invalidation = await get_im_session_manager().invalidate_auth_consumers(
++                account.account_id,
++                cookies_str,
++            )
++            logger.info(
++                f"shared QR login: Chat auth consumers invalidated {account.account_id}: "
++                f"{chat_invalidation}"
++            )
++        except Exception as chat_e:
++            logger.warning(
++                f"shared QR login: Chat auth consumer invalidation failed {account.account_id}: {chat_e}"
++            )
++
+         worker.status = "success"
+         worker.account_id = unb
+         worker.cookie_saved = True
+diff --git a/backend-web/app/services/account_service.py b/backend-web/app/services/account_service.py
+index 752c006..ddcd20d 100644
+--- a/backend-web/app/services/account_service.py
++++ b/backend-web/app/services/account_service.py
+@@ -413,9 +413,11 @@ class AccountService:
+     ) -> None:
+         """更新账号登录信息（用户名、密码、是否显示浏览器）"""
+         if username is not None:
+-            account.username = username
++            account.username = username.strip()
+         if login_password is not None:
+-            account.login_password = login_password
++            password_text = login_password.strip()
++            if password_text:
++                account.login_password = password_text
+         if show_browser is not None:
+             account.show_browser = show_browser
+         self.session.add(account)
+diff --git a/backend-web/app/services/chat_new/im_client.py b/backend-web/app/services/chat_new/im_client.py
+index 750cba1..cbe5c4b 100644
+--- a/backend-web/app/services/chat_new/im_client.py
++++ b/backend-web/app/services/chat_new/im_client.py
+@@ -23,6 +23,7 @@ from sqlalchemy import text
+ from app.services.websocket_client import websocket_client
+ from common.db.session import async_session_maker
+ from common.utils.cookie_refresh import (
++    cookie_fingerprint,
+     merge_cookies,
+     update_account_cookies_in_db,
+ )
+@@ -70,6 +71,79 @@ CAPTCHA_KEYWORDS = (
+ CAPTCHA_MAX_RETRY = 1
+ 
+ 
++def _metadata_dict(raw_metadata: Any) -> dict[str, Any]:
++    if isinstance(raw_metadata, dict):
++        return dict(raw_metadata)
++    if isinstance(raw_metadata, str) and raw_metadata.strip():
++        try:
++            parsed = json.loads(raw_metadata)
++            return dict(parsed) if isinstance(parsed, dict) else {}
++        except Exception:
++            return {}
++    return {}
++
++
++async def _record_chat_readiness(
++    *,
++    account_id: str,
++    state: str,
++    reason: str = "",
++    auth_fingerprint: str = "",
++) -> None:
++    try:
++        async with async_session_maker() as session:
++            result = await session.execute(
++                text(
++                    "SELECT id, metadata FROM xy_accounts "
++                    "WHERE account_id = :account_id ORDER BY id DESC LIMIT 1"
++                ),
++                {"account_id": account_id},
++            )
++            row = result.mappings().first()
++            if not row:
++                return
++            metadata = _metadata_dict(row.get("metadata"))
++            session_state = dict(metadata.get("session_maintenance") or {})
++            consumers = dict(session_state.get("consumers") or {})
++            record = {
++                "state": state,
++                "updated_at": get_beijing_now_naive().isoformat(),
++                "reason": reason,
++            }
++            if auth_fingerprint:
++                record["auth_fingerprint"] = auth_fingerprint[:12]
++            consumers["chat"] = record
++            session_state["consumers"] = consumers
++            metadata["session_maintenance"] = session_state
++            await session.execute(
++                text("UPDATE xy_accounts SET metadata = :metadata WHERE id = :id"),
++                {"metadata": json.dumps(metadata, ensure_ascii=False), "id": row["id"]},
++            )
++            await session.commit()
++    except Exception as exc:
++        logger.warning(f"【{account_id}】Chat readiness记录失败: {exc}")
++
++
++def _classify_chat_readiness_failure(body: Any) -> tuple[str, str]:
++    text_body = (
++        json.dumps(body, ensure_ascii=False)
++        if isinstance(body, (dict, list))
++        else str(body or "")
++    )
++    lowered = text_body.lower()
++    if "fail_sys_user_validate" in lowered or "rgv587_error" in lowered or "captcha" in lowered:
++        return "PLATFORM_VERIFICATION_REQUIRED", "platform_verification_required"
++    if "human_qr_required" in lowered or "login_required" in lowered:
++        return "HUMAN_QR_REQUIRED", "authoritative_session_required_qr"
++    if "400600001" in text_body:
++        return "TEMPORARY_FAILURE", "chat_rate_limited"
++    if "timeout" in lowered or "network" in lowered:
++        return "TEMPORARY_FAILURE", "temporary_network"
++    if "disconnect" in lowered or "closed" in lowered:
++        return "DISCONNECTED", "chat_disconnected"
++    return "TEMPORARY_FAILURE", "chat_read_failed"
++
++
+ class GoofishImClient:
+     """闲鱼IM WebSocket客户端，用于获取会话列表和聊天记录"""
+ 
+@@ -91,6 +165,7 @@ class GoofishImClient:
+         self.account_id = account_id
+         self.account_row_id = account_row_id
+         self.cookies_str = cookies_str
++        self.auth_fingerprint = cookie_fingerprint(cookies_str)
+         self.cookies: Dict[str, str] = trans_cookies(cookies_str)
+         self.myid: str = self.cookies.get("unb", "")
+         self.device_id: str = generate_device_id(self.myid)
+@@ -256,6 +331,7 @@ class GoofishImClient:
+         if start_timestamp is None:
+             start_timestamp = 9007199254740991  # Number.MAX_SAFE_INTEGER
+ 
++        body: Dict[str, Any] = {}
+         max_retries = 3
+         for attempt in range(max_retries):
+             mid = generate_mid()
+@@ -277,9 +353,31 @@ class GoofishImClient:
+                 await asyncio.sleep(wait_sec)
+                 continue
+ 
++            if isinstance(body, dict) and "reason" in body:
++                state, reason = _classify_chat_readiness_failure(body)
++                await _record_chat_readiness(
++                    account_id=self.account_id,
++                    state=state,
++                    reason=reason,
++                    auth_fingerprint=getattr(self, "auth_fingerprint", ""),
++                )
++            else:
++                await _record_chat_readiness(
++                    account_id=self.account_id,
++                    state="READY",
++                    reason="conversation_read_success",
++                    auth_fingerprint=getattr(self, "auth_fingerprint", ""),
++                )
+             return body
+ 
+         # 重试耗尽，返回最后一次结果
++        state, reason = _classify_chat_readiness_failure(body)
++        await _record_chat_readiness(
++            account_id=self.account_id,
++            state=state,
++            reason=reason,
++            auth_fingerprint=getattr(self, "auth_fingerprint", ""),
++        )
+         return body
+ 
+     async def get_messages(
+diff --git a/backend-web/app/services/chat_new/im_session_manager.py b/backend-web/app/services/chat_new/im_session_manager.py
+index 6e70bb3..038d49c 100644
+--- a/backend-web/app/services/chat_new/im_session_manager.py
++++ b/backend-web/app/services/chat_new/im_session_manager.py
+@@ -13,13 +13,17 @@ import json
+ from typing import Any, Callable, Dict, List, Optional, Set
+ 
+ from loguru import logger
+-from sqlalchemy import select
++from sqlalchemy import select, text
+ from starlette.websockets import WebSocket
+ 
+ from common.db.session import async_session_maker
+ from common.models import XYAccount
++from common.services.token_renewal_cache_service import mark_token_cache_expired
++from common.utils.cookie_refresh import cookie_fingerprint
++from common.utils.time_utils import get_beijing_now_naive
++from common.utils.xianyu_utils import trans_cookies
+ 
+-from .im_client import GoofishImClient
++from .im_client import GoofishImClient, _record_chat_readiness
+ 
+ 
+ class ImSessionManager:
+@@ -56,21 +60,26 @@ class ImSessionManager:
+             Exception: 连接失败
+         """
+         async with self._lock:
++            account_context = await self._get_account_context(account_id)
++            if not account_context:
++                raise ValueError(f"账号Cookie为空: {account_id}")
++            account_row_id, cookies_str = account_context
++            current_fingerprint = cookie_fingerprint(cookies_str)
++
+             # 已有连接且仍在线，直接返回
+             if account_id in self.clients:
+                 client = self.clients[account_id]
+                 if client.is_connected:
+-                    return client
++                    client_fingerprint = getattr(client, "auth_fingerprint", "")
++                    if client_fingerprint == current_fingerprint:
++                        return client
++                    logger.warning(
++                        f"【{account_id}】IM会话Cookie指纹已变化，断开旧Chat客户端后重建"
++                    )
+                 # 已断开，清理后重建
+                 await client.disconnect()
+                 del self.clients[account_id]
+ 
+-            # 从数据库获取账号行 ID 和 Cookie，供滑块成功后精准持久化。
+-            account_context = await self._get_account_context(account_id)
+-            if not account_context:
+-                raise ValueError(f"账号Cookie为空: {account_id}")
+-            account_row_id, cookies_str = account_context
+-
+             # 创建并连接
+             client = GoofishImClient(
+                 account_id,
+@@ -79,6 +88,12 @@ class ImSessionManager:
+             )
+             success = await client.connect()
+             if not success:
++                await _record_chat_readiness(
++                    account_id=account_id,
++                    state="TEMPORARY_FAILURE",
++                    reason="chat_connect_failed",
++                    auth_fingerprint=current_fingerprint,
++                )
+                 raise Exception(f"IM连接失败: {account_id}")
+ 
+             self.clients[account_id] = client
+@@ -86,6 +101,97 @@ class ImSessionManager:
+             await self._setup_push_callback_after_connect(account_id, client)
+             return client
+ 
++    async def invalidate_auth_consumers(self, account_id: str, cookies_str: str | None = None) -> dict[str, Any]:
++        """
++        Invalidate Chat auth state after an authoritative Cookie rotation.
++
++        This only uses the existing in-memory Chat client and token-cache expiry semantics.
++        It does not delete cache rows or create another Session owner.
++        """
++        async with self._lock:
++            client = self.clients.pop(account_id, None)
++            disconnected = False
++            if client:
++                await client.disconnect()
++                disconnected = True
++
++        cookie_source = cookies_str
++        if not cookie_source:
++            account_context = await self._get_account_context(account_id)
++            cookie_source = account_context[1] if account_context else ""
++
++        unb = ""
++        try:
++            unb = trans_cookies(cookie_source or "").get("unb", "")
++        except Exception:
++            unb = ""
++
++        token_cache_invalidated = False
++        if unb:
++            invalidation = await mark_token_cache_expired(
++                token_user_id=f"chat_{unb}",
++                invalidate_valid_cache=True,
++            )
++            token_cache_invalidated = invalidation.success
++            if not invalidation.success:
++                logger.warning(f"【{account_id}】Chat Token缓存失效标记失败: {invalidation.message}")
++
++        logger.info(
++            f"【{account_id}】Chat auth consumers invalidated: "
++            f"client_disconnected={disconnected}, "
++            f"chat_token_cache_invalidated={token_cache_invalidated}"
++        )
++        await self._mark_auth_consumer_readiness_pending(account_id, reason="qr_cookie_rotated")
++        return {
++            "client_disconnected": disconnected,
++            "chat_token_cache_invalidated": token_cache_invalidated,
++            "chat_token_cache_key_present": bool(unb),
++        }
++
++    async def _mark_auth_consumer_readiness_pending(
++        self,
++        account_id: str,
++        *,
++        reason: str,
++    ) -> None:
++        try:
++            async with async_session_maker() as session:
++                result = await session.execute(
++                    text(
++                        "SELECT id, metadata FROM xy_accounts "
++                        "WHERE account_id = :account_id ORDER BY id DESC LIMIT 1"
++                    ),
++                    {"account_id": account_id},
++                )
++                row = result.mappings().first()
++                if not row:
++                    return
++                metadata = dict(row.get("metadata") or {})
++                session_state = dict(metadata.get("session_maintenance") or {})
++                consumers = dict(session_state.get("consumers") or {})
++                stamp = get_beijing_now_naive().isoformat()
++                consumers["chat"] = {
++                    "state": "PENDING",
++                    "updated_at": stamp,
++                    "reason": reason,
++                }
++                consumers["publish"] = {
++                    "state": "PENDING",
++                    "updated_at": stamp,
++                    "reason": reason,
++                }
++                session_state["consumers"] = consumers
++                metadata["session_maintenance"] = session_state
++                await session.execute(
++                    text("UPDATE xy_accounts SET metadata = :metadata WHERE id = :id"),
++                    {"metadata": json.dumps(metadata, ensure_ascii=False), "id": row["id"]},
++                )
++                await session.commit()
++        except Exception as exc:
++            logger.warning(
++                f"consumer readiness pending record failed: account_id={account_id}, error={exc}"
++            )
++
+     async def disconnect(self, account_id: str):
+         """
+         断开指定账号的IM连接
+diff --git a/backend-web/app/services/publish_execution_service.py b/backend-web/app/services/publish_execution_service.py
+index 08adcd6..a23981e 100644
+--- a/backend-web/app/services/publish_execution_service.py
++++ b/backend-web/app/services/publish_execution_service.py
+@@ -23,6 +23,7 @@ from app.services.item_service import ItemService
+ from common.models.publish_log import PublishLog
+ from common.models.xy_account import XYAccount
+ from common.services.publish_execution_service import execute_single_publish
++from common.services.publish_execution_service import build_publish_restriction_failure, get_effective_publish_restriction
+ from common.services.xianyu_publish_service import create_xianyu_publisher
+ 
+ 
+@@ -271,6 +272,30 @@ class PublishExecutorService:
+                 failed_count += len(materials)
+                 continue
+ 
++            restriction = get_effective_publish_restriction(account.metadata_json if account else None)
++            if restriction:
++                failure = build_publish_restriction_failure(restriction)
++                await PublishBatchStatusService.mark_account_sync_skipped(
++                    batch_id=batch_id,
++                    account_id=account_id,
++                    message="PUBLISH_BLOCKED_BY_PLATFORM_RESTRICTION",
++                )
++                for material in materials:
++                    log = await log_svc.create_log(
++                        user_id=user_id,
++                        account_id=account_id,
++                        title=material.get("title", ""),
++                        description=material.get("description", ""),
++                        price=str(material.get("price", "")),
++                        material_id=material.get("id"),
++                        batch_id=batch_id,
++                        status="failed",
++                        error_message=f"{failure['failure_reason']}: {failure['platform_restriction_reason']}",
++                    )
++                    log_ids.append(log.id)
++                failed_count += len(materials)
++                continue
++
+             account_success_count = 0
+             queue_state = await address_svc.build_queue_state(account_id)
+             publisher = create_xianyu_publisher(static_root=STATIC_ROOT)
+diff --git a/backend-web/app/services/xianyu_publisher.py b/backend-web/app/services/xianyu_publisher.py
+index 51d0994..82a8003 100644
+--- a/backend-web/app/services/xianyu_publisher.py
++++ b/backend-web/app/services/xianyu_publisher.py
+@@ -72,6 +72,9 @@ class XianyuPublisher:
+         text = emoji_pattern.sub("", text)
+         return re.sub(r"[ \t]+\n", "\n", text).strip()
+ 
++    def _summarize_page_text(self, value: Any, limit: int = 2000) -> str:
++        return re.sub(r"\s+", " ", str(value or "")).strip()[:limit]
++
+     async def _resolve_upload_image_path(self, image_path: str) -> str:
+         if re.match(r"^https?://", image_path, re.IGNORECASE):
+             file_path = await download_remote_image(image_path)
+@@ -212,6 +215,9 @@ class XianyuPublisher:
+         cookie_data: dict,
+         reuse_browser: bool = False,
+         should_close: bool = True,
++        account_id: str | None = None,
++        owner_id: int | None = None,
++        preflight_only: bool = False,
+     ) -> dict:
+         """发布商品到闲鱼（按原项目完整流程迁回）"""
+         result = {
+@@ -279,13 +285,18 @@ class XianyuPublisher:
+             self.last_publish_diagnostics.update({
+                 "quick_enter_clicked": quick_enter_clicked,
+                 **form_controls,
++                "official_page_text_summary": self._summarize_page_text(page_text),
++                "probe_mode": "READ_ONLY" if preflight_only else "PUBLISH",
+             })
+ 
+             if form_controls["input_count"] == 0 and form_controls["button_count"] == 0:
+                 await asyncio.sleep(5)
+                 page_text = await self.page.evaluate("() => document.body.innerText")
+                 form_controls = await self._count_publish_form_controls()
+-                self.last_publish_diagnostics.update(form_controls)
++                self.last_publish_diagnostics.update({
++                    **form_controls,
++                    "official_page_text_summary": self._summarize_page_text(page_text),
++                })
+                 if form_controls["input_count"] == 0 and form_controls["button_count"] == 0:
+                     raise Exception("publish_form_not_rendered")
+ 
+@@ -363,6 +374,19 @@ class XianyuPublisher:
+             if has_captcha:
+                 logger.warning("提示：可以集成滑块验证工具来自动处理")
+ 
++            if preflight_only:
++                page_text = await self.page.evaluate("() => document.body.innerText")
++                self.last_publish_diagnostics["official_page_text_summary"] = self._summarize_page_text(page_text)
++                result.update({
++                    "success": not has_captcha,
++                    "message": "publish_preflight_ready" if not has_captcha else "platform_verification_required",
++                    "failure_reason": None if not has_captcha else "platform_verification_required",
++                    "diagnostics": self.last_publish_diagnostics,
++                    "probe_mode": "READ_ONLY",
++                    "real_products_published": 0,
++                })
++                return result
++
+             logger.info("\n[步骤2] 📷 上传商品图片...")
+             images = item_data.get("images", [])
+             if not images:
+diff --git a/common/schemas/account.py b/common/schemas/account.py
+index 948911e..ec9ec88 100644
+--- a/common/schemas/account.py
++++ b/common/schemas/account.py
+@@ -40,6 +40,7 @@ class AccountDetail(BaseModel):
+     reply_delay_seconds: int | None = None
+     username: str | None = None
+     login_password: str | None = None
++    has_password: bool = False
+     show_browser: bool = False
+     disable_reason: str | None = None
+     filter_count: int = 0  # 消息过滤规则数量
+diff --git a/common/services/item_service.py b/common/services/item_service.py
+index aac816a..8e0d751 100644
+--- a/common/services/item_service.py
++++ b/common/services/item_service.py
+@@ -11,8 +11,9 @@ from __future__ import annotations
+ 
+ import asyncio
+ import json
+-from datetime import datetime, timezone
+-from typing import Any, Dict, Set
++import re
++from datetime import datetime, timedelta, timezone
++from typing import Any, Dict, Iterable, Set
+ 
+ from loguru import logger
+ from sqlalchemy import select
+@@ -30,6 +31,20 @@ from common.models.card import Card
+ class ItemService:
+     """Read/write operations for catalog items."""
+ 
++    PLATFORM_STATUS_ACTIVE = "ACTIVE"
++    PLATFORM_STATUS_MISSING = "NOT_IN_ACTIVE_LIST"
++    PLATFORM_STATUS_OFFLINE = "OFFLINE"
++    PLATFORM_STATUS_SOLD = "SOLD"
++    PLATFORM_STATUS_DELETED = "DELETED"
++    PLATFORM_STATUS_UNDER_REVIEW = "UNDER_REVIEW"
++    PLATFORM_STATUS_PLATFORM_DELISTED = "PLATFORM_DELISTED"
++    PLATFORM_STATUS_UNKNOWN = "UNKNOWN"
++    ACCOUNT_RESTRICTION_NORMAL = "NORMAL"
++    ACCOUNT_RESTRICTION_SUSPECTED = "RESTRICTION_SUSPECTED"
++    ACCOUNT_RESTRICTION_UNKNOWN = "UNKNOWN"
++    AUTHORITATIVE_ITEM_PROBE_LIMIT = 10
++    AUTHORITATIVE_ITEM_PROBE_TTL = timedelta(hours=24)
++
+     def __init__(self, session: AsyncSession):
+         self.session = session
+ 
+@@ -59,6 +74,389 @@ class ItemService:
+             valid_items.append((item_id, item))
+         return valid_items, skipped_count
+ 
++    def _platform_now(self) -> str:
++        return datetime.now(timezone.utc).isoformat()
++
++    def _active_item_platform_metadata(self, item: dict, now: str) -> dict[str, Any]:
++        return {
++            "platform_status": self.PLATFORM_STATUS_ACTIVE,
++            "platform_status_reason": "seen_in_active_item_list",
++            "platform_status_source": "ItemInfoManager.get_item_list_info",
++            "platform_status_updated_at": now,
++            "last_seen_active_at": now,
++            "last_status_check_at": now,
++            "raw_platform_item_status": item.get("item_status"),
++        }
++
++    def _summarize_official_text(self, value: Any, limit: int = 180) -> str:
++        text = re.sub(r"\s+", " ", str(value or "")).strip()
++        return text[:limit]
++
++    def _text_contains_any(self, text: str, needles: Iterable[str]) -> bool:
++        return any(needle in text for needle in needles)
++
++    def _parse_platform_datetime(self, value: Any) -> datetime | None:
++        if not value:
++            return None
++        try:
++            parsed = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
++            if parsed.tzinfo is None:
++                parsed = parsed.replace(tzinfo=timezone.utc)
++            return parsed
++        except Exception:
++            return None
++
++    def _should_probe_authoritative_item_status(
++        self,
++        item: XYCatalogItem,
++        *,
++        force: bool = False,
++    ) -> bool:
++        if force:
++            return True
++        metadata = item.metadata_json if isinstance(item.metadata_json, dict) else {}
++        if metadata.get("platform_status") != self.PLATFORM_STATUS_MISSING:
++            return True
++        checked_at = self._parse_platform_datetime(metadata.get("last_status_check_at"))
++        if checked_at and datetime.now(timezone.utc) - checked_at < self.AUTHORITATIVE_ITEM_PROBE_TTL:
++            return False
++        return True
++
++    def _classify_authoritative_item_status(
++        self,
++        *,
++        http_status: int | None = None,
++        text: str = "",
++        raw_status: Any = None,
++        source: str = "goofish_item_detail_page",
++    ) -> dict[str, Any]:
++        summary = self._summarize_official_text(text)
++        match_text = re.sub(r"\s+", " ", str(text or ""))
++        if http_status in {401, 403} or self._text_contains_any(
++            match_text,
++            ["\u767b\u5f55", "\u8bf7\u5148\u767b\u5f55", "\u626b\u7801\u767b\u5f55", "\u9a8c\u8bc1\u7801", "\u6ed1\u5757"],
++        ):
++            return {
++                "confirmed": False,
++                "status": self.PLATFORM_STATUS_UNKNOWN,
++                "reason": "session_or_verification_required",
++                "source": source,
++                "raw_platform_item_status": raw_status,
++                "preserve_previous": True,
++            }
++        if http_status == 404 or self._text_contains_any(match_text, ["\u5546\u54c1\u4e0d\u5b58\u5728", "\u5b9d\u8d1d\u4e0d\u5b58\u5728", "\u5df2\u5220\u9664"]):
++            status = self.PLATFORM_STATUS_DELETED
++        elif self._text_contains_any(match_text, ["\u5df2\u5356\u51fa", "\u4ea4\u6613\u6210\u529f", "sold"]):
++            status = self.PLATFORM_STATUS_SOLD
++        elif self._text_contains_any(match_text, ["\u8fdd\u89c4\u4e0b\u67b6", "\u5e73\u53f0\u4e0b\u67b6", "\u8fdd\u89c4", "\u5904\u7f5a"]):
++            status = self.PLATFORM_STATUS_PLATFORM_DELISTED
++        elif self._text_contains_any(match_text, ["\u5ba1\u6838\u4e2d", "\u5f85\u5ba1\u6838", "\u5ba1\u6838\u672a\u901a\u8fc7"]):
++            status = self.PLATFORM_STATUS_UNDER_REVIEW
++        elif self._text_contains_any(match_text, ["\u5df2\u4e0b\u67b6", "\u5546\u54c1\u5df2\u4e0b\u67b6", "\u5b9d\u8d1d\u5df2\u4e0b\u67b6"]):
++            status = self.PLATFORM_STATUS_OFFLINE
++        else:
++            return {
++                "confirmed": False,
++                "status": self.PLATFORM_STATUS_UNKNOWN,
++                "reason": summary or "official_detail_no_explicit_status",
++                "source": source,
++                "raw_platform_item_status": raw_status,
++                "preserve_previous": True,
++            }
++        return {
++            "confirmed": True,
++            "status": status,
++            "reason": summary or "official_detail_no_explicit_status",
++            "source": source,
++            "raw_platform_item_status": raw_status,
++            "preserve_previous": False,
++        }
++
++    def _authoritative_item_platform_metadata(
++        self,
++        classification: dict[str, Any],
++        now: str,
++    ) -> dict[str, Any]:
++        return {
++            "platform_status": classification.get("status") or self.PLATFORM_STATUS_UNKNOWN,
++            "platform_status_reason": classification.get("reason") or "",
++            "platform_status_source": classification.get("source") or "goofish_item_detail_page",
++            "platform_status_updated_at": now,
++            "last_status_check_at": now,
++            "raw_platform_item_status": classification.get("raw_platform_item_status"),
++        }
++
++    def _get_platform_restriction_record(self, account: XYAccount) -> dict[str, Any]:
++        metadata = account.metadata_json if isinstance(account.metadata_json, dict) else {}
++        record = metadata.get("platform_restriction")
++        return dict(record) if isinstance(record, dict) else {}
++
++    async def _set_account_platform_restriction(
++        self,
++        account: XYAccount,
++        *,
++        state: str,
++        reason: str,
++        source: str,
++        now: str,
++        previous_active_count: int,
++        current_active_count: int,
++        restriction_until: str | None = None,
++        duration_seconds: int | None = None,
++        evidence_type: str | None = None,
++    ) -> bool:
++        metadata = dict(account.metadata_json or {})
++        previous = metadata.get("platform_restriction")
++        if not isinstance(previous, dict):
++            previous = {}
++        next_record = dict(previous)
++        next_record.update({
++            "state": state,
++            "reason": reason,
++            "source": source,
++            "updated_at": now,
++            "last_checked_at": now,
++            "previous_active_count": previous_active_count,
++            "current_active_count": current_active_count,
++            "restriction_until": restriction_until,
++            "duration_seconds": duration_seconds,
++            "evidence_type": evidence_type,
++        })
++        if state == self.ACCOUNT_RESTRICTION_SUSPECTED and not next_record.get("detected_at"):
++            next_record["detected_at"] = now
++        if next_record != previous:
++            metadata["platform_restriction"] = next_record
++            account.metadata_json = metadata
++            flag_modified(account, "metadata_json")
++            self.session.add(account)
++            return True
++        return False
++
++    async def _probe_item_detail_page_status(
++        self,
++        account: XYAccount,
++        item: XYCatalogItem,
++    ) -> dict[str, Any]:
++        import aiohttp
++
++        detail_url = f"https://www.goofish.com/item?id={item.item_id}"
++        metadata = item.metadata_json if isinstance(item.metadata_json, dict) else {}
++        detail_blob = metadata.get("detail")
++        if isinstance(detail_blob, str) and detail_blob.strip():
++            try:
++                detail_data = json.loads(detail_blob)
++                candidate_url = str(detail_data.get("detail_url") or detail_data.get("detailUrl") or "").strip()
++                if candidate_url.startswith("http"):
++                    detail_url = candidate_url
++            except Exception:
++                pass
++
++        headers = {
++            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
++            "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
++            "cookie": account.cookie or "",
++            "referer": "https://www.goofish.com/",
++            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
++        }
++        try:
++            timeout = aiohttp.ClientTimeout(total=20)
++            async with aiohttp.ClientSession(headers=headers, timeout=timeout) as http:
++                async with http.get(detail_url, allow_redirects=True) as response:
++                    body = await response.text(errors="ignore")
++                    return self._classify_authoritative_item_status(
++                        http_status=response.status,
++                        text=body,
++                        raw_status=f"http_{response.status}",
++                    )
++        except asyncio.TimeoutError:
++            return {
++                "confirmed": False,
++                "status": self.PLATFORM_STATUS_UNKNOWN,
++                "reason": "temporary_network_timeout",
++                "source": "goofish_item_detail_page",
++                "preserve_previous": True,
++            }
++        except Exception as exc:
++            return {
++                "confirmed": False,
++                "status": self.PLATFORM_STATUS_UNKNOWN,
++                "reason": f"temporary_network_failure:{type(exc).__name__}",
++                "source": "goofish_item_detail_page",
++                "preserve_previous": True,
++            }
++
++    async def _confirm_missing_items_authoritatively(
++        self,
++        account: XYAccount,
++        missing_items: list[XYCatalogItem],
++        now: str,
++        *,
++        force: bool = False,
++    ) -> dict[str, Any]:
++        checked = 0
++        updated = 0
++        results: list[dict[str, Any]] = []
++        eligible_items = [item for item in missing_items if self._should_probe_authoritative_item_status(item, force=force)]
++        for item in eligible_items[: self.AUTHORITATIVE_ITEM_PROBE_LIMIT]:
++            previous_metadata = item.metadata_json if isinstance(item.metadata_json, dict) else {}
++            previous_state = previous_metadata.get("platform_status") or self.PLATFORM_STATUS_UNKNOWN
++            classification = await self._probe_item_detail_page_status(account, item)
++            checked += 1
++            final_status = previous_state
++            if not classification.get("preserve_previous"):
++                metadata = dict(item.metadata_json or {})
++                metadata.update(self._authoritative_item_platform_metadata(classification, now))
++                item.metadata_json = metadata
++                flag_modified(item, "metadata_json")
++                self.session.add(item)
++                updated += 1
++                final_status = metadata.get("platform_status") or self.PLATFORM_STATUS_UNKNOWN
++            results.append({
++                "item_id": item.item_id,
++                "previous_state": previous_state,
++                "official_result": classification.get("status"),
++                "final_platform_status": final_status,
++                "reason": classification.get("reason"),
++                "source": classification.get("source"),
++                "preserved_previous": bool(classification.get("preserve_previous")),
++            })
++        return {
++            "checked_count": checked,
++            "skipped_count": max(0, len(missing_items) - checked),
++            "updated_count": updated,
++            "results": results,
++        }
++
++    async def _reconcile_missing_active_items(
++        self,
++        account: XYAccount,
++        current_item_ids: set[str],
++        now: str,
++        *,
++        force_authoritative_probe: bool = False,
++    ) -> dict[str, Any]:
++        stmt = select(XYCatalogItem).where(
++            XYCatalogItem.owner_id == account.owner_id,
++            XYCatalogItem.account_pk == account.id,
++        )
++        existing_items = (await self.session.execute(stmt)).scalars().all()
++        previously_active: list[XYCatalogItem] = []
++        for existing in existing_items:
++            metadata = existing.metadata_json if isinstance(existing.metadata_json, dict) else {}
++            status = metadata.get("platform_status")
++            if status in (None, "", self.PLATFORM_STATUS_ACTIVE):
++                previously_active.append(existing)
++
++        missing_items = [item for item in previously_active if item.item_id not in current_item_ids]
++        if force_authoritative_probe:
++            known_missing_items = [
++                item
++                for item in existing_items
++                if item.item_id not in current_item_ids
++                and isinstance(item.metadata_json, dict)
++                and item.metadata_json.get("platform_status") == self.PLATFORM_STATUS_MISSING
++                and item not in missing_items
++            ]
++            missing_items.extend(known_missing_items)
++        changed = False
++        for item in missing_items:
++            metadata = dict(item.metadata_json or {})
++            metadata.update({
++                "platform_status": self.PLATFORM_STATUS_MISSING,
++                "platform_status_reason": "not_seen_after_complete_active_list_sync",
++                "platform_status_source": "fetch_items.reconciliation",
++                "platform_status_updated_at": now,
++                "last_status_check_at": now,
++            })
++            item.metadata_json = metadata
++            flag_modified(item, "metadata_json")
++            self.session.add(item)
++            changed = True
++
++        authoritative_confirmation = await self._confirm_missing_items_authoritatively(
++            account,
++            missing_items,
++            now,
++            force=force_authoritative_probe,
++        )
++        if authoritative_confirmation.get("updated_count"):
++            changed = True
++
++        previous_active_count = len(previously_active)
++        if previous_active_count > 0 and len(current_item_ids) == 0:
++            changed = await self._set_account_platform_restriction(
++                account,
++                state=self.ACCOUNT_RESTRICTION_SUSPECTED,
++                reason="all_active_items_missing_after_complete_sync",
++                source="fetch_items.reconciliation",
++                now=now,
++                previous_active_count=previous_active_count,
++                current_active_count=0,
++            ) or changed
++        elif current_item_ids:
++            record = self._get_platform_restriction_record(account)
++            if (
++                record.get("state") == self.ACCOUNT_RESTRICTION_SUSPECTED
++                and record.get("source") == "fetch_items.reconciliation"
++            ):
++                changed = await self._set_account_platform_restriction(
++                    account,
++                    state=self.ACCOUNT_RESTRICTION_NORMAL,
++                    reason="active_items_seen_after_complete_sync",
++                    source="fetch_items.reconciliation",
++                    now=now,
++                    previous_active_count=previous_active_count,
++                    current_active_count=len(current_item_ids),
++                ) or changed
++
++        if changed:
++            await self.session.commit()
++
++        return {
++            "reconciled": True,
++            "previous_active_count": previous_active_count,
++            "current_active_count": len(current_item_ids),
++            "missing_count": len(missing_items),
++            "missing_item_ids": [item.item_id for item in missing_items[:20]],
++            "authoritative_confirmation": authoritative_confirmation,
++        }
++
++    async def probe_account_publish_restriction(
++        self,
++        account: XYAccount,
++        *,
++        static_root: str | None = None,
++    ) -> dict[str, Any]:
++        from common.services.xianyu_publish_service import probe_account_publish_restriction
++
++        return await probe_account_publish_restriction(
++            cookie=account.cookie,
++            account_id=account.account_id,
++            owner_id=account.owner_id,
++            static_root=static_root,
++        )
++
++    async def check_account_platform_status(
++        self,
++        account: XYAccount,
++        *,
++        static_root: str | None = None,
++    ) -> dict[str, Any]:
++        sync_result = await self.fetch_all_items_from_account(
++            account=account,
++            force_authoritative_probe=True,
++        )
++        restriction_result = await self.probe_account_publish_restriction(
++            account,
++            static_root=static_root,
++        )
++        return {
++            "success": bool(sync_result.get("success")),
++            "probe_mode": "READ_ONLY",
++            "item_sync": sync_result,
++            "account_restriction": restriction_result,
++        }
++
+     async def _get_existing_item_map(
+         self,
+         account: XYAccount,
+@@ -125,6 +523,7 @@ class ItemService:
+         is_polished: bool | None = None,
+         is_multi_spec: bool | None = None,
+         multi_quantity_delivery: bool | None = None,
++        platform_status: str | None = None,
+     ) -> tuple[list[dict], int]:
+         """获取商品列表（分页），支持多条件筛选
+         
+@@ -196,6 +595,22 @@ class ItemService:
+                         XYCatalogItem.metadata_json["multi_quantity_delivery"].is_(None)
+                     )
+                 )
++
++        if platform_status:
++            normalized_platform_status = platform_status.strip().upper()
++            if normalized_platform_status and normalized_platform_status != "ALL":
++                if normalized_platform_status == "ANOMALY":
++                    conditions.append(
++                        or_(
++                            XYCatalogItem.metadata_json.is_(None),
++                            XYCatalogItem.metadata_json["platform_status"].is_(None),
++                            XYCatalogItem.metadata_json["platform_status"].as_string() != self.PLATFORM_STATUS_ACTIVE,
++                        )
++                    )
++                else:
++                    conditions.append(
++                        XYCatalogItem.metadata_json["platform_status"].as_string() == normalized_platform_status
++                    )
+         
+         if conditions:
+             base_stmt = base_stmt.where(and_(*conditions))
+@@ -276,6 +691,7 @@ class ItemService:
+         max_pages: int | None = None,
+         stop_when_page_all_existing: bool = False,
+         required_title_keyword: str | None = None,
++        force_authoritative_probe: bool = False,
+     ) -> dict[str, Any]:
+         """抓取指定账号全部商品并入库（账号级加锁入口）
+ 
+@@ -310,6 +726,7 @@ class ItemService:
+                     max_pages=max_pages,
+                     stop_when_page_all_existing=stop_when_page_all_existing,
+                     required_title_keyword=required_title_keyword,
++                    force_authoritative_probe=force_authoritative_probe,
+                 )
+         except Exception as exc:
+             # Redis 不可用等异常时降级为无锁执行，靠唯一约束兜底防止重复入库
+@@ -323,6 +740,7 @@ class ItemService:
+                 max_pages=max_pages,
+                 stop_when_page_all_existing=stop_when_page_all_existing,
+                 required_title_keyword=required_title_keyword,
++                force_authoritative_probe=force_authoritative_probe,
+             )
+ 
+     async def _fetch_all_items_from_account_impl(
+@@ -332,6 +750,7 @@ class ItemService:
+         max_pages: int | None = None,
+         stop_when_page_all_existing: bool = False,
+         required_title_keyword: str | None = None,
++        force_authoritative_probe: bool = False,
+     ) -> dict[str, Any]:
+         """抓取指定账号全部商品并入库（实际实现，调用方需已持有账号锁）"""
+         from common.utils.item_info_manager import ItemInfoManager
+@@ -344,11 +763,14 @@ class ItemService:
+         total_saved_count = 0
+         fetched_pages = 0
+         matched_required_title_keyword = False
++        full_active_list_confirmed = False
++        sync_stop_reason = "unknown"
+         try:
+             page_number = 1
+             while True:
+                 if max_pages and page_number > max_pages:
+                     logger.info(f"账号[{account.account_id}]商品同步达到最大页数限制 {max_pages}，停止获取")
++                    sync_stop_reason = "max_pages_limit"
+                     break
+ 
+                 logger.info(f"账号[{account.account_id}]商品同步正在获取第 {page_number} 页")
+@@ -364,6 +786,8 @@ class ItemService:
+                 items = result.get("items") or []
+                 if not items:
+                     logger.info(f"账号[{account.account_id}]商品同步第 {page_number} 页无数据，结束获取")
++                    full_active_list_confirmed = True
++                    sync_stop_reason = "empty_page"
+                     break
+ 
+                 valid_items, skipped_count = self._collect_valid_item_entries(items)
+@@ -414,10 +838,13 @@ class ItemService:
+                     )
+                 ):
+                     logger.info(f"账号[{account.account_id}]商品同步命中整页已存在且无字段变更，停止继续获取后续页面")
++                    sync_stop_reason = "page_all_existing"
+                     break
+ 
+                 if len(items) < page_size:
+                     logger.info(f"账号[{account.account_id}]商品同步第 {page_number} 页数量少于页大小，结束获取")
++                    full_active_list_confirmed = True
++                    sync_stop_reason = "last_short_page"
+                     break
+ 
+                 page_number += 1
+@@ -427,6 +854,25 @@ class ItemService:
+         finally:
+             await manager.close()
+ 
++        current_item_ids = {
++            str(item.get("id") or "").strip()
++            for item in fetched_items
++            if str(item.get("id") or "").strip()
++        }
++        if full_active_list_confirmed:
++            reconciliation = await self._reconcile_missing_active_items(
++                account,
++                current_item_ids,
++                self._platform_now(),
++                force_authoritative_probe=force_authoritative_probe,
++            )
++        else:
++            reconciliation = {
++                "reconciled": False,
++                "reason": sync_stop_reason,
++                "current_active_count": len(current_item_ids),
++            }
++
+         return {
+             "success": True,
+             "message": f"获取到 {len(fetched_items)} 个商品",
+@@ -435,6 +881,8 @@ class ItemService:
+             "total_pages": fetched_pages,
+             "page_size": page_size,
+             "saved_count": total_saved_count,
++            "full_active_list_confirmed": full_active_list_confirmed,
++            "platform_status_reconciliation": reconciliation,
+         }
+ 
+     async def fetch_all_items_from_accounts(
+@@ -557,8 +1005,8 @@ class ItemService:
+         单个商品失败只回滚自身，不抛出异常，由调用方继续处理其余商品。
+         """
+         try:
+-            has_changes = await self._apply_single_item(account, item_id, item)
+-            if has_changes:
++            has_changes, should_commit = await self._apply_single_item(account, item_id, item)
++            if should_commit:
+                 await self.session.commit()
+             return True, has_changes
+         except IntegrityError:
+@@ -567,8 +1015,8 @@ class ItemService:
+                 f"账号[{account.account_id}]商品 {item_id} 保存命中唯一约束，转为更新已存在记录后重试"
+             )
+             try:
+-                has_changes = await self._apply_single_item(account, item_id, item)
+-                if has_changes:
++                has_changes, should_commit = await self._apply_single_item(account, item_id, item)
++                if should_commit:
+                     await self.session.commit()
+                 return True, has_changes
+             except Exception as exc:
+@@ -589,13 +1037,16 @@ class ItemService:
+         account: XYAccount,
+         item_id: str,
+         item: dict,
+-    ) -> bool:
++    ) -> tuple[bool, bool]:
+         """将单个商品写入会话（更新或新增），不提交。
+ 
+         每次都在当前事务内实时查询已存在记录，保证拿到的是当前事务可用的对象。
+-        返回 True 表示有实际变更（新增或字段值变化），False 表示无需更新。
++        返回 (业务字段是否变化, 是否需要提交)。平台状态元数据变化需要提交，
++        但不计入 page_changed_count，避免破坏增量同步的停页策略。
+         """
+         category = str(item.get("category_id", ""))
++        now = self._platform_now()
++        platform_metadata = self._active_item_platform_metadata(item, now)
+ 
+         stmt = select(XYCatalogItem).where(
+             XYCatalogItem.owner_id == account.owner_id,
+@@ -608,6 +1059,7 @@ class ItemService:
+             new_title = item.get("title", "")
+             new_price = item.get("price_text", "")
+             changed = False
++            metadata_changed = False
+             if existing_item.title != new_title:
+                 existing_item.title = new_title
+                 changed = True
+@@ -617,10 +1069,16 @@ class ItemService:
+             metadata_json = existing_item.metadata_json or {}
+             if metadata_json.get("category") != category:
+                 metadata_json["category"] = category
++                changed = True
++                metadata_changed = True
++            for key, value in platform_metadata.items():
++                if metadata_json.get(key) != value:
++                    metadata_json[key] = value
++                    metadata_changed = True
++            if metadata_changed:
+                 existing_item.metadata_json = metadata_json
+                 flag_modified(existing_item, "metadata_json")
+-                changed = True
+-            return changed
++            return changed, changed or metadata_changed
+ 
+         new_item = XYCatalogItem(
+             owner_id=account.owner_id,
+@@ -633,11 +1091,12 @@ class ItemService:
+                 "description": "",
+                 "category": category,
+                 "detail": json.dumps(item, ensure_ascii=False),
++                **platform_metadata,
+             },
+             created_at=datetime.now(timezone.utc),
+         )
+         self.session.add(new_item)
+-        return True
++        return True, True
+     
+     async def _get_default_reply_status_batch(self, items_data: list) -> Dict[tuple, dict]:
+         """批量获取商品默认回复状态
+@@ -894,6 +1353,13 @@ class ItemService:
+             "default_reply_enabled": default_reply_info.get("enabled", False) if default_reply_info else False,
+             "has_default_reply": default_reply_info.get("has_config", False) if default_reply_info else False,
+             "has_card": has_card,
++            "platform_status": metadata.get("platform_status") or self.PLATFORM_STATUS_UNKNOWN,
++            "platform_status_reason": metadata.get("platform_status_reason") or "",
++            "platform_status_source": metadata.get("platform_status_source") or "",
++            "platform_status_updated_at": self._format_dt(metadata.get("platform_status_updated_at")),
++            "last_seen_active_at": self._format_dt(metadata.get("last_seen_active_at")),
++            "last_status_check_at": self._format_dt(metadata.get("last_status_check_at")),
++            "raw_platform_item_status": metadata.get("raw_platform_item_status"),
+             "created_at": self._format_dt(item.created_at),
+             "updated_at": self._format_dt(item.updated_at),
+         }
+diff --git a/common/services/publish_execution_service.py b/common/services/publish_execution_service.py
+index d7b68f3..b9f2ebc 100644
+--- a/common/services/publish_execution_service.py
++++ b/common/services/publish_execution_service.py
+@@ -8,6 +8,7 @@
+ """
+ from __future__ import annotations
+ 
++from datetime import datetime, timedelta, timezone
+ from pathlib import Path
+ from typing import Any, Dict, Optional
+ 
+@@ -37,6 +38,50 @@ async def _get_account(session: AsyncSession, account_id: str, user_id: int) ->
+     return result.scalars().first()
+ 
+ 
++def _parse_iso_datetime(value: Any) -> datetime | None:
++    if not value:
++        return None
++    try:
++        parsed = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
++        if parsed.tzinfo is None:
++            parsed = parsed.replace(tzinfo=timezone.utc)
++        return parsed
++    except Exception:
++        return None
++
++
++def get_effective_publish_restriction(metadata: Any, *, now: datetime | None = None) -> dict[str, Any] | None:
++    if not isinstance(metadata, dict):
++        return None
++    record = metadata.get("platform_restriction")
++    if not isinstance(record, dict) or record.get("state") != "PUBLISH_RESTRICTED":
++        return None
++    current = now or datetime.now(timezone.utc)
++    until = _parse_iso_datetime(record.get("restriction_until"))
++    if until and until <= current:
++        return None
++    checked_at = _parse_iso_datetime(record.get("last_checked_at") or record.get("updated_at"))
++    if not until and checked_at and current - checked_at > timedelta(hours=24):
++        return None
++    return record
++
++
++def build_publish_restriction_failure(record: dict[str, Any]) -> dict[str, Any]:
++    reason = str(record.get("reason") or "official_publish_restriction_detected")
++    until = record.get("restriction_until")
++    return {
++        "success": False,
++        "message": "PUBLISH_BLOCKED_BY_PLATFORM_RESTRICTION",
++        "failure_reason": "PUBLISH_BLOCKED_BY_PLATFORM_RESTRICTION",
++        "platform_restriction_reason": reason,
++        "platform_restriction_until": until,
++        "diagnostics": {
++            "source": record.get("source"),
++            "evidence_type": record.get("evidence_type"),
++        },
++    }
++
++
+ async def _sync_account_items_after_publish(
+     session: AsyncSession,
+     account_id: str,
+@@ -103,6 +148,22 @@ async def execute_single_publish(
+         )
+         return {"success": False, "message": "账号不存在或无权使用", "log_id": log.id}
+ 
++    restriction = get_effective_publish_restriction(account.metadata_json if account else None)
++    if restriction:
++        failure = build_publish_restriction_failure(restriction)
++        log = await log_svc.create_log(
++            user_id=user_id,
++            account_id=account_id,
++            title=item_data.get("title", ""),
++            description=item_data.get("description", ""),
++            price=str(item_data.get("price", "")),
++            material_id=item_data.get("id"),
++            status="failed",
++            error_message=f"{failure['failure_reason']}: {failure['platform_restriction_reason']}",
++        )
++        failure["log_id"] = log.id
++        return failure
++
+     try:
+         resolved_address = await address_svc.resolve_publish_address(account_id, item_data)
+     except ValueError as exc:
+diff --git a/common/services/xianyu_publish_service.py b/common/services/xianyu_publish_service.py
+index 0243e77..c105eff 100644
+--- a/common/services/xianyu_publish_service.py
++++ b/common/services/xianyu_publish_service.py
+@@ -7,10 +7,17 @@
+ """
+ from __future__ import annotations
+ 
++import json
++import re
+ from pathlib import Path
+ from typing import Any
+ 
++from loguru import logger
++from sqlalchemy import text
++
++from common.db.session import async_session_maker
+ from common.services.backend_web_loader import load_backend_web_class
++from common.utils.time_utils import get_beijing_now_naive
+ 
+ 
+ def get_xianyu_publisher_class() -> type[Any]:
+@@ -28,16 +35,301 @@ def create_xianyu_publisher(static_root: str | Path | None = None) -> Any:
+     return publisher_class(static_root=static_root)
+ 
+ 
++def _classify_publish_readiness_result(result: dict[str, Any] | BaseException) -> tuple[str, str]:
++    if isinstance(result, dict) and result.get("success"):
++        return "READY", "publish_preflight_ready"
++
++    text_body = (
++        json.dumps(result, ensure_ascii=False)
++        if isinstance(result, dict)
++        else str(result)
++    )
++    lowered = text_body.lower()
++    if (
++        "publish_restricted" in lowered
++        or "\u9650\u5236\u53d1\u5e03" in text_body
++        or "\u65e0\u6cd5\u53d1\u5e03" in text_body
++        or "\u6682\u4e0d\u652f\u6301\u53d1\u5e03" in text_body
++        or "\u4e0d\u80fd\u53d1\u5e03" in text_body
++    ):
++        return "PUBLISH_RESTRICTED", "official_publish_restriction_detected"
++    if "human_qr_required" in lowered or "login_required" in lowered:
++        return "HUMAN_QR_REQUIRED", "authoritative_session_required_qr"
++    if "manual_verification_required" in lowered or "platform_verification" in lowered or "captcha" in lowered:
++        return "PLATFORM_VERIFICATION_REQUIRED", "platform_verification_required"
++    if "profile_in_use" in lowered or "browser_busy" in lowered or "profile_lock" in lowered:
++        return "PROFILE_BUSY", "profile_busy"
++    if "profile_missing" in lowered or "runtime_profile_path_mismatch" in lowered:
++        return "PENDING", "profile_not_ready"
++    if "publish_form_timeout" in lowered or "timeout" in lowered or "network" in lowered:
++        return "TEMPORARY_FAILURE", "temporary_publish_preflight_failure"
++    return "TEMPORARY_FAILURE", "publish_preflight_failed"
++
++
++def _metadata_dict(raw_metadata: Any) -> dict[str, Any]:
++    if isinstance(raw_metadata, dict):
++        return dict(raw_metadata)
++    if isinstance(raw_metadata, str) and raw_metadata.strip():
++        try:
++            parsed = json.loads(raw_metadata)
++            return dict(parsed) if isinstance(parsed, dict) else {}
++        except Exception:
++            return {}
++    return {}
++
++
++def parse_publish_restriction_evidence(
++    text_body: str,
++    *,
++    now: Any | None = None,
++) -> dict[str, Any]:
++    current = now or get_beijing_now_naive()
++    normalized = re.sub(r"\s+", " ", str(text_body or "")).strip()
++    restriction_terms = [
++        "\u9650\u5236\u53d1\u5e03",
++        "\u65e0\u6cd5\u53d1\u5e03",
++        "\u6682\u4e0d\u652f\u6301\u53d1\u5e03",
++        "\u4e0d\u80fd\u53d1\u5e03",
++        "\u53d1\u5e03\u6743\u9650",
++    ]
++    if not any(term in normalized for term in restriction_terms):
++        return {
++            "state": "NORMAL",
++            "reason": "official_publish_page_no_restriction",
++            "source": "publish_preflight_page",
++            "restriction_until": None,
++            "duration_seconds": None,
++            "evidence_type": "NO_RESTRICTION_SIGNAL",
++        }
++
++    until_match = re.search(
++        r"(?:\u9650\u5236\u81f3|\u622a\u6b62\u81f3|\u6062\u590d\u65f6\u95f4[:：]?)\s*"
++        r"(\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:\s+\d{1,2}:\d{1,2}(?::\d{1,2})?)?)",
++        normalized,
++    )
++    restriction_until = None
++    duration_seconds = None
++    evidence_type = "EXPLICIT_RESTRICTION_TEXT"
++    if until_match:
++        raw_until = until_match.group(1).replace("/", "-")
++        try:
++            restriction_until = current.fromisoformat(raw_until).isoformat()
++        except Exception:
++            restriction_until = raw_until
++        evidence_type = "UNTIL_EXPLICIT"
++    else:
++        duration_match = re.search(
++            r"(?:\u9650\u5236\s*(\d+)\s*\u5929|(\d+)\s*\u5929\u5185\u65e0\u6cd5\u53d1\u5e03|\u5269\u4f59\s*(\d+)\s*\u5929)",
++            normalized,
++        )
++        if duration_match:
++            days = int(duration_match.group(1) or duration_match.group(2) or duration_match.group(3))
++            duration_seconds = days * 86400
++            try:
++                from datetime import timedelta
++
++                restriction_until = (current + timedelta(seconds=duration_seconds)).isoformat()
++            except Exception:
++                restriction_until = None
++            evidence_type = "DURATION_DERIVED"
++
++    return {
++        "state": "PUBLISH_RESTRICTED",
++        "reason": normalized[:180],
++        "source": "publish_preflight_page",
++        "restriction_until": restriction_until,
++        "duration_seconds": duration_seconds,
++        "evidence_type": evidence_type,
++    }
++
++
++async def _record_publish_readiness(
++    *,
++    account_id: str | None,
++    state: str,
++    reason: str,
++) -> None:
++    if not account_id:
++        return
++    try:
++        async with async_session_maker() as session:
++            result = await session.execute(
++                text(
++                    "SELECT id, metadata FROM xy_accounts "
++                    "WHERE account_id = :account_id ORDER BY id DESC LIMIT 1"
++                ),
++                {"account_id": account_id},
++            )
++            row = result.mappings().first()
++            if not row:
++                return
++            metadata = _metadata_dict(row.get("metadata"))
++            session_state = dict(metadata.get("session_maintenance") or {})
++            consumers = dict(session_state.get("consumers") or {})
++            consumers["publish"] = {
++                "state": state,
++                "updated_at": get_beijing_now_naive().isoformat(),
++                "reason": reason,
++            }
++            session_state["consumers"] = consumers
++            metadata["session_maintenance"] = session_state
++            await session.execute(
++                text("UPDATE xy_accounts SET metadata = :metadata WHERE id = :id"),
++                {"metadata": json.dumps(metadata, ensure_ascii=False), "id": row["id"]},
++            )
++            await session.commit()
++    except Exception as exc:
++        logger.warning(f"【{account_id}】Publish readiness记录失败: {exc}")
++
++
++async def _record_account_platform_restriction(
++    *,
++    account_id: str | None,
++    restriction: dict[str, Any],
++) -> None:
++    if not account_id:
++        return
++    try:
++        async with async_session_maker() as session:
++            result = await session.execute(
++                text(
++                    "SELECT id, metadata FROM xy_accounts "
++                    "WHERE account_id = :account_id ORDER BY id DESC LIMIT 1"
++                ),
++                {"account_id": account_id},
++            )
++            row = result.mappings().first()
++            if not row:
++                return
++            now = get_beijing_now_naive().isoformat()
++            metadata = _metadata_dict(row.get("metadata"))
++            previous = metadata.get("platform_restriction")
++            if not isinstance(previous, dict):
++                previous = {}
++            state = str(restriction.get("state") or "UNKNOWN")
++            record = dict(previous)
++            record.update({
++                "state": state,
++                "reason": restriction.get("reason") or "",
++                "source": restriction.get("source") or "publish_preflight_page",
++                "detected_at": previous.get("detected_at") or now,
++                "last_checked_at": now,
++                "updated_at": now,
++                "restriction_until": restriction.get("restriction_until"),
++                "duration_seconds": restriction.get("duration_seconds"),
++                "evidence_type": restriction.get("evidence_type"),
++            })
++            if state == "NORMAL":
++                record["detected_at"] = now
++            metadata["platform_restriction"] = record
++            await session.execute(
++                text("UPDATE xy_accounts SET metadata = :metadata WHERE id = :id"),
++                {"metadata": json.dumps(metadata, ensure_ascii=False), "id": row["id"]},
++            )
++            await session.commit()
++    except Exception as exc:
++        logger.warning(f"account_publish_restriction_record_failed account_id={account_id}: {exc}")
++
++
++async def probe_account_publish_restriction(
++    *,
++    cookie: str | None,
++    account_id: str | None = None,
++    owner_id: int | None = None,
++    static_root: str | Path | None = None,
++) -> dict[str, Any]:
++    result = await publish_single_item(
++        item_data={},
++        cookie=cookie,
++        static_root=static_root,
++        account_id=account_id,
++        owner_id=owner_id,
++        preflight_only=True,
++    )
++    diagnostics = result.get("diagnostics") if isinstance(result, dict) else {}
++    page_text = ""
++    if isinstance(diagnostics, dict):
++        page_text = str(
++            diagnostics.get("official_page_text_summary")
++            or diagnostics.get("page_text_summary")
++            or ""
++        )
++    restriction = parse_publish_restriction_evidence(page_text or json.dumps(result, ensure_ascii=False))
++    if isinstance(result, dict) and result.get("success") and restriction["state"] == "NORMAL":
++        await _record_account_platform_restriction(account_id=account_id, restriction=restriction)
++        return {
++            "success": True,
++            "probe_mode": "READ_ONLY",
++            "state": "NORMAL",
++            "reason": restriction["reason"],
++            "restriction_until": None,
++            "duration_seconds": None,
++            "source": restriction["source"],
++            "evidence_type": restriction["evidence_type"],
++            "real_products_published": 0,
++        }
++    if restriction["state"] == "PUBLISH_RESTRICTED":
++        await _record_account_platform_restriction(account_id=account_id, restriction=restriction)
++        return {
++            "success": True,
++            "probe_mode": "READ_ONLY",
++            "state": "PUBLISH_RESTRICTED",
++            "reason": restriction["reason"],
++            "restriction_until": restriction["restriction_until"],
++            "duration_seconds": restriction["duration_seconds"],
++            "source": restriction["source"],
++            "evidence_type": restriction["evidence_type"],
++            "real_products_published": 0,
++        }
++    state, reason = _classify_publish_readiness_result(result)
++    return {
++        "success": False,
++        "probe_mode": "READ_ONLY",
++        "state": state if state != "PROFILE_BUSY" else "PROBE_BUSY",
++        "reason": reason,
++        "restriction_until": None,
++        "duration_seconds": None,
++        "source": "publish_preflight_page",
++        "evidence_type": "NO_AUTHORITATIVE_RESTRICTION",
++        "real_products_published": 0,
++    }
++
++
+ async def publish_single_item(
+     item_data: dict,
+-    cookie: str,
++    cookie: str | None = None,
+     static_root: str | Path | None = None,
++    account_id: str | None = None,
++    owner_id: int | None = None,
++    preflight_only: bool = False,
+ ) -> dict:
+     """使用共享发布器执行一次单品发布。"""
+     publisher = create_xianyu_publisher(static_root=static_root)
+-    return await publisher.publish_item(
+-        item_data=item_data,
+-        cookie_data={"cookie": cookie},
+-        reuse_browser=False,
+-        should_close=True,
+-    )
++    try:
++        result = await publisher.publish_item(
++            item_data=item_data,
++            cookie_data={"cookie": cookie} if cookie is not None else None,
++            reuse_browser=False,
++            should_close=True,
++            account_id=account_id,
++            owner_id=owner_id,
++            preflight_only=preflight_only,
++        )
++    except Exception as exc:
++        if preflight_only:
++            state, reason = _classify_publish_readiness_result(exc)
++            await _record_publish_readiness(
++                account_id=account_id,
++                state=state,
++                reason=reason,
++            )
++        raise
++
++    if preflight_only:
++        state, reason = _classify_publish_readiness_result(result)
++        await _record_publish_readiness(
++            account_id=account_id,
++            state=state,
++            reason=reason,
++        )
++    return result
+diff --git a/common/utils/cookie_refresh.py b/common/utils/cookie_refresh.py
+index 11a873e..2775e66 100644
+--- a/common/utils/cookie_refresh.py
++++ b/common/utils/cookie_refresh.py
+@@ -14,6 +14,7 @@ Cookie刷新工具模块
+ from __future__ import annotations
+ 
+ import asyncio
++import hashlib
+ import threading
+ from typing import Any, Dict, Optional, Tuple
+ 
+@@ -232,6 +233,11 @@ def parse_cookie_string(cookie_string: str) -> Dict[str, str]:
+     return trans_cookies(normalized_cookie_string)
+ 
+ 
++def cookie_fingerprint(cookie_string: str) -> str:
++    """Return a one-way fingerprint for Cookie equality checks and logs."""
++    return hashlib.sha256(normalize_cookie_string(cookie_string).encode("utf-8")).hexdigest()
++
++
+ async def get_account_by_identity(
+     account_id: str,
+     owner_id: Optional[int] = None,
+diff --git a/frontend/src/api/accounts.ts b/frontend/src/api/accounts.ts
+index d89f14a..5dff29d 100644
+--- a/frontend/src/api/accounts.ts
++++ b/frontend/src/api/accounts.ts
+@@ -1,5 +1,5 @@
+ import { get, post, put, del } from '@/utils/request'
+-import type { AccountDetail, ApiResponse } from '@/types'
++import type { AccountDetail, ApiResponse, ConsumerReadinessState } from '@/types'
+ 
+ // API前缀
+ const COOKIE_PREFIX = '/api/v1/cookies'
+@@ -63,6 +63,18 @@ export const getAccountDetailsPaginated = async (
+     value: string
+     enabled: boolean
+     online?: boolean
++    auto_reply_state?: ConsumerReadinessState
++    auto_reply_updated_at?: string | null
++    auto_reply_reason?: string
++    browser_session_state?: ConsumerReadinessState
++    browser_session_updated_at?: string | null
++    browser_session_reason?: string
++    chat_state?: ConsumerReadinessState
++    chat_updated_at?: string | null
++    chat_reason?: string
++    publish_state?: ConsumerReadinessState
++    publish_updated_at?: string | null
++    publish_reason?: string
+     auto_confirm: boolean
+     scheduled_redelivery?: boolean
+     scheduled_rate?: boolean
+@@ -83,7 +95,13 @@ export const getAccountDetailsPaginated = async (
+     reply_delay_seconds?: number
+     username?: string
+     login_password?: string
++    has_password?: boolean
+     show_browser?: boolean
++    platform_restriction_state?: string
++    platform_restriction_reason?: string
++    platform_restriction_until?: string | null
++    platform_restriction_updated_at?: string | null
++    platform_restriction_source?: string
+     disable_reason?: string
+     filter_count?: number
+     today_reply_count?: number
+@@ -139,6 +157,18 @@ export const getAccountDetailsPaginated = async (
+       cookie: item.value,
+       enabled: item.enabled,
+       online: item.online ?? false,
++      auto_reply_state: item.auto_reply_state,
++      auto_reply_updated_at: item.auto_reply_updated_at,
++      auto_reply_reason: item.auto_reply_reason,
++      browser_session_state: item.browser_session_state,
++      browser_session_updated_at: item.browser_session_updated_at,
++      browser_session_reason: item.browser_session_reason,
++      chat_state: item.chat_state,
++      chat_updated_at: item.chat_updated_at,
++      chat_reason: item.chat_reason,
++      publish_state: item.publish_state,
++      publish_updated_at: item.publish_updated_at,
++      publish_reason: item.publish_reason,
+       auto_confirm: item.auto_confirm,
+       scheduled_redelivery: item.scheduled_redelivery || false,
+       scheduled_rate: item.scheduled_rate || false,
+@@ -160,8 +190,14 @@ export const getAccountDetailsPaginated = async (
+       message_expire_time: item.message_expire_time,
+       reply_delay_seconds: item.reply_delay_seconds,
+       username: item.username,
+-      login_password: item.login_password,
++      login_password: '',
++      has_password: item.has_password ?? false,
+       show_browser: item.show_browser,
++      platform_restriction_state: item.platform_restriction_state,
++      platform_restriction_reason: item.platform_restriction_reason,
++      platform_restriction_until: item.platform_restriction_until,
++      platform_restriction_updated_at: item.platform_restriction_updated_at,
++      platform_restriction_source: item.platform_restriction_source,
+       disable_reason: item.disable_reason,
+       filter_count: item.filter_count || 0,
+       today_reply_count: item.today_reply_count || 0,
+diff --git a/frontend/src/api/items.ts b/frontend/src/api/items.ts
+index f71efb9..5aa04e9 100644
+--- a/frontend/src/api/items.ts
++++ b/frontend/src/api/items.ts
+@@ -28,6 +28,7 @@ export interface ItemFilterParams {
+   is_polished?: boolean | null      // 是否擦亮
+   is_multi_spec?: boolean | null    // 多规格
+   multi_quantity_delivery?: boolean | null  // 多数量发货
++  platform_status?: string | null
+ }
+ 
+ // 获取商品列表（分页）
+@@ -65,6 +66,9 @@ export const getItemsPaginated = async (
+     if (filters.multi_quantity_delivery !== null && filters.multi_quantity_delivery !== undefined) {
+       params.append('multi_quantity_delivery', String(filters.multi_quantity_delivery))
+     }
++    if (filters.platform_status) {
++      params.append('platform_status', filters.platform_status)
++    }
+   }
+   
+   const result = await get<{
+@@ -142,6 +146,10 @@ export const fetchAllItemsFromAccessibleAccounts = (): Promise<FetchItemsSummary
+ }
+ 
+ // 更新商品
++export const checkPlatformStatusFromAccount = (cookieId: string): Promise<FetchItemsSummaryResponse> => {
++  return post(`${ITEM_PREFIX}/check-platform-status`, { cookie_id: cookieId })
++}
++
+ export const updateItem = (cookieId: string, itemId: string, data: Partial<Item>): Promise<ApiResponse> => {
+   return put(`${ITEM_PREFIX}/${cookieId}/${itemId}`, data)
+ }
+diff --git a/frontend/src/pages/accounts/Accounts.tsx b/frontend/src/pages/accounts/Accounts.tsx
+index a1cf816..8566962 100644
+--- a/frontend/src/pages/accounts/Accounts.tsx
++++ b/frontend/src/pages/accounts/Accounts.tsx
+@@ -14,7 +14,7 @@ import { PageLoading } from '@/components/common/Loading'
+ import { ConfirmModal } from '@/components/common/ConfirmModal'
+ import { DeliveryBlockRulesModal } from './DeliveryBlockRulesModal'
+ import { RefundCancelModal } from './RefundCancelModal'
+-import type { AccountDetail } from '@/types'
++import type { AccountDetail, ConsumerReadinessState } from '@/types'
+ 
+ type ModalType = 'qrcode' | 'password' | 'manual' | 'edit' | 'default-reply' | 'ai-settings' | 'proxy-settings' | 'message-expire-time' | 'reply-delay' | 'face-verification' | 'confirm-receipt' | 'auto-rate' | 'delivery-disabled' | 'refund-cancel' | null
+ 
+@@ -30,6 +30,79 @@ interface AccountPagination {
+   totalPages: number
+ }
+ 
++const readinessLabels: Record<ConsumerReadinessState, string> = {
++  READY: '可用',
++  PENDING: '待检查',
++  TEMPORARY_FAILURE: '暂时异常',
++  DISCONNECTED: '离线',
++  PROFILE_BUSY: 'Profile忙',
++  SESSION_EXPIRED: '登录失效',
++  PLATFORM_VERIFICATION_REQUIRED: '平台验证',
++  HUMAN_QR_REQUIRED: '需要扫码',
++  COOLDOWN: '冷却中',
++}
++
++const readinessStyles: Record<ConsumerReadinessState, string> = {
++  READY: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
++  PENDING: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
++  TEMPORARY_FAILURE: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
++  DISCONNECTED: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400',
++  PROFILE_BUSY: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
++  SESSION_EXPIRED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
++  PLATFORM_VERIFICATION_REQUIRED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
++  HUMAN_QR_REQUIRED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
++  COOLDOWN: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
++}
++
++const readinessDotClass = (state: ConsumerReadinessState): string => (
++  state === 'READY' ? 'status-dot-success' : state === 'DISCONNECTED' ? 'status-dot-danger' : 'status-dot-warning'
++)
++
++const renderReadinessBadge = (
++  state: ConsumerReadinessState | undefined,
++  fallback: ConsumerReadinessState,
++  title?: string
++) => {
++  const resolved = state || fallback
++  return (
++    <span
++      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded whitespace-nowrap ${readinessStyles[resolved]}`}
++      title={title || readinessLabels[resolved]}
++    >
++      <span className={`status-dot ${readinessDotClass(resolved)}`} />
++      {readinessLabels[resolved]}
++    </span>
++  )
++}
++
++
++const platformRestrictionLabels: Record<string, string> = {
++  NORMAL: '正常',
++  UNKNOWN: '未知',
++  RESTRICTION_SUSPECTED: '疑似限制',
++  PUBLISH_RESTRICTED: '限制发布',
++  PLATFORM_VERIFICATION_REQUIRED: '平台验证',
++}
++
++const renderPlatformRestrictionBadge = (account: AccountDetail) => {
++  const state = account.platform_restriction_state || 'UNKNOWN'
++  const isNormal = state === 'NORMAL'
++  const isUnknown = state === 'UNKNOWN'
++  const className = isNormal
++    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
++    : isUnknown
++      ? 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
++      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
++  return (
++    <span
++      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded whitespace-nowrap ${className}`}
++      title={account.platform_restriction_reason || account.platform_restriction_source || platformRestrictionLabels[state] || state}
++    >
++      <AlertCircle className="w-3.5 h-3.5" />
++      {platformRestrictionLabels[state] || state}
++    </span>
++  )
++}
+ // 筛选状态类型
+ interface AccountFilters {
+   status: 'active' | 'inactive' | null
+@@ -1070,7 +1143,7 @@ export function Accounts() {
+     setEditAutoConfirm(account.auto_confirm || false)
+     setEditPauseDuration(account.pause_duration || 0)
+     setEditUsername(account.username || '')
+-    setEditPassword(account.login_password || '')
++    setEditPassword('')
+     setEditShowBrowser(account.show_browser || false)
+     setActiveModal('edit')
+   }
+@@ -1100,17 +1173,23 @@ export function Accounts() {
+       }
+ 
+       // 更新登录信息（用户名、密码、显示浏览器）
++      const loginInfoPayload: { username?: string; login_password?: string; show_browser?: boolean } = {}
++      if (editUsername !== (editingAccount.username || '')) {
++        loginInfoPayload.username = editUsername
++      }
++      if (editPassword.trim()) {
++        loginInfoPayload.login_password = editPassword
++      }
++      if (editShowBrowser !== (editingAccount.show_browser || false)) {
++        loginInfoPayload.show_browser = editShowBrowser
++      }
+       const loginInfoChanged = 
+         editUsername !== (editingAccount.username || '') ||
+-        editPassword !== (editingAccount.login_password || '') ||
++        !!editPassword.trim() ||
+         editShowBrowser !== (editingAccount.show_browser || false)
+       
+       if (loginInfoChanged) {
+-        promises.push(updateAccountLoginInfo(editingAccount.id, {
+-          username: editUsername,
+-          login_password: editPassword,
+-          show_browser: editShowBrowser,
+-        }))
++        promises.push(updateAccountLoginInfo(editingAccount.id, loginInfoPayload))
+       }
+ 
+       await Promise.all(promises)
+@@ -2338,7 +2417,10 @@ export function Accounts() {
+                   <th className="whitespace-nowrap min-w-[80px]">过滤词</th>
+                   <th className="whitespace-nowrap min-w-[80px]">今日回复</th>
+                   <th className="whitespace-nowrap min-w-[120px]">状态</th>
+-                  <th className="whitespace-nowrap min-w-[90px]">在线状态</th>
++                  <th className="whitespace-nowrap min-w-[90px]">自动回复</th>
++                  <th className="whitespace-nowrap min-w-[110px]">浏览器会话</th>
++                  <th className="whitespace-nowrap min-w-[100px]">在线聊天</th>
++                  <th className="whitespace-nowrap min-w-[100px]">商品发布</th>
+                   <th className="whitespace-nowrap min-w-[90px]">配置密码</th>
+                   <th className="whitespace-nowrap min-w-[340px]">功能开关</th>
+                   <th className="whitespace-nowrap min-w-[90px]">暂停时间</th>
+@@ -2348,7 +2430,7 @@ export function Accounts() {
+               <tbody>
+                 {accounts.length === 0 ? (
+                   <tr>
+-                    <td colSpan={isAdmin ? 12 : 11}>
++                    <td colSpan={isAdmin ? 16 : 15}>
+                       <div className="empty-state py-8">
+                         <p className="text-slate-500 dark:text-slate-400">暂无账号，请添加新账号</p>
+                       </div>
+@@ -2411,23 +2493,44 @@ export function Accounts() {
+                       </div>
+                     </td>
+                     <td>
+-                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded ${
+-                        account.online
+-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+-                          : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+-                      }`}>
+-                        <span className={`status-dot ${account.online ? 'status-dot-success' : 'status-dot-danger'}`} />
+-                        {account.online ? '在线' : '离线'}
+-                      </span>
++                      {renderReadinessBadge(
++                        account.auto_reply_state,
++                        account.online ? 'READY' : 'DISCONNECTED',
++                        account.auto_reply_reason
++                      )}
++                    </td>
++                    <td>
++                      {renderReadinessBadge(
++                        account.browser_session_state,
++                        'PENDING',
++                        account.browser_session_reason
++                      )}
++                    </td>
++                    <td>
++                      {renderReadinessBadge(
++                        account.chat_state,
++                        'PENDING',
++                        account.chat_reason
++                      )}
++                    </td>
++                    <td>
++                      {renderReadinessBadge(
++                        account.publish_state,
++                        'PENDING',
++                        account.publish_reason
++                      )}
++                    </td>
++                    <td>
++                      {renderPlatformRestrictionBadge(account)}
+                     </td>
+                     <td>
+                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded ${
+-                        (account.username && account.login_password)
++                        account.has_password
+                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' 
+                           : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                       }`}>
+                         <Key className="w-3.5 h-3.5" />
+-                        {(account.username && account.login_password) ? '已配置' : '未配置'}
++                        {account.has_password ? '已配置' : '未配置'}
+                       </span>
+                     </td>
+                     {/* 功能开关组：7 个开关合并为紧凑图标组，点击切换，hover 查看说明 */}
+diff --git a/frontend/src/pages/items/Items.tsx b/frontend/src/pages/items/Items.tsx
+index 4722276..5bf2db1 100644
+--- a/frontend/src/pages/items/Items.tsx
++++ b/frontend/src/pages/items/Items.tsx
+@@ -1,6 +1,6 @@
+-﻿import { useEffect, useState, useRef } from 'react'
++import { useEffect, useState, useRef } from 'react'
+ import { CheckSquare, Download, Edit2, ExternalLink, Loader2, Package, PackageX, RefreshCw, Search, Square, Trash2, X, Settings, Plus, MessageSquare, Bot, ChevronLeft, ChevronRight, ImagePlus, Unlink } from 'lucide-react'
+-import { batchDeleteItems, batchDeleteXianyuItems, batchOfflineItems, deleteItem, fetchAllItemsFromAccessibleAccounts, fetchAllItemsFromAccount, getItemsPaginated, updateItem, updateItemMultiQuantityDelivery, updateItemMultiSpec, getItemDefaultReply, saveItemDefaultReply, deleteItemDefaultReply, batchSaveItemDefaultReply, batchDeleteItemDefaultReply, getItemAiPrompt, saveItemAiPrompt, batchDeleteItemAiPrompt, batchSaveItemAiPrompt, uploadItemDefaultReplyImage, uploadBatchDefaultReplyImage, type ItemFilterParams } from '@/api/items'
++import { batchDeleteItems, batchDeleteXianyuItems, batchOfflineItems, checkPlatformStatusFromAccount, deleteItem, fetchAllItemsFromAccessibleAccounts, fetchAllItemsFromAccount, getItemsPaginated, updateItem, updateItemMultiQuantityDelivery, updateItemMultiSpec, getItemDefaultReply, saveItemDefaultReply, deleteItemDefaultReply, batchSaveItemDefaultReply, batchDeleteItemDefaultReply, getItemAiPrompt, saveItemAiPrompt, batchDeleteItemAiPrompt, batchSaveItemAiPrompt, uploadItemDefaultReplyImage, uploadBatchDefaultReplyImage, type ItemFilterParams } from '@/api/items'
+ import { getAccountDetails } from '@/api/accounts'
+ import { batchClearItemRelations } from '@/api/cards'
+ import { ItemCardRelationModal } from './ItemCardRelationModal'
+@@ -12,6 +12,34 @@ import { ConfirmModal } from '@/components/common/ConfirmModal'
+ import type { Account, Item } from '@/types'
+ 
+ type ItemBooleanFilterKey = 'is_polished' | 'is_multi_spec' | 'multi_quantity_delivery'
++type PlatformStatusView = {
++  label: string
++  className: string
++}
++
++const platformStatusViews: Record<string, PlatformStatusView> = {
++  ACTIVE: { label: '在售', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
++  NOT_IN_ACTIVE_LIST: { label: '待确认', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
++  OFFLINE: { label: '已下架', className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
++  SOLD: { label: '已卖出', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
++  DELETED: { label: '已删除', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
++  UNDER_REVIEW: { label: '审核中', className: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' },
++  PLATFORM_DELISTED: { label: '平台下架', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
++  UNKNOWN: { label: '未知', className: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' },
++}
++
++const renderPlatformStatusBadge = (item: Item) => {
++  const state = item.platform_status || 'UNKNOWN'
++  const view = platformStatusViews[state] || { label: state, className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' }
++  return (
++    <span
++      className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${view.className}`}
++      title={item.platform_status_reason || item.platform_status_source || view.label}
++    >
++      {view.label}
++    </span>
++  )
++}
+ 
+ 
+ export function Items() {
+@@ -23,7 +51,7 @@ export function Items() {
+   const [selectedAccount, setSelectedAccount] = useState('')
+   const [searchKeyword, setSearchKeyword] = useState('')
+   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set())
+-  const [fetchingType, setFetchingType] = useState<'single' | 'all' | null>(null)
++  const [fetchingType, setFetchingType] = useState<'single' | 'all' | 'status' | null>(null)
+   
+   // 分页状态
+   const [pagination, setPagination] = useState({
+@@ -39,6 +67,7 @@ export function Items() {
+     is_polished: null,
+     is_multi_spec: null,
+     multi_quantity_delivery: null,
++    platform_status: null,
+   })
+ 
+   // 编辑弹窗状态
+@@ -177,6 +206,7 @@ export function Items() {
+       is_polished: null,
+       is_multi_spec: null,
+       multi_quantity_delivery: null,
++      platform_status: null,
+     }
+     setFilters(emptyFilters)
+     skipNextSearchEffectRef.current = !!searchKeyword.trim()
+@@ -214,6 +244,29 @@ export function Items() {
+     }
+   }
+ 
++  const handleCheckPlatformStatus = async () => {
++    if (!selectedAccount) {
++      addToast({ type: 'warning', message: '请先选择账号后再检查平台状态' })
++      return
++    }
++
++    setFetchingType('status')
++    try {
++      const result = await checkPlatformStatusFromAccount(selectedAccount)
++      if (result.success) {
++        addToast({ type: 'success', message: result.message || '平台状态检查完成' })
++        await loadItems()
++        await loadAccounts()
++      } else {
++        addToast({ type: 'error', message: result.message || '平台状态检查失败' })
++      }
++    } catch {
++      addToast({ type: 'error', message: '平台状态检查失败' })
++    } finally {
++      setFetchingType(null)
++    }
++  }
++
+   const handleFetchAllItems = async () => {
+     setFetchingType('all')
+ 
+@@ -1203,6 +1256,24 @@ export function Items() {
+               </>
+             )}
+           </button>
++          <button
++            onClick={handleCheckPlatformStatus}
++            disabled={fetchingType !== null || !selectedAccount}
++            className="btn-ios-secondary btn-sm whitespace-nowrap"
++            title="只读检查所选账号的商品平台状态和账号发布限制"
++          >
++            {fetchingType === 'status' ? (
++              <>
++                <Loader2 className="w-3.5 h-3.5 animate-spin" />
++                检查中...
++              </>
++            ) : (
++              <>
++                <RefreshCw className="w-3.5 h-3.5" />
++                检查平台状态
++              </>
++            )}
++          </button>
+           <button onClick={() => loadItems()} className="btn-ios-secondary btn-sm whitespace-nowrap">
+             <RefreshCw className="w-3.5 h-3.5" />
+             刷新
+@@ -1284,6 +1355,29 @@ export function Items() {
+                 <option value="false">关闭</option>
+               </select>
+             </div>
++            <div className="input-group min-w-[150px]">
++              <label className="input-label">平台状态</label>
++              <select
++                value={filters.platform_status || ''}
++                onChange={(e) => {
++                  const newFilters = { ...filters, platform_status: e.target.value || null }
++                  setFilters(newFilters)
++                  loadItems(1, pagination.pageSize, newFilters)
++                }}
++                className="input-ios"
++              >
++                <option value="">全部</option>
++                <option value="ACTIVE">在售</option>
++                <option value="NOT_IN_ACTIVE_LIST">待确认</option>
++                <option value="OFFLINE">已下架</option>
++                <option value="SOLD">已卖出</option>
++                <option value="DELETED">已删除</option>
++                <option value="UNDER_REVIEW">审核中</option>
++                <option value="PLATFORM_DELISTED">平台下架</option>
++                <option value="UNKNOWN">未知</option>
++                <option value="ANOMALY">异常</option>
++              </select>
++            </div>
+             {/* 查询/重置按钮统一放在筛选行最右侧 */}
+             <div className="flex items-end gap-2 ml-auto">
+               <button
+@@ -1339,6 +1433,7 @@ export function Items() {
+                   <th className="min-w-[160px]">商品ID</th>
+                   <th className="min-w-[260px]">商品标题</th>
+                   <th className="min-w-[80px]">价格</th>
++                  <th className="min-w-[130px] text-center">平台状态</th>
+                   <th className="min-w-[100px] text-center">是否擦亮</th>
+                   <th className="min-w-[100px] text-center">多规格</th>
+                   <th className="min-w-[120px] text-center">多数量发货</th>
+@@ -1353,7 +1448,7 @@ export function Items() {
+             <tbody>
+               {filteredItems.length === 0 ? (
+                 <tr>
+-                  <td colSpan={14}>
++                  <td colSpan={15}>
+                     <div className="empty-state py-8">
+                       <Package className="empty-state-icon" />
+                       <p className="text-gray-500">暂无商品数据</p>
+@@ -1411,6 +1506,9 @@ export function Items() {
+                     <td className="text-amber-600 font-medium">
+                       {item.item_price || (item.price ? `¥${item.price}` : '-')}
+                     </td>
++                    <td>
++                      {renderPlatformStatusBadge(item)}
++                    </td>
+                     <td>
+                       <span
+                         className={`px-2 py-1 rounded text-xs font-medium ${
+diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
+index 1483502..875789f 100644
+--- a/frontend/src/types/index.ts
++++ b/frontend/src/types/index.ts
+@@ -3,6 +3,17 @@ export type UserRole = 'ADMIN' | 'OPERATOR' | 'MEMBER'
+ 
+ export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DELETED'
+ 
++export type ConsumerReadinessState =
++  | 'READY'
++  | 'PENDING'
++  | 'TEMPORARY_FAILURE'
++  | 'DISCONNECTED'
++  | 'PROFILE_BUSY'
++  | 'SESSION_EXPIRED'
++  | 'PLATFORM_VERIFICATION_REQUIRED'
++  | 'HUMAN_QR_REQUIRED'
++  | 'COOLDOWN'
++
+ export interface User {
+   user_id: number
+   username: string
+@@ -45,6 +56,18 @@ export interface Account {
+   owner_id?: number
+   cookie: string
+   enabled: boolean
++  auto_reply_state?: ConsumerReadinessState
++  auto_reply_updated_at?: string | null
++  auto_reply_reason?: string
++  browser_session_state?: ConsumerReadinessState
++  browser_session_updated_at?: string | null
++  browser_session_reason?: string
++  chat_state?: ConsumerReadinessState
++  chat_updated_at?: string | null
++  chat_reason?: string
++  publish_state?: ConsumerReadinessState
++  publish_updated_at?: string | null
++  publish_reason?: string
+   online?: boolean  // 在线状态：是否已建立真实 WebSocket 连接（口径同仪表盘“在线账号”）
+   use_ai_reply: boolean
+   use_default_reply: boolean
+@@ -67,7 +90,13 @@ export interface Account {
+   pause_duration?: number
+   username?: string
+   login_password?: string
++  has_password?: boolean
+   show_browser?: boolean
++  platform_restriction_state?: string
++  platform_restriction_reason?: string
++  platform_restriction_until?: string | null
++  platform_restriction_updated_at?: string | null
++  platform_restriction_source?: string
+   disable_reason?: string
+   created_at?: string
+   updated_at?: string
+@@ -118,7 +147,14 @@ export interface Item {
+   multi_quantity_delivery?: number | boolean
+   default_reply_enabled?: boolean  // 默认回复是否启用
+   has_default_reply?: boolean      // 是否配置了默认回复
+-  has_card?: boolean               // 是否配置了发货卡券
++  has_card?: boolean               // configured delivery card
++  platform_status?: string
++  platform_status_reason?: string
++  platform_status_source?: string
++  platform_status_updated_at?: string | null
++  last_seen_active_at?: string | null
++  last_status_check_at?: string | null
++  raw_platform_item_status?: string | number | null
+   ai_prompt?: string               // AI提示词
+   has_ai_prompt?: boolean          // 是否配置了AI提示词
+   created_at?: string
+diff --git a/scheduler/app/services/scheduler/fetch_items_task.py b/scheduler/app/services/scheduler/fetch_items_task.py
+index b93e581..2f25517 100644
+--- a/scheduler/app/services/scheduler/fetch_items_task.py
++++ b/scheduler/app/services/scheduler/fetch_items_task.py
+@@ -149,7 +149,7 @@ class FetchItemsTaskService:
+                 account=account,
+                 page_size=self.page_size,
+                 max_pages=self.max_pages,
+-                stop_when_page_all_existing=True,
++                stop_when_page_all_existing=False,
+             )
+ 
+ 
+diff --git a/tests/test_chg0018_chat_auth_convergence.py b/tests/test_chg0018_chat_auth_convergence.py
+new file mode 100644
+index 0000000..aa7d871
+--- /dev/null
++++ b/tests/test_chg0018_chat_auth_convergence.py
+@@ -0,0 +1,110 @@
++import asyncio
++import pytest
++import sys
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT))
++sys.path.insert(0, str(ROOT / "backend-web"))
++
++from app.services.chat_new.im_session_manager import ImSessionManager
++from common.utils.cookie_refresh import cookie_fingerprint
++
++
++class FakeClient:
++    instances = []
++
++    def __init__(self, account_id, cookies_str, *, account_row_id=None):
++        self.account_id = account_id
++        self.cookies_str = cookies_str
++        self.account_row_id = account_row_id
++        self.auth_fingerprint = cookie_fingerprint(cookies_str)
++        self.is_connected = True
++        self.disconnect_count = 0
++        FakeClient.instances.append(self)
++
++    async def connect(self):
++        return True
++
++    async def disconnect(self):
++        self.disconnect_count += 1
++        self.is_connected = False
++
++
++def test_get_or_connect_reuses_connected_client_when_cookie_fingerprint_matches(monkeypatch):
++    manager = ImSessionManager()
++
++    async def fake_context(account_id):
++        return 1, "unb=1001; token=alpha"
++
++    monkeypatch.setattr(manager, "_get_account_context", fake_context)
++    monkeypatch.setattr("app.services.chat_new.im_session_manager.GoofishImClient", FakeClient)
++
++    async def run_case():
++        first_client = await manager.get_or_connect("acct-1")
++        second_client = await manager.get_or_connect("acct-1")
++        return first_client, second_client
++
++    first, second = asyncio.run(run_case())
++
++    assert second is first
++    assert first.disconnect_count == 0
++    assert len(FakeClient.instances) == 1
++
++
++def test_get_or_connect_replaces_connected_client_when_cookie_fingerprint_changes(monkeypatch):
++    manager = ImSessionManager()
++    contexts = ["unb=1001; token=alpha", "unb=1001; token=beta"]
++
++    async def fake_context(account_id):
++        return 1, contexts.pop(0)
++
++    monkeypatch.setattr(manager, "_get_account_context", fake_context)
++    monkeypatch.setattr("app.services.chat_new.im_session_manager.GoofishImClient", FakeClient)
++
++    async def run_case():
++        first_client = await manager.get_or_connect("acct-1")
++        second_client = await manager.get_or_connect("acct-1")
++        return first_client, second_client
++
++    first, second = asyncio.run(run_case())
++
++    assert second is not first
++    assert first.disconnect_count == 1
++    assert second.auth_fingerprint == cookie_fingerprint("unb=1001; token=beta")
++    assert manager.clients["acct-1"] is second
++
++
++def test_invalidate_auth_consumers_disconnects_client_and_expires_chat_token(monkeypatch):
++    manager = ImSessionManager()
++    client = FakeClient("acct-1", "unb=1001; token=alpha", account_row_id=1)
++    manager.clients["acct-1"] = client
++    calls = []
++
++    async def fake_mark_token_cache_expired(**kwargs):
++        calls.append(kwargs)
++
++        class Result:
++            success = True
++            message = "expired"
++
++        return Result()
++
++    monkeypatch.setattr(
++        "app.services.chat_new.im_session_manager.mark_token_cache_expired",
++        fake_mark_token_cache_expired,
++    )
++
++    result = asyncio.run(manager.invalidate_auth_consumers("acct-1", "unb=1001; token=beta"))
++
++    assert result == {
++        "client_disconnected": True,
++        "chat_token_cache_invalidated": True,
++        "chat_token_cache_key_present": True,
++    }
++    assert client.disconnect_count == 1
++    assert "acct-1" not in manager.clients
++    assert calls == [
++        {"token_user_id": "chat_1001", "invalidate_valid_cache": True}
++    ]
