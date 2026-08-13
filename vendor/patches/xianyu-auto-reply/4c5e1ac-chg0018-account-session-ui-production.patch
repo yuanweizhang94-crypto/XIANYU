@@ -1,0 +1,79 @@
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+index 0346bc22afebe362320d421c79450c5d04afca44..cc149fdaefe4b63f07185f368069b72af489d5da 100644
+--- a/backend-web/app/api/routes/cookies.py
++++ b/backend-web/app/api/routes/cookies.py
+@@ -341,0 +342,10 @@ async def list_cookie_details_paginated(
++            "session_state": (
++                ((account.metadata_json or {}).get("session_maintenance") or {}).get("state")
++                if isinstance(account.metadata_json, dict)
++                else None
++            ) or "UNKNOWN",
++            "session_state_updated_at": (
++                ((account.metadata_json or {}).get("session_maintenance") or {}).get("updated_at")
++                if isinstance(account.metadata_json, dict)
++                else None
++            ),
+diff --git a/frontend/src/api/accounts.ts b/frontend/src/api/accounts.ts
+index 2f5d96aa42b2f753b54f45395cd952cc555633bc..ce9e174c0dd4414fdebab5c5fa0be18e4fbbe57a 100644
+--- a/frontend/src/api/accounts.ts
++++ b/frontend/src/api/accounts.ts
+@@ -65,0 +66,2 @@ export const getAccountDetailsPaginated = async (
++    session_state?: string
++    session_state_updated_at?: string
+@@ -141,0 +144,2 @@ export const getAccountDetailsPaginated = async (
++      session_state: item.session_state || 'UNKNOWN',
++      session_state_updated_at: item.session_state_updated_at,
+diff --git a/frontend/src/pages/accounts/Accounts.tsx b/frontend/src/pages/accounts/Accounts.tsx
+index c797078950beaeb30697461498e49bfa340aa9c2..177ab695e6b51443793ba6f969d7a05aedd72f7b 100644
+--- a/frontend/src/pages/accounts/Accounts.tsx
++++ b/frontend/src/pages/accounts/Accounts.tsx
+@@ -22,0 +23,28 @@ type PolishSystemStatus = 'loading' | 'enabled' | 'disabled' | 'unknown'
++const getSessionStatePresentation = (state?: string): { label: string; className: string } => {
++  switch (state) {
++    case 'REAL_BROWSER_LOGIN_READY':
++      return { label: '可用', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' }
++    case 'SESSION_RENEWING':
++      return { label: '续期中', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' }
++    case 'SESSION_RENEWABLE':
++      return { label: '待续期', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' }
++    case 'SESSION_RENEW_SUCCESS':
++    case 'SESSION_CHECK_PENDING':
++    case 'ACCOUNT_RECORD_HEALTHY':
++    case 'COOKIE_PRESENT':
++    case 'PROFILE_PRESENT':
++      return { label: '待检查', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }
++    case 'HUMAN_QR_REQUIRED':
++      return { label: '需要扫码', className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' }
++    case 'PLATFORM_VERIFICATION_REQUIRED':
++      return { label: '需要平台验证', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' }
++    case 'SESSION_EXPIRED':
++    case 'SESSION_RENEW_FAILED':
++      return { label: '登录已失效', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' }
++    case 'COOLDOWN':
++      return { label: '冷却中', className: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300' }
++    default:
++      return { label: '状态未知', className: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400' }
++  }
++}
++
+@@ -2439,0 +2468 @@ export function Accounts() {
++                  <th className="whitespace-nowrap min-w-[110px]">平台会话</th>
+@@ -2449 +2478 @@ export function Accounts() {
+-                    <td colSpan={isAdmin ? 12 : 11}>
++                    <td colSpan={isAdmin ? 13 : 12}>
+@@ -2520,0 +2550,8 @@ export function Accounts() {
++                    <td>
++                      <span
++                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded ${getSessionStatePresentation(account.session_state).className}`}
++                        title={`平台Session：${account.session_state || 'UNKNOWN'}${account.session_state_updated_at ? `\n更新时间：${account.session_state_updated_at}` : ''}`}
++                      >
++                        {getSessionStatePresentation(account.session_state).label}
++                      </span>
++                    </td>
+diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
+index 40ab6180c741009a3cea87e30b59c4f1c78ccbd1..45d973f95a924307dc3a859852b9cfdde959785b 100644
+--- a/frontend/src/types/index.ts
++++ b/frontend/src/types/index.ts
+@@ -48,0 +49,2 @@ export interface Account {
++  session_state?: string  // 权威平台 Session 生命周期状态，来自 account.metadata_json.session_maintenance
++  session_state_updated_at?: string
