@@ -51,6 +51,26 @@ GitHub is the canonical source for source code, vendor patches, tests, governanc
 
 A local runtime result that cannot be reproduced from one exact GitHub commit is operational evidence only and is not a completed software delivery.
 
+### GitHub transport on production laptop
+
+The production laptop uses GitHub official SSH over port 443 as its verified delivery transport.
+
+- Laptop GitHub account: `yuanweizhang94-crypto`.
+- Host: `ssh.github.com`.
+- Port: `443`.
+- XIANYU repository URL: `ssh://git@ssh.github.com:443/yuanweizhang94-crypto/XIANYU.git`.
+- The existing `origin` remote does not need to change; use a one-time SSH URL and a process-scoped `GIT_SSH_COMMAND` when needed.
+- Local SSH identity reference: `~/.ssh/id_ed25519_xianyu` (`SSH_KEY_CONFIGURED=true`).
+- Before delivery is complete, the exact local commit SHA must equal the exact remote branch SHA.
+- The standard `github.com` HTTPS Git path is not the preferred laptop push transport after the observed path-specific failure; `api.github.com` availability does not prove the Git HTTPS path is healthy.
+- Do not re-debug the known HTTPS path on every repair while SSH over 443 remains healthy. If SSH over 443 fails, diagnose transport or identity only; do not reopen completed application development.
+- If transport fails after a verified local commit exists, preserve that exact commit and resume its push later rather than recreating the change.
+- If the remote branch has advanced, stop and compare local and remote SHAs. Do not force-push.
+
+The local SSH identity is machine-local credential material. Only its path, public-key material, and authentication result may be inspected or recorded. Secret key contents must never be read, printed, committed, logged, placed in evidence, handoff packages, or AI output. On first use or host-key change, verify the presented fingerprint against GitHub's official published fingerprint before accepting it.
+
+A GitHub-persistent repair is not complete at "code fixed" or "tests passed". The delivery sequence is: repair -> targeted tests -> repository verification -> exact diff review -> stage only current-task files -> local commit -> SSH-over-443 push -> remote SHA verification. Production deployment remains a separate operation.
+
 ## Single-Executor Invariant
 
 Two automatic-reply, WebSocket, AI-reply, or publish executors must never operate the same production account at the same time.
