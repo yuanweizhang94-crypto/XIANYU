@@ -1,0 +1,25 @@
+diff --git a/frontend/src/pages/product-publish/PublishLogs.tsx b/frontend/src/pages/product-publish/PublishLogs.tsx
+index 2231668..94f0b35 100644
+--- a/frontend/src/pages/product-publish/PublishLogs.tsx
++++ b/frontend/src/pages/product-publish/PublishLogs.tsx
+@@ -20,4 +20,13 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
+-  pending:    { label: '待处理', cls: 'badge-gray' },
+-  publishing: { label: '发布中', cls: 'badge-warning' },
+-  success:    { label: '成功',   cls: 'badge-success' },
+-  failed:     { label: '失败',   cls: 'badge-danger' },
++  pending:    { label: '已提交 (SUBMITTED)', cls: 'badge-gray' },
++  publishing: { label: '执行中 (RUNNING)', cls: 'badge-warning' },
++  success:    { label: '成功 (SUCCESS)', cls: 'badge-success' },
++  failed:     { label: '失败 (FAILED)', cls: 'badge-danger' },
++}
++
++const UNKNOWN_STATUS = { label: '状态未知 (UNKNOWN)', cls: 'badge-gray' }
++
++const getPublishLogStatus = (log: PublishLog): { label: string; cls: string } => {
++  if (log.status === 'success') {
++    return log.item_id || log.item_url ? STATUS_CONFIG.success : UNKNOWN_STATUS
++  }
++  return STATUS_CONFIG[log.status] ?? UNKNOWN_STATUS
+@@ -218 +227 @@ export function PublishLogs() {
+-                const s = STATUS_CONFIG[log.status] ?? { label: log.status, cls: 'badge-gray' }
++                const s = getPublishLogStatus(log)

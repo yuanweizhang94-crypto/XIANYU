@@ -42,14 +42,45 @@ Reuse decision: `PATCH_UPSTREAM` for the Account API/UI projection and `CONFIGUR
 
 | Service | Container | Image | Host port | Current health |
 |---|---|---|---|---|
-| frontend | `xianyu_chg0017_frontend` | `xianyu-chg0019-frontend:account-session-ui-20260813` | `127.0.0.1:19000 -> 80` | `/health` HTTP 200 |
+| frontend | `xianyu_chg0017_frontend` | `xianyu-chg0019-frontend:publish-status-semantics-20260813` | `127.0.0.1:19000 -> 80` | `/health` HTTP 200 / Docker healthy |
 | backend_web | `xianyu_chg0017_backend_web` | `xianyu-chg0018-backend-web:account-session-ui-20260813` | `127.0.0.1:28089 -> 8089` | `/health` HTTP 200, DB connected |
 | websocket | `xianyu_chg0017_websocket` | `xianyu-chg0018-websocket:session-lifecycle-20260812-r2` | `127.0.0.1:28090 -> 8090` | `/health` HTTP 200, DB connected / Docker healthy |
 | scheduler | `xianyu_chg0017_scheduler` | `xianyu-chg0018-scheduler:session-lifecycle-20260812` | `127.0.0.1:28091 -> 8091` | IPv4 container and host `/health` HTTP 200, DB connected; `HOST=0.0.0.0` |
 | mysql | `xianyu_chg0017_mysql` | `mysql:8.0` | `127.0.0.1:23306 -> 3306` | Docker healthy |
 | redis | `xianyu_chg0017_redis` | `redis:7.4-alpine` | `127.0.0.1:26379 -> 6379` | Docker healthy |
 
-All six host ports are listening. SPA route checks returned HTTP 200 for `/login`, `/dashboard`, `/accounts`, and `/items` through the frontend.
+All six host ports are listening. Final SPA route checks returned HTTP 200 for `/login`, `/dashboard`, `/accounts`, `/product-publish/materials`, `/items`, `/product-publish/single`, `/product-publish/logs`, `/online-chat-new`, `/admin/scheduled-tasks`, `/product-monitor/overview`, `/risk-logs`, `/admin/api-cookie-renew-batches`, `/admin/cookies-refresh-batches`, and `/settings`.
+
+## AUTHORITATIVE_PRODUCTION_RUNTIME_LIFECYCLE
+
+`AUTHORITATIVE_PRODUCTION_RUNTIME_LIFECYCLE=true`. This section is the single current recovery record for the six-service production stack. Historical compose/evidence remains useful as provenance, but must not be used to create an additional parallel production stack.
+
+| Service | Canonical container | Image | Entrypoint / command | Host port | Network / dependency | Restart | Mounts / volumes | Health / required non-sensitive config |
+|---|---|---|---|---|---|---|---|---|
+| Frontend | `xianyu_chg0017_frontend` | `xianyu-chg0019-frontend:publish-status-semantics-20260813` | `/docker-entrypoint.sh` -> `nginx -g 'daemon off;'` | `127.0.0.1:19000 -> 80` | `xianyu_chg0017_network`; **required link** `xianyu_chg0017_backend_web:backend-web` | `unless-stopped` | none | Docker health probes `127.0.0.1:80`; host `/health` HTTP 200 |
+| Backend | `xianyu_chg0017_backend_web` | `xianyu-chg0018-backend-web:account-session-ui-20260813` | `python backend-web/main.py` | `127.0.0.1:28089 -> 8089` | `xianyu_chg0017_network`; depends on MySQL/Redis by existing runtime configuration | `unless-stopped` | `xianyu_chg0017_backend_logs:/app/backend-web/logs`; `xianyu_chg0017_backup_data:/app/backups`; `xianyu_chg0017_browser_data:/app/browser_data`; `xianyu_chg0017_static_data:/app/static` | `HOST=0.0.0.0`; `/health` HTTP 200 / DB connected |
+| WebSocket | `xianyu_chg0017_websocket` | `xianyu-chg0018-websocket:session-lifecycle-20260812-r2` | `python websocket/main.py` | `127.0.0.1:28090 -> 8090` | `xianyu_chg0017_network`; existing MySQL/Redis/session dependencies | `unless-stopped` | `xianyu_chg0017_static_data:/app/static`; `xianyu_chg0017_websocket_logs:/app/websocket/logs`; `xianyu_chg0017_browser_data:/app/browser_data` | `HOST=0.0.0.0`; host `/health` HTTP 200 / DB connected |
+| Scheduler | `xianyu_chg0017_scheduler` | `xianyu-chg0018-scheduler:session-lifecycle-20260812` | `python scheduler/main.py` | `127.0.0.1:28091 -> 8091` | `xianyu_chg0017_network`; existing DB/Redis task dependencies | `unless-stopped` | none | `SINGLE_INSTANCE_ONLY=true`; `ACTIVE_SCHEDULER_EXECUTORS_MAX=1`; `HOST=0.0.0.0`; host `/health` HTTP 200 / DB connected |
+| MySQL | `xianyu_chg0017_mysql` | `mysql:8.0` | `docker-entrypoint.sh` with existing utf8mb4/time-zone/server limits | `127.0.0.1:23306 -> 3306` | `xianyu_chg0017_network`; aliases `mysql`, `xianyu_chg0017_mysql` | `unless-stopped` | `xianyu_chg0017_mysql_data:/var/lib/mysql` | Docker `mysqladmin ping`; credentials remain runtime secrets and are not recorded here |
+| Redis | `xianyu_chg0017_redis` | `redis:7.4-alpine` | `docker-entrypoint.sh` -> existing authenticated Redis configuration with `128mb`, `allkeys-lru`, AOF enabled | `127.0.0.1:26379 -> 6379` | `xianyu_chg0017_network`; aliases `redis`, `xianyu_chg0017_redis` | `unless-stopped` | `xianyu_chg0017_redis_data:/data` | Docker `redis-cli ... ping | grep PONG`; authentication material remains a runtime secret and is not recorded here |
+
+Recovery rules:
+
+1. Never create a second Scheduler. Stop the canonical Scheduler and prove active executor count is `0` before recreating it; after start the count must be exactly `1`.
+2. Recreate a service only from the current parameters above plus its existing secret-bearing environment, which must be obtained from the live/approved runtime without being copied into evidence.
+3. Frontend recreation must preserve the `backend-web` link/network alias; omitting it prevents nginx from resolving its upstream.
+4. Backend/Frontend overlay delivery must retain stopped prior containers as rollback points when practical; do not rebuild unrelated services merely to align image names or Git SHAs.
+5. MySQL/Redis persistent volumes are authoritative data volumes and are never replaced as part of an application UI/API repair.
+
+## Remaining-function acceptance closeout
+
+- Material: production GET list and detail APIs returned HTTP 200 with 15 existing materials; all 15 image reference lists parse, none are empty, and no direct local reference is missing. No material was created.
+- Publish page: production route and existing account/material APIs are healthy; the page uses the existing `publishSingle` API and existing Publisher chain. Required pre-submit validation exists for account, title, description, positive price, and at least one image. Final publish was not retriggered.
+- Publish log: production API returned 216 historical rows; persisted status counts include success/failed/publishing and there are zero persisted `success` rows without `item_id`/`item_url`. The UI now maps legacy storage values to canonical display semantics (`pending -> SUBMITTED`, `publishing -> RUNNING`, `failed -> FAILED`) and fail-closes a `success` row without item evidence to `UNKNOWN`.
+- Business Adapter publish status: a new regression was found after Backend restart. Historical in-memory batch status expires with HTTP 200 / `success=false`, while persistent publish logs still contain the terminal result. The existing `xianyu_publish_status` resolver now falls back read-only to Publish Log by `batch_id`; five historical failed operations resolve to `FAILED` with their stored failure reasons, and an existing successful operation continues to resolve `SUCCESS` only with authoritative item/sync evidence. No publish was retriggered.
+- Message: production Chat account API returned HTTP 200 with 11 accounts. Current Chat IM manager has 0 explicitly connected accounts; read paths fail closed with `账号未连接，请先连接`, and send path cannot report success without an existing connected client. No connection/send mutation was triggered.
+- Session maintenance: Account API/UI still exposes persisted session state. Current natural state counts are `REAL_BROWSER_LOGIN_READY=3`, `SESSION_CHECK_PENDING=6`, `UNKNOWN=2`; maintenance task rows remain 21 with zero duplicate task codes. No QR, slider, manual refresh, or forced expiry was triggered.
+- Other UI: Scheduled Tasks, Product Monitor overview, Risk Control, API Cookie Renew logs, Browser Refresh logs, and System Settings production APIs returned HTTP 200; corresponding production frontend bundles/routes are present. Empty Product Monitor datasets are a valid current data state, not a page failure.
 
 ## Account Session UI finding
 
@@ -89,6 +120,18 @@ All six host ports are listening. SPA route checks returned HTTP 200 for `/login
 - GITHUB_RUNTIME_MATCH=false — current default-branch Git state is not the exact build identity embedded in the running production images.
 
 The closeout performed only the required Backend/Frontend Account UI overlays and the single-instance Scheduler configuration replacement. No whole-environment rebuild, merge, rebase, upstream sync, QR login, Cookie manual refresh, product publish, Material creation, category change, or message send was performed.
+
+## Acceptance closeout change boundary
+
+This run changed only the following functional artifacts:
+
+- Upstream delivery source delta: `frontend/src/pages/product-publish/PublishLogs.tsx` (canonical status presentation only).
+- XIANYU formal vendor delta: `vendor/patches/xianyu-auto-reply/4c5e1ac-chg0018-publish-status-semantics-closeout.patch`.
+- Local execution Business Adapter runtime source: `D:\TikTok_Auto\devspace_proxy\proxy.cjs` (read-only historical publish-log fallback when batch status has expired).
+- Local execution installation record: `D:\tmp\company-local-execution-tool\INSTALLATION_MANIFEST.json` (updated Proxy hash and publish-status semantics evidence).
+- This existing production runtime manifest.
+
+No Publisher core source, Session lifecycle source, database schema, Scheduler business logic, Message sender, category state machine, Material system, or new execution owner was created or changed.
 
 ## Closeout validation
 
