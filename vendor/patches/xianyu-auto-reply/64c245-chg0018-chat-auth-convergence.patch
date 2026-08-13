@@ -1,0 +1,315 @@
+diff --git a/backend-web/app/api/routes/qr_login.py b/backend-web/app/api/routes/qr_login.py
+index c3cecf4..b1909a0 100644
+--- a/backend-web/app/api/routes/qr_login.py
++++ b/backend-web/app/api/routes/qr_login.py
+@@ -181,6 +181,22 @@ async def get_qr_status(
+                     logger.info(
+                         f"扫码登录：{'创建新账号' if is_new_account else '更新现有账号'} {account.account_id}"
+                     )
++
++                    try:
++                        from app.services.chat_new import get_im_session_manager
++
++                        chat_invalidation = await get_im_session_manager().invalidate_auth_consumers(
++                            account.account_id,
++                            cookies_str,
++                        )
++                        logger.info(
++                            f"扫码登录：Chat auth consumer状态已失效 {account.account_id}: "
++                            f"{chat_invalidation}"
++                        )
++                    except Exception as chat_e:
++                        logger.warning(
++                            f"扫码登录：Chat auth consumer失效处理失败 {account.account_id}: {chat_e}"
++                        )
+                     
+                     # 调用 WebSocket 服务启动账号任务
+                     try:
+diff --git a/backend-web/app/api/routes/shared_scan.py b/backend-web/app/api/routes/shared_scan.py
+index 455b2ac..fe71906 100644
+--- a/backend-web/app/api/routes/shared_scan.py
++++ b/backend-web/app/api/routes/shared_scan.py
+@@ -578,6 +578,22 @@ async def _handle_scan_success(
+             f"共享扫码登录：{'创建新账号' if is_new else '更新现有账号'} unb={unb}, owner_id={owner_id}"
+         )
+ 
++        try:
++            from app.services.chat_new import get_im_session_manager
++
++            chat_invalidation = await get_im_session_manager().invalidate_auth_consumers(
++                account.account_id,
++                cookies_str,
++            )
++            logger.info(
++                f"shared QR login: Chat auth consumers invalidated {account.account_id}: "
++                f"{chat_invalidation}"
++            )
++        except Exception as chat_e:
++            logger.warning(
++                f"shared QR login: Chat auth consumer invalidation failed {account.account_id}: {chat_e}"
++            )
++
+         worker.status = "success"
+         worker.account_id = unb
+         worker.cookie_saved = True
+diff --git a/backend-web/app/services/chat_new/im_client.py b/backend-web/app/services/chat_new/im_client.py
+index 750cba1..92f78f6 100644
+--- a/backend-web/app/services/chat_new/im_client.py
++++ b/backend-web/app/services/chat_new/im_client.py
+@@ -23,6 +23,7 @@ from sqlalchemy import text
+ from app.services.websocket_client import websocket_client
+ from common.db.session import async_session_maker
+ from common.utils.cookie_refresh import (
++    cookie_fingerprint,
+     merge_cookies,
+     update_account_cookies_in_db,
+ )
+@@ -91,6 +92,7 @@ class GoofishImClient:
+         self.account_id = account_id
+         self.account_row_id = account_row_id
+         self.cookies_str = cookies_str
++        self.auth_fingerprint = cookie_fingerprint(cookies_str)
+         self.cookies: Dict[str, str] = trans_cookies(cookies_str)
+         self.myid: str = self.cookies.get("unb", "")
+         self.device_id: str = generate_device_id(self.myid)
+diff --git a/backend-web/app/services/chat_new/im_session_manager.py b/backend-web/app/services/chat_new/im_session_manager.py
+index 6e70bb3..9efdf10 100644
+--- a/backend-web/app/services/chat_new/im_session_manager.py
++++ b/backend-web/app/services/chat_new/im_session_manager.py
+@@ -18,6 +18,9 @@ from starlette.websockets import WebSocket
+ 
+ from common.db.session import async_session_maker
+ from common.models import XYAccount
++from common.services.token_renewal_cache_service import mark_token_cache_expired
++from common.utils.cookie_refresh import cookie_fingerprint
++from common.utils.xianyu_utils import trans_cookies
+ 
+ from .im_client import GoofishImClient
+ 
+@@ -56,21 +59,26 @@ class ImSessionManager:
+             Exception: 连接失败
+         """
+         async with self._lock:
++            account_context = await self._get_account_context(account_id)
++            if not account_context:
++                raise ValueError(f"账号Cookie为空: {account_id}")
++            account_row_id, cookies_str = account_context
++            current_fingerprint = cookie_fingerprint(cookies_str)
++
+             # 已有连接且仍在线，直接返回
+             if account_id in self.clients:
+                 client = self.clients[account_id]
+                 if client.is_connected:
+-                    return client
++                    client_fingerprint = getattr(client, "auth_fingerprint", "")
++                    if client_fingerprint == current_fingerprint:
++                        return client
++                    logger.warning(
++                        f"【{account_id}】IM会话Cookie指纹已变化，断开旧Chat客户端后重建"
++                    )
+                 # 已断开，清理后重建
+                 await client.disconnect()
+                 del self.clients[account_id]
+ 
+-            # 从数据库获取账号行 ID 和 Cookie，供滑块成功后精准持久化。
+-            account_context = await self._get_account_context(account_id)
+-            if not account_context:
+-                raise ValueError(f"账号Cookie为空: {account_id}")
+-            account_row_id, cookies_str = account_context
+-
+             # 创建并连接
+             client = GoofishImClient(
+                 account_id,
+@@ -86,6 +94,52 @@ class ImSessionManager:
+             await self._setup_push_callback_after_connect(account_id, client)
+             return client
+ 
++    async def invalidate_auth_consumers(self, account_id: str, cookies_str: str | None = None) -> dict[str, Any]:
++        """
++        Invalidate Chat auth state after an authoritative Cookie rotation.
++
++        This only uses the existing in-memory Chat client and token-cache expiry semantics.
++        It does not delete cache rows or create another Session owner.
++        """
++        async with self._lock:
++            client = self.clients.pop(account_id, None)
++            disconnected = False
++            if client:
++                await client.disconnect()
++                disconnected = True
++
++        cookie_source = cookies_str
++        if not cookie_source:
++            account_context = await self._get_account_context(account_id)
++            cookie_source = account_context[1] if account_context else ""
++
++        unb = ""
++        try:
++            unb = trans_cookies(cookie_source or "").get("unb", "")
++        except Exception:
++            unb = ""
++
++        token_cache_invalidated = False
++        if unb:
++            invalidation = await mark_token_cache_expired(
++                token_user_id=f"chat_{unb}",
++                invalidate_valid_cache=True,
++            )
++            token_cache_invalidated = invalidation.success
++            if not invalidation.success:
++                logger.warning(f"【{account_id}】Chat Token缓存失效标记失败: {invalidation.message}")
++
++        logger.info(
++            f"【{account_id}】Chat auth consumers invalidated: "
++            f"client_disconnected={disconnected}, "
++            f"chat_token_cache_invalidated={token_cache_invalidated}"
++        )
++        return {
++            "client_disconnected": disconnected,
++            "chat_token_cache_invalidated": token_cache_invalidated,
++            "chat_token_cache_key_present": bool(unb),
++        }
++
+     async def disconnect(self, account_id: str):
+         """
+         断开指定账号的IM连接
+diff --git a/common/utils/cookie_refresh.py b/common/utils/cookie_refresh.py
+index 11a873e..2775e66 100644
+--- a/common/utils/cookie_refresh.py
++++ b/common/utils/cookie_refresh.py
+@@ -14,6 +14,7 @@ Cookie刷新工具模块
+ from __future__ import annotations
+ 
+ import asyncio
++import hashlib
+ import threading
+ from typing import Any, Dict, Optional, Tuple
+ 
+@@ -232,6 +233,11 @@ def parse_cookie_string(cookie_string: str) -> Dict[str, str]:
+     return trans_cookies(normalized_cookie_string)
+ 
+ 
++def cookie_fingerprint(cookie_string: str) -> str:
++    """Return a one-way fingerprint for Cookie equality checks and logs."""
++    return hashlib.sha256(normalize_cookie_string(cookie_string).encode("utf-8")).hexdigest()
++
++
+ async def get_account_by_identity(
+     account_id: str,
+     owner_id: Optional[int] = None,
+diff --git a/tests/test_chg0018_chat_auth_convergence.py b/tests/test_chg0018_chat_auth_convergence.py
+new file mode 100644
+index 0000000..aa7d871
+--- /dev/null
++++ b/tests/test_chg0018_chat_auth_convergence.py
+@@ -0,0 +1,110 @@
++import asyncio
++import pytest
++import sys
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT))
++sys.path.insert(0, str(ROOT / "backend-web"))
++
++from app.services.chat_new.im_session_manager import ImSessionManager
++from common.utils.cookie_refresh import cookie_fingerprint
++
++
++class FakeClient:
++    instances = []
++
++    def __init__(self, account_id, cookies_str, *, account_row_id=None):
++        self.account_id = account_id
++        self.cookies_str = cookies_str
++        self.account_row_id = account_row_id
++        self.auth_fingerprint = cookie_fingerprint(cookies_str)
++        self.is_connected = True
++        self.disconnect_count = 0
++        FakeClient.instances.append(self)
++
++    async def connect(self):
++        return True
++
++    async def disconnect(self):
++        self.disconnect_count += 1
++        self.is_connected = False
++
++
++def test_get_or_connect_reuses_connected_client_when_cookie_fingerprint_matches(monkeypatch):
++    manager = ImSessionManager()
++
++    async def fake_context(account_id):
++        return 1, "unb=1001; token=alpha"
++
++    monkeypatch.setattr(manager, "_get_account_context", fake_context)
++    monkeypatch.setattr("app.services.chat_new.im_session_manager.GoofishImClient", FakeClient)
++
++    async def run_case():
++        first_client = await manager.get_or_connect("acct-1")
++        second_client = await manager.get_or_connect("acct-1")
++        return first_client, second_client
++
++    first, second = asyncio.run(run_case())
++
++    assert second is first
++    assert first.disconnect_count == 0
++    assert len(FakeClient.instances) == 1
++
++
++def test_get_or_connect_replaces_connected_client_when_cookie_fingerprint_changes(monkeypatch):
++    manager = ImSessionManager()
++    contexts = ["unb=1001; token=alpha", "unb=1001; token=beta"]
++
++    async def fake_context(account_id):
++        return 1, contexts.pop(0)
++
++    monkeypatch.setattr(manager, "_get_account_context", fake_context)
++    monkeypatch.setattr("app.services.chat_new.im_session_manager.GoofishImClient", FakeClient)
++
++    async def run_case():
++        first_client = await manager.get_or_connect("acct-1")
++        second_client = await manager.get_or_connect("acct-1")
++        return first_client, second_client
++
++    first, second = asyncio.run(run_case())
++
++    assert second is not first
++    assert first.disconnect_count == 1
++    assert second.auth_fingerprint == cookie_fingerprint("unb=1001; token=beta")
++    assert manager.clients["acct-1"] is second
++
++
++def test_invalidate_auth_consumers_disconnects_client_and_expires_chat_token(monkeypatch):
++    manager = ImSessionManager()
++    client = FakeClient("acct-1", "unb=1001; token=alpha", account_row_id=1)
++    manager.clients["acct-1"] = client
++    calls = []
++
++    async def fake_mark_token_cache_expired(**kwargs):
++        calls.append(kwargs)
++
++        class Result:
++            success = True
++            message = "expired"
++
++        return Result()
++
++    monkeypatch.setattr(
++        "app.services.chat_new.im_session_manager.mark_token_cache_expired",
++        fake_mark_token_cache_expired,
++    )
++
++    result = asyncio.run(manager.invalidate_auth_consumers("acct-1", "unb=1001; token=beta"))
++
++    assert result == {
++        "client_disconnected": True,
++        "chat_token_cache_invalidated": True,
++        "chat_token_cache_key_present": True,
++    }
++    assert client.disconnect_count == 1
++    assert "acct-1" not in manager.clients
++    assert calls == [
++        {"token_user_id": "chat_1001", "invalidate_valid_cache": True}
++    ]
