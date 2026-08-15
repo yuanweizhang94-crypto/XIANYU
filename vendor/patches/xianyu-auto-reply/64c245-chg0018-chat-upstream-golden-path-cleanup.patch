@@ -1,5 +1,5 @@
 diff --git a/backend-web/app/api/routes/chat_new.py b/backend-web/app/api/routes/chat_new.py
-index 9b8adf2361a84e9f2b06b873228250644ed21e27..90226b5ba04cfd15247e6170f0c5eacbf63bd486 100644
+index 9b8adf2..90226b5 100644
 --- a/backend-web/app/api/routes/chat_new.py
 +++ b/backend-web/app/api/routes/chat_new.py
 @@ -25,6 +25,7 @@ from pydantic import BaseModel
@@ -241,7 +241,7 @@ index 9b8adf2361a84e9f2b06b873228250644ed21e27..90226b5ba04cfd15247e6170f0c5eacb
      except Exception as e:
          logger.error(f"【{account_id}】获取会话列表失败: {e}")
 diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
-index c623a06aa7a9a32cd3c94732c9af1d0377162754..145f17aea9235048e8f75929551a9c2e4f375270 100644
+index c623a06..145f17a 100644
 --- a/backend-web/app/api/routes/cookies.py
 +++ b/backend-web/app/api/routes/cookies.py
 @@ -10,13 +10,17 @@
@@ -764,7 +764,7 @@ index c623a06aa7a9a32cd3c94732c9af1d0377162754..145f17aea9235048e8f75929551a9c2e
              "disable_reason": account.disable_reason or "",
              "filter_count": filter_counts.get(account.account_id, 0),
 diff --git a/backend-web/app/api/routes/items.py b/backend-web/app/api/routes/items.py
-index b2abd85bf3f832144a64203a73b9309c53ab1d5f..bc640db49a1e71bbd76bd61e33161b0408e39d49 100644
+index b2abd85..bc640db 100644
 --- a/backend-web/app/api/routes/items.py
 +++ b/backend-web/app/api/routes/items.py
 @@ -28,6 +28,18 @@ logger = logging.getLogger(__name__)
@@ -857,7 +857,7 @@ index b2abd85bf3f832144a64203a73b9309c53ab1d5f..bc640db49a1e71bbd76bd61e33161b04
  async def search_items(
      payload: ItemSearchRequest,
 diff --git a/backend-web/app/api/routes/qr_login.py b/backend-web/app/api/routes/qr_login.py
-index c3cecf40d24bbd4c13a84988bc3829091774fcbe..e26ea8291dc2a95844584774993403e389f3d7c1 100644
+index c3cecf4..e26ea82 100644
 --- a/backend-web/app/api/routes/qr_login.py
 +++ b/backend-web/app/api/routes/qr_login.py
 @@ -13,7 +13,6 @@ from loguru import logger
@@ -951,7 +951,7 @@ index c3cecf40d24bbd4c13a84988bc3829091774fcbe..e26ea8291dc2a95844584774993403e3
                      )
          
 diff --git a/backend-web/app/api/routes/shared_scan.py b/backend-web/app/api/routes/shared_scan.py
-index 455b2ac29139a9880b0d8dbfdad4f5a88a24ede2..a10db8addba38827e56d9a4b152bf74e927a2a26 100644
+index 455b2ac..a10db8a 100644
 --- a/backend-web/app/api/routes/shared_scan.py
 +++ b/backend-web/app/api/routes/shared_scan.py
 @@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
@@ -1010,7 +1010,7 @@ index 455b2ac29139a9880b0d8dbfdad4f5a88a24ede2..a10db8addba38827e56d9a4b152bf74e
  
      return processed_info
 diff --git a/backend-web/app/services/account_service.py b/backend-web/app/services/account_service.py
-index 752c006698b22cc1e887432c0243317a4100f490..36a7f584c88099bd3234c84108610244bbc6e9be 100644
+index 752c006..e8babe6 100644
 --- a/backend-web/app/services/account_service.py
 +++ b/backend-web/app/services/account_service.py
 @@ -9,7 +9,8 @@
@@ -1023,7 +1023,7 @@ index 752c006698b22cc1e887432c0243317a4100f490..36a7f584c88099bd3234c84108610244
  
  from sqlalchemy import func, select, update
  from sqlalchemy.ext.asyncio import AsyncSession
-@@ -22,13 +23,80 @@ from common.utils.cookie_refresh import clear_cookie_refresh_snapshot
+@@ -22,13 +23,88 @@ from common.utils.cookie_refresh import clear_cookie_refresh_snapshot
  # UTC时区常量
  UTC = timezone.utc
  
@@ -1049,6 +1049,14 @@ index 752c006698b22cc1e887432c0243317a4100f490..36a7f584c88099bd3234c84108610244
 +AUTH_CONVERGENCE_DEADLINE_SECONDS = (
 +    AUTH_CONVERGENCE_MAX_ROUNDS * AUTH_CONVERGENCE_ROUND_DEADLINE_SECONDS
 +)
++
++
++def _should_preserve_chat_auth_on_followup_round(round_number: int, state: str) -> bool:
++    """Keep a fresh round-1 Chat auth result from generating auth again in round 2."""
++    return round_number > 1 and str(state or "") in {
++        "READY",
++        "PLATFORM_VERIFICATION_REQUIRED",
++    }
 +
  
  class AccountService:
@@ -1104,7 +1112,7 @@ index 752c006698b22cc1e887432c0243317a4100f490..36a7f584c88099bd3234c84108610244
      async def list_account_options(self, owner_id: int | None = None) -> list[dict]:
          stmt = select(
              XYAccount.id,
-@@ -413,9 +481,11 @@ class AccountService:
+@@ -413,9 +489,11 @@ class AccountService:
      ) -> None:
          """更新账号登录信息（用户名、密码、是否显示浏览器）"""
          if username is not None:
@@ -1118,7 +1126,7 @@ index 752c006698b22cc1e887432c0243317a4100f490..36a7f584c88099bd3234c84108610244
          if show_browser is not None:
              account.show_browser = show_browser
          self.session.add(account)
-@@ -508,6 +578,387 @@ class AccountService:
+@@ -508,6 +586,396 @@ class AccountService:
              await self.session.refresh(account)
          return account, created
  
@@ -1299,6 +1307,7 @@ index 752c006698b22cc1e887432c0243317a4100f490..36a7f584c88099bd3234c84108610244
 +                        invalidate_valid_cache=True,
 +                    )
 +                    auto_reply_cache_invalidated = bool(invalidation.success)
++                preserve_chat_auth = False
 +                if round_number == 1:
 +                    chat_invalidation = await chat_manager.invalidate_auth_consumers(
 +                        account_id,
@@ -1306,11 +1315,16 @@ index 752c006698b22cc1e887432c0243317a4100f490..36a7f584c88099bd3234c84108610244
 +                    )
 +                else:
 +                    # Round 2 exists only to converge the other consumers after a real
-+                    # authoritative Cookie rotation. Preserve a Chat client that has
-+                    # already rebound to the new fingerprint; invalidating it again
-+                    # would force another Token refresh and manufacture an A→B→C loop.
++                    # authoritative Cookie rotation. A round-1 READY client and a
++                    # round-1 static platform-verification result are both fresh Chat
++                    # auth outcomes. Re-invalidating either result would manufacture a
++                    # second Token/CAPTCHA generation from the same login event.
 +                    chat_snapshot = await chat_manager.read_only_diagnostic(account_id)
-+                    if str(chat_snapshot.get("state") or "") == "READY":
++                    preserve_chat_auth = _should_preserve_chat_auth_on_followup_round(
++                        round_number,
++                        str(chat_snapshot.get("state") or ""),
++                    )
++                    if preserve_chat_auth:
 +                        chat_invalidation = {
 +                            "client_disconnected": False,
 +                            "chat_token_cache_invalidated": False,
@@ -1404,17 +1418,20 @@ index 752c006698b22cc1e887432c0243317a4100f490..36a7f584c88099bd3234c84108610244
 +                final_summary["auto_reply_state"] = auto_reply_state
 +
 +                # STEP 5: normal Chat business auth convergence. No message is sent.
-+                try:
-+                    chat_client = await asyncio.wait_for(
-+                        chat_manager.get_or_connect(account_id),
-+                        timeout=AUTH_CONVERGENCE_CHAT_CONNECT_TIMEOUT_SECONDS,
-+                    )
-+                    await asyncio.wait_for(
-+                        chat_client.get_conversations(limit=1),
-+                        timeout=AUTH_CONVERGENCE_CHAT_READ_TIMEOUT_SECONDS,
-+                    )
-+                except Exception:
-+                    pass
++                # A follow-up round must not generate Chat auth again after round 1
++                # already established either READY or the terminal platform challenge.
++                if not preserve_chat_auth:
++                    try:
++                        chat_client = await asyncio.wait_for(
++                            chat_manager.get_or_connect(account_id),
++                            timeout=AUTH_CONVERGENCE_CHAT_CONNECT_TIMEOUT_SECONDS,
++                        )
++                        await asyncio.wait_for(
++                            chat_client.get_conversations(limit=1),
++                            timeout=AUTH_CONVERGENCE_CHAT_READ_TIMEOUT_SECONDS,
++                        )
++                    except Exception:
++                        pass
 +                chat_diagnostic = await chat_manager.read_only_diagnostic(account_id)
 +                final_summary["chat_state"] = str(chat_diagnostic.get("state") or "PENDING")
 +
@@ -1507,7 +1524,7 @@ index 752c006698b22cc1e887432c0243317a4100f490..36a7f584c88099bd3234c84108610244
          self,
          owner_id: int,
 diff --git a/backend-web/app/services/chat_new/im_client.py b/backend-web/app/services/chat_new/im_client.py
-index 750cba10b82749d5e10883aebd0668abd8d227c4..94486f8e2fcee06ce4103f5824839bdfdbc262f8 100644
+index 750cba1..94486f8 100644
 --- a/backend-web/app/services/chat_new/im_client.py
 +++ b/backend-web/app/services/chat_new/im_client.py
 @@ -23,10 +23,14 @@ from sqlalchemy import text
@@ -1880,7 +1897,7 @@ index 750cba10b82749d5e10883aebd0668abd8d227c4..94486f8e2fcee06ce4103f5824839bdf
              logger.info(
                  f"【{self.account_id}】注册响应: code={reg_code}, "
 diff --git a/backend-web/app/services/chat_new/im_session_manager.py b/backend-web/app/services/chat_new/im_session_manager.py
-index 6e70bb3f132b21fd9b255927de83a613316efbcc..6ca8eec8afb40903b3200dec5740545a6c88c6bf 100644
+index 6e70bb3..6ca8eec 100644
 --- a/backend-web/app/services/chat_new/im_session_manager.py
 +++ b/backend-web/app/services/chat_new/im_session_manager.py
 @@ -10,16 +10,54 @@ IM会话管理器
@@ -2452,7 +2469,7 @@ index 6e70bb3f132b21fd9b255927de83a613316efbcc..6ca8eec8afb40903b3200dec5740545a
          except Exception as e:
              logger.error(f"【{account_id}】获取账号Cookie失败: {e}")
 diff --git a/backend-web/app/services/publish_execution_service.py b/backend-web/app/services/publish_execution_service.py
-index 08adcd6950b562bcfb4726aef70432767d2f59ef..5100ba6cddec24e7ae472ffc856af5892c55ab79 100644
+index 08adcd6..5100ba6 100644
 --- a/backend-web/app/services/publish_execution_service.py
 +++ b/backend-web/app/services/publish_execution_service.py
 @@ -23,6 +23,7 @@ from app.services.item_service import ItemService
@@ -2524,7 +2541,7 @@ index 08adcd6950b562bcfb4726aef70432767d2f59ef..5100ba6cddec24e7ae472ffc856af589
              queue_state = await address_svc.build_queue_state(account_id)
              publisher = create_xianyu_publisher(static_root=STATIC_ROOT)
 diff --git a/backend-web/app/services/xianyu_publisher.py b/backend-web/app/services/xianyu_publisher.py
-index 51d09944f771caef17eaed16cd4b3ea782e201ab..82a8003b996563a5941ce9b8f90a57874a62d7da 100644
+index 51d0994..82a8003 100644
 --- a/backend-web/app/services/xianyu_publisher.py
 +++ b/backend-web/app/services/xianyu_publisher.py
 @@ -72,6 +72,9 @@ class XianyuPublisher:
@@ -2588,7 +2605,7 @@ index 51d09944f771caef17eaed16cd4b3ea782e201ab..82a8003b996563a5941ce9b8f90a5787
              images = item_data.get("images", [])
              if not images:
 diff --git a/common/schemas/account.py b/common/schemas/account.py
-index 948911e272b7264131b562f2947668fc1a054968..ec9ec887955f4f753313f6150030a6bbf00361e1 100644
+index 948911e..ec9ec88 100644
 --- a/common/schemas/account.py
 +++ b/common/schemas/account.py
 @@ -40,6 +40,7 @@ class AccountDetail(BaseModel):
@@ -2600,7 +2617,7 @@ index 948911e272b7264131b562f2947668fc1a054968..ec9ec887955f4f753313f6150030a6bb
      disable_reason: str | None = None
      filter_count: int = 0  # 消息过滤规则数量
 diff --git a/common/services/cookie_renew_browser_service.py b/common/services/cookie_renew_browser_service.py
-index c5d24cac308e55c1f764b96d4a08117fc3d0aff2..b3a6abed5120594964be98b4bc00ba1b005dc8d0 100644
+index c5d24ca..b3a6abe 100644
 --- a/common/services/cookie_renew_browser_service.py
 +++ b/common/services/cookie_renew_browser_service.py
 @@ -20,6 +20,8 @@ from __future__ import annotations
@@ -3098,7 +3115,7 @@ index c5d24cac308e55c1f764b96d4a08117fc3d0aff2..b3a6abed5120594964be98b4bc00ba1b
  
          for selector in logged_in_selectors:
 diff --git a/common/services/item_service.py b/common/services/item_service.py
-index aac816a1fa92ee1ea6320f04a36ab98efe3f08b7..888f141530e3fbe7343e935ff2881c0b349d7173 100644
+index aac816a..888f141 100644
 --- a/common/services/item_service.py
 +++ b/common/services/item_service.py
 @@ -11,8 +11,9 @@ from __future__ import annotations
@@ -3939,7 +3956,7 @@ index aac816a1fa92ee1ea6320f04a36ab98efe3f08b7..888f141530e3fbe7343e935ff2881c0b
              "updated_at": self._format_dt(item.updated_at),
          }
 diff --git a/common/services/publish_execution_service.py b/common/services/publish_execution_service.py
-index d7b68f3b637cd6a7ce65e8fc2c511b20db5787fd..763456cd8ecf5afabc7b44f2066196ac0828e413 100644
+index d7b68f3..763456c 100644
 --- a/common/services/publish_execution_service.py
 +++ b/common/services/publish_execution_service.py
 @@ -8,6 +8,7 @@
@@ -4049,7 +4066,7 @@ index d7b68f3b637cd6a7ce65e8fc2c511b20db5787fd..763456cd8ecf5afabc7b44f2066196ac
          resolved_address = await address_svc.resolve_publish_address(account_id, item_data)
      except ValueError as exc:
 diff --git a/common/services/xianyu_publish_service.py b/common/services/xianyu_publish_service.py
-index 0243e772948694f08891584d8a1a2b80f067ad33..1a83306f21a55cef0f9e210bb72a8f16301d0239 100644
+index 0243e77..1a83306 100644
 --- a/common/services/xianyu_publish_service.py
 +++ b/common/services/xianyu_publish_service.py
 @@ -7,10 +7,21 @@
@@ -4450,7 +4467,7 @@ index 0243e772948694f08891584d8a1a2b80f067ad33..1a83306f21a55cef0f9e210bb72a8f16
 +        )
 +    return result
 diff --git a/common/utils/cookie_refresh.py b/common/utils/cookie_refresh.py
-index 11a873e2cf1f5460568aa73911d80f0f82ceecd3..06b76007be4bac7fc34921f535103517e8b0bb3f 100644
+index 11a873e..06b7600 100644
 --- a/common/utils/cookie_refresh.py
 +++ b/common/utils/cookie_refresh.py
 @@ -14,7 +14,9 @@ Cookie刷新工具模块
@@ -4643,7 +4660,7 @@ index 11a873e2cf1f5460568aa73911d80f0f82ceecd3..06b76007be4bac7fc34921f535103517
                  await db_session.commit()
          
 diff --git a/docker-compose.yml b/docker-compose.yml
-index 2122a6263106e21ab0c45edb3d2bb11e92b24844..3588d69a7b9db4f504b3bd2a5de05b59d26ee8fc 100644
+index 2122a62..3588d69 100644
 --- a/docker-compose.yml
 +++ b/docker-compose.yml
 @@ -129,6 +129,10 @@ services:
@@ -4658,7 +4675,7 @@ index 2122a6263106e21ab0c45edb3d2bb11e92b24844..3588d69a7b9db4f504b3bd2a5de05b59
        - ENVIRONMENT=production
        - MYSQL_HOST=mysql
 diff --git a/frontend/src/api/accounts.ts b/frontend/src/api/accounts.ts
-index d89f14acb7626a0044d04e576f2635c514df96e8..04c22ea176f6d0fa454e594d1164cb505785f7e7 100644
+index d89f14a..04c22ea 100644
 --- a/frontend/src/api/accounts.ts
 +++ b/frontend/src/api/accounts.ts
 @@ -1,5 +1,5 @@
@@ -4739,7 +4756,7 @@ index d89f14acb7626a0044d04e576f2635c514df96e8..04c22ea176f6d0fa454e594d1164cb50
        filter_count: item.filter_count || 0,
        today_reply_count: item.today_reply_count || 0,
 diff --git a/frontend/src/api/chatNew.ts b/frontend/src/api/chatNew.ts
-index a454eac206fad87acc806b2f1f79623796c5d671..315ab98b05e83e48ce3e088570015aa80aea8790 100644
+index a454eac..315ab98 100644
 --- a/frontend/src/api/chatNew.ts
 +++ b/frontend/src/api/chatNew.ts
 @@ -12,12 +12,27 @@ const PREFIX = '/api/v1/chat-new'
@@ -4813,7 +4830,7 @@ index a454eac206fad87acc806b2f1f79623796c5d671..315ab98b05e83e48ce3e088570015aa8
  
  /** 断开指定账号的IM */
 diff --git a/frontend/src/api/items.ts b/frontend/src/api/items.ts
-index f71efb9a3453aaf0af300a7ea9ee75c64650f5f6..5aa04e932468f4644b0bb27b98ca22cf846d75c9 100644
+index f71efb9..5aa04e9 100644
 --- a/frontend/src/api/items.ts
 +++ b/frontend/src/api/items.ts
 @@ -28,6 +28,7 @@ export interface ItemFilterParams {
@@ -4846,7 +4863,7 @@ index f71efb9a3453aaf0af300a7ea9ee75c64650f5f6..5aa04e932468f4644b0bb27b98ca22cf
    return put(`${ITEM_PREFIX}/${cookieId}/${itemId}`, data)
  }
 diff --git a/frontend/src/pages/accounts/Accounts.tsx b/frontend/src/pages/accounts/Accounts.tsx
-index a1cf816e3f88d170ac4c130bbb7f4ed1151d9fa8..1f9094427c22db332ca55bc2f9ead17d55c530be 100644
+index a1cf816..1f90944 100644
 --- a/frontend/src/pages/accounts/Accounts.tsx
 +++ b/frontend/src/pages/accounts/Accounts.tsx
 @@ -14,7 +14,7 @@ import { PageLoading } from '@/components/common/Loading'
@@ -5119,7 +5136,7 @@ index a1cf816e3f88d170ac4c130bbb7f4ed1151d9fa8..1f9094427c22db332ca55bc2f9ead17d
                      </td>
                      {/* 功能开关组：7 个开关合并为紧凑图标组，点击切换，hover 查看说明 */}
 diff --git a/frontend/src/pages/chat-new/ChatNew.tsx b/frontend/src/pages/chat-new/ChatNew.tsx
-index f33e76839b1617e400dcd72c5bbe98273fbd47fb..e7009205fedeeaf0639a3205b429a156488d7887 100644
+index f33e768..e700920 100644
 --- a/frontend/src/pages/chat-new/ChatNew.tsx
 +++ b/frontend/src/pages/chat-new/ChatNew.tsx
 @@ -10,6 +10,7 @@ import { useUIStore } from '@/store/uiStore'
@@ -5310,7 +5327,7 @@ index f33e76839b1617e400dcd72c5bbe98273fbd47fb..e7009205fedeeaf0639a3205b429a156
              <>
                {conversations.map((conv, idx) => (
 diff --git a/frontend/src/pages/items/Items.tsx b/frontend/src/pages/items/Items.tsx
-index 4722276aa2cb9723a747c6856540fd7a4aacb946..64420fe8aec40d0a2d9bdba69312149a79bba522 100644
+index 4722276..64420fe 100644
 --- a/frontend/src/pages/items/Items.tsx
 +++ b/frontend/src/pages/items/Items.tsx
 @@ -1,6 +1,6 @@
@@ -5530,7 +5547,7 @@ index 4722276aa2cb9723a747c6856540fd7a4aacb946..64420fe8aec40d0a2d9bdba69312149a
                        <span
                          className={`px-2 py-1 rounded text-xs font-medium ${
 diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
-index 14835027d0065b78d154c58db5ee8a614807e46e..d2050843de69a5643a3b466499525730e4dc08d0 100644
+index 1483502..d205084 100644
 --- a/frontend/src/types/index.ts
 +++ b/frontend/src/types/index.ts
 @@ -3,6 +3,53 @@ export type UserRole = 'ADMIN' | 'OPERATOR' | 'MEMBER'
@@ -5638,7 +5655,7 @@ index 14835027d0065b78d154c58db5ee8a614807e46e..d2050843de69a5643a3b466499525730
    has_ai_prompt?: boolean          // 是否配置了AI提示词
    created_at?: string
 diff --git a/scheduler/app/services/scheduler/api_cookie_renew_task.py b/scheduler/app/services/scheduler/api_cookie_renew_task.py
-index 9be2d0bb74c0bf9bcb0275ce651612a2b366c1c0..8a596a5f8591ea6a7ab424b5d10d91a50e4ddcf2 100644
+index 9be2d0b..8a596a5 100644
 --- a/scheduler/app/services/scheduler/api_cookie_renew_task.py
 +++ b/scheduler/app/services/scheduler/api_cookie_renew_task.py
 @@ -1,14 +1,12 @@
@@ -6046,7 +6063,7 @@ index 9be2d0bb74c0bf9bcb0275ce651612a2b366c1c0..8a596a5f8591ea6a7ab424b5d10d91a5
  
      @staticmethod
 diff --git a/scheduler/app/services/scheduler/fetch_items_task.py b/scheduler/app/services/scheduler/fetch_items_task.py
-index b93e58129141b7a38dbb2b2ed3d496ed895c6992..6fe31daff0762d8ea5cfa014fb91d552c73aa9ac 100644
+index b93e581..6fe31da 100644
 --- a/scheduler/app/services/scheduler/fetch_items_task.py
 +++ b/scheduler/app/services/scheduler/fetch_items_task.py
 @@ -2,9 +2,9 @@
@@ -6131,7 +6148,7 @@ index b93e58129141b7a38dbb2b2ed3d496ed895c6992..6fe31daff0762d8ea5cfa014fb91d552
  
 diff --git a/tests/test_chg0018_authoritative_platform_status.py b/tests/test_chg0018_authoritative_platform_status.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..2a38d9297139486644e2d350908097a6c54ae1ad
+index 0000000..2a38d92
 --- /dev/null
 +++ b/tests/test_chg0018_authoritative_platform_status.py
 @@ -0,0 +1,214 @@
@@ -6351,10 +6368,10 @@ index 0000000000000000000000000000000000000000..2a38d9297139486644e2d350908097a6
 +    assert source.index("if preflight_only:") < source.index("await self._click_publish_button(result)")
 diff --git a/tests/test_chg0018_chat_auth_convergence.py b/tests/test_chg0018_chat_auth_convergence.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..1500c0a9e988f711125f477a772a4a1908a60933
+index 0000000..6acb9d5
 --- /dev/null
 +++ b/tests/test_chg0018_chat_auth_convergence.py
-@@ -0,0 +1,122 @@
+@@ -0,0 +1,174 @@
 +import asyncio
 +import pytest
 +import sys
@@ -6365,6 +6382,7 @@ index 0000000000000000000000000000000000000000..1500c0a9e988f711125f477a772a4a19
 +sys.path.insert(0, str(ROOT))
 +sys.path.insert(0, str(ROOT / "backend-web"))
 +
++from app.services.account_service import _should_preserve_chat_auth_on_followup_round
 +from app.services.chat_new.im_session_manager import ImSessionManager
 +from common.utils.cookie_refresh import auth_convergence_fingerprint
 +
@@ -6477,9 +6495,60 @@ index 0000000000000000000000000000000000000000..1500c0a9e988f711125f477a772a4a19
 +    first = "unb=1001; cookie2=auth-a; atpsida=a; sca=b; tfstk=c"
 +    second = "unb=1001; cookie2=auth-b; atpsida=x; sca=y; tfstk=z"
 +    assert auth_convergence_fingerprint(first) != auth_convergence_fingerprint(second)
++
++
++def test_fresh_qr_cookie_replaces_old_chat_client_and_cache(monkeypatch):
++    manager = ImSessionManager()
++    old_cookie = "unb=1001; cookie2=old-auth"
++    fresh_cookie = "unb=1001; cookie2=fresh-auth"
++    old_client = FakeClient("acct-1", old_cookie, account_row_id=1)
++    manager.clients["acct-1"] = old_client
++    invalidations = []
++
++    async def fake_mark_token_cache_expired(**kwargs):
++        invalidations.append(kwargs)
++
++        class Result:
++            success = True
++            message = "expired"
++
++        return Result()
++
++    async def fake_context(account_id):
++        return 1, fresh_cookie
++
++    monkeypatch.setattr(
++        "app.services.chat_new.im_session_manager.mark_token_cache_expired",
++        fake_mark_token_cache_expired,
++    )
++    monkeypatch.setattr(manager, "_get_account_context", fake_context)
++    monkeypatch.setattr("app.services.chat_new.im_session_manager.GoofishImClient", FakeClient)
++
++    async def run_case():
++        await manager.invalidate_auth_consumers("acct-1", fresh_cookie)
++        return await manager.get_or_connect("acct-1")
++
++    fresh_client = asyncio.run(run_case())
++
++    assert old_client.disconnect_count == 1
++    assert fresh_client is not old_client
++    assert fresh_client.cookies_str == fresh_cookie
++    assert fresh_client.auth_fingerprint == auth_convergence_fingerprint(fresh_cookie)
++    assert invalidations == [
++        {"token_user_id": "chat_1001", "invalidate_valid_cache": True}
++    ]
++
++
++def test_followup_round_preserves_fresh_ready_or_platform_verification_auth_result():
++    assert _should_preserve_chat_auth_on_followup_round(2, "READY") is True
++    assert _should_preserve_chat_auth_on_followup_round(
++        2, "PLATFORM_VERIFICATION_REQUIRED"
++    ) is True
++    assert _should_preserve_chat_auth_on_followup_round(1, "PLATFORM_VERIFICATION_REQUIRED") is False
++    assert _should_preserve_chat_auth_on_followup_round(2, "TEMPORARY_FAILURE") is False
 diff --git a/tests/test_chg0018_chat_platform_verification_convergence.py b/tests/test_chg0018_chat_platform_verification_convergence.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..f16cec992cd3d708ed1eea974d2313ee550f001d
+index 0000000..f16cec9
 --- /dev/null
 +++ b/tests/test_chg0018_chat_platform_verification_convergence.py
 @@ -0,0 +1,304 @@
@@ -6789,7 +6858,7 @@ index 0000000000000000000000000000000000000000..f16cec992cd3d708ed1eea974d2313ee
 +    assert not (ROOT / "backend-web/app/services/chat_status_service.py").exists()
 diff --git a/tests/test_chg0018_chat_real_usability_convergence.py b/tests/test_chg0018_chat_real_usability_convergence.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..cbdd5e3181a6786239bbf3eb8d545f228575319b
+index 0000000..cbdd5e3
 --- /dev/null
 +++ b/tests/test_chg0018_chat_real_usability_convergence.py
 @@ -0,0 +1,392 @@
@@ -7187,7 +7256,7 @@ index 0000000000000000000000000000000000000000..cbdd5e3181a6786239bbf3eb8d545f22
 +    assert "RATE_LIMITED:" in account_ui
 diff --git a/tests/test_chg0018_consumer_readiness.py b/tests/test_chg0018_consumer_readiness.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..61e295875bf54836f4b860a18926afd65b9b30c0
+index 0000000..61e2958
 --- /dev/null
 +++ b/tests/test_chg0018_consumer_readiness.py
 @@ -0,0 +1,167 @@
@@ -7360,7 +7429,7 @@ index 0000000000000000000000000000000000000000..61e295875bf54836f4b860a18926afd6
 +    )
 diff --git a/tests/test_chg0018_disabled_item_session_convergence.py b/tests/test_chg0018_disabled_item_session_convergence.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..65327ca161e3e60ab792dd368a2580f5dcd597f1
+index 0000000..65327ca
 --- /dev/null
 +++ b/tests/test_chg0018_disabled_item_session_convergence.py
 @@ -0,0 +1,162 @@
@@ -7528,7 +7597,7 @@ index 0000000000000000000000000000000000000000..65327ca161e3e60ab792dd368a2580f5
 +    assert "session_maintenance_task.py" not in scheduler_names
 diff --git a/tests/test_chg0018_disabled_visibility_business_capabilities.py b/tests/test_chg0018_disabled_visibility_business_capabilities.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..89f011250f78f054e27af49bed791d54c02486c6
+index 0000000..89f0112
 --- /dev/null
 +++ b/tests/test_chg0018_disabled_visibility_business_capabilities.py
 @@ -0,0 +1,309 @@
@@ -7843,10 +7912,10 @@ index 0000000000000000000000000000000000000000..89f011250f78f054e27af49bed791d54
 +    assert '_account_disabled_fetch_response' not in block
 diff --git a/tests/test_chg0018_single_qr_consumer_convergence.py b/tests/test_chg0018_single_qr_consumer_convergence.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..6b1f1d6013ebfa17b4ce252e11b996def5b9481d
+index 0000000..6fab70d
 --- /dev/null
 +++ b/tests/test_chg0018_single_qr_consumer_convergence.py
-@@ -0,0 +1,349 @@
+@@ -0,0 +1,350 @@
 +from __future__ import annotations
 +
 +from pathlib import Path
@@ -8152,7 +8221,8 @@ index 0000000000000000000000000000000000000000..6b1f1d6013ebfa17b4ce252e11b996de
 +    source = _read(ACCOUNT_SERVICE)
 +    assert "if round_number == 1:" in source
 +    assert "chat_snapshot = await chat_manager.read_only_diagnostic(account_id)" in source
-+    assert 'if str(chat_snapshot.get("state") or "") == "READY":' in source
++    assert "_should_preserve_chat_auth_on_followup_round" in source
++    assert "if not preserve_chat_auth:" in source
 +    assert '"preserved_current_auth": True' in source
 +
 +
@@ -8198,7 +8268,7 @@ index 0000000000000000000000000000000000000000..6b1f1d6013ebfa17b4ce252e11b996de
 +    assert "fingerprint_before = auth_convergence_fingerprint(cookie)" in source
 diff --git a/tests/test_chg0018_transient_status_convergence.py b/tests/test_chg0018_transient_status_convergence.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..9d1d87f20847a84d35c1c4460d7d92fff680b6a5
+index 0000000..9d1d87f
 --- /dev/null
 +++ b/tests/test_chg0018_transient_status_convergence.py
 @@ -0,0 +1,413 @@
@@ -8617,7 +8687,7 @@ index 0000000000000000000000000000000000000000..9d1d87f20847a84d35c1c4460d7d92ff
 +    assert not (ROOT / "scheduler" / "app" / "services" / "scheduler" / "business_capability_poll_task.py").exists()
 diff --git a/tests/test_chg0018_websocket_pid_reaper.py b/tests/test_chg0018_websocket_pid_reaper.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..83798b67106cbf9fbb87f928146165ad5ee6b9ad
+index 0000000..83798b6
 --- /dev/null
 +++ b/tests/test_chg0018_websocket_pid_reaper.py
 @@ -0,0 +1,111 @@
@@ -8733,7 +8803,7 @@ index 0000000000000000000000000000000000000000..83798b67106cbf9fbb87f928146165ad
 +    assert COMPOSE.count("  scheduler:\n    build:") == 1
 +    assert COMPOSE.count("  websocket:\n    build:") == 1
 diff --git a/websocket/app/api/routes/cookies_refresh.py b/websocket/app/api/routes/cookies_refresh.py
-index 6260a280660e865c9048f833652acaf512f54da2..62968f260d6f9ea60e96154a0674498c1bf4a4e2 100644
+index 6260a28..62968f2 100644
 --- a/websocket/app/api/routes/cookies_refresh.py
 +++ b/websocket/app/api/routes/cookies_refresh.py
 @@ -8,6 +8,7 @@ COOKIES续期内部接口
@@ -9256,7 +9326,7 @@ index 6260a280660e865c9048f833652acaf512f54da2..62968f260d6f9ea60e96154a0674498c
  async def browser_renew(request: BrowserRenewRequest) -> dict[str, Any]:
      """在 WebSocket 进程内执行浏览器续期（复用持久化目录与账号级互斥锁）。
 diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
-index 49ac450e5fc83d1be9456effb7189b7bea929ee3..fa9c905a834165f704ffe98b68ba54441555a8bb 100644
+index 49ac450..fa9c905 100644
 --- a/websocket/app/api/routes/internal.py
 +++ b/websocket/app/api/routes/internal.py
 @@ -43,6 +43,9 @@ class StartAccountRequest(BaseModel):
@@ -9305,7 +9375,7 @@ index 49ac450e5fc83d1be9456effb7189b7bea929ee3..fa9c905a834165f704ffe98b68ba5444
              logger.warning(f"清除Token缓存失败(不影响重启): {cache_e}")
          
 diff --git a/websocket/app/services/xianyu/connection_manager.py b/websocket/app/services/xianyu/connection_manager.py
-index 42409de82a814a4a38332e01c8eba833d163c4e9..772c10151862f59908ffdbe93e7572b43345c4ab 100644
+index 42409de..772c101 100644
 --- a/websocket/app/services/xianyu/connection_manager.py
 +++ b/websocket/app/services/xianyu/connection_manager.py
 @@ -11,6 +11,7 @@ import asyncio
@@ -9456,7 +9526,7 @@ index 42409de82a814a4a38332e01c8eba833d163c4e9..772c10151862f59908ffdbe93e7572b4
 +        jitter = random.uniform(0, base * self.RETRY_JITTER_RATIO)
          return round(base + jitter, 1)
 diff --git a/websocket/app/services/xianyu/cookie_manager.py b/websocket/app/services/xianyu/cookie_manager.py
-index c3ae7153592d0d19439944e072d60e4b01a891b7..94cd4f480fe26fe23627bb06abf176267d2d7320 100644
+index c3ae715..94cd4f4 100644
 --- a/websocket/app/services/xianyu/cookie_manager.py
 +++ b/websocket/app/services/xianyu/cookie_manager.py
 @@ -431,12 +431,22 @@ class CookieManager:
@@ -9491,7 +9561,7 @@ index c3ae7153592d0d19439944e072d60e4b01a891b7..94cd4f480fe26fe23627bb06abf17626
  
      def get_connection_stats(self) -> dict:
 diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
-index 9dff7cdbc3295c01fc1e409afbf3bdaa5a4d454b..616f3dca5643c79ab500d81e81a15c82e3b374a8 100644
+index 9dff7cd..616f3dc 100644
 --- a/websocket/app/services/xianyu/cookie_token_manager.py
 +++ b/websocket/app/services/xianyu/cookie_token_manager.py
 @@ -11,6 +11,7 @@ Cookie/Token管理模块
@@ -10403,7 +10473,7 @@ index 9dff7cdbc3295c01fc1e409afbf3bdaa5a4d454b..616f3dca5643c79ab500d81e81a15c82
          logger.info(f"【{self.cookie_id}】Cookie有效性验证完成: {result}")
          return result
 diff --git a/websocket/app/services/xianyu/xianyu_async.py b/websocket/app/services/xianyu/xianyu_async.py
-index 33c919d0965c651a38a7c17ba75fed1b17214d54..7f03a7479c366421b73e9ce0b06044fa336dea37 100644
+index 33c919d..7f03a74 100644
 --- a/websocket/app/services/xianyu/xianyu_async.py
 +++ b/websocket/app/services/xianyu/xianyu_async.py
 @@ -2614,6 +2614,8 @@ class XianyuAsync:
