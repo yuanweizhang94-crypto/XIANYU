@@ -50,3 +50,28 @@
 ## Pending production gate
 
 GitHub persistence and targeted Backend/WebSocket deployment are required before the first real account Human Entry. After deployment, only account `2217936413500` may be opened first. Browser-open success must stop at `WAITING_FOR_REAL_USER_OFFICIAL_VERIFICATION=true`; no automatic recheck, Token, Chat Connect or CAPTCHA is permitted before the real user explicitly says verification is complete.
+
+
+## Production deployment and first Human Entry acceptance
+
+- GitHub source artifact commit before deployment: `06e710bca6556413cf99369f10499eb240b36664`; remote branch equality was verified over SSH port 443 before runtime mutation.
+- Runtime deployment copied only the five patch-owned files into the existing Backend/WebSocket containers; container-level `py_compile` passed before reload.
+- Backend was restarted once and returned HTTP 200 health. WebSocket was restarted once because its owner files changed; Scheduler, MySQL, Redis and Frontend were not restarted.
+- WebSocket restart converged all six enabled accounts through the existing expired startup cache path. Final read-only status: 6/6 `running=true`, `connection_state=connected`, `is_connected=true`, `token_refresh_state=success_from_expired_startup_cache`.
+- Since the targeted deployment/Human Entry window, observed fresh Local Token API calls: 0; Remote Token calls: 0; CAPTCHA execution/delegation: 0; Chat Connect calls: 0; Cookie writes: 0.
+- WebSocket PID1 remains present. With the intentional human Chromium open, `/proc` contains 15 processes, 0 zombies; 11 Chromium processes belong to the same canonical account Profile.
+- First Human Entry call for `2217936413500` failed closed with `PROFILE_LOCK_FOREIGN_HOST`. The existing `SingletonLock` referenced an old exited WebSocket container from two days earlier, proving the lock was stale rather than a live Profile owner.
+- Only that account Profile's three stale `SingletonLock` / `SingletonCookie` / `SingletonSocket` objects were removed. The Profile directory was not deleted, copied, migrated, replaced or recreated; no Cookie was cleared or modified.
+- The single retry succeeded with `HUMAN_BROWSER_OPENED`, `human_browser_visible=true`, `canonical_profile_reused=true`, `official_url_only=true`, and `waiting_for_real_user_official_verification=true`.
+- Runtime process proof: active Chromium main PID 46 uses `--user-data-dir=/app/browser_data/user_2217936413500`, `--new-window https://www.goofish.com/`, has no `--headless`, and its renderer/GPU children use X11.
+- The browser remains open for the real user. No recheck has been called. This is intentionally the terminal state until the user explicitly says the official verification is complete.
+
+## Final service invariants at the human-wait gate
+
+- Backend health: HTTP 200; Backend restart count in this task: 1.
+- WebSocket health: HTTP 200; WebSocket restart count in this task: 1.
+- Scheduler StartedAt remained `2026-08-14T18:37:09.130619511Z`; restart count in this task: 0.
+- MySQL StartedAt remained `2026-08-13T01:22:27.190412676Z`; restart count in this task: 0.
+- Redis StartedAt remained `2026-08-13T01:22:27.171818526Z`; restart count in this task: 0.
+- Frontend restart count in this task: 0.
+- Real messages sent: 0; real products published: 0; additional QR scans: 0; Profile copies: 0; Profile deletes: 0; Cookie clears: 0.
