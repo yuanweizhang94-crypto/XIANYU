@@ -330,17 +330,6 @@ diff --git a/backend-web/app/api/routes/chat_new.py b/backend-web/app/api/routes
  
      except Exception as e:
          logger.error(f"【{account_id}】获取会话列表失败: {e}")
-diff --git a/backend-web/app/api/routes/chat_customer_order.py b/backend-web/app/api/routes/chat_customer_order.py
---- a/backend-web/app/api/routes/chat_customer_order.py
-+++ b/backend-web/app/api/routes/chat_customer_order.py
-@@ -67,6 +67,7 @@
-             "status": order.status or "unknown",
-             "delivery_method": order.delivery_method or "",
-             "delivery_fail_reason": order.delivery_fail_reason or "",
-+            "card_only_delivered": bool(order.card_only_delivered),
-             "placed_at": order.placed_at.isoformat() if order.placed_at else "",
-         })
-     return ApiResponse(success=True, data=data)
 diff --git a/backend-web/app/services/chat_new/im_client.py b/backend-web/app/services/chat_new/im_client.py
 --- a/backend-web/app/services/chat_new/im_client.py
 +++ b/backend-web/app/services/chat_new/im_client.py
@@ -2143,37 +2132,3 @@ diff --git a/frontend/src/pages/chat-new/ChatNew.tsx b/frontend/src/pages/chat-n
            ) : (
              <>
                {conversations.map((conv, idx) => (
-diff --git a/frontend/src/pages/chat-new/CustomerOrdersPanel.tsx b/frontend/src/pages/chat-new/CustomerOrdersPanel.tsx
---- a/frontend/src/pages/chat-new/CustomerOrdersPanel.tsx
-+++ b/frontend/src/pages/chat-new/CustomerOrdersPanel.tsx
-@@ -94,9 +94,9 @@
-               </button>
-             )}
-             {SHIPPABLE_STATUSES.includes(order.status) && (
--              <button onClick={() => onDeliver(order.order_no)} disabled={anyActionRunning} className="mt-1.5 w-full flex items-center justify-center gap-1 py-1.5 rounded border border-blue-300 text-blue-600 hover:bg-blue-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
-+              <button onClick={() => onDeliver(order.order_no)} disabled={anyActionRunning || order.card_only_delivered} className="mt-1.5 w-full flex items-center justify-center gap-1 py-1.5 rounded border border-blue-300 text-blue-600 hover:bg-blue-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
-                 {deliveringOrderNo === order.order_no ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
--                发卡发货
-+                {order.card_only_delivered ? '卡券已发送' : '发卡发货'}
-               </button>
-             )}
-           </div>
-diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
---- a/frontend/src/types/index.ts
-+++ b/frontend/src/types/index.ts
-@@ -114,6 +114,7 @@
-   auto_polish?: boolean
-   confirm_before_send?: boolean
-   send_before_confirm?: boolean
-+  only_send_card?: boolean
-   auto_red_flower?: boolean
-   ai_reply_block_ordered_users?: boolean
-   delivery_disabled?: boolean
-@@ -224,6 +225,7 @@
-   // 发货信息
-   delivery_method?: 'manual' | 'auto' | 'scheduled'  // 发货方式：manual-手动发货, auto-自动发货, scheduled-定时发货
-   delivery_content?: string  // 发货内容（卡券内容）
-+  card_only_delivered?: boolean  // only-card delivery already completed; prevents duplicate card send
-   delivery_fail_reason?: string  // 发货失败原因
-   delivery_send_status?: 'success' | 'failed' | 'unknown' | 'timeout' | null  // 关联消息日志：发送状态
-   delivery_send_fail_reason?: string | null  // 关联消息日志：发送失败原因

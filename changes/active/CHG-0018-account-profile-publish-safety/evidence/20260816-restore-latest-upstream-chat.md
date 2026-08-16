@@ -34,10 +34,9 @@
 - `backend-web/app/services/chat_new/im_session_manager.py`
 - `frontend/src/api/chatNew.ts`
 - `frontend/src/pages/chat-new/ChatNew.tsx`
-- `backend-web/app/api/routes/chat_customer_order.py` (production was one upstream commit behind latest `bf252be`)
-- `frontend/src/pages/chat-new/CustomerOrdersPanel.tsx` (same latest-upstream order-card update)
+Target normalized SHA256 values exactly matched fresh `origin/main` for all five core Chat files before patch generation.
 
-Target normalized SHA256 values exactly matched fresh `origin/main` for all seven files before patch generation.
+`chat_customer_order.py` and `CustomerOrdersPanel.tsx` are intentionally preserved at the production order-surface version: the `bf252be` change there depends on the same commit's new `card_only_delivered` order model/database field. Importing that unrelated order schema change would violate this Chat-only repair boundary.
 
 ### SHARED_WITH_AUTO_REPLY_FIX
 
@@ -55,7 +54,7 @@ Target normalized SHA256 values exactly matched fresh `origin/main` for all seve
 ### SHARED_WITH_PUBLISH_FIX / account capability UI
 
 - `backend-web/app/api/routes/cookies.py`: retain Auto Reply/Publish capability logic, but Chat capability now uses only the latest-upstream manager's live connected IDs. Historical Chat metadata/PVR/auth-convergence is not consulted for current Chat usability.
-- `frontend/src/types/index.ts`: retain XIANYU account/publish types while merging latest upstream fields needed by the current Chat/order surface (`only_send_card`, `card_only_delivered`).
+- `frontend/src/types/index.ts`: unchanged; XIANYU account/publish types remain owned by the existing production overlay. The unrelated `bf252be` order-only fields are not imported by this Chat repair.
 
 ### XIANYU_WRAPPER_ONLY removed
 
@@ -68,16 +67,16 @@ Target normalized SHA256 values exactly matched fresh `origin/main` for all seve
 ## Pre-deployment validation
 
 - Python compile for all nine modified Python files: PASS.
-- Latest-upstream exact source comparison: 7/7 PASS.
+- Latest-upstream exact source comparison for core Chat-owned files: 5/5 PASS.
 - Shared-state checks: old `read_only_diagnostic`, old Chat PVR branch, Chat auth-convergence gate and manual human-verification wrapper absent from target.
 - QR no-eager-convergence checks: 3/3 PASS.
 - Auto Reply single-flight + live-token preservation checks: PASS.
 - `im_token_api.request_im_token` and `request_im_token_with_fallback` source equivalence to latest upstream: PASS.
-- Frontend production build (`tsc && vite build`): PASS, 2692 modules transformed. Existing dependency/browser-data warnings only.
-- Incremental patch changed files: 13.
-- Patch SHA256: `3325CCBB263E968486A2804EA816E6B1E18FB8F2DB6C45F3FE9D1A4F19D01F72`.
+- Frontend production build (`tsc && vite build`): PASS, 2692 modules transformed. The final build uses the current production/order surface plus latest upstream `chatNew.ts` and `ChatNew.tsx`; existing dependency/browser-data warnings only.
+- Incremental patch changed files: 10.
+- Patch SHA256: `DCF41E892453F1E0208DF68C24E4D76CBC9851D6398E3FD59E967709D4D47489`.
 - Patch `git apply --check`: PASS.
-- Patch application normalized content match: 13/13 PASS.
+- Patch application normalized content match: 10/10 PASS.
 
 ## Production gate
 

@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "vendor" / "patches" / "xianyu-auto-reply" / "59c64df-chg0018-restore-latest-upstream-chat.patch"
-EXPECTED_SHA256 = "3325CCBB263E968486A2804EA816E6B1E18FB8F2DB6C45F3FE9D1A4F19D01F72"
+EXPECTED_SHA256 = "DCF41E892453F1E0208DF68C24E4D76CBC9851D6398E3FD59E967709D4D47489"
 
 
 def _patch() -> str:
@@ -27,7 +27,6 @@ def test_patch_hash_is_locked() -> None:
 def test_patch_changes_only_chat_restore_and_required_shared_files() -> None:
     assert _changed_paths() == [
         "backend-web/app/api/routes/chat_new.py",
-        "backend-web/app/api/routes/chat_customer_order.py",
         "backend-web/app/services/chat_new/im_client.py",
         "backend-web/app/services/chat_new/im_session_manager.py",
         "backend-web/app/api/routes/cookies.py",
@@ -37,8 +36,6 @@ def test_patch_changes_only_chat_restore_and_required_shared_files() -> None:
         "common/services/cookie_renew_browser_service.py",
         "frontend/src/api/chatNew.ts",
         "frontend/src/pages/chat-new/ChatNew.tsx",
-        "frontend/src/pages/chat-new/CustomerOrdersPanel.tsx",
-        "frontend/src/types/index.ts",
     ]
 
 
@@ -84,13 +81,6 @@ def test_shared_account_serializer_uses_only_live_upstream_chat_runtime() -> Non
     assert '+        "chat_state": "READY" if chat_connected else "WAITING_CONNECT",' in text
     assert '+        source="latest_upstream_chat_runtime",' in text
     assert '+        state="PLATFORM_VERIFICATION_REQUIRED"' not in text
-
-
-def test_latest_upstream_customer_order_surface_is_included() -> None:
-    text = _patch()
-    assert '+            "card_only_delivered": bool(order.card_only_delivered),' in text
-    assert '+  card_only_delivered: boolean' in text
-    assert "order.card_only_delivered ? '卡券已发送' : '发卡发货'" in text
 
 
 def test_patch_does_not_touch_token_request_owner_qr_or_auto_reply_files() -> None:
