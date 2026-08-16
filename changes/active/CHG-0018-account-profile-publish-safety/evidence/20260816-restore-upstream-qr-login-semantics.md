@@ -45,3 +45,33 @@
 ## Production validation rule
 
 Deployment validation must not generate or scan a new QR and must not call Chat Connect, Local/Remote Token, or CAPTCHA. Validation is limited to source/route instrumentation, service health, existing Auto Reply connectivity, and post-deploy logs proving no eager QR auth work occurred during this task.
+
+
+## Production deployment acceptance
+
+- GitHub repair commit before production mutation: `a6ea58fb374325cd9b69fd2c305d3a9d5d886dd9`; remote branch equality was verified before deployment.
+- Deployment changed only the three Backend runtime files owned by the incremental patch: `qr_login.py`, `shared_scan.py`, and `account_service.py`.
+- Container-level `py_compile` passed for all three files before Backend restart.
+- Backend restart count for this task: 1. Backend health after restart: HTTP 200, database connected.
+- WebSocket restart count for this task: 0. Its StartedAt remained `2026-08-16T12:07:29.527576652Z`.
+- No QR was generated or scanned during production validation.
+- Runtime source instrumentation after deployment: normal QR convergence calls 0; shared-QR convergence calls 0; convergence method definitions 0; QR/shared Chat `get_or_connect` calls 0; Token/cache invalidation calls 0; CAPTCHA calls 0; publish-preflight calls 0; conversation-list calls 0.
+- Runtime source instrumentation preserves one normal-QR `/start` branch and one `/restart` branch, and one shared-QR `/start` branch and one `/restart` branch. These are mutually selected by new/existing account state, matching the current upstream post-login continuation.
+- Normal Chat lazy connection remains present outside QR: `backend-web/app/api/routes/chat_new.py` still has `/connect/{account_id}` and its existing `get_or_connect()` owner.
+- Post-deploy Backend/WebSocket logs contain 0 Chat-connect markers, 0 Local Token markers, 0 CAPTCHA/Baxia markers, 0 Remote Token markers, and 0 QR generation/login markers for this task window.
+- Final Auto Reply read-only status: all 6 enabled accounts are `is_connected=true` / `connection_state=connected`; `AUTO_REPLY_ONLINE_COUNT=6`.
+- Token-refresh storm regression was not observed; WebSocket was not restarted and no fresh Token API work was initiated by this deployment.
+
+## Final classification
+
+- `QR_HANDLER_UPSTREAM_EQUIVALENT=true`
+- `QR_CONVERGENCE_BINDING_REMOVED=true`
+- `QR_CHAT_AUTH_EAGER_TRIGGER=false`
+- `QR_PUBLISH_PREFLIGHT_EAGER_TRIGGER=false`
+- `CHAT_LAZY_CONNECT_PRESERVED=true`
+- `AUTO_REPLY_QR_RESTART_PRESERVED=true`
+- `QR_SCANS_ADDITIONAL=0`
+- `CHAT_CONNECT_COUNT=0`
+- `LOCAL_TOKEN_CALL_COUNT=0`
+- `CAPTCHA_DELEGATION_COUNT=0`
+- `REMOTE_TOKEN_CALLS=0`
