@@ -1,0 +1,501 @@
+diff --git a/common/services/cookie_renew_browser_service.py b/common/services/cookie_renew_browser_service.py
+--- a/common/services/cookie_renew_browser_service.py
++++ b/common/services/cookie_renew_browser_service.py
+@@ -22,6 +22,8 @@
+ import os
+ import re
+ import socket
++import subprocess
++import threading
+ import sys
+ import time
+ from dataclasses import dataclass, field
+@@ -382,10 +384,156 @@
+ 
+         return result
+ 
++    async def open_human_verification(self, account_id: str) -> dict[str, Any]:
++        """Open a fixed official Goofish homepage in the existing canonical Profile.
++
++        Caller supplies only account_id. Browser/profile/display/URL/arguments are owned here.
++        The returned success only means the visible human browser was opened; it never means
++        verification completed and it never performs Token/Chat/CAPTCHA work.
++        """
++        if not _LOCAL_BROWSER_RENEW_ENABLED:
++            return {"success": False, "state": "HUMAN_BROWSER_WRONG_OWNER"}
++        result: dict[str, Any] = {}
++        ready = threading.Event()
++        worker = threading.Thread(
++            target=self._human_verification_worker,
++            args=(account_id, result, ready),
++            name=f"human-verification-{get_pure_account_id(account_id)}",
++            daemon=True,
++        )
++        worker.start()
++        deadline = time.monotonic() + 15.0
++        while not ready.is_set() and time.monotonic() < deadline:
++            await asyncio.sleep(0.05)
++        if not ready.is_set():
++            return {"success": False, "state": "HUMAN_BROWSER_START_TIMEOUT"}
++        return dict(result)
++
++    def _human_verification_worker(
++        self,
++        account_id: str,
++        result: dict[str, Any],
++        ready: threading.Event,
++    ) -> None:
++        pure_user_id = concurrency_manager._extract_pure_user_id(account_id) if account_id else "unknown"
++        user_data_dir = get_account_browser_profile_dir(pure_user_id)
++        slot_acquired = False
++        account_lock_acquired = False
++        proc = None
++
++        def finish_start(payload: dict[str, Any]) -> None:
++            if not ready.is_set():
++                result.clear()
++                result.update(payload)
++                ready.set()
++
++        try:
++            if not os.path.isdir(user_data_dir) or not os.listdir(user_data_dir):
++                finish_start({"success": False, "state": "CANONICAL_PROFILE_MISSING"})
++                return
++
++            display = str(
++                os.environ.get("XIANYU_HUMAN_DISPLAY")
++                or os.environ.get("DISPLAY")
++                or "host.docker.internal:0"
++            ).strip()
++            display_host, _, display_number = display.partition(":")
++            if not display_host or not display_number.split(".", 1)[0].isdigit():
++                finish_start({"success": False, "state": "HUMAN_DISPLAY_INVALID"})
++                return
++            display_index = int(display_number.split(".", 1)[0])
++            try:
++                with socket.create_connection((display_host, 6000 + display_index), timeout=2):
++                    pass
++            except OSError:
++                finish_start({"success": False, "state": "HUMAN_DISPLAY_UNAVAILABLE"})
++                return
++
++            slot_acquired = concurrency_manager.wait_for_slot(pure_user_id, timeout=5)
++            if not slot_acquired:
++                finish_start({"success": False, "state": "BROWSER_SLOT_TIMEOUT"})
++                return
++            account_lock_acquired = account_browser_lock_manager.acquire(
++                pure_user_id,
++                timeout=5,
++                owner_task_id=f"human-verification:{pure_user_id}",
++            )
++            if not account_lock_acquired:
++                finish_start({"success": False, "state": "ACCOUNT_BROWSER_MUTEX_TIMEOUT"})
++                return
++
++            self._clean_singleton_lock_files(
++                user_data_dir,
++                f"[Human verification] account {pure_user_id}",
++            )
++            ensure_playwright_browser_path()
++            chromium_path = get_chromium_executable_path()
++            if not chromium_path:
++                finish_start({"success": False, "state": "CHROMIUM_UNAVAILABLE"})
++                return
++
++            child_env = os.environ.copy()
++            child_env["DISPLAY"] = display
++            proc = subprocess.Popen(
++                [
++                    chromium_path,
++                    *self.BROWSER_ARGS,
++                    f"--user-data-dir={user_data_dir}",
++                    "--new-window",
++                    _TARGET_URL,
++                ],
++                env=child_env,
++                stdout=subprocess.DEVNULL,
++                stderr=subprocess.DEVNULL,
++                start_new_session=True,
++            )
++            time.sleep(2)
++            if proc.poll() is not None:
++                finish_start({"success": False, "state": "HUMAN_BROWSER_START_FAILED"})
++                return
++
++            logger.info(
++                f"[{pure_user_id}] visible canonical-profile human verification browser opened"
++            )
++            finish_start({
++                "success": True,
++                "state": "HUMAN_BROWSER_OPENED",
++                "human_browser_visible": True,
++                "canonical_profile_reused": True,
++                "official_url_only": True,
++                "waiting_for_real_user_official_verification": True,
++            })
++            proc.wait()
++        except RuntimeError as exc:
++            finish_start({"success": False, "state": str(exc)[:120]})
++        except Exception as exc:
++            logger.warning(
++                f"[{pure_user_id}] human verification browser start failed: {type(exc).__name__}"
++            )
++            finish_start({
++                "success": False,
++                "state": f"HUMAN_BROWSER_START_FAILED:{type(exc).__name__}",
++            })
++        finally:
++            if not ready.is_set():
++                finish_start({"success": False, "state": "HUMAN_BROWSER_START_FAILED"})
++            if account_lock_acquired:
++                try:
++                    account_browser_lock_manager.release(pure_user_id)
++                except Exception as exc:
++                    logger.warning(f"[{pure_user_id}] human browser lock release failed: {exc}")
++            if slot_acquired:
++                try:
++                    concurrency_manager.unregister_instance(pure_user_id)
++                except Exception as exc:
++                    logger.warning(f"[{pure_user_id}] human browser slot release failed: {exc}")
++
+     async def check_real_browser_login(
+         self,
+         cookies_str: str,
+         account_id: str,
++        *,
++        sync_db_cookie_to_profile: bool = True,
+     ) -> RealBrowserLoginResult:
+         """Check real Goofish login using the canonical persistent Profile.
+ 
+@@ -414,12 +562,14 @@
+             self._sync_check_real_browser_login,
+             cookies_str,
+             account_id,
++            sync_db_cookie_to_profile,
+         )
+ 
+     def _sync_check_real_browser_login(
+         self,
+         cookies_str: str,
+         account_id: str,
++        sync_db_cookie_to_profile: bool = True,
+     ) -> RealBrowserLoginResult:
+         """Synchronous real-browser Session check executed under existing browser guards."""
+         log_prefix = f"【Session健康】账号 {account_id}"
+@@ -496,7 +646,7 @@
+             page = context.pages[0] if context.pages else context.new_page()
+ 
+             cookie_payloads = self._build_cookie_payloads(cookies_str)
+-            if cookie_payloads:
++            if sync_db_cookie_to_profile and cookie_payloads:
+                 context.add_cookies(cookie_payloads)
+                 logger.info(
+                     f"{log_prefix} 已同步DB Cookie到canonical Profile，字段数="
+diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
+--- a/websocket/app/services/xianyu/cookie_token_manager.py
++++ b/websocket/app/services/xianyu/cookie_token_manager.py
+@@ -113,7 +113,15 @@
+         self.parent._auto_reply_platform_verification_at = time.time()
+         # 官方 challenge 仅保留在现有 WebSocket 进程内；DB/Account GET 不持久化该 URL。
+         self.parent._auto_reply_platform_verification_url = str(verification_url or "")
+-        self.current_token = None
++        connection_manager = getattr(self.parent, "connection_manager", None)
++        connection_state = getattr(getattr(connection_manager, "connection_state", None), "value", "")
++        if self.current_token and connection_state == "connected":
++            logger.warning(
++                f"【{self.cookie_id}】平台验证等待态保留当前已连接WebSocket正在使用的Token，"
++                "仅供普通socket重连复用；不触发新的Token请求"
++            )
++        else:
++            self.current_token = None
+         self.last_token_refresh_status = "platform_verification_required"
+ 
+     def _clear_platform_verification_required(self) -> None:
+diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
+--- a/websocket/app/api/routes/internal.py
++++ b/websocket/app/api/routes/internal.py
+@@ -2662,6 +2662,149 @@
+         }
+ 
+ 
++
++
++@router.post("/accounts/{account_id}/human-verification/open")
++async def open_human_verification(account_id: str):
++    """Open exactly one fixed-action headed browser for an account already waiting on PVR."""
++    from app.services.xianyu.cookie_manager import get_manager
++    from common.services.cookie_renew_browser_service import cookie_renew_browser_service
++
++    manager = get_manager()
++    status = manager.get_task_status(account_id)
++    persisted = manager.platform_verification_states.get(account_id)
++    if not status.get("platform_verification_required") and not persisted:
++        return {
++            "success": False,
++            "code": 409,
++            "message": "PLATFORM_VERIFICATION_REQUIRED_STATE_REQUIRED",
++            "data": {"account_id": account_id, "human_browser_visible": False},
++        }
++
++    result = await cookie_renew_browser_service.open_human_verification(account_id)
++    state = str(result.get("state") or "HUMAN_BROWSER_START_FAILED")
++    return {
++        "success": bool(result.get("success")),
++        "code": 200 if result.get("success") else 409,
++        "message": state,
++        "data": {
++            "account_id": account_id,
++            "state": state,
++            "human_browser_visible": bool(result.get("human_browser_visible")),
++            "canonical_profile_reused": bool(result.get("canonical_profile_reused")),
++            "official_url_only": bool(result.get("official_url_only")),
++            "waiting_for_real_user_official_verification": bool(
++                result.get("waiting_for_real_user_official_verification")
++            ),
++        },
++    }
++
++
++@router.post("/accounts/{account_id}/human-verification/recheck")
++async def recheck_after_human_verification(account_id: str):
++    """Explicit one-shot canonical Profile health probe after the real user finishes verification."""
++    from sqlalchemy.orm.attributes import flag_modified
++    from app.services.xianyu.cookie_manager import get_manager
++    from common.db.session import async_session_maker
++    from common.services.cookie_renew_browser_service import cookie_renew_browser_service
++    from common.utils.cookie_refresh import get_account_by_identity, update_account_cookies_in_db
++
++    manager = get_manager()
++    status = manager.get_task_status(account_id)
++    persisted = manager.platform_verification_states.get(account_id)
++    if not status.get("platform_verification_required") and not persisted:
++        return {
++            "success": False,
++            "code": 409,
++            "message": "PLATFORM_VERIFICATION_REQUIRED_STATE_REQUIRED",
++            "data": {"account_id": account_id, "recheck_performed": False},
++        }
++
++    async with async_session_maker() as session:
++        account = await get_account_by_identity(account_id, session=session)
++        if not account:
++            return {
++                "success": False,
++                "code": 404,
++                "message": "ACCOUNT_NOT_FOUND",
++                "data": None,
++            }
++        current_cookie = str(account.cookie or "")
++        owner_id = getattr(account, "owner_id", None)
++
++    result = await cookie_renew_browser_service.check_real_browser_login(
++        current_cookie,
++        account_id,
++        sync_db_cookie_to_profile=False,
++    )
++    state = str(result.state or "SESSION_RENEW_FAILED")
++    if not result.ready or state != "REAL_BROWSER_LOGIN_READY":
++        return {
++            "success": False,
++            "code": 200,
++            "message": state,
++            "data": {
++                "account_id": account_id,
++                "state": state,
++                "recheck_performed": True,
++                "platform_verification_cleared": False,
++                "websocket_restarted": False,
++            },
++        }
++
++    new_cookie = str(result.new_cookies_str or current_cookie)
++    if new_cookie != current_cookie:
++        saved = await update_account_cookies_in_db(
++            account_id,
++            new_cookie,
++            owner_id=owner_id,
++            allow_platform_verification_write=True,
++        )
++        if not saved:
++            return {
++                "success": False,
++                "code": 500,
++                "message": "VERIFICATION_COOKIE_PERSIST_FAILED",
++                "data": {
++                    "account_id": account_id,
++                    "state": "VERIFICATION_COOKIE_PERSIST_FAILED",
++                    "recheck_performed": True,
++                    "platform_verification_cleared": False,
++                    "websocket_restarted": False,
++                },
++            }
++
++    instance = manager.instances.get(account_id)
++    if instance is not None:
++        await instance._cookie_token_manager._persist_platform_verification_marker(required=False)
++        instance._cookie_token_manager._clear_platform_verification_required()
++    else:
++        async with async_session_maker() as session:
++            account = await get_account_by_identity(account_id, session=session)
++            if account:
++                metadata = dict(account.metadata_json or {})
++                metadata.pop("auto_reply_platform_verification", None)
++                account.metadata_json = metadata
++                flag_modified(account, "metadata_json")
++                session.add(account)
++                await session.commit()
++    manager.platform_verification_states.pop(account_id, None)
++
++    return {
++        "success": True,
++        "code": 200,
++        "message": "REAL_BROWSER_LOGIN_READY",
++        "data": {
++            "account_id": account_id,
++            "state": "REAL_BROWSER_LOGIN_READY",
++            "recheck_performed": True,
++            "platform_verification_cleared": True,
++            "cookie_updated": new_cookie != current_cookie,
++            "websocket_restarted": False,
++        },
++    }
++
++
+ @router.post("/system/self-restart")
+ async def system_self_restart():
+     """
+diff --git a/backend-web/app/services/websocket_client.py b/backend-web/app/services/websocket_client.py
+--- a/backend-web/app/services/websocket_client.py
++++ b/backend-web/app/services/websocket_client.py
+@@ -102,6 +102,24 @@
+         except Exception as e:
+             logger.error(f"查询账号任务状态失败: {account_id}, 错误: {e}")
+             return {"success": False, "message": f"查询账号任务状态失败: {str(e)}"}
++
++    async def open_human_verification(self, account_id: str) -> dict:
++        """Open the allowlisted fixed-action human browser for one owned account."""
++        url = f"{self.base_url}/internal/accounts/{account_id}/human-verification/open"
++        try:
++            return await self.http_client.post(url, json={})
++        except Exception as e:
++            logger.error(f"Open human verification failed: {account_id}, {type(e).__name__}")
++            return {"success": False, "message": f"HUMAN_BROWSER_REQUEST_FAILED:{type(e).__name__}"}
++
++    async def recheck_after_human_verification(self, account_id: str) -> dict:
++        """Perform one explicit canonical Profile health probe; no Token/Chat/WS restart."""
++        url = f"{self.base_url}/internal/accounts/{account_id}/human-verification/recheck"
++        try:
++            return await self.http_client.post(url, json={})
++        except Exception as e:
++            logger.error(f"Human verification recheck failed: {account_id}, {type(e).__name__}")
++            return {"success": False, "message": f"HUMAN_RECHECK_REQUEST_FAILED:{type(e).__name__}"}
+ 
+     async def send_message(self, account_id: str, chat_id: str, content: str, message_type: str = "text") -> dict:
+         """发送消息
+diff --git a/backend-web/app/api/routes/chat_new.py b/backend-web/app/api/routes/chat_new.py
+--- a/backend-web/app/api/routes/chat_new.py
++++ b/backend-web/app/api/routes/chat_new.py
+@@ -25,6 +25,7 @@
+ 
+ from app.api.deps import get_current_active_user, get_db_session
+ from app.services.chat_new import get_im_session_manager
++from app.services.websocket_client import websocket_client
+ from app.services.chat_new.im_session_manager import CHAT_CONNECT_DEADLINE_SECONDS, ChatConnectError
+ from app.services.chat_new.avatar_service import get_owner_user_info, get_user_info, AVATAR_CACHE_PREFIX, AVATAR_CACHE_TTL
+ from app.services.chat_new.official_blacklist_service import official_blacklist_request
+@@ -197,6 +198,95 @@
+     return result.scalar_one_or_none()
+ 
+ 
++def _human_verification_pvr_required(account: XYAccount) -> bool:
++    metadata = dict(account.metadata_json or {})
++    marker = metadata.get("auto_reply_platform_verification")
++    if isinstance(marker, dict) and str(marker.get("state") or "") in {
++        "PLATFORM_VERIFICATION_REQUIRED",
++        "AUTOMATIC_ATTEMPT_IN_PROGRESS",
++        "AUTOMATIC_ATTEMPT_AUTHORIZED",
++    }:
++        return True
++    diagnostic = get_im_session_manager().get_last_connect_diagnostics(account.account_id) or {}
++    return str(diagnostic.get("state") or diagnostic.get("connect_state") or "") == "PLATFORM_VERIFICATION_REQUIRED"
++
++
++@router.post("/human-verification/{account_id}/open")
++async def open_human_verification(
++    account_id: str,
++    current_user: User = Depends(get_current_active_user),
++    db: AsyncSession = Depends(get_db_session),
++):
++    """Allowlisted fixed action: open the same canonical Profile on the Windows desktop."""
++    account = await _owned_chat_account(account_id, current_user, db)
++    if not account:
++        return {"success": False, "message": "ACCOUNT_NOT_FOUND", "error_code": "ACCOUNT_NOT_FOUND", "data": None}
++    if str(account.status or "active").strip().lower() != "active":
++        return {"success": False, "message": "ACCOUNT_DISABLED", "error_code": "ACCOUNT_DISABLED", "data": None}
++    if not _human_verification_pvr_required(account):
++        return {
++            "success": False,
++            "message": "PLATFORM_VERIFICATION_REQUIRED_STATE_REQUIRED",
++            "error_code": "PVR_STATE_REQUIRED",
++            "data": None,
++        }
++    response = await websocket_client.open_human_verification(account_id)
++    data = response.get("data") or {} if isinstance(response, dict) else {}
++    success = bool(response.get("success")) if isinstance(response, dict) else False
++    return {
++        "success": success,
++        "message": str(response.get("message") or "HUMAN_BROWSER_START_FAILED") if isinstance(response, dict) else "HUMAN_BROWSER_START_FAILED",
++        "error_code": "" if success else "HUMAN_BROWSER_UNAVAILABLE",
++        "data": {
++            "account_id": account_id,
++            "human_entry_available": success,
++            "human_browser_visible": bool(data.get("human_browser_visible")),
++            "canonical_profile_reused": bool(data.get("canonical_profile_reused")),
++            "official_url_only": bool(data.get("official_url_only")),
++            "waiting_for_real_user_official_verification": bool(
++                data.get("waiting_for_real_user_official_verification")
++            ),
++        },
++    }
++
++
++@router.post("/human-verification/{account_id}/recheck")
++async def recheck_after_human_verification(
++    account_id: str,
++    current_user: User = Depends(get_current_active_user),
++    db: AsyncSession = Depends(get_db_session),
++):
++    """One explicit post-human Profile health probe. Never starts Token, Chat or WebSocket."""
++    account = await _owned_chat_account(account_id, current_user, db)
++    if not account:
++        return {"success": False, "message": "ACCOUNT_NOT_FOUND", "error_code": "ACCOUNT_NOT_FOUND", "data": None}
++    if str(account.status or "active").strip().lower() != "active":
++        return {"success": False, "message": "ACCOUNT_DISABLED", "error_code": "ACCOUNT_DISABLED", "data": None}
++    if not _human_verification_pvr_required(account):
++        return {
++            "success": False,
++            "message": "PLATFORM_VERIFICATION_REQUIRED_STATE_REQUIRED",
++            "error_code": "PVR_STATE_REQUIRED",
++            "data": None,
++        }
++    response = await websocket_client.recheck_after_human_verification(account_id)
++    data = response.get("data") or {} if isinstance(response, dict) else {}
++    success = bool(response.get("success")) if isinstance(response, dict) else False
++    return {
++        "success": success,
++        "message": str(response.get("message") or "HUMAN_RECHECK_FAILED") if isinstance(response, dict) else "HUMAN_RECHECK_FAILED",
++        "error_code": "" if success else "HUMAN_RECHECK_NOT_READY",
++        "data": {
++            "account_id": account_id,
++            "state": str(data.get("state") or ""),
++            "recheck_performed": bool(data.get("recheck_performed")),
++            "platform_verification_cleared": bool(data.get("platform_verification_cleared")),
++            "cookie_updated": bool(data.get("cookie_updated")),
++            "websocket_restarted": False,
++        },
++    }
++
++
+ @router.post("/connect/{account_id}")
+ async def connect_account(
+     account_id: str,
