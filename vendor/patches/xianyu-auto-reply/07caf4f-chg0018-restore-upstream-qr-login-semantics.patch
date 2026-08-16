@@ -1,0 +1,667 @@
+diff --git a/backend-web/app/api/routes/qr_login.py b/backend-web/app/api/routes/qr_login.py
+--- a/backend-web/app/api/routes/qr_login.py
++++ b/backend-web/app/api/routes/qr_login.py
+@@ -13,6 +13,7 @@
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from app.api import deps
++from app.core.http_client import get_http_client
+ from app.services.account_service import AccountService
+ from app.services.qr_login import qr_login_manager
+ from app.api.deps import get_db_session as get_db
+@@ -60,7 +61,6 @@
+                 "account_id": processed_info.get("account_id"),
+                 "is_new_account": bool(processed_info.get("is_new_account", False)),
+             },
+-            "auth_convergence": processed_info.get("auth_convergence"),
+         },
+     )
+ 
+@@ -182,29 +182,49 @@
+                         f"扫码登录：{'创建新账号' if is_new_account else '更新现有账号'} {account.account_id}"
+                     )
+                     
+-                    # QR success is the single auth-convergence trigger for all existing consumers.
++                    # Restore upstream-native QR semantics: authoritative account upsert,
++                    # then exactly one Auto Reply WebSocket start/restart. Chat and
++                    # publish consumers remain lazy and are not touched by QR success.
+                     try:
+-                        auth_convergence = await account_service.converge_existing_consumers_after_login(
+-                            account.account_id,
+-                            is_new_account=is_new_account,
+-                            trigger="qr_login_success",
++                        from app.core.config import get_settings
++
++                        settings = get_settings()
++                        client = get_http_client()
++                        request_data = {
++                            "cookie_value": cookies_str,
++                            "user_id": owner_id,
++                        }
++
++                        if is_new_account:
++                            response = await client.post(
++                                f"{settings.websocket_service_url}/internal/accounts/{account.account_id}/start",
++                                json=request_data,
++                            )
++                            if response.get("success"):
++                                logger.info(f"扫码登录：新账号WebSocket任务已启动 {account.account_id}")
++                            else:
++                                logger.warning(
++                                    f"扫码登录：启动WebSocket任务失败 {account.account_id}: {response.get('message')}"
++                                )
++                        else:
++                            response = await client.post(
++                                f"{settings.websocket_service_url}/internal/accounts/{account.account_id}/restart",
++                                json=request_data,
++                            )
++                            if response.get("success"):
++                                logger.info(f"扫码登录：现有账号WebSocket任务已重启 {account.account_id}")
++                            else:
++                                logger.warning(
++                                    f"扫码登录：重启WebSocket任务失败 {account.account_id}: {response.get('message')}"
++                                )
++                    except Exception as ws_e:
++                        logger.error(
++                            f"扫码登录：调用WebSocket服务失败 {account.account_id}: {str(ws_e)}"
+                         )
+-                    except Exception as convergence_e:
+-                        logger.exception(
+-                            f"扫码登录：业务能力统一收敛异常 {account.account_id}: {type(convergence_e).__name__}"
+-                        )
+-                        auth_convergence = {
+-                            "success": False,
+-                            "status": "AUTH_CONVERGENCE_EXCEPTION",
+-                            "rounds": 0,
+-                            "max_rounds": 2,
+-                        }
+-
+-                    # 记录已处理；不保存 Cookie/Token/QR payload。
++
+                     PROCESSED_SESSIONS[session_id] = {
+                         "account_id": account.account_id,
+                         "is_new_account": is_new_account,
+-                        "auth_convergence": auth_convergence,
+                     }
+                     
+                     _cleanup_session(session_id)
+@@ -218,7 +238,6 @@
+                                 "account_id": account.account_id,
+                                 "is_new_account": is_new_account,
+                             },
+-                            "auth_convergence": auth_convergence,
+                         }
+                     )
+         
+diff --git a/backend-web/app/api/routes/shared_scan.py b/backend-web/app/api/routes/shared_scan.py
+--- a/backend-web/app/api/routes/shared_scan.py
++++ b/backend-web/app/api/routes/shared_scan.py
+@@ -22,6 +22,7 @@
+ from app.api import deps
+ from app.api.deps import get_db_session as get_db
+ from app.core.config import get_settings
++from app.core.http_client import get_http_client
+ from app.services.account_service import AccountService
+ from app.services.qr_login import qr_login_manager
+ from common.models.shared_scan_session import SharedScanSession
+@@ -583,28 +584,47 @@
+         await db.commit()
+         await db.refresh(account)
+ 
++        # Shared QR follows the same upstream-native post-login semantics:
++        # save authoritative Cookie/account, then exactly one Auto Reply
++        # WebSocket start/restart. Do not eagerly touch Chat or Publisher.
+         try:
+-            auth_convergence = await account_service.converge_existing_consumers_after_login(
+-                account.account_id,
+-                is_new_account=is_new,
+-                trigger="shared_qr_login_success",
++            settings = get_settings()
++            client = get_http_client()
++            request_data = {
++                "cookie_value": cookies_str,
++                "user_id": owner_id,
++            }
++            if is_new:
++                response = await client.post(
++                    f"{settings.websocket_service_url}/internal/accounts/{account.account_id}/start",
++                    json=request_data,
++                )
++                if response.get("success"):
++                    logger.info(f"共享扫码登录：新账号WebSocket任务已启动 {account.account_id}")
++                else:
++                    logger.warning(
++                        f"共享扫码登录：启动WebSocket任务失败 {account.account_id}: {response.get('message')}"
++                    )
++            else:
++                response = await client.post(
++                    f"{settings.websocket_service_url}/internal/accounts/{account.account_id}/restart",
++                    json=request_data,
++                )
++                if response.get("success"):
++                    logger.info(f"共享扫码登录：现有账号WebSocket任务已重启 {account.account_id}")
++                else:
++                    logger.warning(
++                        f"共享扫码登录：重启WebSocket任务失败 {account.account_id}: {response.get('message')}"
++                    )
++        except Exception as ws_e:
++            logger.error(
++                f"共享扫码登录：调用WebSocket服务失败 {account.account_id}: {str(ws_e)}"
+             )
+-        except Exception as convergence_e:
+-            logger.exception(
+-                f"共享扫码登录：业务能力统一收敛异常 {account.account_id}: {type(convergence_e).__name__}"
+-            )
+-            auth_convergence = {
+-                "success": False,
+-                "status": "AUTH_CONVERGENCE_EXCEPTION",
+-                "rounds": 0,
+-                "max_rounds": 2,
+-            }
+ 
+         processed_info = {
+             "status": "success",
+             "account_id": unb,
+             "message": "扫码登录成功",
+-            "auth_convergence": auth_convergence,
+         }
+         PROCESSED_WORKERS[sub_session_id] = processed_info
+         PART_TIME_SESSIONS.pop(sub_session_id, None)
+diff --git a/backend-web/app/services/account_service.py b/backend-web/app/services/account_service.py
+--- a/backend-web/app/services/account_service.py
++++ b/backend-web/app/services/account_service.py
+@@ -9,8 +9,7 @@
+ """
+ from __future__ import annotations
+ 
+-import asyncio
+-from datetime import datetime, timedelta, timezone
++from datetime import datetime, timezone
+ 
+ from sqlalchemy import func, select, update
+ from sqlalchemy.ext.asyncio import AsyncSession
+@@ -23,87 +22,11 @@
+ # UTC时区常量
+ UTC = timezone.utc
+ 
+-# Existing QR-convergence owner deadlines, centralized from the actual wait_for
+-# bounds below. The metadata lease expires even if an unexpected process failure
+-# prevents the normal completion recorder from running.
+-AUTH_CONVERGENCE_MAX_ROUNDS = 2
+-AUTH_CONVERGENCE_BROWSER_TIMEOUT_SECONDS = 180.0
+-AUTH_CONVERGENCE_AUTO_REPLY_TIMEOUT_SECONDS = 30.0
+-AUTH_CONVERGENCE_AUTO_REPLY_STATUS_TIMEOUT_SECONDS = 5.0
+-AUTH_CONVERGENCE_CHAT_CONNECT_TIMEOUT_SECONDS = 90.0
+-AUTH_CONVERGENCE_CHAT_READ_TIMEOUT_SECONDS = 30.0
+-AUTH_CONVERGENCE_PUBLISH_PREFLIGHT_TIMEOUT_SECONDS = 90.0
+-AUTH_CONVERGENCE_ROUND_DEADLINE_SECONDS = (
+-    AUTH_CONVERGENCE_BROWSER_TIMEOUT_SECONDS
+-    + AUTH_CONVERGENCE_AUTO_REPLY_TIMEOUT_SECONDS
+-    + AUTH_CONVERGENCE_AUTO_REPLY_STATUS_TIMEOUT_SECONDS
+-    + AUTH_CONVERGENCE_CHAT_CONNECT_TIMEOUT_SECONDS
+-    + AUTH_CONVERGENCE_CHAT_READ_TIMEOUT_SECONDS
+-    + AUTH_CONVERGENCE_PUBLISH_PREFLIGHT_TIMEOUT_SECONDS
+-    + 1.0
+-)
+-AUTH_CONVERGENCE_DEADLINE_SECONDS = (
+-    AUTH_CONVERGENCE_MAX_ROUNDS * AUTH_CONVERGENCE_ROUND_DEADLINE_SECONDS
+-)
+-
+-
+-def _should_preserve_chat_auth_on_followup_round(round_number: int, state: str) -> bool:
+-    """Keep a fresh round-1 Chat auth result from generating auth again in round 2."""
+-    return round_number > 1 and str(state or "") in {
+-        "READY",
+-        "PLATFORM_VERIFICATION_REQUIRED",
+-    }
+-
+-
+ class AccountService:
+     """Provides access to legacy cookie account records."""
+ 
+-    _auth_convergence_locks: dict[str, asyncio.Lock] = {}
+-
+     def __init__(self, session: AsyncSession):
+         self.session = session
+-
+-    @classmethod
+-    def _get_auth_convergence_lock(cls, account_id: str) -> asyncio.Lock:
+-        lock = cls._auth_convergence_locks.get(account_id)
+-        if lock is None:
+-            lock = asyncio.Lock()
+-            cls._auth_convergence_locks[account_id] = lock
+-        return lock
+-
+-    async def _set_auth_convergence_lease(
+-        self,
+-        account_id: str,
+-        *,
+-        active: bool,
+-    ) -> None:
+-        from common.db.session import async_session_maker
+-
+-        async with async_session_maker() as session:
+-            result = await session.execute(
+-                select(XYAccount)
+-                .where(XYAccount.account_id == account_id)
+-                .order_by(XYAccount.id.desc())
+-                .limit(1)
+-                .with_for_update()
+-            )
+-            row = result.scalars().first()
+-            if not row:
+-                return
+-            metadata = dict(row.metadata_json or {})
+-            record = dict(metadata.get("auth_convergence") or {})
+-            now = datetime.now(timezone.utc)
+-            record["recovery_active"] = bool(active)
+-            if active:
+-                record["recovery_started_at"] = now.isoformat()
+-                record["recovery_deadline_at"] = (
+-                    now + timedelta(seconds=AUTH_CONVERGENCE_DEADLINE_SECONDS)
+-                ).isoformat()
+-            else:
+-                record["recovery_finished_at"] = now.isoformat()
+-            metadata["auth_convergence"] = record
+-            row.metadata_json = metadata
+-            await session.commit()
+ 
+     async def list_account_options(self, owner_id: int | None = None) -> list[dict]:
+         stmt = select(
+@@ -585,396 +508,6 @@
+         if created:
+             await self.session.refresh(account)
+         return account, created
+-
+-    async def converge_existing_consumers_after_login(
+-        self,
+-        account_id: str,
+-        *,
+-        is_new_account: bool,
+-        trigger: str = "qr_login_success",
+-    ) -> dict:
+-        await self._set_auth_convergence_lease(account_id, active=True)
+-        try:
+-            return await self._converge_existing_consumers_after_login_impl(
+-                account_id,
+-                is_new_account=is_new_account,
+-                trigger=trigger,
+-            )
+-        finally:
+-            await self._set_auth_convergence_lease(account_id, active=False)
+-
+-    async def _converge_existing_consumers_after_login_impl(
+-        self,
+-        account_id: str,
+-        *,
+-        is_new_account: bool,
+-        trigger: str = "qr_login_success",
+-    ) -> dict:
+-        """Bounded single-flight convergence for existing auth consumers after login.
+-
+-        This is orchestration only: it reuses the existing Session lifecycle,
+-        WebSocket account manager, Chat manager/token cache, Publisher preflight,
+-        and authoritative account Cookie. No second auth owner is created.
+-        """
+-        from app.core.config import get_settings
+-        from app.core.http_client import get_http_client
+-        from app.services.chat_new.im_session_manager import get_im_session_manager
+-        from common.db.session import async_session_maker
+-        from common.services.token_renewal_cache_service import mark_token_cache_expired
+-        from common.services.xianyu_publish_service import probe_account_publish_restriction
+-        from common.utils.cookie_refresh import auth_convergence_fingerprint
+-        from common.utils.time_utils import get_beijing_now_naive
+-        from common.utils.xianyu_utils import trans_cookies
+-
+-        MAX_AUTH_CONVERGENCE_ROUNDS = AUTH_CONVERGENCE_MAX_ROUNDS
+-        lock = self._get_auth_convergence_lock(account_id)
+-
+-        async def _load_snapshot() -> dict | None:
+-            async with async_session_maker() as session:
+-                result = await session.execute(
+-                    select(XYAccount)
+-                    .where(XYAccount.account_id == account_id)
+-                    .order_by(XYAccount.id.desc())
+-                    .limit(1)
+-                )
+-                row = result.scalars().first()
+-                if not row:
+-                    return None
+-                return {
+-                    "id": int(row.id),
+-                    "account_id": row.account_id,
+-                    "owner_id": row.owner_id,
+-                    "status": str(row.status or "active").strip().lower(),
+-                    "cookie": row.cookie or "",
+-                    "metadata": dict(row.metadata_json or {}),
+-                }
+-
+-        async def _record_convergence(
+-            *,
+-            status: str,
+-            rounds: int,
+-            fingerprint: str,
+-            summary: dict,
+-        ) -> None:
+-            async with async_session_maker() as session:
+-                result = await session.execute(
+-                    select(XYAccount)
+-                    .where(XYAccount.account_id == account_id)
+-                    .order_by(XYAccount.id.desc())
+-                    .limit(1)
+-                    .with_for_update()
+-                )
+-                row = result.scalars().first()
+-                if not row:
+-                    return
+-                metadata = dict(row.metadata_json or {})
+-                convergence_record = dict(metadata.get("auth_convergence") or {})
+-                convergence_record.update({
+-                    "status": status,
+-                    "trigger": trigger,
+-                    "rounds": rounds,
+-                    "max_rounds": MAX_AUTH_CONVERGENCE_ROUNDS,
+-                    "last_fingerprint": fingerprint,
+-                    "updated_at": get_beijing_now_naive().isoformat(),
+-                    "browser_state": summary.get("browser_state"),
+-                    "auto_reply_state": summary.get("auto_reply_state"),
+-                    "chat_state": summary.get("chat_state"),
+-                    "publish_state": summary.get("publish_state"),
+-                })
+-                metadata["auth_convergence"] = convergence_record
+-                row.metadata_json = metadata
+-                await session.commit()
+-
+-        async with lock:
+-            initial = await _load_snapshot()
+-            if not initial:
+-                return {"success": False, "status": "ACCOUNT_NOT_FOUND", "rounds": 0}
+-            if initial["status"] != "active":
+-                return {
+-                    "success": False,
+-                    "status": "ACCOUNT_DISABLED",
+-                    "rounds": 0,
+-                    "auto_reply_state": "DISABLED",
+-                    "chat_state": "DISABLED",
+-                    "publish_state": "DISABLED",
+-                }
+-
+-            current_fingerprint = auth_convergence_fingerprint(initial["cookie"])
+-            prior = initial["metadata"].get("auth_convergence")
+-            if (
+-                isinstance(prior, dict)
+-                and prior.get("status") == "CONVERGED"
+-                and prior.get("last_fingerprint") == current_fingerprint
+-            ):
+-                return {
+-                    "success": True,
+-                    "status": "IDEMPOTENT_ALREADY_CONVERGED",
+-                    "rounds": int(prior.get("rounds") or 0),
+-                    "max_rounds": MAX_AUTH_CONVERGENCE_ROUNDS,
+-                    "cookie_fingerprint": current_fingerprint,
+-                }
+-
+-            settings = get_settings()
+-            http_client = get_http_client()
+-            chat_manager = get_im_session_manager()
+-            rounds: list[dict] = []
+-            final_summary: dict = {
+-                "browser_state": "PENDING",
+-                "auto_reply_state": "RECOVERING",
+-                "chat_state": "PENDING",
+-                "publish_state": "PENDING",
+-            }
+-
+-            for round_number in range(1, MAX_AUTH_CONVERGENCE_ROUNDS + 1):
+-                snapshot = await _load_snapshot()
+-                if not snapshot or snapshot["status"] != "active":
+-                    final_summary.update({
+-                        "auto_reply_state": "DISABLED",
+-                        "chat_state": "DISABLED",
+-                        "publish_state": "DISABLED",
+-                    })
+-                    await _record_convergence(
+-                        status="ACCOUNT_DISABLED",
+-                        rounds=round_number - 1,
+-                        fingerprint=current_fingerprint,
+-                        summary=final_summary,
+-                    )
+-                    return {
+-                        "success": False,
+-                        "status": "ACCOUNT_DISABLED",
+-                        "rounds": round_number - 1,
+-                        **final_summary,
+-                    }
+-
+-                cookie = snapshot["cookie"]
+-                fingerprint_before = auth_convergence_fingerprint(cookie)
+-                current_fingerprint = fingerprint_before
+-
+-                # STEP 2: invalidate stale consumer auth state using existing owners.
+-                unb = ""
+-                try:
+-                    unb = str((trans_cookies(cookie) or {}).get("unb") or "")
+-                except Exception:
+-                    unb = ""
+-                auto_reply_cache_invalidated = False
+-                if unb and round_number == 1:
+-                    invalidation = await mark_token_cache_expired(
+-                        token_user_id=unb,
+-                        invalidate_valid_cache=True,
+-                    )
+-                    auto_reply_cache_invalidated = bool(invalidation.success)
+-                preserve_chat_auth = False
+-                if round_number == 1:
+-                    chat_invalidation = await chat_manager.invalidate_auth_consumers(
+-                        account_id,
+-                        cookie,
+-                    )
+-                else:
+-                    # Round 2 exists only to converge the other consumers after a real
+-                    # authoritative Cookie rotation. A round-1 READY client and a
+-                    # round-1 static platform-verification result are both fresh Chat
+-                    # auth outcomes. Re-invalidating either result would manufacture a
+-                    # second Token/CAPTCHA generation from the same login event.
+-                    chat_snapshot = await chat_manager.read_only_diagnostic(account_id)
+-                    preserve_chat_auth = _should_preserve_chat_auth_on_followup_round(
+-                        round_number,
+-                        str(chat_snapshot.get("state") or ""),
+-                    )
+-                    if preserve_chat_auth:
+-                        chat_invalidation = {
+-                            "client_disconnected": False,
+-                            "chat_token_cache_invalidated": False,
+-                            "chat_token_cache_key_present": True,
+-                            "preserved_current_auth": True,
+-                        }
+-                    else:
+-                        chat_invalidation = await chat_manager.invalidate_auth_consumers(
+-                            account_id,
+-                            cookie,
+-                        )
+-
+-                # STEP 3: authoritative Browser Session convergence on canonical Profile.
+-                try:
+-                    browser_response = await asyncio.wait_for(
+-                        http_client.post(
+-                            f"{settings.websocket_service_url}/internal/session/health",
+-                            json={
+-                                "account_id": account_id,
+-                                "allow_renew": False,
+-                                "trigger": trigger,
+-                            },
+-                        ),
+-                        timeout=AUTH_CONVERGENCE_BROWSER_TIMEOUT_SECONDS,
+-                    )
+-                except Exception as exc:
+-                    browser_response = {
+-                        "success": False,
+-                        "message": f"SESSION_HEALTH_EXCEPTION:{type(exc).__name__}",
+-                        "data": {},
+-                    }
+-                browser_data = (
+-                    browser_response.get("data") or {}
+-                    if isinstance(browser_response, dict)
+-                    else {}
+-                )
+-                browser_state = str(
+-                    browser_data.get("state")
+-                    or (browser_response.get("message") if isinstance(browser_response, dict) else "")
+-                    or "PENDING"
+-                )
+-                browser_ready = bool(browser_data.get("REAL_BROWSER_LOGIN_READY"))
+-                final_summary["browser_state"] = browser_state
+-
+-                # Browser health is an existing authoritative Cookie owner and may
+-                # legitimately rotate browser fields. Always re-read DB authority
+-                # before converging downstream consumers; never restart them with the
+-                # stale pre-health Cookie snapshot.
+-                post_browser = await _load_snapshot()
+-                if post_browser and post_browser["status"] == "active":
+-                    cookie = post_browser["cookie"]
+-                    snapshot = post_browser
+-
+-                # STEP 4: existing Auto Reply/WebSocket account task convergence.
+-                endpoint = "start" if is_new_account and round_number == 1 else "restart"
+-                try:
+-                    ws_response = await asyncio.wait_for(
+-                        http_client.post(
+-                            f"{settings.websocket_service_url}/internal/accounts/{account_id}/{endpoint}",
+-                            json={
+-                                "cookie_value": cookie,
+-                                "user_id": snapshot["owner_id"],
+-                                "invalidate_token_cache": round_number == 1,
+-                            },
+-                        ),
+-                        timeout=AUTH_CONVERGENCE_AUTO_REPLY_TIMEOUT_SECONDS,
+-                    )
+-                except Exception as exc:
+-                    ws_response = {"success": False, "message": type(exc).__name__}
+-                await asyncio.sleep(0.25)
+-                try:
+-                    ws_status_response = await asyncio.wait_for(
+-                        http_client.get(
+-                            f"{settings.websocket_service_url}/internal/accounts/{account_id}/status"
+-                        ),
+-                        timeout=AUTH_CONVERGENCE_AUTO_REPLY_STATUS_TIMEOUT_SECONDS,
+-                    )
+-                except Exception:
+-                    ws_status_response = {}
+-                ws_status = (
+-                    ws_status_response.get("data") or {}
+-                    if isinstance(ws_status_response, dict)
+-                    else {}
+-                )
+-                if bool(ws_status.get("is_connected")) or str(ws_status.get("connection_state") or "") == "connected":
+-                    auto_reply_state = "ONLINE"
+-                elif bool(ws_status.get("running")) or bool(ws_response.get("success") if isinstance(ws_response, dict) else False):
+-                    auto_reply_state = "RECOVERING"
+-                else:
+-                    auto_reply_state = "OFFLINE"
+-                final_summary["auto_reply_state"] = auto_reply_state
+-
+-                # STEP 5: normal Chat business auth convergence. No message is sent.
+-                # A follow-up round must not generate Chat auth again after round 1
+-                # already established either READY or the terminal platform challenge.
+-                if not preserve_chat_auth:
+-                    try:
+-                        chat_client = await asyncio.wait_for(
+-                            chat_manager.get_or_connect(account_id),
+-                            timeout=AUTH_CONVERGENCE_CHAT_CONNECT_TIMEOUT_SECONDS,
+-                        )
+-                        await asyncio.wait_for(
+-                            chat_client.get_conversations(limit=1),
+-                            timeout=AUTH_CONVERGENCE_CHAT_READ_TIMEOUT_SECONDS,
+-                        )
+-                    except Exception:
+-                        pass
+-                chat_diagnostic = await chat_manager.read_only_diagnostic(account_id)
+-                final_summary["chat_state"] = str(chat_diagnostic.get("state") or "PENDING")
+-
+-                # Official Chat auth may legally rotate Cookie. If it did, restart the
+-                # full convergence once with the new authoritative fingerprint.
+-                after_chat = await _load_snapshot()
+-                fingerprint_after_chat = auth_convergence_fingerprint((after_chat or {}).get("cookie") or "")
+-                round_result = {
+-                    "round": round_number,
+-                    "fingerprint_changed": fingerprint_after_chat != fingerprint_before,
+-                    "auto_reply_old_auth_invalidated": auto_reply_cache_invalidated,
+-                    "chat_old_token_invalidated": bool(chat_invalidation.get("chat_token_cache_invalidated")),
+-                    "chat_old_client_disconnected": bool(chat_invalidation.get("client_disconnected")),
+-                    "browser_state": browser_state,
+-                    "auto_reply_state": auto_reply_state,
+-                    "chat_state": final_summary["chat_state"],
+-                }
+-                rounds.append(round_result)
+-
+-                if fingerprint_after_chat != fingerprint_before:
+-                    current_fingerprint = fingerprint_after_chat
+-                    if round_number < MAX_AUTH_CONVERGENCE_ROUNDS:
+-                        continue
+-                    final_summary["publish_state"] = "AUTH_CONVERGENCE_UNSTABLE"
+-                    await _record_convergence(
+-                        status="AUTH_CONVERGENCE_UNSTABLE",
+-                        rounds=round_number,
+-                        fingerprint=current_fingerprint,
+-                        summary=final_summary,
+-                    )
+-                    return {
+-                        "success": False,
+-                        "status": "AUTH_CONVERGENCE_UNSTABLE",
+-                        "rounds": round_number,
+-                        "max_rounds": MAX_AUTH_CONVERGENCE_ROUNDS,
+-                        "cookie_fingerprint": current_fingerprint,
+-                        "round_results": rounds,
+-                        **final_summary,
+-                    }
+-
+-                # STEP 6: existing Publisher preflight_only, only after Browser readiness.
+-                if browser_ready:
+-                    latest_for_publish = after_chat or snapshot
+-                    try:
+-                        publish_result = await asyncio.wait_for(
+-                            probe_account_publish_restriction(
+-                                cookie=latest_for_publish.get("cookie") or "",
+-                                account_id=account_id,
+-                                owner_id=latest_for_publish.get("owner_id"),
+-                            ),
+-                            timeout=AUTH_CONVERGENCE_PUBLISH_PREFLIGHT_TIMEOUT_SECONDS,
+-                        )
+-                        final_summary["publish_state"] = str(
+-                            publish_result.get("state") or "TEMPORARY_FAILURE"
+-                        )
+-                    except Exception as exc:
+-                        final_summary["publish_state"] = f"TEMPORARY_FAILURE:{type(exc).__name__}"
+-                else:
+-                    final_summary["publish_state"] = browser_state
+-
+-                rounds[-1]["publish_state"] = final_summary["publish_state"]
+-                current_fingerprint = fingerprint_after_chat or fingerprint_before
+-                await _record_convergence(
+-                    status="CONVERGED",
+-                    rounds=round_number,
+-                    fingerprint=current_fingerprint,
+-                    summary=final_summary,
+-                )
+-                return {
+-                    "success": True,
+-                    "status": "CONVERGED",
+-                    "rounds": round_number,
+-                    "max_rounds": MAX_AUTH_CONVERGENCE_ROUNDS,
+-                    "cookie_fingerprint": current_fingerprint,
+-                    "round_results": rounds,
+-                    **final_summary,
+-                }
+-
+-            return {
+-                "success": False,
+-                "status": "AUTH_CONVERGENCE_UNSTABLE",
+-                "rounds": MAX_AUTH_CONVERGENCE_ROUNDS,
+-                "max_rounds": MAX_AUTH_CONVERGENCE_ROUNDS,
+-                "cookie_fingerprint": current_fingerprint,
+-                "round_results": rounds,
+-                **final_summary,
+-            }
+ 
+     async def upsert_account_from_password(
+         self,
