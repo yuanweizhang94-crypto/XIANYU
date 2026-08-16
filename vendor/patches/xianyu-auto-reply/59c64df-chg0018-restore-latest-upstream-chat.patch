@@ -1,0 +1,2179 @@
+diff --git a/backend-web/app/api/routes/chat_new.py b/backend-web/app/api/routes/chat_new.py
+--- a/backend-web/app/api/routes/chat_new.py
++++ b/backend-web/app/api/routes/chat_new.py
+@@ -25,8 +25,6 @@
+ 
+ from app.api.deps import get_current_active_user, get_db_session
+ from app.services.chat_new import get_im_session_manager
+-from app.services.websocket_client import websocket_client
+-from app.services.chat_new.im_session_manager import CHAT_CONNECT_DEADLINE_SECONDS, ChatConnectError
+ from app.services.chat_new.avatar_service import get_owner_user_info, get_user_info, AVATAR_CACHE_PREFIX, AVATAR_CACHE_TTL
+ from app.services.chat_new.official_blacklist_service import official_blacklist_request
+ from common.db.redis_client import get_redis_client
+@@ -88,12 +86,8 @@
+     try:
+         is_admin = is_admin_user(current_user)
+ 
+-        # 正常在线聊天只列出 enabled/active 且有 Cookie 的账号；禁用历史数据仍保留在 DB。
+-        base_where = [
+-            XYAccount.cookie.isnot(None),
+-            XYAccount.cookie != "",
+-            XYAccount.status == "active",
+-        ]
++        # 基础条件：有cookie的账号
++        base_where = [XYAccount.cookie.isnot(None), XYAccount.cookie != ""]
+         if not is_admin:
+             base_where.append(XYAccount.owner_id == current_user.id)
+ 
+@@ -128,11 +122,7 @@
+                     owner_map[u.id] = u.username or str(u.id)
+ 
+         manager = get_im_session_manager()
+-        diagnostics = dict(
+-            await asyncio.gather(
+-                *(_chat_account_diagnostic(manager, acc.account_id) for acc in accounts)
+-            )
+-        ) if accounts else {}
++        connected_ids = manager.get_connected_account_ids()
+ 
+         items = []
+         display_names_updated = False
+@@ -147,18 +137,12 @@
+                         display_names_updated = True
+                 except Exception as e:
+                     logger.warning(f"账号 {acc.account_id} 解析昵称失败: {e}")
+-            diagnostic = diagnostics.get(acc.account_id, {})
+-            effective_state = str(diagnostic.get("effective_state") or "WAITING_CONNECT")
+             item = {
+                 "account_id": acc.account_id,
+                 "display_name": display_name,
+                 "remark": acc.remark or "",
+-                "connected": effective_state == "READY",
++                "connected": acc.account_id in connected_ids,
+                 "status": acc.status or "active",
+-                "chat_state": effective_state,
+-                "chat_reason": str(diagnostic.get("effective_reason") or "chat_client_not_currently_connected"),
+-                "error_code": str(diagnostic.get("effective_error_code") or ""),
+-                "connecting": bool(diagnostic.get("connect_active")),
+             }
+             if is_admin:
+                 item["owner"] = owner_map.get(acc.owner_id, str(acc.owner_id))
+@@ -178,115 +162,6 @@
+         return ApiResponse(success=False, message=f"获取账号列表失败: {str(e)}")
+ 
+ 
+-async def _chat_account_diagnostic(manager, account_id: str) -> tuple[str, dict]:
+-    try:
+-        result = await asyncio.wait_for(manager.read_only_diagnostic(account_id), timeout=1.0)
+-        return account_id, result if isinstance(result, dict) else {}
+-    except Exception:
+-        return account_id, {}
+-
+-
+-async def _owned_chat_account(
+-    account_id: str,
+-    current_user: User,
+-    db: AsyncSession,
+-) -> XYAccount | None:
+-    query = select(XYAccount).where(XYAccount.account_id == account_id)
+-    if not is_admin_user(current_user):
+-        query = query.where(XYAccount.owner_id == current_user.id)
+-    result = await db.execute(query)
+-    return result.scalar_one_or_none()
+-
+-
+-def _human_verification_pvr_required(account: XYAccount) -> bool:
+-    metadata = dict(account.metadata_json or {})
+-    marker = metadata.get("auto_reply_platform_verification")
+-    if isinstance(marker, dict) and str(marker.get("state") or "") in {
+-        "PLATFORM_VERIFICATION_REQUIRED",
+-        "AUTOMATIC_ATTEMPT_IN_PROGRESS",
+-        "AUTOMATIC_ATTEMPT_AUTHORIZED",
+-    }:
+-        return True
+-    diagnostic = get_im_session_manager().get_last_connect_diagnostics(account.account_id) or {}
+-    return str(diagnostic.get("state") or diagnostic.get("connect_state") or "") == "PLATFORM_VERIFICATION_REQUIRED"
+-
+-
+-@router.post("/human-verification/{account_id}/open")
+-async def open_human_verification(
+-    account_id: str,
+-    current_user: User = Depends(get_current_active_user),
+-    db: AsyncSession = Depends(get_db_session),
+-):
+-    """Allowlisted fixed action: open the same canonical Profile on the Windows desktop."""
+-    account = await _owned_chat_account(account_id, current_user, db)
+-    if not account:
+-        return {"success": False, "message": "ACCOUNT_NOT_FOUND", "error_code": "ACCOUNT_NOT_FOUND", "data": None}
+-    if str(account.status or "active").strip().lower() != "active":
+-        return {"success": False, "message": "ACCOUNT_DISABLED", "error_code": "ACCOUNT_DISABLED", "data": None}
+-    if not _human_verification_pvr_required(account):
+-        return {
+-            "success": False,
+-            "message": "PLATFORM_VERIFICATION_REQUIRED_STATE_REQUIRED",
+-            "error_code": "PVR_STATE_REQUIRED",
+-            "data": None,
+-        }
+-    response = await websocket_client.open_human_verification(account_id)
+-    data = response.get("data") or {} if isinstance(response, dict) else {}
+-    success = bool(response.get("success")) if isinstance(response, dict) else False
+-    return {
+-        "success": success,
+-        "message": str(response.get("message") or "HUMAN_BROWSER_START_FAILED") if isinstance(response, dict) else "HUMAN_BROWSER_START_FAILED",
+-        "error_code": "" if success else "HUMAN_BROWSER_UNAVAILABLE",
+-        "data": {
+-            "account_id": account_id,
+-            "human_entry_available": success,
+-            "human_browser_visible": bool(data.get("human_browser_visible")),
+-            "canonical_profile_reused": bool(data.get("canonical_profile_reused")),
+-            "official_url_only": bool(data.get("official_url_only")),
+-            "waiting_for_real_user_official_verification": bool(
+-                data.get("waiting_for_real_user_official_verification")
+-            ),
+-        },
+-    }
+-
+-
+-@router.post("/human-verification/{account_id}/recheck")
+-async def recheck_after_human_verification(
+-    account_id: str,
+-    current_user: User = Depends(get_current_active_user),
+-    db: AsyncSession = Depends(get_db_session),
+-):
+-    """One explicit post-human Profile health probe. Never starts Token, Chat or WebSocket."""
+-    account = await _owned_chat_account(account_id, current_user, db)
+-    if not account:
+-        return {"success": False, "message": "ACCOUNT_NOT_FOUND", "error_code": "ACCOUNT_NOT_FOUND", "data": None}
+-    if str(account.status or "active").strip().lower() != "active":
+-        return {"success": False, "message": "ACCOUNT_DISABLED", "error_code": "ACCOUNT_DISABLED", "data": None}
+-    if not _human_verification_pvr_required(account):
+-        return {
+-            "success": False,
+-            "message": "PLATFORM_VERIFICATION_REQUIRED_STATE_REQUIRED",
+-            "error_code": "PVR_STATE_REQUIRED",
+-            "data": None,
+-        }
+-    response = await websocket_client.recheck_after_human_verification(account_id)
+-    data = response.get("data") or {} if isinstance(response, dict) else {}
+-    success = bool(response.get("success")) if isinstance(response, dict) else False
+-    return {
+-        "success": success,
+-        "message": str(response.get("message") or "HUMAN_RECHECK_FAILED") if isinstance(response, dict) else "HUMAN_RECHECK_FAILED",
+-        "error_code": "" if success else "HUMAN_RECHECK_NOT_READY",
+-        "data": {
+-            "account_id": account_id,
+-            "state": str(data.get("state") or ""),
+-            "recheck_performed": bool(data.get("recheck_performed")),
+-            "platform_verification_cleared": bool(data.get("platform_verification_cleared")),
+-            "cookie_updated": bool(data.get("cookie_updated")),
+-            "websocket_restarted": False,
+-        },
+-    }
+-
+-
+ @router.post("/connect/{account_id}")
+ async def connect_account(
+     account_id: str,
+@@ -298,81 +173,23 @@
+     """
+     try:
+         # 校验账号归属（管理员可操作任意账号）
+-        account = await _owned_chat_account(account_id, current_user, db)
++        query = select(XYAccount).where(XYAccount.account_id == account_id)
++        if not is_admin_user(current_user):
++            query = query.where(XYAccount.owner_id == current_user.id)
++        result = await db.execute(query)
++        account = result.scalar_one_or_none()
+         if not account:
+-            return {
+-                "success": False,
+-                "message": "账号不存在或无权操作",
+-                "error_code": "ACCOUNT_NOT_FOUND",
+-                "data": None,
+-            }
+-        if str(account.status or "active").strip().lower() != "active":
+-            return {
+-                "success": False,
+-                "message": "账号已停用，不能连接在线聊天",
+-                "error_code": "ACCOUNT_DISABLED",
+-                "data": {"state": "DISABLED", "reason": "account_disabled"},
+-            }
++            return ApiResponse(success=False, message="账号不存在或无权操作")
+ 
+         manager = get_im_session_manager()
+-        backend_http_deadline = CHAT_CONNECT_DEADLINE_SECONDS + 2
+-        try:
+-            await asyncio.wait_for(
+-                manager.get_or_connect(account_id),
+-                timeout=backend_http_deadline,
+-            )
+-        except asyncio.TimeoutError:
+-            logger.warning(
+-                f"【{account_id}】Chat connect超过Backend bounded deadline: "
+-                f"{backend_http_deadline:.0f}s"
+-            )
+-            return {
+-                "success": False,
+-                "message": "连接闲鱼聊天超时，请稍后重试",
+-                "error_code": "CHAT_CONNECT_TIMEOUT",
+-                "data": {
+-                    "state": "TEMPORARY_FAILURE",
+-                    "reason": "chat_connect_http_deadline",
+-                    "diagnostics": manager.get_last_connect_diagnostics(account_id),
+-                },
+-            }
+-        return {
+-            "success": True,
+-            "message": "连接成功",
+-            "error_code": "",
+-            "data": {
+-                "state": "READY",
+-                "diagnostics": manager.get_last_connect_diagnostics(account_id),
+-            },
+-        }
+-
+-    except ChatConnectError as e:
+-        manager = get_im_session_manager()
+-        return {
+-            "success": False,
+-            "message": e.public_message,
+-            "error_code": e.error_code,
+-            "data": {
+-                "state": e.state,
+-                "reason": e.reason,
+-                "diagnostics": manager.get_last_connect_diagnostics(account_id),
+-            },
+-        }
+-    except ValueError:
+-        return {
+-            "success": False,
+-            "message": "账号登录信息不可用，需要重新登录",
+-            "error_code": "CHAT_LOGIN_REQUIRED",
+-            "data": {"state": "LOGIN_REQUIRED", "reason": "account_cookie_missing"},
+-        }
++        await manager.get_or_connect(account_id)
++        return ApiResponse(success=True, message="连接成功")
++
++    except ValueError as e:
++        return ApiResponse(success=False, message=str(e))
+     except Exception as e:
+         logger.error(f"【{account_id}】连接IM失败: {e}")
+-        return {
+-            "success": False,
+-            "message": "在线聊天暂不可用，请稍后重试",
+-            "error_code": "CHAT_TEMPORARY_FAILURE",
+-            "data": {"state": "TEMPORARY_FAILURE", "reason": type(e).__name__},
+-        }
++        return ApiResponse(success=False, message=f"连接失败: {str(e)}")
+ 
+ 
+ @router.post("/disconnect/{account_id}")
+@@ -408,17 +225,11 @@
+         cursor: 分页游标（首页不传，翻页传nextCursor）
+         limit: 每页数量，默认20
+     """
+-    request_started = time.monotonic()
+     try:
+         manager = get_im_session_manager()
+         client = manager.clients.get(account_id)
+         if not client or not client.is_connected:
+-            return {
+-                "success": False,
+-                "message": "账号未连接，请先连接",
+-                "error_code": "CHAT_NOT_CONNECTED",
+-                "data": None,
+-            }
++            return ApiResponse(success=False, message="账号未连接，请先连接")
+ 
+         body = await client.get_conversations(
+             start_timestamp=cursor, limit=limit
+@@ -434,18 +245,8 @@
+             )
+             # 流控错误给前端提示
+             if err_code == "400600001":
+-                return {
+-                    "success": False,
+-                    "message": "请求过于频繁，请稍后再试",
+-                    "error_code": "CHAT_RATE_LIMITED",
+-                    "data": None,
+-                }
+-            return {
+-                "success": False,
+-                "message": "在线聊天暂不可用，请稍后重试",
+-                "error_code": "CHAT_TEMPORARY_FAILURE",
+-                "data": None,
+-            }
++                return ApiResponse(success=False, message="请求过于频繁，请稍后再试")
++            return ApiResponse(success=False, message=f"IM服务异常: {reason or err_code}")
+ 
+         # 解析会话列表
+         conversations = []
+@@ -512,17 +313,14 @@
+         except Exception as e:
+             logger.warning(f"【{account_id}】Redis批量处理用户信息失败: {e}")
+ 
+-        return {
+-            "success": True,
+-            "message": "获取成功",
+-            "error_code": "",
+-            "data": {
++        return ApiResponse(
++            success=True,
++            data={
+                 "conversations": conversations,
+                 "hasMore": body.get("hasMore", False),
+                 "nextCursor": body.get("nextCursor", None),
+-                "request_duration_ms": int((time.monotonic() - request_started) * 1000),
+             },
+-        }
++        )
+ 
+     except Exception as e:
+         logger.error(f"【{account_id}】获取会话列表失败: {e}")
+diff --git a/backend-web/app/api/routes/chat_customer_order.py b/backend-web/app/api/routes/chat_customer_order.py
+--- a/backend-web/app/api/routes/chat_customer_order.py
++++ b/backend-web/app/api/routes/chat_customer_order.py
+@@ -67,6 +67,7 @@
+             "status": order.status or "unknown",
+             "delivery_method": order.delivery_method or "",
+             "delivery_fail_reason": order.delivery_fail_reason or "",
++            "card_only_delivered": bool(order.card_only_delivered),
+             "placed_at": order.placed_at.isoformat() if order.placed_at else "",
+         })
+     return ApiResponse(success=True, data=data)
+diff --git a/backend-web/app/services/chat_new/im_client.py b/backend-web/app/services/chat_new/im_client.py
+--- a/backend-web/app/services/chat_new/im_client.py
++++ b/backend-web/app/services/chat_new/im_client.py
+@@ -23,14 +23,10 @@
+ from app.services.websocket_client import websocket_client
+ from common.db.session import async_session_maker
+ from common.utils.cookie_refresh import (
+-    auth_convergence_fingerprint,
+     merge_cookies,
+     update_account_cookies_in_db,
+ )
+-from common.services.captcha.token_response import (
+-    extract_token_captcha_url,
+-    is_token_expired_response,
+-)
++from common.services.captcha.token_response import is_token_expired_response
+ from common.services.im_token_api import (
+     extract_im_access_token,
+     request_im_token_with_fallback,
+@@ -54,12 +50,8 @@
+ 
+ # WebSocket连接地址
+ WS_URL = "wss://wss-goofish.dingtalk.com/"
+-# IM 请求/连接阶段的现有 owner 超时（秒）。
+-# Chat connect 的总 deadline 由这些真实阶段预算推导，不通过放大前端 90s 全局超时掩盖问题。
++# 请求超时（秒）
+ REQUEST_TIMEOUT = 20
+-WS_CONNECT_TIMEOUT = 30
+-REGISTER_RESPONSE_TIMEOUT = 5
+-POST_REGISTER_COOLDOWN_SECONDS = 3
+ # 心跳间隔（秒）
+ HEARTBEAT_INTERVAL = 15
+ # 风控滑块验证关键词：Token响应中出现任一关键词即表示被风控拦截（如"哎哟喂,被挤爆啦"），需过滑块
+@@ -78,88 +70,6 @@
+ CAPTCHA_MAX_RETRY = 1
+ 
+ 
+-def _metadata_dict(raw_metadata: Any) -> dict[str, Any]:
+-    if isinstance(raw_metadata, dict):
+-        return dict(raw_metadata)
+-    if isinstance(raw_metadata, str) and raw_metadata.strip():
+-        try:
+-            parsed = json.loads(raw_metadata)
+-            return dict(parsed) if isinstance(parsed, dict) else {}
+-        except Exception:
+-            return {}
+-    return {}
+-
+-
+-async def _record_chat_readiness(
+-    *,
+-    account_id: str,
+-    state: str,
+-    reason: str = "",
+-    auth_fingerprint: str = "",
+-    error_code: str = "",
+-) -> None:
+-    try:
+-        async with async_session_maker() as session:
+-            result = await session.execute(
+-                text(
+-                    "SELECT id, metadata FROM xy_accounts "
+-                    "WHERE account_id = :account_id ORDER BY id DESC LIMIT 1"
+-                ),
+-                {"account_id": account_id},
+-            )
+-            row = result.mappings().first()
+-            if not row:
+-                return
+-            metadata = _metadata_dict(row.get("metadata"))
+-            session_state = dict(metadata.get("session_maintenance") or {})
+-            consumers = dict(session_state.get("consumers") or {})
+-            record = {
+-                "state": state,
+-                "updated_at": get_beijing_now_naive().isoformat(),
+-                "reason": reason,
+-            }
+-            if auth_fingerprint:
+-                record["auth_fingerprint"] = auth_fingerprint[:12]
+-            if error_code:
+-                record["error_code"] = str(error_code)[:120]
+-            consumers["chat"] = record
+-            session_state["consumers"] = consumers
+-            metadata["session_maintenance"] = session_state
+-            await session.execute(
+-                text("UPDATE xy_accounts SET metadata = :metadata WHERE id = :id"),
+-                {"metadata": json.dumps(metadata, ensure_ascii=False), "id": row["id"]},
+-            )
+-            await session.commit()
+-    except Exception as exc:
+-        logger.warning(f"【{account_id}】Chat readiness记录失败: {exc}")
+-
+-
+-def _classify_chat_readiness_failure(body: Any) -> tuple[str, str, str]:
+-    text_body = (
+-        json.dumps(body, ensure_ascii=False)
+-        if isinstance(body, (dict, list))
+-        else str(body or "")
+-    )
+-    lowered = text_body.lower()
+-    if "fail_sys_user_validate" in lowered or "rgv587_error" in lowered or "captcha" in lowered:
+-        return (
+-            "PLATFORM_VERIFICATION_REQUIRED",
+-            "platform_verification_required",
+-            "CHAT_PLATFORM_VERIFICATION_REQUIRED",
+-        )
+-    if "human_qr_required" in lowered:
+-        return "HUMAN_QR_REQUIRED", "authoritative_session_required_qr", "CHAT_LOGIN_REQUIRED"
+-    if "session_expired" in lowered or "login_required" in lowered:
+-        return "SESSION_EXPIRED", "chat_session_expired", "CHAT_LOGIN_REQUIRED"
+-    if "400600001" in text_body:
+-        return "RATE_LIMITED", "chat_rate_limited", "CHAT_RATE_LIMITED"
+-    if "timeout" in lowered or "network" in lowered:
+-        return "TEMPORARY_FAILURE", "temporary_network", "CHAT_TEMPORARY_FAILURE"
+-    if "disconnect" in lowered or "closed" in lowered:
+-        return "DISCONNECTED", "chat_disconnected", "CHAT_TEMPORARY_FAILURE"
+-    return "TEMPORARY_FAILURE", "chat_read_failed", "CHAT_UNKNOWN_AUTH_FAILURE"
+-
+-
+ class GoofishImClient:
+     """闲鱼IM WebSocket客户端，用于获取会话列表和聊天记录"""
+ 
+@@ -181,19 +91,11 @@
+         self.account_id = account_id
+         self.account_row_id = account_row_id
+         self.cookies_str = cookies_str
+-        self.auth_fingerprint = auth_convergence_fingerprint(cookies_str)
+         self.cookies: Dict[str, str] = trans_cookies(cookies_str)
+         self.myid: str = self.cookies.get("unb", "")
+         self.device_id: str = generate_device_id(self.myid)
+         self.token: str = ""
+         self._captcha_token_cache_saved = False
+-        self.last_auth_state: str = "PENDING"
+-        self.last_auth_reason: str = "chat_auth_pending"
+-        self.last_auth_error_code: str = ""
+-        # 官方平台 challenge URL 只保留在当前 Backend 内存，绝不写日志/Evidence/数据库。
+-        self.last_verification_url: str = ""
+-        self.last_connect_stage: str = "NOT_STARTED"
+-        self.connect_stage_durations_ms: Dict[str, int] = {}
+ 
+         # WebSocket相关
+         self._ws: Optional[aiohttp.ClientWebSocketResponse] = None
+@@ -221,12 +123,7 @@
+         """
+         try:
+             # 1. 获取IM Token
+-            self.last_connect_stage = "TOKEN_FETCH"
+-            stage_started = time.monotonic()
+             self.token = await self._get_im_token()
+-            self.connect_stage_durations_ms["TOKEN_FETCH_DURATION"] = int(
+-                (time.monotonic() - stage_started) * 1000
+-            )
+             if not self.token:
+                 logger.error(f"【{self.account_id}】获取IM Token失败")
+                 return False
+@@ -249,8 +146,6 @@
+                 "Accept-Language": "zh-CN,zh;q=0.9",
+             }
+             self._session = aiohttp.ClientSession()
+-            self.last_connect_stage = "WEBSOCKET_OPEN"
+-            stage_started = time.monotonic()
+             # 超时策略（应对 wss:// 网络抖动）：
+             # - total=None:      WebSocket 是长连接，原 total=30 会强制 30 秒后断开整个会话
+             # - connect=30:      TCP + SSL/TLS 握手 + 连接池等待的超时（关键！wss 的 TLS 握手由此覆盖）
+@@ -263,14 +158,11 @@
+                 heartbeat=30,
+                 timeout=aiohttp.ClientTimeout(
+                     total=None,
+-                    connect=WS_CONNECT_TIMEOUT,
+-                    sock_connect=WS_CONNECT_TIMEOUT,
++                    connect=30,
++                    sock_connect=30,
+                     sock_read=None,
+                 ),
+             )
+-            self.connect_stage_durations_ms["WEBSOCKET_OPEN_DURATION"] = int(
+-                (time.monotonic() - stage_started) * 1000
+-            )
+             self._connected = True
+             logger.info(f"【{self.account_id}】WebSocket连接成功")
+ 
+@@ -278,44 +170,19 @@
+             self._recv_task = asyncio.create_task(self._recv_loop())
+ 
+             # 4. 注册
+-            self.last_connect_stage = "IM_REGISTER"
+-            stage_started = time.monotonic()
+             await self._register()
+-            self.connect_stage_durations_ms["IM_REGISTER_DURATION"] = int(
+-                (time.monotonic() - stage_started) * 1000
+-            )
+             self._registered = True
+             logger.info(f"【{self.account_id}】IM注册成功")
+ 
+             # 5. 注册后冷却（防止立即请求触发IM流控 400600001）
+-            self.last_connect_stage = "POST_REGISTER_COOLDOWN"
+-            stage_started = time.monotonic()
+-            await asyncio.sleep(POST_REGISTER_COOLDOWN_SECONDS)
+-            self.connect_stage_durations_ms["POST_REGISTER_COOLDOWN_DURATION"] = int(
+-                (time.monotonic() - stage_started) * 1000
+-            )
++            await asyncio.sleep(3)
+ 
+             # 6. 启动心跳
+             self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+-            self.last_connect_stage = "READY"
+-            self.last_auth_state = "READY"
+-            self.last_auth_reason = "chat_business_connect_ready"
+-            self.last_auth_error_code = ""
+-            self.last_verification_url = ""
++
+             return True
+ 
+-        except asyncio.CancelledError:
+-            self.last_auth_state = "TEMPORARY_FAILURE"
+-            self.last_auth_reason = "chat_connect_cancelled"
+-            self.last_auth_error_code = "CHAT_CONNECT_TIMEOUT"
+-            await self.disconnect()
+-            raise
+         except Exception as e:
+-            if not self.last_auth_error_code:
+-                state, reason, error_code = _classify_chat_readiness_failure(e)
+-                self.last_auth_state = state
+-                self.last_auth_reason = reason
+-                self.last_auth_error_code = error_code
+             logger.error(f"【{self.account_id}】IM连接失败: {e}")
+             await self.disconnect()
+             return False
+@@ -389,7 +256,6 @@
+         if start_timestamp is None:
+             start_timestamp = 9007199254740991  # Number.MAX_SAFE_INTEGER
+ 
+-        body: Dict[str, Any] = {}
+         max_retries = 3
+         for attempt in range(max_retries):
+             mid = generate_mid()
+@@ -411,33 +277,9 @@
+                 await asyncio.sleep(wait_sec)
+                 continue
+ 
+-            if isinstance(body, dict) and "reason" in body:
+-                state, reason, error_code = _classify_chat_readiness_failure(body)
+-                await _record_chat_readiness(
+-                    account_id=self.account_id,
+-                    state=state,
+-                    reason=reason,
+-                    auth_fingerprint=getattr(self, "auth_fingerprint", ""),
+-                    error_code=error_code,
+-                )
+-            else:
+-                await _record_chat_readiness(
+-                    account_id=self.account_id,
+-                    state="READY",
+-                    reason="conversation_read_success",
+-                    auth_fingerprint=getattr(self, "auth_fingerprint", ""),
+-                )
+             return body
+ 
+         # 重试耗尽，返回最后一次结果
+-        state, reason, error_code = _classify_chat_readiness_failure(body)
+-        await _record_chat_readiness(
+-            account_id=self.account_id,
+-            state=state,
+-            reason=reason,
+-            auth_fingerprint=getattr(self, "auth_fingerprint", ""),
+-            error_code=error_code,
+-        )
+         return body
+ 
+     async def get_messages(
+@@ -810,7 +652,6 @@
+             if new_cookies:
+                 merged_str = merge_cookies(self.cookies_str, new_cookies)
+                 self.cookies_str = merged_str
+-                self.auth_fingerprint = auth_convergence_fingerprint(merged_str)
+                 self.cookies = trans_cookies(merged_str)
+                 cookie_saved = await update_account_cookies_in_db(
+                     self.account_id,
+@@ -836,31 +677,19 @@
+                     )
+                     return await self._fetch_im_token_from_api(_retry=_retry + 1)
+                 else:
+-                    self.last_auth_state = "SESSION_EXPIRED"
+-                    self.last_auth_reason = "chat_session_expired"
+                     logger.error(f"【{self.account_id}】令牌过期重试已达上限，放弃获取Token")
+                     return ""
+ 
+-            # 恢复 Upstream ChatNew 原生链路：Token 响应触发平台验证时，先委托现有
+-            # WebSocket captcha owner；成功后最多重试一次 Token，失败则结构化停在 PVR。
++            # 检查是否触发风控滑块验证（如"哎哟喂,被挤爆啦"），委托过滑块后用新Cookie重试
+             if self._is_captcha_required(ret_str, result):
+-                self.last_verification_url = extract_token_captcha_url(result) or ""
+                 if _captcha_retry >= CAPTCHA_MAX_RETRY:
+-                    self.last_auth_state = "PLATFORM_VERIFICATION_REQUIRED"
+-                    self.last_auth_reason = "platform_verification_required"
+-                    self.last_auth_error_code = "CHAT_PLATFORM_VERIFICATION_REQUIRED"
+-                    logger.error(
+-                        f"【{self.account_id}】过滑块重试已达上限，放弃获取Token"
+-                    )
++                    logger.error(f"【{self.account_id}】过滑块重试已达上限，放弃获取Token")
+                     return ""
+                 if not await self._solve_captcha_via_websocket(result):
+-                    self.last_auth_state = "PLATFORM_VERIFICATION_REQUIRED"
+-                    self.last_auth_reason = "platform_verification_required"
+-                    self.last_auth_error_code = "CHAT_PLATFORM_VERIFICATION_REQUIRED"
+                     logger.error(f"【{self.account_id}】过滑块失败，放弃获取Token")
+                     return ""
+                 logger.warning(
+-                    f"【{self.account_id}】过滑块成功，准备使用新Cookie重试获取Token"
++                    f"【{self.account_id}】过滑块成功，准备用新Cookie重试获取Token"
+                     f"（第{_captcha_retry + 1}次）"
+                 )
+                 if self._captcha_token_cache_saved:
+@@ -868,15 +697,15 @@
+                     if cached:
+                         self.device_id = cached["device_id"]
+                         logger.info(
+-                            f"【{self.account_id}】使用WebSocket验证写入的聊天Token缓存"
++                            f"【{self.account_id}】使用WebSocket端已写入的聊天Token缓存"
+                         )
+                         return cached["token"]
+                     logger.warning(
+                         f"【{self.account_id}】WebSocket端报告Token缓存写入成功，"
+-                        "但当前未读取到有效缓存，继续调用Token接口"
++                        "但本地未读取到有效缓存，继续重试Token接口"
+                     )
+                     self._captcha_token_cache_saved = False
+-                # 只确认旧缓存已失效；条件更新不会覆盖验证流程刚写入的新 Token。
++                # 仅确认旧缓存已失效；条件更新不会覆盖其他流程刚写入的新 Token。
+                 await self._mark_cached_token_expired()
+                 return await self._fetch_im_token_from_api(
+                     _retry=_retry, _captcha_retry=_captcha_retry + 1
+@@ -884,10 +713,6 @@
+ 
+             access_token = extract_im_access_token(result) or ""
+             if not access_token:
+-                state, reason, error_code = _classify_chat_readiness_failure(result)
+-                self.last_auth_state = state
+-                self.last_auth_reason = reason
+-                self.last_auth_error_code = error_code
+                 logger.error(
+                     f"【{self.account_id}】Token响应异常: "
+                     f"{json.dumps(result, ensure_ascii=False)[:300]}"
+@@ -895,9 +720,6 @@
+             return access_token
+ 
+         except Exception as e:
+-            self.last_auth_state = "TEMPORARY_FAILURE"
+-            self.last_auth_reason = "chat_auth_exception"
+-            self.last_auth_error_code = "CHAT_TEMPORARY_FAILURE"
+             logger.error(f"【{self.account_id}】获取IM Token异常: {e}")
+             return ""
+ 
+@@ -995,7 +817,6 @@
+                     return False
+             self.cookies = merged_cookies
+             self.cookies_str = merged_cookies_str
+-            self.auth_fingerprint = auth_convergence_fingerprint(merged_cookies_str)
+             logger.info(
+                 f"【{self.account_id}】过滑块成功，已合并 {len(new_cookies)} 个Cookie，"
+                 f"数据库写入方={'WebSocket端' if cookie_saved_by_websocket else '聊天端'}"
+@@ -1031,9 +852,7 @@
+         }
+ 
+         try:
+-            reg_response = await self._send_and_wait(
+-                reg_mid, reg_msg, timeout=REGISTER_RESPONSE_TIMEOUT
+-            )
++            reg_response = await self._send_and_wait(reg_mid, reg_msg, timeout=5)
+             reg_code = reg_response.get("code", 0)
+             logger.info(
+                 f"【{self.account_id}】注册响应: code={reg_code}, "
+diff --git a/backend-web/app/services/chat_new/im_session_manager.py b/backend-web/app/services/chat_new/im_session_manager.py
+--- a/backend-web/app/services/chat_new/im_session_manager.py
++++ b/backend-web/app/services/chat_new/im_session_manager.py
+@@ -10,54 +10,16 @@
+ """
+ import asyncio
+ import json
+-import time
+-from datetime import timedelta
+ from typing import Any, Callable, Dict, List, Optional, Set
+ 
+ from loguru import logger
+-from sqlalchemy import select, text
++from sqlalchemy import select
+ from starlette.websockets import WebSocket
+ 
+ from common.db.session import async_session_maker
+ from common.models import XYAccount
+-from common.services.token_renewal_cache_service import mark_token_cache_expired
+-from common.utils.cookie_refresh import auth_convergence_fingerprint
+-from common.core.config import get_settings
+-from common.utils.time_utils import (
+-    TOKEN_CACHE_EXPIRY_JITTER_MAX_SECONDS,
+-    get_beijing_now_naive,
+-)
+-from common.utils.xianyu_utils import trans_cookies
+-
+-from .im_client import (
+-    POST_REGISTER_COOLDOWN_SECONDS,
+-    REGISTER_RESPONSE_TIMEOUT,
+-    REQUEST_TIMEOUT,
+-    WS_CONNECT_TIMEOUT,
+-    GoofishImClient,
+-    _record_chat_readiness,
+-)
+-
+-
+-# 正常 Chat connect 的最大等待预算来自现有 owner 的真实阶段 timeout：
+-# 本地 Token 20s + 远程 fallback 20s + WS open 30s + register 5s + cooldown 3s = 78s。
+-# 它必须小于前端全局 90s，保证 Backend 先返回结构化结果。
+-CHAT_CONNECT_DEADLINE_SECONDS = (
+-    REQUEST_TIMEOUT * 2
+-    + WS_CONNECT_TIMEOUT
+-    + REGISTER_RESPONSE_TIMEOUT
+-    + POST_REGISTER_COOLDOWN_SECONDS
+-)
+-
+-class ChatConnectError(Exception):
+-    """Structured existing-Chat connect failure; no second Chat status system."""
+-
+-    def __init__(self, error_code: str, message: str, *, state: str, reason: str):
+-        super().__init__(message)
+-        self.error_code = error_code
+-        self.public_message = message
+-        self.state = state
+-        self.reason = reason
++
++from .im_client import GoofishImClient
+ 
+ 
+ class ImSessionManager:
+@@ -68,10 +30,7 @@
+     def __init__(self):
+         # account_id -> GoofishImClient
+         self.clients: Dict[str, GoofishImClient] = {}
+-        # 同账号 single-flight；不同账号不再被一个慢网络 connect 的全局锁串死。
+-        self._connect_locks: Dict[str, asyncio.Lock] = {}
+-        self._connect_activity: Dict[str, dict[str, Any]] = {}
+-        self._last_connect_diagnostics: Dict[str, dict[str, Any]] = {}
++        self._lock = asyncio.Lock()
+         # 前端 WebSocket 客户端: account_id -> Set[WebSocket]
+         self._ws_clients: Dict[str, Set[WebSocket]] = {}
+ 
+@@ -82,405 +41,50 @@
+             cls._instance = ImSessionManager()
+         return cls._instance
+ 
+-    def _get_connect_lock(self, account_id: str) -> asyncio.Lock:
+-        lock = self._connect_locks.get(account_id)
+-        if lock is None:
+-            lock = asyncio.Lock()
+-            self._connect_locks[account_id] = lock
+-        return lock
+-
+-    def get_last_connect_diagnostics(self, account_id: str) -> dict[str, Any]:
+-        return dict(self._last_connect_diagnostics.get(account_id) or {})
+-
+     async def get_or_connect(self, account_id: str) -> GoofishImClient:
+-        """Get/reuse the existing ChatNew client with per-account single-flight."""
+-        lock = self._get_connect_lock(account_id)
+-        lock_wait_started = time.monotonic()
+-        async with lock:
+-            lock_wait_ms = int((time.monotonic() - lock_wait_started) * 1000)
+-            started = time.monotonic()
+-            deadline_at = (
+-                get_beijing_now_naive() + timedelta(seconds=CHAT_CONNECT_DEADLINE_SECONDS)
+-            ).isoformat()
+-            self._connect_activity[account_id] = {
+-                "active": True,
+-                "started_at": get_beijing_now_naive().isoformat(),
+-                "deadline_at": deadline_at,
+-                "stage": "DB_ACCOUNT_LOAD",
+-                "lock_wait_ms": lock_wait_ms,
+-            }
+-            client: GoofishImClient | None = None
+-            try:
+-                db_started = time.monotonic()
+-                account_context = await self._get_account_context(account_id)
+-                db_duration_ms = int((time.monotonic() - db_started) * 1000)
+-                if not account_context:
+-                    raise ChatConnectError(
+-                        "CHAT_LOGIN_REQUIRED",
+-                        "账号登录信息不可用，需要重新登录",
+-                        state="SESSION_EXPIRED",
+-                        reason="account_cookie_missing",
+-                    )
+-                if len(account_context) == 2:  # 兼容旧测试/调用桩；生产查询始终返回 status。
+-                    account_row_id, cookies_str = account_context
+-                    account_status = "active"
+-                else:
+-                    account_row_id, cookies_str, account_status = account_context
+-                if account_status != "active":
+-                    raise ChatConnectError(
+-                        "ACCOUNT_DISABLED",
+-                        "账号已停用，不能连接在线聊天",
+-                        state="DISABLED",
+-                        reason="account_disabled",
+-                    )
+-                current_fingerprint = auth_convergence_fingerprint(cookies_str)
+-
+-                existing = self.clients.get(account_id)
+-                if existing and existing.is_connected:
+-                    if getattr(existing, "auth_fingerprint", "") == current_fingerprint:
+-                        self._last_connect_diagnostics[account_id] = {
+-                            "result": "REUSED_CONNECTED_CLIENT",
+-                            "duration_ms": int((time.monotonic() - started) * 1000),
+-                            "DB_ACCOUNT_LOAD_DURATION": db_duration_ms,
+-                            "LOCK_WAIT_DURATION": lock_wait_ms,
+-                            "stage": "READY",
+-                        }
+-                        return existing
+-                    logger.warning(
+-                        f"【{account_id}】IM会话Cookie指纹已变化，断开旧Chat客户端后重建"
+-                    )
+-                if existing:
+-                    await existing.disconnect()
+-                    self.clients.pop(account_id, None)
+-
+-                client = GoofishImClient(
+-                    account_id,
+-                    cookies_str,
+-                    account_row_id=account_row_id,
+-                )
+-                self._connect_activity[account_id]["stage"] = "IM_CLIENT_CONNECT"
+-                try:
+-                    success = await asyncio.wait_for(
+-                        client.connect(),
+-                        timeout=CHAT_CONNECT_DEADLINE_SECONDS,
+-                    )
+-                except asyncio.TimeoutError as exc:
+-                    await client.disconnect()
+-                    await _record_chat_readiness(
+-                        account_id=account_id,
+-                        state="TEMPORARY_FAILURE",
+-                        reason="chat_connect_timeout",
+-                        auth_fingerprint=current_fingerprint,
+-                        error_code="CHAT_CONNECT_TIMEOUT",
+-                    )
+-                    raise ChatConnectError(
+-                        "CHAT_CONNECT_TIMEOUT",
+-                        "连接闲鱼聊天超时，请稍后重试",
+-                        state="TEMPORARY_FAILURE",
+-                        reason="chat_connect_timeout",
+-                    ) from exc
+-
+-                stage_durations = dict(getattr(client, "connect_stage_durations_ms", {}) or {})
+-                last_stage = str(getattr(client, "last_connect_stage", "") or "")
+-                if not success:
+-                    state = str(getattr(client, "last_auth_state", "TEMPORARY_FAILURE") or "TEMPORARY_FAILURE")
+-                    reason = str(getattr(client, "last_auth_reason", "chat_connect_failed") or "chat_connect_failed")
+-                    error_code = str(getattr(client, "last_auth_error_code", "") or "CHAT_UNKNOWN_AUTH_FAILURE")
+-                    await _record_chat_readiness(
+-                        account_id=account_id,
+-                        state=state,
+-                        reason=reason,
+-                        auth_fingerprint=current_fingerprint,
+-                        error_code=error_code,
+-                    )
+-                    message = {
+-                        "CHAT_PLATFORM_VERIFICATION_REQUIRED": "平台要求验证，请先完成平台验证",
+-                        "CHAT_LOGIN_REQUIRED": "账号登录已失效，需要重新登录",
+-                        "CHAT_RATE_LIMITED": "请求频繁，请稍后重试",
+-                        "CHAT_CONNECT_TIMEOUT": "连接闲鱼聊天超时，请稍后重试",
+-                    }.get(error_code, "在线聊天暂不可用，请稍后重试")
+-                    raise ChatConnectError(
+-                        error_code,
+-                        message,
+-                        state=state,
+-                        reason=reason,
+-                    )
+-
+-                self.clients[account_id] = client
+-                await self._setup_push_callback_after_connect(account_id, client)
+-                await _record_chat_readiness(
+-                    account_id=account_id,
+-                    state="READY",
+-                    reason="chat_business_connect_ready",
+-                    auth_fingerprint=current_fingerprint,
+-                )
+-                self._last_connect_diagnostics[account_id] = {
+-                    "result": "CONNECTED",
+-                    "duration_ms": int((time.monotonic() - started) * 1000),
+-                    "DB_ACCOUNT_LOAD_DURATION": db_duration_ms,
+-                    "LOCK_WAIT_DURATION": lock_wait_ms,
+-                    **stage_durations,
+-                    "stage": "READY",
+-                }
+-                return client
+-            except ChatConnectError as exc:
+-                stage_durations = dict(getattr(client, "connect_stage_durations_ms", {}) or {}) if client else {}
+-                last_stage = str(getattr(client, "last_connect_stage", "") or "") if client else str(
+-                    self._connect_activity.get(account_id, {}).get("stage") or "UNKNOWN"
+-                )
+-                self._last_connect_diagnostics[account_id] = {
+-                    "result": "FAILED",
+-                    "error_code": exc.error_code,
+-                    "duration_ms": int((time.monotonic() - started) * 1000),
+-                    "LOCK_WAIT_DURATION": lock_wait_ms,
+-                    **stage_durations,
+-                    "stage": last_stage,
+-                }
+-                raise
+-            except asyncio.CancelledError:
+-                if client:
+-                    await client.disconnect()
+-                raise
+-            finally:
+-                self._connect_activity.pop(account_id, None)
+-
+-    async def invalidate_auth_consumers(self, account_id: str, cookies_str: str | None = None) -> dict[str, Any]:
+-        """
+-        Invalidate Chat auth state after an authoritative Cookie rotation.
+-
+-        This only uses the existing in-memory Chat client and token-cache expiry semantics.
+-        It does not delete cache rows or create another Session owner.
+-        """
+-        lock = self._get_connect_lock(account_id)
+-        async with lock:
+-            client = self.clients.pop(account_id, None)
+-            disconnected = False
+-            if client:
++        """
++        获取已连接的客户端，或新建连接
++
++        Args:
++            account_id: 账号ID
++
++        Returns:
++            已连接的GoofishImClient
++
++        Raises:
++            ValueError: 账号不存在或Cookie为空
++            Exception: 连接失败
++        """
++        async with self._lock:
++            # 已有连接且仍在线，直接返回
++            if account_id in self.clients:
++                client = self.clients[account_id]
++                if client.is_connected:
++                    return client
++                # 已断开，清理后重建
+                 await client.disconnect()
+-                disconnected = True
+-
+-        cookie_source = cookies_str
+-        if not cookie_source:
++                del self.clients[account_id]
++
++            # 从数据库获取账号行 ID 和 Cookie，供滑块成功后精准持久化。
+             account_context = await self._get_account_context(account_id)
+-            cookie_source = account_context[1] if account_context else ""
+-
+-        unb = ""
+-        try:
+-            unb = trans_cookies(cookie_source or "").get("unb", "")
+-        except Exception:
+-            unb = ""
+-
+-        token_cache_invalidated = False
+-        if unb:
+-            invalidation = await mark_token_cache_expired(
+-                token_user_id=f"chat_{unb}",
+-                invalidate_valid_cache=True,
++            if not account_context:
++                raise ValueError(f"账号Cookie为空: {account_id}")
++            account_row_id, cookies_str = account_context
++
++            # 创建并连接
++            client = GoofishImClient(
++                account_id,
++                cookies_str,
++                account_row_id=account_row_id,
+             )
+-            token_cache_invalidated = invalidation.success
+-            if not invalidation.success:
+-                logger.warning(f"【{account_id}】Chat Token缓存失效标记失败: {invalidation.message}")
+-
+-        logger.info(
+-            f"【{account_id}】Chat auth consumers invalidated: "
+-            f"client_disconnected={disconnected}, "
+-            f"chat_token_cache_invalidated={token_cache_invalidated}"
+-        )
+-        await self._mark_auth_consumer_readiness_pending(account_id, reason="qr_cookie_rotated")
+-        return {
+-            "client_disconnected": disconnected,
+-            "chat_token_cache_invalidated": token_cache_invalidated,
+-            "chat_token_cache_key_present": bool(unb),
+-        }
+-
+-    async def _mark_auth_consumer_readiness_pending(
+-        self,
+-        account_id: str,
+-        *,
+-        reason: str,
+-    ) -> None:
+-        try:
+-            async with async_session_maker() as session:
+-                result = await session.execute(
+-                    text(
+-                        "SELECT id, metadata FROM xy_accounts "
+-                        "WHERE account_id = :account_id ORDER BY id DESC LIMIT 1"
+-                    ),
+-                    {"account_id": account_id},
+-                )
+-                row = result.mappings().first()
+-                if not row:
+-                    return
+-                raw_metadata = row.get("metadata")
+-                if isinstance(raw_metadata, dict):
+-                    metadata = dict(raw_metadata)
+-                elif isinstance(raw_metadata, str) and raw_metadata.strip():
+-                    try:
+-                        parsed_metadata = json.loads(raw_metadata)
+-                        metadata = dict(parsed_metadata) if isinstance(parsed_metadata, dict) else {}
+-                    except Exception:
+-                        metadata = {}
+-                else:
+-                    metadata = {}
+-                session_state = dict(metadata.get("session_maintenance") or {})
+-                consumers = dict(session_state.get("consumers") or {})
+-                stamp = get_beijing_now_naive().isoformat()
+-                consumers["chat"] = {
+-                    "state": "PENDING",
+-                    "updated_at": stamp,
+-                    "reason": reason,
+-                }
+-                consumers["publish"] = {
+-                    "state": "PENDING",
+-                    "updated_at": stamp,
+-                    "reason": reason,
+-                }
+-                session_state["consumers"] = consumers
+-                metadata["session_maintenance"] = session_state
+-                await session.execute(
+-                    text("UPDATE xy_accounts SET metadata = :metadata WHERE id = :id"),
+-                    {"metadata": json.dumps(metadata, ensure_ascii=False), "id": row["id"]},
+-                )
+-                await session.commit()
+-        except Exception as exc:
+-            logger.warning(
+-                f"consumer readiness pending record failed: account_id={account_id}, error={exc}"
+-            )
+-
+-    async def read_only_diagnostic(self, account_id: str) -> dict[str, Any]:
+-        """Return a strict non-mutating Chat readiness snapshot.
+-
+-        This path never calls ``get_or_connect`` and therefore never refreshes Token,
+-        persists response Cookie, replaces an IM client, or mutates token cache state.
+-        """
+-        account_context = await self._get_account_context(account_id)
+-        current_fingerprint = auth_convergence_fingerprint(account_context[1]) if account_context else ""
+-        account_status = (
+-            account_context[2]
+-            if account_context and len(account_context) > 2
+-            else "active" if account_context else "missing"
+-        )
+-        client = self.clients.get(account_id)
+-        client_connected = bool(client and client.is_connected)
+-        client_fingerprint = str(getattr(client, "auth_fingerprint", "") or "") if client else ""
+-        client_matches = bool(
+-            client_connected
+-            and current_fingerprint
+-            and client_fingerprint == current_fingerprint
+-        )
+-
+-        state = "PENDING"
+-        reason = "chat_readiness_pending"
+-        error_code = ""
+-        updated_at = None
+-        try:
+-            async with async_session_maker() as session:
+-                result = await session.execute(
+-                    select(XYAccount).where(XYAccount.account_id == account_id)
+-                )
+-                account = result.scalar_one_or_none()
+-                metadata = dict(account.metadata_json or {}) if account else {}
+-                session_state = dict(metadata.get("session_maintenance") or {})
+-                consumers = dict(session_state.get("consumers") or {})
+-                chat = consumers.get("chat")
+-                if isinstance(chat, dict):
+-                    state = str(chat.get("state") or state)
+-                    reason = str(chat.get("reason") or reason)
+-                    updated_at = chat.get("updated_at")
+-                    error_code = str(chat.get("error_code") or "")
+-        except Exception as exc:
+-            logger.warning(f"【{account_id}】Chat只读诊断读取readiness失败: {exc}")
+-
+-        connect_activity = dict(self._connect_activity.get(account_id) or {})
+-        stored_fresh = False
+-        if updated_at:
+-            try:
+-                from datetime import datetime
+-
+-                stamp = datetime.fromisoformat(str(updated_at).replace("Z", "+00:00"))
+-                now = get_beijing_now_naive()
+-                if stamp.tzinfo is not None:
+-                    stamp = stamp.replace(tzinfo=None)
+-                settings = get_settings()
+-                freshness_seconds = int(
+-                    max(1.0, float(settings.token_cache_ttl_max_hours)) * 3600
+-                    + TOKEN_CACHE_EXPIRY_JITTER_MAX_SECONDS
+-                )
+-                stored_fresh = (now - stamp).total_seconds() <= freshness_seconds
+-            except Exception:
+-                stored_fresh = False
+-
+-        connect_active = bool(connect_activity.get("active"))
+-        if account_status != "active":
+-            effective_state = "DISABLED"
+-            effective_reason = "account_disabled"
+-            effective_error_code = "ACCOUNT_DISABLED"
+-            auto_recoverable = False
+-        elif client_matches:
+-            effective_state = "READY"
+-            effective_reason = "chat_runtime_client_ready"
+-            effective_error_code = ""
+-            auto_recoverable = True
+-        elif connect_active:
+-            effective_state = "CONNECTING"
+-            effective_reason = "chat_business_connect_active"
+-            effective_error_code = ""
+-            auto_recoverable = True
+-        elif state == "PLATFORM_VERIFICATION_REQUIRED" and stored_fresh:
+-            effective_state = "PLATFORM_VERIFICATION_REQUIRED"
+-            effective_reason = reason or "platform_verification_required"
+-            effective_error_code = error_code or "CHAT_PLATFORM_VERIFICATION_REQUIRED"
+-            auto_recoverable = False
+-        elif state in {"HUMAN_QR_REQUIRED", "SESSION_EXPIRED"} and stored_fresh:
+-            effective_state = "LOGIN_REQUIRED"
+-            effective_reason = reason or "chat_login_required"
+-            effective_error_code = error_code or "CHAT_LOGIN_REQUIRED"
+-            auto_recoverable = False
+-        elif (state == "RATE_LIMITED" or error_code == "CHAT_RATE_LIMITED") and stored_fresh:
+-            effective_state = "RATE_LIMITED"
+-            effective_reason = reason or "chat_rate_limited"
+-            effective_error_code = "CHAT_RATE_LIMITED"
+-            auto_recoverable = True
+-        elif state == "TEMPORARY_FAILURE" and stored_fresh:
+-            effective_state = "TEMPORARY_FAILURE"
+-            effective_reason = reason or "chat_temporary_failure"
+-            effective_error_code = error_code or "CHAT_TEMPORARY_FAILURE"
+-            auto_recoverable = True
+-        else:
+-            effective_state = "WAITING_CONNECT"
+-            effective_reason = (
+-                "chat_stored_readiness_stale"
+-                if state in {"READY", "PLATFORM_VERIFICATION_REQUIRED", "TEMPORARY_FAILURE", "RATE_LIMITED"}
+-                and updated_at
+-                and not stored_fresh
+-                else "chat_client_not_currently_connected"
+-            )
+-            effective_error_code = ""
+-            auto_recoverable = True
+-
+-        return {
+-            "state": state,
+-            "reason": reason,
+-            "error_code": error_code,
+-            "updated_at": updated_at,
+-            "stored_readiness_fresh": stored_fresh,
+-            "effective_state": effective_state,
+-            "effective_reason": effective_reason,
+-            "effective_error_code": effective_error_code,
+-            "auto_recoverable": auto_recoverable,
+-            "source": "chat_readiness_snapshot",
+-            "account_status": account_status,
+-            "client_exists": client is not None,
+-            "client_connected": client_connected,
+-            "client_fingerprint_matches": client_matches,
+-            "connect_active": connect_active,
+-            "connect_deadline_at": connect_activity.get("deadline_at"),
+-            "connect_stage": connect_activity.get("stage"),
+-            "cookie_fingerprint": current_fingerprint,
+-            "mutated_cookie": False,
+-            "mutated_token_cache": False,
+-            "replaced_client": False,
+-            "messages_sent": 0,
+-        }
++            success = await client.connect()
++            if not success:
++                raise Exception(f"IM连接失败: {account_id}")
++
++            self.clients[account_id] = client
++            # 连接成功后，如果有前端WS客户端在等待，挂载推送回调
++            await self._setup_push_callback_after_connect(account_id, client)
++            return client
+ 
+     async def disconnect(self, account_id: str):
+         """
+@@ -489,8 +93,7 @@
+         Args:
+             account_id: 账号ID
+         """
+-        lock = self._get_connect_lock(account_id)
+-        async with lock:
++        async with self._lock:
+             client = self.clients.pop(account_id, None)
+             if client:
+                 await client.disconnect()
+@@ -498,12 +101,14 @@
+ 
+     async def disconnect_all(self):
+         """断开所有连接"""
+-        for account_id in list(self.clients):
+-            try:
+-                await self.disconnect(account_id)
+-            except Exception as e:
+-                logger.warning(f"【{account_id}】断开连接异常: {e}")
+-        logger.info("所有IM会话已断开")
++        async with self._lock:
++            for account_id, client in list(self.clients.items()):
++                try:
++                    await client.disconnect()
++                except Exception as e:
++                    logger.warning(f"【{account_id}】断开连接异常: {e}")
++            self.clients.clear()
++            logger.info("所有IM会话已断开")
+ 
+     def get_connected_account_ids(self) -> list:
+         """获取所有已连接的账号ID列表"""
+@@ -585,7 +190,7 @@
+         if account_id in self._ws_clients and self._ws_clients[account_id]:
+             self._ensure_push_callback(account_id, client)
+ 
+-    async def _get_account_context(self, account_id: str) -> tuple[int, str, str] | None:
++    async def _get_account_context(self, account_id: str) -> tuple[int, str] | None:
+         """
+         从数据库获取账号行 ID 和 Cookie。
+ 
+@@ -593,7 +198,7 @@
+             account_id: 账号ID
+ 
+         Returns:
+-            ``(账号行ID, Cookie字符串, status)``，账号不存在或 Cookie 为空时返回 ``None``。
++            ``(账号行ID, Cookie字符串)``，账号不存在或 Cookie 为空时返回 ``None``。
+         """
+         try:
+             async with async_session_maker() as db:
+@@ -616,7 +221,7 @@
+                     )
+                     return None
+ 
+-                return int(account.id), account.cookie, str(account.status or "active").strip().lower()
++                return int(account.id), account.cookie
+ 
+         except Exception as e:
+             logger.error(f"【{account_id}】获取账号Cookie失败: {e}")
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+--- a/backend-web/app/api/routes/cookies.py
++++ b/backend-web/app/api/routes/cookies.py
+@@ -118,7 +118,11 @@
+     return "PENDING"
+ 
+ 
+-def _build_consumer_readiness(account: XYAccount, auto_reply_online: bool) -> dict[str, Any]:
++def _build_consumer_readiness(
++    account: XYAccount,
++    auto_reply_online: bool,
++    chat_runtime_status: dict[str, Any],
++) -> dict[str, Any]:
+     metadata = account.metadata_json if isinstance(account.metadata_json, dict) else {}
+     session_maintenance = metadata.get("session_maintenance")
+     if not isinstance(session_maintenance, dict):
+@@ -126,9 +130,9 @@
+ 
+     auto_reply_state = "READY" if auto_reply_online else "DISCONNECTED"
+     browser_state = _browser_state_from_session(session_maintenance)
+-    chat = _consumer_record(session_maintenance, "chat")
+     publish = _consumer_record(session_maintenance, "publish")
+     publish_state = _publish_state_from_session(session_maintenance)
++    chat_connected = bool(chat_runtime_status.get("connected"))
+ 
+     return {
+         "auto_reply_state": auto_reply_state,
+@@ -137,9 +141,9 @@
+         "browser_session_state": browser_state,
+         "browser_session_updated_at": session_maintenance.get("updated_at"),
+         "browser_session_reason": str(session_maintenance.get("failure_reason") or ""),
+-        "chat_state": chat["state"],
+-        "chat_updated_at": chat["updated_at"],
+-        "chat_reason": chat["reason"],
++        "chat_state": "READY" if chat_connected else "WAITING_CONNECT",
++        "chat_updated_at": None,
++        "chat_reason": "chat_runtime_client_ready" if chat_connected else "chat_client_not_currently_connected",
+         "publish_state": publish_state,
+         "publish_updated_at": publish["updated_at"],
+         "publish_reason": publish["reason"],
+@@ -208,28 +212,18 @@
+         return False, True
+ 
+ 
+-async def _load_chat_read_only_diagnostics(
++async def _load_chat_runtime_statuses(
+     accounts: list[XYAccount],
+ ) -> dict[str, dict[str, Any]]:
+-    """Read current Chat client/readiness facts without business authentication."""
++    """Expose latest-upstream Chat runtime connectivity without auth or legacy PVR state."""
+     from app.services.chat_new.im_session_manager import get_im_session_manager
+ 
+-    manager = get_im_session_manager()
+-    targets = [account for account in accounts if _status_to_enabled(account.status)]
+-
+-    async def _read_one(account: XYAccount) -> tuple[str, dict[str, Any]]:
+-        try:
+-            result = await asyncio.wait_for(
+-                manager.read_only_diagnostic(account.account_id),
+-                timeout=1.0,
+-            )
+-            return account.account_id, result if isinstance(result, dict) else {}
+-        except Exception:
+-            return account.account_id, {}
+-
+-    if not targets:
+-        return {}
+-    return dict(await asyncio.gather(*(_read_one(account) for account in targets)))
++    connected_ids = set(get_im_session_manager().get_connected_account_ids())
++    return {
++        account.account_id: {"connected": account.account_id in connected_ids}
++        for account in accounts
++        if _status_to_enabled(account.status)
++    }
+ 
+ 
+ async def _load_websocket_task_statuses(
+@@ -273,7 +267,7 @@
+ def _build_business_capabilities(
+     account: XYAccount,
+     ws_status: dict[str, Any],
+-    chat_diagnostic: dict[str, Any],
++    chat_runtime_status: dict[str, Any],
+     checked_at: str,
+ ) -> dict[str, Any]:
+     enabled = _status_to_enabled(account.status)
+@@ -281,7 +275,6 @@
+     session_maintenance = metadata.get("session_maintenance")
+     if not isinstance(session_maintenance, dict):
+         session_maintenance = {}
+-    chat = _consumer_record(session_maintenance, "chat")
+     publish = _consumer_record(session_maintenance, "publish")
+     restriction = _build_platform_restriction(account)
+ 
+@@ -339,74 +332,15 @@
+             deadline_at=ws_recovery_deadline,
+         )
+ 
+-    auth_convergence = metadata.get("auth_convergence")
+-    if not isinstance(auth_convergence, dict):
+-        auth_convergence = {}
+-    chat_recovery_active, chat_recovery_expired = _bounded_operation_active(
+-        auth_convergence,
+-        active_key="recovery_active",
+-        deadline_key="recovery_deadline_at",
+-    )
+-    chat_recovery_deadline = auth_convergence.get("recovery_deadline_at")
+-    chat_state = str(chat.get("state") or "PENDING")
+-    chat_reason = str(chat.get("reason") or "chat_readiness_pending")
+-    chat_checked_at = chat.get("updated_at") or chat_diagnostic.get("updated_at")
+-
+-    # Chat 用户态由现有 ImSessionManager strict diagnostic 计算 current usability。
+-    # 历史 READY 没有 live client 时绝不能继续假绿；Account GET 仍严格只读。
+-    effective_chat_state = str(chat_diagnostic.get("effective_state") or "")
+-    effective_chat_reason = str(chat_diagnostic.get("effective_reason") or "")
+-    effective_chat_auto_recoverable = bool(chat_diagnostic.get("auto_recoverable", True))
+-    chat_connect_active = bool(chat_diagnostic.get("connect_active"))
+-    chat_connect_deadline = chat_diagnostic.get("connect_deadline_at")
+-    if not effective_chat_state:
+-        if bool(
+-            chat_diagnostic.get("client_connected")
+-            and chat_diagnostic.get("client_fingerprint_matches")
+-        ):
+-            effective_chat_state = "READY"
+-            effective_chat_reason = "chat_runtime_client_ready"
+-        elif bool(chat_diagnostic.get("connect_active")) or chat_recovery_active:
+-            effective_chat_state = "CONNECTING"
+-            effective_chat_reason = chat_reason or "auth_convergence_active"
+-        elif chat_state == "PLATFORM_VERIFICATION_REQUIRED":
+-            effective_chat_state = "PLATFORM_VERIFICATION_REQUIRED"
+-            effective_chat_reason = chat_reason or "platform_verification_required"
+-            effective_chat_auto_recoverable = False
+-        elif chat_state in {"HUMAN_QR_REQUIRED", "SESSION_EXPIRED"}:
+-            effective_chat_state = "LOGIN_REQUIRED"
+-            effective_chat_reason = chat_reason or "chat_login_required"
+-            effective_chat_auto_recoverable = False
+-        elif chat_state == "TEMPORARY_FAILURE":
+-            effective_chat_state = "TEMPORARY_FAILURE"
+-            effective_chat_reason = chat_reason or "chat_temporary_failure"
+-        else:
+-            # 包括 stored READY/PENDING：没有当前 runtime 证据只能“待连接”。
+-            effective_chat_state = "WAITING_CONNECT"
+-            effective_chat_reason = "chat_client_not_currently_connected"
+-
+-    chat_labels = {
+-        "READY": "可用",
+-        "CONNECTING": "连接中",
+-        "RECOVERING": "恢复中",
+-        "WAITING_CONNECT": "待连接",
+-        "DISCONNECTED": "待连接",
+-        "TEMPORARY_FAILURE": "暂不可用",
+-        "LOGIN_REQUIRED": "需登录",
+-        "PLATFORM_VERIFICATION_REQUIRED": "需平台验证",
+-        "RATE_LIMITED": "请求频繁，稍后重试",
+-        "DISABLED": "停用",
+-        "UNKNOWN": "未知",
+-    }
++    chat_connected = bool(chat_runtime_status.get("connected"))
++    effective_chat_state = "READY" if chat_connected else "WAITING_CONNECT"
+     chat_capability = _business_capability(
+         state=effective_chat_state,
+-        label=chat_labels.get(effective_chat_state, "未知"),
+-        reason=effective_chat_reason or "chat_state_unknown",
+-        source="chat_read_only_runtime",
+-        last_checked_at=(checked_at if effective_chat_state in {"READY", "CONNECTING"} else chat_checked_at),
+-        auto_recoverable=effective_chat_auto_recoverable,
+-        recovery_active=chat_connect_active or chat_recovery_active,
+-        deadline_at=chat_connect_deadline or chat_recovery_deadline,
++        label="可用" if chat_connected else "待连接",
++        reason="chat_runtime_client_ready" if chat_connected else "chat_client_not_currently_connected",
++        source="latest_upstream_chat_runtime",
++        last_checked_at=checked_at,
++        auto_recoverable=True,
+     )
+ 
+     restriction_state = str(restriction.get("platform_restriction_state") or "UNKNOWN")
+@@ -727,9 +661,9 @@
+         owner_username=owner_username,
+     )
+     checked_at = get_beijing_now_naive().isoformat()
+-    websocket_statuses, chat_diagnostics = await asyncio.gather(
++    websocket_statuses, chat_runtime_statuses = await asyncio.gather(
+         _load_websocket_task_statuses(accounts, online_ids),
+-        _load_chat_read_only_diagnostics(accounts),
++        _load_chat_runtime_statuses(accounts),
+     )
+     
+     # 获取所有账号的消息过滤规则数量
+@@ -780,12 +714,13 @@
+     for account in accounts:
+         ai_settings = (account.metadata_json or {}).get("ai_reply_settings") or {}
+         auto_reply_online = account.account_id in online_ids
+-        consumer_readiness = _build_consumer_readiness(account, auto_reply_online)
++        chat_runtime_status = chat_runtime_statuses.get(account.account_id, {})
++        consumer_readiness = _build_consumer_readiness(account, auto_reply_online, chat_runtime_status)
+         platform_restriction = _build_platform_restriction(account)
+         business_capabilities = _build_business_capabilities(
+             account,
+             websocket_statuses.get(account.account_id, {}),
+-            chat_diagnostics.get(account.account_id, {}),
++            chat_runtime_status,
+             checked_at,
+         )
+         details.append({
+diff --git a/backend-web/app/services/websocket_client.py b/backend-web/app/services/websocket_client.py
+--- a/backend-web/app/services/websocket_client.py
++++ b/backend-web/app/services/websocket_client.py
+@@ -102,24 +102,6 @@
+         except Exception as e:
+             logger.error(f"查询账号任务状态失败: {account_id}, 错误: {e}")
+             return {"success": False, "message": f"查询账号任务状态失败: {str(e)}"}
+-
+-    async def open_human_verification(self, account_id: str) -> dict:
+-        """Open the allowlisted fixed-action human browser for one owned account."""
+-        url = f"{self.base_url}/internal/accounts/{account_id}/human-verification/open"
+-        try:
+-            return await self.http_client.post(url, json={})
+-        except Exception as e:
+-            logger.error(f"Open human verification failed: {account_id}, {type(e).__name__}")
+-            return {"success": False, "message": f"HUMAN_BROWSER_REQUEST_FAILED:{type(e).__name__}"}
+-
+-    async def recheck_after_human_verification(self, account_id: str) -> dict:
+-        """Perform one explicit canonical Profile health probe; no Token/Chat/WS restart."""
+-        url = f"{self.base_url}/internal/accounts/{account_id}/human-verification/recheck"
+-        try:
+-            return await self.http_client.post(url, json={})
+-        except Exception as e:
+-            logger.error(f"Human verification recheck failed: {account_id}, {type(e).__name__}")
+-            return {"success": False, "message": f"HUMAN_RECHECK_REQUEST_FAILED:{type(e).__name__}"}
+ 
+     async def send_message(self, account_id: str, chat_id: str, content: str, message_type: str = "text") -> dict:
+         """发送消息
+diff --git a/common/utils/cookie_refresh.py b/common/utils/cookie_refresh.py
+--- a/common/utils/cookie_refresh.py
++++ b/common/utils/cookie_refresh.py
+@@ -70,33 +70,6 @@
+     normalized = normalize_cookie_string(cookie_string or "")
+     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+ 
+-
+-# Browser health can legitimately rotate these short-lived browser/session telemetry
+-# fields while the account authentication identity remains unchanged. They must not
+-# create a new consumer-auth generation by themselves.
+-_CONSUMER_AUTH_EPHEMERAL_COOKIE_NAMES = frozenset({"atpsida", "sca", "tfstk"})
+-
+-
+-def auth_convergence_fingerprint(cookie_string: str) -> str:
+-    """Fingerprint auth-relevant Cookie state for consumer convergence.
+-
+-    This does not change Cookie storage. It only canonicalizes field order and ignores
+-    runtime-proven volatile browser fields that rotate during a read-only Browser
+-    health check. Authentication/verification Cookie changes remain part of the hash.
+-    """
+-    try:
+-        parsed = parse_cookie_string(cookie_string or "")
+-    except Exception:
+-        parsed = {}
+-    if parsed:
+-        normalized = "; ".join(
+-            f"{name}={parsed[name]}"
+-            for name in sorted(parsed)
+-            if name not in _CONSUMER_AUTH_EPHEMERAL_COOKIE_NAMES
+-        )
+-    else:
+-        normalized = normalize_cookie_string(cookie_string or "")
+-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+ 
+ 
+ def get_session_maintenance_state(metadata_json: dict[str, Any] | None) -> dict[str, Any]:
+diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
+--- a/websocket/app/api/routes/internal.py
++++ b/websocket/app/api/routes/internal.py
+@@ -2664,147 +2664,6 @@
+ 
+ 
+ 
+-@router.post("/accounts/{account_id}/human-verification/open")
+-async def open_human_verification(account_id: str):
+-    """Open exactly one fixed-action headed browser for an account already waiting on PVR."""
+-    from app.services.xianyu.cookie_manager import get_manager
+-    from common.services.cookie_renew_browser_service import cookie_renew_browser_service
+-
+-    manager = get_manager()
+-    status = manager.get_task_status(account_id)
+-    persisted = manager.platform_verification_states.get(account_id)
+-    if not status.get("platform_verification_required") and not persisted:
+-        return {
+-            "success": False,
+-            "code": 409,
+-            "message": "PLATFORM_VERIFICATION_REQUIRED_STATE_REQUIRED",
+-            "data": {"account_id": account_id, "human_browser_visible": False},
+-        }
+-
+-    result = await cookie_renew_browser_service.open_human_verification(account_id)
+-    state = str(result.get("state") or "HUMAN_BROWSER_START_FAILED")
+-    return {
+-        "success": bool(result.get("success")),
+-        "code": 200 if result.get("success") else 409,
+-        "message": state,
+-        "data": {
+-            "account_id": account_id,
+-            "state": state,
+-            "human_browser_visible": bool(result.get("human_browser_visible")),
+-            "canonical_profile_reused": bool(result.get("canonical_profile_reused")),
+-            "official_url_only": bool(result.get("official_url_only")),
+-            "waiting_for_real_user_official_verification": bool(
+-                result.get("waiting_for_real_user_official_verification")
+-            ),
+-        },
+-    }
+-
+-
+-@router.post("/accounts/{account_id}/human-verification/recheck")
+-async def recheck_after_human_verification(account_id: str):
+-    """Explicit one-shot canonical Profile health probe after the real user finishes verification."""
+-    from sqlalchemy.orm.attributes import flag_modified
+-    from app.services.xianyu.cookie_manager import get_manager
+-    from common.db.session import async_session_maker
+-    from common.services.cookie_renew_browser_service import cookie_renew_browser_service
+-    from common.utils.cookie_refresh import get_account_by_identity, update_account_cookies_in_db
+-
+-    manager = get_manager()
+-    status = manager.get_task_status(account_id)
+-    persisted = manager.platform_verification_states.get(account_id)
+-    if not status.get("platform_verification_required") and not persisted:
+-        return {
+-            "success": False,
+-            "code": 409,
+-            "message": "PLATFORM_VERIFICATION_REQUIRED_STATE_REQUIRED",
+-            "data": {"account_id": account_id, "recheck_performed": False},
+-        }
+-
+-    async with async_session_maker() as session:
+-        account = await get_account_by_identity(account_id, session=session)
+-        if not account:
+-            return {
+-                "success": False,
+-                "code": 404,
+-                "message": "ACCOUNT_NOT_FOUND",
+-                "data": None,
+-            }
+-        current_cookie = str(account.cookie or "")
+-        owner_id = getattr(account, "owner_id", None)
+-
+-    result = await cookie_renew_browser_service.check_real_browser_login(
+-        current_cookie,
+-        account_id,
+-        sync_db_cookie_to_profile=False,
+-    )
+-    state = str(result.state or "SESSION_RENEW_FAILED")
+-    if not result.ready or state != "REAL_BROWSER_LOGIN_READY":
+-        return {
+-            "success": False,
+-            "code": 200,
+-            "message": state,
+-            "data": {
+-                "account_id": account_id,
+-                "state": state,
+-                "recheck_performed": True,
+-                "platform_verification_cleared": False,
+-                "websocket_restarted": False,
+-            },
+-        }
+-
+-    new_cookie = str(result.new_cookies_str or current_cookie)
+-    if new_cookie != current_cookie:
+-        saved = await update_account_cookies_in_db(
+-            account_id,
+-            new_cookie,
+-            owner_id=owner_id,
+-            allow_platform_verification_write=True,
+-        )
+-        if not saved:
+-            return {
+-                "success": False,
+-                "code": 500,
+-                "message": "VERIFICATION_COOKIE_PERSIST_FAILED",
+-                "data": {
+-                    "account_id": account_id,
+-                    "state": "VERIFICATION_COOKIE_PERSIST_FAILED",
+-                    "recheck_performed": True,
+-                    "platform_verification_cleared": False,
+-                    "websocket_restarted": False,
+-                },
+-            }
+-
+-    instance = manager.instances.get(account_id)
+-    if instance is not None:
+-        await instance._cookie_token_manager._persist_platform_verification_marker(required=False)
+-        instance._cookie_token_manager._clear_platform_verification_required()
+-    else:
+-        async with async_session_maker() as session:
+-            account = await get_account_by_identity(account_id, session=session)
+-            if account:
+-                metadata = dict(account.metadata_json or {})
+-                metadata.pop("auto_reply_platform_verification", None)
+-                account.metadata_json = metadata
+-                flag_modified(account, "metadata_json")
+-                session.add(account)
+-                await session.commit()
+-    manager.platform_verification_states.pop(account_id, None)
+-
+-    return {
+-        "success": True,
+-        "code": 200,
+-        "message": "REAL_BROWSER_LOGIN_READY",
+-        "data": {
+-            "account_id": account_id,
+-            "state": "REAL_BROWSER_LOGIN_READY",
+-            "recheck_performed": True,
+-            "platform_verification_cleared": True,
+-            "cookie_updated": new_cookie != current_cookie,
+-            "websocket_restarted": False,
+-        },
+-    }
+-
+-
+ @router.post("/system/self-restart")
+ async def system_self_restart():
+     """
+diff --git a/common/services/cookie_renew_browser_service.py b/common/services/cookie_renew_browser_service.py
+--- a/common/services/cookie_renew_browser_service.py
++++ b/common/services/cookie_renew_browser_service.py
+@@ -23,7 +23,6 @@
+ import re
+ import socket
+ import subprocess
+-import threading
+ import sys
+ import time
+ from dataclasses import dataclass, field
+@@ -383,150 +382,6 @@
+                 pass
+ 
+         return result
+-
+-    async def open_human_verification(self, account_id: str) -> dict[str, Any]:
+-        """Open a fixed official Goofish homepage in the existing canonical Profile.
+-
+-        Caller supplies only account_id. Browser/profile/display/URL/arguments are owned here.
+-        The returned success only means the visible human browser was opened; it never means
+-        verification completed and it never performs Token/Chat/CAPTCHA work.
+-        """
+-        if not _LOCAL_BROWSER_RENEW_ENABLED:
+-            return {"success": False, "state": "HUMAN_BROWSER_WRONG_OWNER"}
+-        result: dict[str, Any] = {}
+-        ready = threading.Event()
+-        worker = threading.Thread(
+-            target=self._human_verification_worker,
+-            args=(account_id, result, ready),
+-            name=f"human-verification-{get_pure_account_id(account_id)}",
+-            daemon=True,
+-        )
+-        worker.start()
+-        deadline = time.monotonic() + 15.0
+-        while not ready.is_set() and time.monotonic() < deadline:
+-            await asyncio.sleep(0.05)
+-        if not ready.is_set():
+-            return {"success": False, "state": "HUMAN_BROWSER_START_TIMEOUT"}
+-        return dict(result)
+-
+-    def _human_verification_worker(
+-        self,
+-        account_id: str,
+-        result: dict[str, Any],
+-        ready: threading.Event,
+-    ) -> None:
+-        pure_user_id = concurrency_manager._extract_pure_user_id(account_id) if account_id else "unknown"
+-        user_data_dir = get_account_browser_profile_dir(pure_user_id)
+-        slot_acquired = False
+-        account_lock_acquired = False
+-        proc = None
+-
+-        def finish_start(payload: dict[str, Any]) -> None:
+-            if not ready.is_set():
+-                result.clear()
+-                result.update(payload)
+-                ready.set()
+-
+-        try:
+-            if not os.path.isdir(user_data_dir) or not os.listdir(user_data_dir):
+-                finish_start({"success": False, "state": "CANONICAL_PROFILE_MISSING"})
+-                return
+-
+-            display = str(
+-                os.environ.get("XIANYU_HUMAN_DISPLAY")
+-                or os.environ.get("DISPLAY")
+-                or "host.docker.internal:0"
+-            ).strip()
+-            display_host, _, display_number = display.partition(":")
+-            if not display_host or not display_number.split(".", 1)[0].isdigit():
+-                finish_start({"success": False, "state": "HUMAN_DISPLAY_INVALID"})
+-                return
+-            display_index = int(display_number.split(".", 1)[0])
+-            try:
+-                with socket.create_connection((display_host, 6000 + display_index), timeout=2):
+-                    pass
+-            except OSError:
+-                finish_start({"success": False, "state": "HUMAN_DISPLAY_UNAVAILABLE"})
+-                return
+-
+-            slot_acquired = concurrency_manager.wait_for_slot(pure_user_id, timeout=5)
+-            if not slot_acquired:
+-                finish_start({"success": False, "state": "BROWSER_SLOT_TIMEOUT"})
+-                return
+-            account_lock_acquired = account_browser_lock_manager.acquire(
+-                pure_user_id,
+-                timeout=5,
+-                owner_task_id=f"human-verification:{pure_user_id}",
+-            )
+-            if not account_lock_acquired:
+-                finish_start({"success": False, "state": "ACCOUNT_BROWSER_MUTEX_TIMEOUT"})
+-                return
+-
+-            self._clean_singleton_lock_files(
+-                user_data_dir,
+-                f"[Human verification] account {pure_user_id}",
+-            )
+-            ensure_playwright_browser_path()
+-            chromium_path = get_chromium_executable_path()
+-            if not chromium_path:
+-                finish_start({"success": False, "state": "CHROMIUM_UNAVAILABLE"})
+-                return
+-
+-            child_env = os.environ.copy()
+-            child_env["DISPLAY"] = display
+-            proc = subprocess.Popen(
+-                [
+-                    chromium_path,
+-                    *self.BROWSER_ARGS,
+-                    f"--user-data-dir={user_data_dir}",
+-                    "--new-window",
+-                    _TARGET_URL,
+-                ],
+-                env=child_env,
+-                stdout=subprocess.DEVNULL,
+-                stderr=subprocess.DEVNULL,
+-                start_new_session=True,
+-            )
+-            time.sleep(2)
+-            if proc.poll() is not None:
+-                finish_start({"success": False, "state": "HUMAN_BROWSER_START_FAILED"})
+-                return
+-
+-            logger.info(
+-                f"[{pure_user_id}] visible canonical-profile human verification browser opened"
+-            )
+-            finish_start({
+-                "success": True,
+-                "state": "HUMAN_BROWSER_OPENED",
+-                "human_browser_visible": True,
+-                "canonical_profile_reused": True,
+-                "official_url_only": True,
+-                "waiting_for_real_user_official_verification": True,
+-            })
+-            proc.wait()
+-        except RuntimeError as exc:
+-            finish_start({"success": False, "state": str(exc)[:120]})
+-        except Exception as exc:
+-            logger.warning(
+-                f"[{pure_user_id}] human verification browser start failed: {type(exc).__name__}"
+-            )
+-            finish_start({
+-                "success": False,
+-                "state": f"HUMAN_BROWSER_START_FAILED:{type(exc).__name__}",
+-            })
+-        finally:
+-            if not ready.is_set():
+-                finish_start({"success": False, "state": "HUMAN_BROWSER_START_FAILED"})
+-            if account_lock_acquired:
+-                try:
+-                    account_browser_lock_manager.release(pure_user_id)
+-                except Exception as exc:
+-                    logger.warning(f"[{pure_user_id}] human browser lock release failed: {exc}")
+-            if slot_acquired:
+-                try:
+-                    concurrency_manager.unregister_instance(pure_user_id)
+-                except Exception as exc:
+-                    logger.warning(f"[{pure_user_id}] human browser slot release failed: {exc}")
+ 
+     async def check_real_browser_login(
+         self,
+diff --git a/frontend/src/api/chatNew.ts b/frontend/src/api/chatNew.ts
+--- a/frontend/src/api/chatNew.ts
++++ b/frontend/src/api/chatNew.ts
+@@ -12,27 +12,12 @@
+ // ==================== 类型定义 ====================
+ 
+ /** 可用账号 */
+-export type ChatBusinessState =
+-  | 'READY'
+-  | 'WAITING_CONNECT'
+-  | 'CONNECTING'
+-  | 'TEMPORARY_FAILURE'
+-  | 'LOGIN_REQUIRED'
+-  | 'PLATFORM_VERIFICATION_REQUIRED'
+-  | 'RATE_LIMITED'
+-  | 'DISABLED'
+-  | 'UNKNOWN'
+-
+ export interface ChatAccount {
+   account_id: string
+   display_name: string
+   remark: string
+   connected: boolean
+   status: string
+-  chat_state?: ChatBusinessState
+-  chat_reason?: string
+-  error_code?: string
+-  connecting?: boolean
+   /** 所属用户（管理员查看时返回） */
+   owner?: string
+ }
+@@ -47,6 +32,7 @@
+   status: string
+   delivery_method: string
+   delivery_fail_reason: string
++  card_only_delivered: boolean
+   placed_at: string
+ }
+ 
+@@ -103,39 +89,9 @@
+   return { data: res.data || [], total: res.total || 0, hasMore: res.hasMore ?? false }
+ }
+ 
+-export interface ChatConnectResponse {
+-  success: boolean
+-  message: string
+-  error_code?: string
+-  data?: {
+-    state?: ChatBusinessState
+-    reason?: string
+-    diagnostics?: Record<string, unknown>
+-  } | null
+-}
+-
+-/**
+- * 连接指定账号的IM。
+- * Backend hard deadline 为 80s（78s owner stage budget + 2s HTTP overhead），
+- * 这里只给 85s 专用等待窗口；全局 Axios 90s 保持不变。
+- */
++/** 连接指定账号的IM */
+ export const connectAccount = (accountId: string) => {
+-  return post<ChatConnectResponse>(`${PREFIX}/connect/${accountId}`, undefined, { timeout: 85000 })
+-}
+-
+-export const getChatConnectErrorMessage = (error: unknown): string => {
+-  const candidate = error as {
+-    message?: string
+-    code?: string
+-    response?: { data?: { message?: string; error_code?: string } }
+-  }
+-  const backendMessage = candidate?.response?.data?.message
+-  if (backendMessage) return backendMessage
+-  const text = String(candidate?.message || '')
+-  if (candidate?.code === 'ECONNABORTED' || /timeout/i.test(text)) {
+-    return '连接闲鱼聊天超时，请稍后重试'
+-  }
+-  return text || '在线聊天暂不可用，请稍后重试'
++  return post<{ success: boolean; message: string }>(`${PREFIX}/connect/${accountId}`)
+ }
+ 
+ /** 断开指定账号的IM */
+diff --git a/frontend/src/pages/chat-new/ChatNew.tsx b/frontend/src/pages/chat-new/ChatNew.tsx
+--- a/frontend/src/pages/chat-new/ChatNew.tsx
++++ b/frontend/src/pages/chat-new/ChatNew.tsx
+@@ -10,7 +10,6 @@
+ import {
+   getChatAccounts,
+   connectAccount,
+-  getChatConnectErrorMessage,
+   disconnectAccount,
+   getConversations,
+   getMessages,
+@@ -59,8 +58,7 @@
+   const [accounts, setAccounts] = useState<ChatAccount[]>([])
+   const [activeAccountId, setActiveAccountId] = useState('')
+   const [loadingAccounts, setLoadingAccounts] = useState(false)
+-  const [connectingIds, setConnectingIds] = useState<Set<string>>(() => new Set())
+-  const connectInFlightRef = useRef<Set<string>>(new Set())
++  const [connectingId, setConnectingId] = useState('')
+   const [accountPage, setAccountPage] = useState(1)
+   const [accountHasMore, setAccountHasMore] = useState(false)
+   const accountListRef = useRef<HTMLDivElement>(null)
+@@ -313,65 +311,23 @@
+ 
+   // ==================== 连接/断开 ====================
+   const handleConnect = async (accountId: string) => {
+-    // React state 提交前也必须挡住同一用户动作的重复 POST；同账号最多一个 business connect。
+-    if (connectInFlightRef.current.has(accountId)) return
+-    connectInFlightRef.current.add(accountId)
+-    setConnectingIds((prev) => new Set(prev).add(accountId))
+-    setAccounts((prev) => prev.map((account) => (
+-      account.account_id === accountId
+-        ? { ...account, connecting: true, chat_state: 'CONNECTING', chat_reason: 'chat_business_connect_active' }
+-        : account
+-    )))
++    setConnectingId(accountId)
+     try {
+       const res = await connectAccount(accountId)
+       if (res.success) {
+-        setAccounts((prev) => prev.map((account) => (
+-          account.account_id === accountId
+-            ? { ...account, connected: true, connecting: false, chat_state: 'READY', chat_reason: 'chat_business_connect_ready', error_code: '' }
+-            : account
+-        )))
+         addToast({ message: '连接成功', type: 'success' })
+         await loadAccounts()
+         setActiveAccountId(accountId)
+         setWsAccountIds((prev) => prev.includes(accountId) ? prev : [...prev, accountId])
++        // 手机端：连接成功后自动切到"会话"Tab（桌面端不受影响）
+         setMobileTab('convs')
+       } else {
+-        const nextState = res.data?.state || 'TEMPORARY_FAILURE'
+-        setAccounts((prev) => prev.map((account) => (
+-          account.account_id === accountId
+-            ? {
+-                ...account,
+-                connected: false,
+-                connecting: false,
+-                chat_state: nextState,
+-                chat_reason: res.data?.reason || res.message || 'chat_connect_failed',
+-                error_code: res.error_code || '',
+-              }
+-            : account
+-        )))
+-        if (nextState === 'PLATFORM_VERIFICATION_REQUIRED') {
+-          setActiveAccountId(accountId)
+-          setMobileTab('convs')
+-          addToast({ message: '平台验证未自动完成，请稍后重新连接或按闲鱼平台要求处理', type: 'warning' })
+-        } else {
+-          addToast({ message: res.message || '在线聊天暂不可用，请稍后重试', type: 'error' })
+-        }
+-      }
+-    } catch (error: unknown) {
+-      const message = getChatConnectErrorMessage(error)
+-      setAccounts((prev) => prev.map((account) => (
+-        account.account_id === accountId
+-          ? { ...account, connected: false, connecting: false, chat_state: 'TEMPORARY_FAILURE', chat_reason: 'chat_connect_request_failed' }
+-          : account
+-      )))
+-      addToast({ message, type: 'error' })
++        addToast({ message: res.message || '连接失败', type: 'error' })
++      }
++    } catch (e: any) {
++      addToast({ message: e.message || '连接失败', type: 'error' })
+     } finally {
+-      connectInFlightRef.current.delete(accountId)
+-      setConnectingIds((prev) => {
+-        const next = new Set(prev)
+-        next.delete(accountId)
+-        return next
+-      })
++      setConnectingId('')
+     }
+   }
+ 
+@@ -394,16 +350,13 @@
+     }
+   }
+ 
+-  /** 点击账号卡片：平台验证态只展示验证入口，普通未连接仍走 lazy connect。 */
++  /** 点击账号卡片：已连接则选中，未连接则自动连接 */
+   const handleSelectAccount = async (acc: ChatAccount) => {
+     if (acc.connected) {
+       setActiveAccountId(acc.account_id)
+       // 选中已连接账号时也建立 WebSocket（页面刷新后首次选中时触发）
+       setWsAccountIds((prev) => prev.includes(acc.account_id) ? prev : [...prev, acc.account_id])
+       // 手机端：选中已连接账号后切到"会话"Tab
+-      setMobileTab('convs')
+-    } else if (acc.chat_state === 'PLATFORM_VERIFICATION_REQUIRED') {
+-      setActiveAccountId(acc.account_id)
+       setMobileTab('convs')
+     } else {
+       await handleConnect(acc.account_id)
+@@ -1204,14 +1157,14 @@
+                       >
+                         <LogOut className="w-3.5 h-3.5" />
+                       </button>
+-) : (
++                    ) : (
+                       <button
+                         onClick={(e) => { e.stopPropagation(); handleConnect(acc.account_id) }}
+-                        disabled={connectingIds.has(acc.account_id)}
++                        disabled={!!connectingId}
+                         className="p-1 text-green-500 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/30 rounded disabled:opacity-50"
+                         title="连接"
+                       >
+-                        {connectingIds.has(acc.account_id) ? (
++                        {connectingId === acc.account_id ? (
+                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                         ) : (
+                           <LogIn className="w-3.5 h-3.5" />
+@@ -1222,31 +1175,11 @@
+                   <div className="mt-1 flex items-center gap-1">
+                     <span
+                       className={`inline-block w-1.5 h-1.5 rounded-full ${
+-                        acc.connected
+-                          ? 'bg-green-500'
+-                          : acc.chat_state === 'CONNECTING'
+-                            ? 'bg-blue-500'
+-                            : acc.chat_state === 'PLATFORM_VERIFICATION_REQUIRED' || acc.chat_state === 'LOGIN_REQUIRED'
+-                              ? 'bg-orange-400'
+-                              : acc.chat_state === 'TEMPORARY_FAILURE' || acc.chat_state === 'RATE_LIMITED'
+-                                ? 'bg-amber-400'
+-                                : 'bg-gray-300'
++                        acc.connected ? 'bg-green-500' : acc.status !== 'active' ? 'bg-orange-400' : 'bg-gray-300'
+                       }`}
+                     />
+-                    <span className="text-xs text-gray-400" title={acc.chat_reason || ''}>
+-                      {acc.connected
+-                        ? '已连接'
+-                        : acc.chat_state === 'CONNECTING'
+-                          ? '连接中'
+-                          : acc.chat_state === 'PLATFORM_VERIFICATION_REQUIRED'
+-                            ? '需平台验证'
+-                            : acc.chat_state === 'LOGIN_REQUIRED'
+-                              ? '需登录'
+-                              : acc.chat_state === 'RATE_LIMITED'
+-                                ? '请求频繁'
+-                                : acc.chat_state === 'TEMPORARY_FAILURE'
+-                                  ? '暂不可用'
+-                                  : '未连接'}
++                    <span className="text-xs text-gray-400">
++                      {acc.connected ? '已连接' : acc.status !== 'active' ? '已禁用' : '未连接'}
+                     </span>
+                   </div>
+                 </div>
+@@ -1295,19 +1228,11 @@
+               <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+             </div>
+           ) : conversations.length === 0 ? (
+-            accounts.find((a) => a.account_id === activeAccountId)?.chat_state === 'PLATFORM_VERIFICATION_REQUIRED' ? (
+-              <div className="px-4 py-10 text-center">
+-                <AlertCircle className="w-8 h-8 mx-auto text-orange-500" />
+-                <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-200">闲鱼要求平台验证</p>
+-                <p className="mt-1 text-xs text-gray-400">平台验证未自动完成。请稍后重新连接，或按闲鱼平台当前要求处理。</p>
+-              </div>
+-            ) : (
+-              <p className="text-center text-sm text-gray-400 py-12">
+-                {accounts.find((a) => a.account_id === activeAccountId)?.connected
+-                  ? '暂无会话'
+-                  : '请先连接账号'}
+-              </p>
+-            )
++            <p className="text-center text-sm text-gray-400 py-12">
++              {accounts.find((a) => a.account_id === activeAccountId)?.connected
++                ? '暂无会话'
++                : '请先连接账号'}
++            </p>
+           ) : (
+             <>
+               {conversations.map((conv, idx) => (
+diff --git a/frontend/src/pages/chat-new/CustomerOrdersPanel.tsx b/frontend/src/pages/chat-new/CustomerOrdersPanel.tsx
+--- a/frontend/src/pages/chat-new/CustomerOrdersPanel.tsx
++++ b/frontend/src/pages/chat-new/CustomerOrdersPanel.tsx
+@@ -94,9 +94,9 @@
+               </button>
+             )}
+             {SHIPPABLE_STATUSES.includes(order.status) && (
+-              <button onClick={() => onDeliver(order.order_no)} disabled={anyActionRunning} className="mt-1.5 w-full flex items-center justify-center gap-1 py-1.5 rounded border border-blue-300 text-blue-600 hover:bg-blue-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
++              <button onClick={() => onDeliver(order.order_no)} disabled={anyActionRunning || order.card_only_delivered} className="mt-1.5 w-full flex items-center justify-center gap-1 py-1.5 rounded border border-blue-300 text-blue-600 hover:bg-blue-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
+                 {deliveringOrderNo === order.order_no ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
+-                发卡发货
++                {order.card_only_delivered ? '卡券已发送' : '发卡发货'}
+               </button>
+             )}
+           </div>
+diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
+--- a/frontend/src/types/index.ts
++++ b/frontend/src/types/index.ts
+@@ -114,6 +114,7 @@
+   auto_polish?: boolean
+   confirm_before_send?: boolean
+   send_before_confirm?: boolean
++  only_send_card?: boolean
+   auto_red_flower?: boolean
+   ai_reply_block_ordered_users?: boolean
+   delivery_disabled?: boolean
+@@ -224,6 +225,7 @@
+   // 发货信息
+   delivery_method?: 'manual' | 'auto' | 'scheduled'  // 发货方式：manual-手动发货, auto-自动发货, scheduled-定时发货
+   delivery_content?: string  // 发货内容（卡券内容）
++  card_only_delivered?: boolean  // only-card delivery already completed; prevents duplicate card send
+   delivery_fail_reason?: string  // 发货失败原因
+   delivery_send_status?: 'success' | 'failed' | 'unknown' | 'timeout' | null  // 关联消息日志：发送状态
+   delivery_send_fail_reason?: string | null  // 关联消息日志：发送失败原因
