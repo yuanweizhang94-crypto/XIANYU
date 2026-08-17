@@ -1,0 +1,535 @@
+diff --git a/backend-web/app/api/routes/product_publish.py b/backend-web/app/api/routes/product_publish.py
+index 58ca589..478e794 100644
+--- a/backend-web/app/api/routes/product_publish.py
++++ b/backend-web/app/api/routes/product_publish.py
+@@ -24,11 +24,17 @@ from app.services.account_service import AccountService
+ from app.services.platform_category_service import CategoryRecommendationError, PlatformCategoryService
+ from app.services.publish_batch_status_service import PublishBatchStatusService
+ from app.services.publish_execution_service import PublishExecutorService, PublishLogService
++from common.services.item_service import ItemService
++from common.services.xianyu_publish_service import (
++    detect_publish_account_capability,
++    edit_personal_item_images,
++    get_personal_item_images,
++)
+ from common.models.user import User, UserRole
+ from common.schemas.common import ApiResponse
+ from common.utils.local_image_upload import ImageUploadError, save_uploaded_image
+ from common.utils.local_video_upload import VideoUploadError, save_uploaded_video
+-from app.core.paths import get_upload_path
++from app.core.paths import STATIC_ROOT, get_upload_path
+ from common.utils.time_utils import get_beijing_now_naive
+ 
+ def _is_admin(user: User) -> bool:
+@@ -196,6 +202,12 @@ class BatchPublishRequest(BaseModel):
+     material_ids: List[int] = Field(..., min_length=1, description="素材ID列表")
+ 
+ 
++class ItemImageUpdateRequest(BaseModel):
++    """只修改一个已发布商品的图片，不接受标题、价格、分类等其他字段。"""
++    account_id: str = Field(..., min_length=1, max_length=80)
++    images: List[str] = Field(..., min_length=1, max_length=9)
++
++
+ class CategoryRecommendRequest(BaseModel):
+     """根据商品标题和描述请求平台分类推荐。"""
+ 
+@@ -425,6 +437,133 @@ async def delete_material(
+ 
+ # ==================== 发布接口 ====================
+ 
++def _validate_uploaded_product_images(images: List[str]) -> tuple[bool, str]:
++    """Allow item editing to consume only XIANYU's own product-upload static files."""
++    product_root = (STATIC_ROOT / "uploads" / "products").resolve()
++    for raw in images:
++        value = str(raw or "").strip()
++        if not value.startswith("/static/uploads/products/"):
++            return False, "商品编辑图片必须先通过 XIANYU 商品图片上传接口"
++        relative = value.removeprefix("/static/")
++        resolved = (STATIC_ROOT / relative).resolve()
++        if resolved == product_root or product_root not in resolved.parents:
++            return False, "商品编辑图片路径不在允许目录"
++        if not resolved.is_file():
++            return False, "商品编辑图片文件不存在"
++    return True, ""
++
++
++async def _resolve_edit_account_and_item(
++    *,
++    account_id: str,
++    item_id: str,
++    current_user: User,
++    session: AsyncSession,
++):
++    account_service = AccountService(session)
++    owner_scope = None if _is_admin(current_user) else current_user.id
++    account = await account_service.get_account_for_user(owner_scope, account_id)
++    if not account or not account.cookie:
++        return None, "账号不存在、无权使用或缺少登录状态"
++    item_service = ItemService(session)
++    item = await item_service.get_item(owner_scope, account_id, item_id)
++    if not item:
++        return None, "目标商品不属于所选账号或尚未同步到 XIANYU"
++    return account, ""
++
++
++@router.get("/items/{item_id}/images", response_model=ApiResponse)
++async def get_published_item_images(
++    item_id: str,
++    account_id: str = Query(..., min_length=1, max_length=80),
++    current_user: User = Depends(get_current_active_user),
++    session: AsyncSession = Depends(get_db_session),
++) -> Dict[str, Any]:
++    """只读查询平台当前商品图片，用于编辑后的权威状态恢复。"""
++    account, error = await _resolve_edit_account_and_item(
++        account_id=account_id,
++        item_id=item_id,
++        current_user=current_user,
++        session=session,
++    )
++    if not account:
++        return ApiResponse(success=False, message=error)
++    result = await get_personal_item_images(
++        item_id=item_id,
++        cookie=account.cookie,
++        account_id=account.account_id,
++        owner_id=account.owner_id,
++        static_root=STATIC_ROOT,
++    )
++    return ApiResponse(
++        success=bool(result.get("success")),
++        message=result.get("message") or "查询失败",
++        data={
++            "status": result.get("status"),
++            "item_id": result.get("item_id"),
++            "image_urls": result.get("image_urls") or [],
++            "account_invalid": bool(result.get("account_invalid")),
++        },
++    )
++
++
++@router.post("/items/{item_id}/images", response_model=ApiResponse)
++async def update_published_item_images(
++    item_id: str,
++    req: ItemImageUpdateRequest,
++    current_user: User = Depends(get_current_active_user),
++    session: AsyncSession = Depends(get_db_session),
++) -> Dict[str, Any]:
++    """通过闲鱼官方 PC editDetail/edit 链仅替换一个已发布商品的图片。"""
++    valid, validation_error = _validate_uploaded_product_images(req.images)
++    if not valid:
++        return ApiResponse(success=False, message=validation_error)
++    account, error = await _resolve_edit_account_and_item(
++        account_id=req.account_id,
++        item_id=item_id,
++        current_user=current_user,
++        session=session,
++    )
++    if not account:
++        return ApiResponse(success=False, message=error)
++
++    capability = await detect_publish_account_capability(
++        cookie=account.cookie,
++        account_id=account.account_id,
++        owner_id=account.owner_id,
++    )
++    if not capability.get("success"):
++        return ApiResponse(
++            success=False,
++            message=capability.get("message") or "账号发布能力检测失败",
++            data={"status": "FAILED", "account_invalid": bool(capability.get("account_invalid"))},
++        )
++    if capability.get("is_fish_shop"):
++        return ApiResponse(success=False, message="当前图片编辑薄适配仅支持普通卖家账号")
++
++    result = await edit_personal_item_images(
++        item_id=item_id,
++        images=req.images,
++        cookie=capability.get("cookies_str") or account.cookie,
++        account_id=account.account_id,
++        owner_id=account.owner_id,
++        static_root=STATIC_ROOT,
++    )
++    return ApiResponse(
++        success=bool(result.get("success")),
++        message=result.get("message") or "商品图片修改失败",
++        data={
++            "status": result.get("status"),
++            "item_id": result.get("item_id"),
++            "image_urls": result.get("image_urls") or result.get("current_image_urls") or [],
++            "expected_image_urls": result.get("expected_image_urls") or [],
++            "authoritative_readback_confirmed": bool(result.get("authoritative_readback_confirmed")),
++            "account_invalid": bool(result.get("account_invalid")),
++            "submitted": bool(result.get("submitted")),
++        },
++    )
++
++
+ @router.post("/publish/single", response_model=ApiResponse)
+ async def publish_single(
+     req: PublishSingleRequest,
+diff --git a/backend-web/app/services/xianyu_personal_publisher.py b/backend-web/app/services/xianyu_personal_publisher.py
+index ee9e948..21228aa 100644
+--- a/backend-web/app/services/xianyu_personal_publisher.py
++++ b/backend-web/app/services/xianyu_personal_publisher.py
+@@ -30,9 +30,58 @@ from common.utils.xianyu_utils import canonical_goofish_item_url
+ 
+ 
+ PUBLISH_API = "mtop.idle.pc.idleitem.publish"
++EDIT_DETAIL_API = "mtop.idle.pc.idleitem.editDetail"
++EDIT_API = "mtop.idle.pc.idleitem.edit"
+ PUBLISH_ORIGIN = "https://www.goofish.com"
+ PUBLISH_REFERER = "https://www.goofish.com/publish"
+ 
++_EDIT_PAYLOAD_FIELDS = (
++    "freebies",
++    "itemTypeStr",
++    "quantity",
++    "simpleItem",
++    "imageInfoDOList",
++    "itemTextDTO",
++    "itemLabelExtList",
++    "itemPriceDTO",
++    "userRightsProtocols",
++    "itemPostFeeDTO",
++    "itemAddrDTO",
++    "defaultPrice",
++    "itemCatDTO",
++    "itemId",
++    "stuffStatus",
++    "properties",
++    "supportBargainPrice",
++    "itemToBuyDTO",
++    "itemTopicParams",
++    "textLabelList",
++    "commonTagList",
++    "hideBid",
++    "hideProSwitcher",
++)
++
++
++def _normalized_image_url(value: Any) -> str:
++    """Normalize a platform image URL without discarding the real returned URL."""
++    raw = text(value)
++    if raw.startswith("//"):
++        raw = "https:" + raw
++    return raw.split("?", 1)[0].rstrip("/")
++
++
++def _image_compare_key(value: Any) -> str:
++    """Treat Alibaba CDN path/scheme rewrites of the same uploaded object as equivalent."""
++    normalized = _normalized_image_url(value)
++    if "alicdn.com/" in normalized:
++        return normalized.rsplit("/", 1)[-1]
++    return normalized.replace("http://", "https://", 1)
++
++
++def _edit_payload_from_detail(detail: dict[str, Any]) -> dict[str, Any]:
++    """Keep only fields the official PC edit form submits back to idleitem.edit."""
++    return {key: detail[key] for key in _EDIT_PAYLOAD_FIELDS if key in detail}
++
+ 
+ def _build_personal_post_fee(item_data: dict[str, Any]) -> dict[str, Any]:
+     """按普通卖家网页发布组件的字段规则构造发货配置。"""
+@@ -74,6 +123,225 @@ class XianyuPersonalPublisher:
+     def __init__(self, static_root: str | Path | None = None):
+         self.static_root = Path(static_root) if static_root else None
+ 
++    async def get_item_images(
++        self,
++        *,
++        item_id: str,
++        cookie: str,
++        account_id: str,
++        owner_id: int | None,
++    ) -> dict[str, Any]:
++        """Read current platform images of one existing item through editDetail."""
++        normalized_item_id = text(item_id)
++        if not normalized_item_id.isdigit():
++            raise DirectPublishError("商品ID无效")
++        response = await mtop_call(
++            account_id=account_id,
++            cookies_str=cookie,
++            api=EDIT_DETAIL_API,
++            version="1.0",
++            data={"itemId": normalized_item_id},
++            owner_id=owner_id,
++            origin=PUBLISH_ORIGIN,
++            referer=PUBLISH_REFERER,
++        )
++        current_cookie = response.get("cookies_str") or cookie
++        if not response.get("success"):
++            return {
++                "success": False,
++                "status": "FAILED",
++                "message": f"读取商品编辑详情失败：{response.get('error') or '未知错误'}",
++                "item_id": normalized_item_id,
++                "account_invalid": bool(response.get("account_invalid")),
++                "cookies_str": current_cookie,
++                "image_urls": [],
++            }
++        body = response.get("res") or {}
++        detail = body.get("data") if isinstance(body, dict) else None
++        if not isinstance(detail, dict) or text(detail.get("itemId")) != normalized_item_id:
++            return {
++                "success": False,
++                "status": "FAILED",
++                "message": "平台返回的商品编辑详情与目标商品不一致",
++                "item_id": normalized_item_id,
++                "account_invalid": False,
++                "cookies_str": current_cookie,
++                "image_urls": [],
++            }
++        image_urls = [
++            _normalized_image_url(image.get("url"))
++            for image in (detail.get("imageInfoDOList") or [])
++            if isinstance(image, dict) and text(image.get("url"))
++        ]
++        return {
++            "success": True,
++            "status": "SUCCESS",
++            "message": "查询成功",
++            "item_id": normalized_item_id,
++            "account_invalid": False,
++            "cookies_str": current_cookie,
++            "image_urls": image_urls,
++        }
++
++    async def edit_item_images(
++        self,
++        *,
++        item_id: str,
++        images: list[str],
++        cookie: str,
++        account_id: str,
++        owner_id: int | None,
++    ) -> dict[str, Any]:
++        """Replace images of one existing personal-seller item through the official PC edit APIs."""
++        normalized_item_id = text(item_id)
++        clean_images = [text(value) for value in images if text(value)]
++        if not normalized_item_id.isdigit():
++            raise DirectPublishError("商品ID无效")
++        if not clean_images:
++            raise DirectPublishError("请至少上传一张商品图片")
++        if len(clean_images) > 9:
++            raise DirectPublishError("商品图片最多9张")
++
++        detail_response = await mtop_call(
++            account_id=account_id,
++            cookies_str=cookie,
++            api=EDIT_DETAIL_API,
++            version="1.0",
++            data={"itemId": normalized_item_id},
++            owner_id=owner_id,
++            origin=PUBLISH_ORIGIN,
++            referer=PUBLISH_REFERER,
++        )
++        cookie = detail_response.get("cookies_str") or cookie
++        if not detail_response.get("success"):
++            return {
++                "success": False,
++                "status": "FAILED",
++                "message": f"读取商品编辑详情失败：{detail_response.get('error') or '未知错误'}",
++                "item_id": normalized_item_id,
++                "account_invalid": bool(detail_response.get("account_invalid")),
++                "cookies_str": cookie,
++                "authoritative_readback_confirmed": False,
++            }
++
++        response_body = detail_response.get("res") or {}
++        detail = response_body.get("data") if isinstance(response_body, dict) else None
++        if not isinstance(detail, dict) or text(detail.get("itemId")) != normalized_item_id:
++            return {
++                "success": False,
++                "status": "FAILED",
++                "message": "平台返回的商品编辑详情与目标商品不一致",
++                "item_id": normalized_item_id,
++                "account_invalid": False,
++                "cookies_str": cookie,
++                "authoritative_readback_confirmed": False,
++            }
++
++        image_items: list[dict[str, Any]] = []
++        for index, image in enumerate(clean_images, 1):
++            try:
++                uploaded = await upload_publish_image(image, cookie, static_root=self.static_root)
++            except PublishMediaError as exc:
++                raise DirectPublishError(f"第 {index} 张图片上传失败：{exc}") from exc
++            uploaded["major"] = index == 1
++            image_items.append(uploaded)
++
++        payload = _edit_payload_from_detail(detail)
++        payload["itemId"] = normalized_item_id
++        payload["imageInfoDOList"] = image_items
++        payload.update(
++            {
++                "uniqueCode": f"{int(time.time() * 1000)}{account_id[-4:]}",
++                "sourceId": "pcMainPublish",
++                "bizcode": "pcMainPublish",
++                "publishScene": "pcMainPublish",
++            }
++        )
++
++        edit_response = await mtop_call(
++            account_id=account_id,
++            cookies_str=cookie,
++            api=EDIT_API,
++            version="1.0",
++            data=payload,
++            owner_id=owner_id,
++            extra_params={"spm_cnt": "a21ybx.publish.0.0"},
++            origin=PUBLISH_ORIGIN,
++            referer=PUBLISH_REFERER,
++            retry_network_errors=False,
++        )
++        cookie = edit_response.get("cookies_str") or cookie
++        if not edit_response.get("success"):
++            unknown = bool(edit_response.get("unknown_outcome"))
++            return {
++                "success": False,
++                "status": "UNKNOWN" if unknown else "FAILED",
++                "message": (
++                    "商品编辑请求结果未知，禁止自动重试"
++                    if unknown
++                    else f"闲鱼商品编辑失败：{edit_response.get('error') or '未知错误'}"
++                ),
++                "item_id": normalized_item_id,
++                "account_invalid": bool(edit_response.get("account_invalid")),
++                "cookies_str": cookie,
++                "authoritative_readback_confirmed": False,
++                "submitted": True,
++            }
++
++        readback = await mtop_call(
++            account_id=account_id,
++            cookies_str=cookie,
++            api=EDIT_DETAIL_API,
++            version="1.0",
++            data={"itemId": normalized_item_id},
++            owner_id=owner_id,
++            origin=PUBLISH_ORIGIN,
++            referer=PUBLISH_REFERER,
++        )
++        cookie = readback.get("cookies_str") or cookie
++        readback_body = readback.get("res") or {}
++        readback_detail = readback_body.get("data") if isinstance(readback_body, dict) else None
++        readback_images = readback_detail.get("imageInfoDOList") if isinstance(readback_detail, dict) else None
++        current_urls = [
++            _normalized_image_url(item.get("url"))
++            for item in (readback_images or [])
++            if isinstance(item, dict) and text(item.get("url"))
++        ]
++        expected_urls = [_normalized_image_url(item.get("url")) for item in image_items]
++        current_keys = [_image_compare_key(url) for url in current_urls]
++        expected_keys = [_image_compare_key(url) for url in expected_urls]
++        confirmed = (
++            bool(readback.get("success"))
++            and isinstance(readback_detail, dict)
++            and text(readback_detail.get("itemId")) == normalized_item_id
++            and current_keys[: len(expected_keys)] == expected_keys
++        )
++        if not confirmed:
++            return {
++                "success": False,
++                "status": "UNKNOWN",
++                "message": "商品编辑接口已返回成功，但新图片读回未确认，禁止自动重试",
++                "item_id": normalized_item_id,
++                "account_invalid": bool(readback.get("account_invalid")),
++                "cookies_str": cookie,
++                "authoritative_readback_confirmed": False,
++                "submitted": True,
++                "expected_image_urls": expected_urls,
++                "current_image_urls": current_urls,
++            }
++
++        logger.info(f"闲鱼商品图片编辑成功并读回确认: account_id={account_id}, item_id={normalized_item_id}")
++        return {
++            "success": True,
++            "status": "SUCCESS",
++            "message": "商品图片修改成功",
++            "item_id": normalized_item_id,
++            "account_invalid": False,
++            "cookies_str": cookie,
++            "authoritative_readback_confirmed": True,
++            "image_urls": current_urls,
++        }
++
+     async def publish_item(
+         self,
+         item_data: dict[str, Any],
+diff --git a/common/services/xianyu_mtop.py b/common/services/xianyu_mtop.py
+index ae856a6..d6077ac 100644
+--- a/common/services/xianyu_mtop.py
++++ b/common/services/xianyu_mtop.py
+@@ -121,6 +121,7 @@ async def mtop_call(
+     extra_headers: Optional[Dict[str, str]] = None,
+     form_field: str = "data",
+     request_method: str = "POST",
++    retry_network_errors: bool = True,
+ ) -> Dict[str, Any]:
+     """调用闲鱼 mtop 接口，统一处理令牌过期/Session过期/风控。
+ 
+@@ -219,6 +220,15 @@ async def mtop_call(
+         except Exception as exc:  # noqa: BLE001
+             last_error = f"请求异常: {exc}"
+             logger.warning(f"【{account_id}】{api} {last_error}")
++            if not retry_network_errors:
++                return {
++                    "success": False,
++                    "account_invalid": False,
++                    "res": None,
++                    "error": last_error,
++                    "cookies_str": current_cookies,
++                    "unknown_outcome": True,
++                }
+             await asyncio.sleep(0.5)
+             continue
+ 
+diff --git a/common/services/xianyu_publish_service.py b/common/services/xianyu_publish_service.py
+index 7e537f2..6e0fa59 100644
+--- a/common/services/xianyu_publish_service.py
++++ b/common/services/xianyu_publish_service.py
+@@ -104,3 +104,43 @@ async def publish_personal_single_item(
+         account_id=account_id,
+         owner_id=owner_id,
+     )
++
++
++async def edit_personal_item_images(
++    *,
++    item_id: str,
++    images: list[str],
++    cookie: str,
++    static_root: str | Path | None = None,
++    account_id: str = "",
++    owner_id: int | None = None,
++) -> dict:
++    """使用闲鱼官方 PC 编辑接口，仅替换一个普通卖家已发布商品的图片。"""
++    publisher_class = get_xianyu_personal_publisher_class()
++    publisher = publisher_class(static_root=static_root)
++    return await publisher.edit_item_images(
++        item_id=item_id,
++        images=images,
++        cookie=cookie,
++        account_id=account_id,
++        owner_id=owner_id,
++    )
++
++
++async def get_personal_item_images(
++    *,
++    item_id: str,
++    cookie: str,
++    static_root: str | Path | None = None,
++    account_id: str = "",
++    owner_id: int | None = None,
++) -> dict:
++    """只读查询一个普通卖家已发布商品的当前平台图片。"""
++    publisher_class = get_xianyu_personal_publisher_class()
++    publisher = publisher_class(static_root=static_root)
++    return await publisher.get_item_images(
++        item_id=item_id,
++        cookie=cookie,
++        account_id=account_id,
++        owner_id=owner_id,
++    )
