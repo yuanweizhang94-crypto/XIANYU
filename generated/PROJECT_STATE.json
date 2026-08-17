@@ -403,5 +403,20 @@
         "last_verified_commit": "d11f1afc4564298e8c2709fdb80a41a491dbb1ea"
       }
     ]
+  },
+  "runtime_authority": {
+    "effective_at": "2026-08-17T09:57:57+08:00",
+    "production_runtime_code_base_sha": "7c4d2828f7b2c2e3f2dd6d79acfe2c9e321521ed",
+    "upstream_sha": "bf252be357f5e4261b04ce2b7419c5574aaf1b55",
+    "current_chat_architecture": "LATEST_UPSTREAM_NATIVE",
+    "current_chat_recovery_status": "PROVEN_READY_ON_REAL_CANARY",
+    "qr_eager_chat_auth": false,
+    "auto_reply_and_chat_independent": true,
+    "remote_token_required": false,
+    "platform_verification_can_recover_through_upstream_bounded_path": true,
+    "production_source_behavior_changed_by_knowledge_sync": false,
+    "production_deployment_required_for_knowledge_sync": false,
+    "recovery_evidence": "changes/active/CHG-0018-account-profile-publish-safety/evidence/20260817-chat-platform-risk-recovery-success.md",
+    "repository_documentation_sha_resolution": "Use the current Git commit containing this state; do not infer a production deployment from repository HEAD."
   }
 }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import sys
 
@@ -38,10 +39,14 @@ def _accepted_adr_paths(root: Path) -> list[str]:
 def required_reading(root: Path, state: dict[str, object]) -> list[str]:
     items = [
         "AGENTS.md",
+    ]
+    if (root / "docs" / "AI_PROJECT_HANDOFF.md").exists():
+        items.append("docs/AI_PROJECT_HANDOFF.md")
+    items.extend([
         "specs/PROJECT_SCOPE.md",
         "specs/SYSTEM_ARCHITECTURE.md",
         "specs/CAPABILITY_REGISTRY.yaml",
-    ]
+    ])
     items.extend(
         entry
         for entry in [
@@ -54,6 +59,9 @@ def required_reading(root: Path, state: dict[str, object]) -> list[str]:
     active_change = state.get("active_change")
     if isinstance(active_change, dict):
         active_path = str(active_change["path"])
+        runtime_authority = root / active_path / "runtime_authority.json"
+        if runtime_authority.exists():
+            items.append(runtime_authority.relative_to(root).as_posix())
         items.extend(
             f"{active_path}/{name}" for name in ["proposal.md", "design.md", "tasks.md", "acceptance.md"]
         )
@@ -117,6 +125,22 @@ def render_context(root: Path) -> str:
                 )
     if not executable:
         lines.append("no approved executable change")
+    runtime_authority = None
+    if isinstance(active_change, dict):
+        authority_path = root / str(active_change["path"]) / "runtime_authority.json"
+        if authority_path.exists():
+            runtime_authority = json.loads(authority_path.read_text(encoding="utf-8"))
+    if isinstance(runtime_authority, dict):
+        lines.extend(
+            [
+                f"Production runtime code base SHA: {runtime_authority.get('production_runtime_code_base_sha')}",
+                f"Upstream authority SHA: {runtime_authority.get('upstream_sha')}",
+                f"Current Chat architecture: {runtime_authority.get('current_chat_architecture')}",
+                f"Current Chat recovery status: {runtime_authority.get('current_chat_recovery_status')}",
+                f"QR eager Chat auth: {runtime_authority.get('qr_eager_chat_auth')}",
+                f"Auto Reply and Chat independent: {runtime_authority.get('auto_reply_and_chat_independent')}",
+            ]
+        )
     lines.extend(
         [
             f"Capability total: {state['capabilities']['total']}",

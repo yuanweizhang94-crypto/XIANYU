@@ -9,7 +9,8 @@
     "active_change",
     "tasks",
     "suspended_changes",
-    "capabilities"
+    "capabilities",
+    "runtime_authority"
   ],
   "properties": {
     "project": { "const": "XIANYU" },
@@ -108,6 +109,45 @@
         "items": { "type": "array" }
       },
       "additionalProperties": false
+    },
+    "runtime_authority": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": [
+            "effective_at",
+            "production_runtime_code_base_sha",
+            "upstream_sha",
+            "current_chat_architecture",
+            "current_chat_recovery_status",
+            "qr_eager_chat_auth",
+            "auto_reply_and_chat_independent",
+            "remote_token_required",
+            "platform_verification_can_recover_through_upstream_bounded_path",
+            "production_source_behavior_changed_by_knowledge_sync",
+            "production_deployment_required_for_knowledge_sync",
+            "recovery_evidence",
+            "repository_documentation_sha_resolution"
+          ],
+          "properties": {
+            "effective_at": { "type": "string", "minLength": 1 },
+            "production_runtime_code_base_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+            "upstream_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+            "current_chat_architecture": { "const": "LATEST_UPSTREAM_NATIVE" },
+            "current_chat_recovery_status": { "const": "PROVEN_READY_ON_REAL_CANARY" },
+            "qr_eager_chat_auth": { "const": false },
+            "auto_reply_and_chat_independent": { "const": true },
+            "remote_token_required": { "const": false },
+            "platform_verification_can_recover_through_upstream_bounded_path": { "const": true },
+            "production_source_behavior_changed_by_knowledge_sync": { "const": false },
+            "production_deployment_required_for_knowledge_sync": { "const": false },
+            "recovery_evidence": { "type": "string", "minLength": 1 },
+            "repository_documentation_sha_resolution": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "additionalProperties": false

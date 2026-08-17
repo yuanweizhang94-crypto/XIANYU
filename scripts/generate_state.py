@@ -51,6 +51,18 @@ def _tasks_state(change_dir: Path, *, executable: bool) -> dict[str, Any]:
     }
 
 
+def _runtime_authority_state(root: Path, active_state: dict[str, str] | None) -> dict[str, Any] | None:
+    if active_state is None:
+        return None
+    source = root / active_state["path"] / "runtime_authority.json"
+    if not source.exists():
+        return None
+    value = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("runtime_authority.json must contain an object")
+    return value
+
+
 def _suspended_change_states(root: Path) -> list[dict[str, Any]]:
     states: list[dict[str, Any]] = []
     for change_dir in find_suspended_changes(root):
@@ -92,6 +104,7 @@ def build_project_state(root: Path) -> dict[str, Any]:
             "by_status": dict(sorted(status_counts.items())),
             "items": capabilities,
         },
+        "runtime_authority": _runtime_authority_state(root, active_change),
     }
 
 
