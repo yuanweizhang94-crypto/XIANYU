@@ -1,0 +1,3858 @@
+diff --git a/backend-web/app/api/routes/product_publish.py b/backend-web/app/api/routes/product_publish.py
+index 493a0f6..58ca589 100644
+--- a/backend-web/app/api/routes/product_publish.py
++++ b/backend-web/app/api/routes/product_publish.py
+@@ -3,8 +3,8 @@
+ 
+ 功能：
+ 1. 素材库管理（CRUD）
+-2. 单品发布（触发 Playwright 自动化）
+-3. 批量发布（后台任务异步执行）
++2. 单品发布（调用闲鱼卖家工作台接口）
++3. 批量发布（后台任务异步执行，逐条调用闲鱼发布接口）
+ 4. 发布日志查询（分页+过滤）
+ """
+ from __future__ import annotations
+@@ -14,16 +14,21 @@ from typing import Any, Dict, List, Optional
+ import uuid
+ 
+ from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile
++from loguru import logger
+ from pydantic import BaseModel, Field
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from app.api.deps import get_current_active_user, get_db_session
+-from app.services.product_publish_service import ProductMaterialService
++from app.services.product_publish_service import MaterialSpecificationError, ProductMaterialService
++from app.services.account_service import AccountService
++from app.services.platform_category_service import CategoryRecommendationError, PlatformCategoryService
+ from app.services.publish_batch_status_service import PublishBatchStatusService
+ from app.services.publish_execution_service import PublishExecutorService, PublishLogService
+ from common.models.user import User, UserRole
+ from common.schemas.common import ApiResponse
+ from common.utils.local_image_upload import ImageUploadError, save_uploaded_image
++from common.utils.local_video_upload import VideoUploadError, save_uploaded_video
++from app.core.paths import get_upload_path
+ from common.utils.time_utils import get_beijing_now_naive
+ 
+ def _is_admin(user: User) -> bool:
+@@ -35,17 +40,84 @@ router = APIRouter(prefix="/product-publish", tags=["商品发布"])
+ 
+ # ==================== Pydantic 请求 / 响应模型 ====================
+ 
++class PlatformAttributeRequest(BaseModel):
++    """闲鱼平台属性标签，来源于抓包中的 itemLabelExtList。"""
++    property_id: Optional[str] = Field(None, max_length=64)
++    property_name: Optional[str] = Field(None, max_length=100)
++    value_id: Optional[str] = Field(None, max_length=64)
++    value_name: Optional[str] = Field(None, max_length=200)
++    text: Optional[str] = Field(None, max_length=200)
++    properties: Optional[str] = Field(None, max_length=500)
++
++
++class PlatformCategoryPathItemRequest(BaseModel):
++    """平台分类路径中的一级分类。"""
++    id: str = Field(..., min_length=1, max_length=64)
++    name: str = Field(..., min_length=1, max_length=100)
++
++
++class VideoMaterialRequest(BaseModel):
++    """视频素材元数据，不保存抓包中的临时上传授权。"""
++    url: str = Field(..., min_length=1, max_length=2000)
++    path: Optional[str] = Field(None, max_length=1000)
++    name: Optional[str] = Field(None, max_length=255)
++    size: Optional[int] = Field(None, ge=0, le=200 * 1024 * 1024)
++    file_id: Optional[str] = Field(None, max_length=128)
++    width: Optional[int] = Field(None, ge=1, le=10000)
++    height: Optional[int] = Field(None, ge=1, le=10000)
++    duration_ms: Optional[int] = Field(None, ge=1, le=86400000)
++
++
++class SpecificationValueRequest(BaseModel):
++    """单个商品规格值。"""
++
++    name: str = Field(..., min_length=1, max_length=100)
++    image: Optional[str] = Field(None, max_length=2000)
++
++
++class ProductSpecificationRequest(BaseModel):
++    """商品规格类型及其可选值。"""
++
++    name: str = Field(..., min_length=1, max_length=100)
++    values: List[SpecificationValueRequest] = Field(default_factory=list, max_length=50)
++    support_image: bool = False
++
++
++class PublishSkuRowRequest(BaseModel):
++    """规格组合对应的价格和库存。"""
++
++    specs: Dict[str, str] = Field(default_factory=dict, max_length=4)
++    price: float = Field(..., gt=0)
++    stock: int = Field(0, ge=0, le=999999)
++
+ class MaterialCreateRequest(BaseModel):
+     """创建素材请求"""
+     title: str = Field(..., min_length=1, max_length=200, description="商品标题")
+-    description: str = Field(..., min_length=1, description="商品描述")
++    description: str = Field(..., min_length=1, max_length=1500, description="商品描述")
+     price: float = Field(..., gt=0, description="售价")
+     original_price: Optional[float] = Field(None, description="原价（划线价）")
+     category: Optional[str] = Field(None, max_length=100, description="商品分类")
+-    images: List[str] = Field(default=[], description="图片URL列表（最多9张）")
++    platform_category_id: Optional[str] = Field(None, max_length=64, description="平台末级分类ID（catId）")
++    platform_category_name: Optional[str] = Field(None, max_length=100, description="平台末级分类名称（catName）")
++    platform_channel_category_id: Optional[str] = Field(None, max_length=64, description="平台频道分类ID（channelCatId）")
++    platform_channel_category_name: Optional[str] = Field(None, max_length=100, description="平台频道分类名称（channelCatName）")
++    platform_leaf_id: Optional[str] = Field(None, max_length=64, description="平台叶子分类ID（leafId）")
++    platform_tb_category_id: Optional[str] = Field(None, max_length=64, description="淘宝分类ID（tbCatId）")
++    platform_category_path: List[PlatformCategoryPathItemRequest] = Field(default_factory=list)
++    platform_attributes: List[PlatformAttributeRequest] = Field(default_factory=list, max_length=30)
++    category_source: str = Field("manual", pattern="^(manual|recommendation)$")
++    category_confidence: Optional[float] = Field(None, ge=0, le=1)
++    images: List[str] = Field(..., min_length=1, max_length=9, description="图片URL列表（至少1张，最多9张）")
++    videos: List[VideoMaterialRequest] = Field(default_factory=list, max_length=3)
++    specifications: List[ProductSpecificationRequest] = Field(default_factory=list, max_length=2)
++    sku_rows: List[PublishSkuRowRequest] = Field(default_factory=list, max_length=200)
++    quantity: int = Field(1, ge=1, le=999999, description="发布数量")
+     delivery_method: str = Field("express", description="发货方式：express/pickup")
++    shipping_method: str = Field("free", pattern="^(free|distance|fixed|template|none)$")
++    support_pickup: bool = False
+     postage: float = Field(0, ge=0, description="邮费，0表示包邮")
+     address: Optional[str] = Field(None, max_length=200, description="宝贝所在地")
++    address_expected_text: Optional[str] = Field(None, max_length=200)
+     brand: Optional[str] = Field(None, max_length=100, description="品牌")
+     condition: str = Field("全新", description="成色")
+     remark: Optional[str] = Field(None, max_length=500, description="备注（内部使用）")
+@@ -54,30 +126,65 @@ class MaterialCreateRequest(BaseModel):
+ class MaterialUpdateRequest(BaseModel):
+     """更新素材请求（所有字段均可选）"""
+     title: Optional[str] = Field(None, max_length=200)
+-    description: Optional[str] = None
++    description: Optional[str] = Field(None, max_length=1500)
+     price: Optional[float] = Field(None, gt=0)
+     original_price: Optional[float] = None
+-    category: Optional[str] = None
+-    images: Optional[List[str]] = None
+-    delivery_method: Optional[str] = None
++    category: Optional[str] = Field(None, max_length=100)
++    platform_category_id: Optional[str] = Field(None, max_length=64)
++    platform_category_name: Optional[str] = Field(None, max_length=100)
++    platform_channel_category_id: Optional[str] = Field(None, max_length=64)
++    platform_channel_category_name: Optional[str] = Field(None, max_length=100)
++    platform_leaf_id: Optional[str] = Field(None, max_length=64)
++    platform_tb_category_id: Optional[str] = Field(None, max_length=64)
++    platform_category_path: Optional[List[PlatformCategoryPathItemRequest]] = Field(None)
++    platform_attributes: Optional[List[PlatformAttributeRequest]] = Field(None, max_length=30)
++    category_source: Optional[str] = Field(None, pattern="^(manual|recommendation)$")
++    category_confidence: Optional[float] = Field(None, ge=0, le=1)
++    images: Optional[List[str]] = Field(None, min_length=1, max_length=9)
++    videos: Optional[List[VideoMaterialRequest]] = Field(None, max_length=3)
++    specifications: Optional[List[ProductSpecificationRequest]] = Field(None, max_length=2)
++    sku_rows: Optional[List[PublishSkuRowRequest]] = Field(None, max_length=200)
++    quantity: Optional[int] = Field(None, ge=1, le=999999)
++    delivery_method: Optional[str] = Field(None, pattern="^(express|pickup)$")
++    shipping_method: Optional[str] = Field(None, pattern="^(free|distance|fixed|template|none)$")
++    support_pickup: Optional[bool] = None
+     postage: Optional[float] = Field(None, ge=0)
+-    address: Optional[str] = None
+-    brand: Optional[str] = None
+-    condition: Optional[str] = None
+-    remark: Optional[str] = None
++    address: Optional[str] = Field(None, max_length=200)
++    address_expected_text: Optional[str] = Field(None, max_length=200)
++    brand: Optional[str] = Field(None, max_length=100)
++    condition: Optional[str] = Field(None, max_length=20)
++    remark: Optional[str] = Field(None, max_length=500)
+ 
+ 
+ class PublishSingleRequest(BaseModel):
+     """单品发布请求"""
+     account_id: str = Field(..., description="闲鱼账号ID（cookie_id）")
+     title: str = Field(..., min_length=1, max_length=200)
+-    description: str = Field(...)
++    description: str = Field(..., min_length=1, max_length=1500)
+     price: float = Field(..., gt=0)
+     original_price: Optional[float] = None
+     category: Optional[str] = Field(None, description="商品分类")
+     images: List[str] = Field(..., min_length=1, description="图片本地路径列表（至少1张）")
++    platform_category_id: Optional[str] = Field(None, max_length=64)
++    platform_category_name: Optional[str] = Field(None, max_length=100)
++    platform_channel_category_id: Optional[str] = Field(None, max_length=64)
++    platform_channel_category_name: Optional[str] = Field(None, max_length=100)
++    platform_leaf_id: Optional[str] = Field(None, max_length=64)
++    platform_tb_category_id: Optional[str] = Field(None, max_length=64)
++    platform_category_path: List[PlatformCategoryPathItemRequest] = Field(default_factory=list)
++    platform_attributes: List[PlatformAttributeRequest] = Field(default_factory=list, max_length=30)
++    category_source: str = Field("manual", pattern="^(manual|recommendation)$")
++    category_confidence: Optional[float] = Field(None, ge=0, le=1)
++    videos: List[VideoMaterialRequest] = Field(default_factory=list, max_length=3)
++    quantity: int = Field(1, ge=1, le=999999)
++    stock: Optional[int] = Field(None, ge=0, le=999999)
++    specifications: List[ProductSpecificationRequest] = Field(default_factory=list, max_length=2)
++    sku_rows: List[PublishSkuRowRequest] = Field(default_factory=list, max_length=200)
+     address: Optional[str] = None
++    address_expected_text: Optional[str] = Field(None, max_length=200)
+     delivery_method: str = Field("express", description="发货方式：express/pickup")
++    shipping_method: str = Field("free", pattern="^(free|distance|fixed|template|none)$")
++    support_pickup: bool = False
+     postage: float = Field(0, ge=0, description="邮费，0表示包邮")
+     brand: Optional[str] = Field(None, description="品牌")
+     condition: str = Field("全新", description="成色")
+@@ -89,6 +196,110 @@ class BatchPublishRequest(BaseModel):
+     material_ids: List[int] = Field(..., min_length=1, description="素材ID列表")
+ 
+ 
++class CategoryRecommendRequest(BaseModel):
++    """根据商品标题和描述请求平台分类推荐。"""
++
++    title: str = Field("", max_length=200)
++    description: str = Field("", max_length=1500)
++    account_id: Optional[str] = Field(None, max_length=80, description="可选，指定用于请求的闲鱼账号")
++    current_card_list: List[Dict[str, Any]] = Field(
++        default_factory=list,
++        description="分类切换时沿用上一次推荐接口返回的完整属性卡",
++    )
++    selected_list: List[Dict[str, Any]] = Field(
++        default_factory=list,
++        description="当前已选分类的属性标签列表",
++    )
++    cat_id: str = Field("", max_length=80, description="当前已选闲鱼末级分类ID")
++    cat_name: str = Field("", max_length=200, description="当前已选分类名称")
++    channel_cat_id: str = Field("", max_length=80, description="当前已选频道分类ID")
++
++
++@router.post("/category/recommend", response_model=ApiResponse)
++async def recommend_category(
++    req: CategoryRecommendRequest,
++    current_user: User = Depends(get_current_active_user),
++    session: AsyncSession = Depends(get_db_session),
++) -> Dict[str, Any]:
++    """按商品标题和描述调用闲鱼分类推荐接口，素材库自动轮换当前用户已启动账号。"""
++    title = req.title.strip()
++    description = req.description.strip()
++    if not title and not description:
++        return ApiResponse(success=False, message="请先填写商品标题或商品描述")
++
++    account_service = AccountService(session)
++    requested_account_id = (req.account_id or "").strip()
++    if requested_account_id:
++        owner_scope = None if _is_admin(current_user) else current_user.id
++        account = await account_service.get_account_for_user(owner_scope, requested_account_id)
++        if not account:
++            return ApiResponse(success=False, message="指定的闲鱼账号不存在或无权使用")
++        candidate_accounts = [account] if account.cookie else []
++    else:
++        # 素材库不指定账号，只能使用当前登录用户自己的已启动账号，管理员也不跨用户取账号。
++        current_user_accounts = await account_service.list_accounts(current_user.id)
++        started_accounts = [
++            item
++            for item in current_user_accounts
++            if (item.status or "").strip().lower() == "active"
++        ]
++        if not started_accounts:
++            return ApiResponse(success=False, message="当前用户没有已启动的闲鱼账号，请先启动账号")
++        candidate_accounts = [item for item in started_accounts if item.cookie and item.cookie.strip()]
++
++    if not candidate_accounts:
++        message = (
++            "指定的闲鱼账号缺少Cookie，请重新登录账号"
++            if requested_account_id
++            else "当前用户已启动的闲鱼账号均缺少Cookie，请重新登录账号"
++        )
++        return ApiResponse(success=False, message=message)
++
++    category_service = PlatformCategoryService()
++    last_error = "分类推荐失败，请稍后重试"
++    for account_index, account in enumerate(candidate_accounts):
++        try:
++            data = await category_service.recommend(
++                # 闲鱼接口要求两个字段都有值，单独填写描述时用描述作为标题，反之亦然。
++                title=title or description[:200],
++                description=description or title,
++                cookie=account.cookie,
++                account_id=account.account_id,
++                owner_id=account.owner_id,
++                current_card_list=req.current_card_list or None,
++                selected_list=req.selected_list or None,
++                cat_id=req.cat_id,
++                cat_name=req.cat_name,
++                channel_cat_id=req.channel_cat_id,
++            )
++            return ApiResponse(success=True, message="分类推荐成功", data=data)
++        except CategoryRecommendationError as exc:
++            last_error = str(exc)
++            logger.warning(
++                f"分类推荐账号不可用: user_id={current_user.id}, "
++                f"account_id={account.account_id}, error={last_error}"
++            )
++        except Exception as exc:
++            last_error = "分类推荐失败，请稍后重试"
++            logger.error(
++                f"分类推荐接口异常: user_id={current_user.id}, "
++                f"account_id={account.account_id}, error={exc}"
++            )
++
++        if account_index < len(candidate_accounts) - 1:
++            logger.info(
++                f"分类推荐自动切换下一个已启动账号: user_id={current_user.id}, "
++                f"failed_account_id={account.account_id}"
++            )
++
++    if requested_account_id:
++        return ApiResponse(success=False, message=last_error)
++    return ApiResponse(
++        success=False,
++        message=f"当前用户已启动的闲鱼账号均不可用：{last_error}",
++    )
++
++
+ # ==================== 素材库接口 ====================
+ 
+ @router.post("/materials", response_model=ApiResponse)
+@@ -99,7 +310,10 @@ async def create_material(
+ ) -> Dict[str, Any]:
+     """创建商品素材"""
+     svc = ProductMaterialService(session)
+-    material = await svc.create(current_user.id, req.model_dump())
++    try:
++        material = await svc.create(current_user.id, req.model_dump())
++    except MaterialSpecificationError as exc:
++        return ApiResponse(success=False, message=str(exc))
+     return ApiResponse(success=True, message="素材创建成功", data={"id": material.id})
+ 
+ 
+@@ -110,6 +324,7 @@ async def list_materials(
+     title: str = Query(None, description="标题模糊搜索"),
+     category: str = Query(None, description="分类筛选"),
+     condition: str = Query(None, description="成色筛选"),
++    platform_category_id: str = Query(None, description="平台分类ID筛选"),
+     current_user: User = Depends(get_current_active_user),
+     session: AsyncSession = Depends(get_db_session),
+ ) -> Dict[str, Any]:
+@@ -120,6 +335,7 @@ async def list_materials(
+     data = await svc.list_materials(
+         query_user_id, page=page, page_size=page_size,
+         title=title, category=category, condition=condition,
++        platform_category_id=platform_category_id,
+     )
+     # 管理员场景：批量补充用户名
+     if _is_admin(current_user) and data.get("list"):
+@@ -148,7 +364,7 @@ async def batch_delete_materials(
+     svc = ProductMaterialService(session)
+     query_user_id = None if _is_admin(current_user) else current_user.id
+     count = await svc.batch_delete(req.ids, query_user_id)
+-    return ApiResponse(success=True, message=f"成功删除 {count} 条素材", data={"deleted_count": count})
++    return ApiResponse(success=True, message=f"成功移出 {count} 条素材", data={"deleted_count": count})
+ 
+ 
+ @router.get("/materials/{material_id}", response_model=ApiResponse)
+@@ -177,11 +393,16 @@ async def update_material(
+     """更新素材信息（管理员可修改任意素材）"""
+     svc = ProductMaterialService(session)
+     query_user_id = None if _is_admin(current_user) else current_user.id
+-    updated = await svc.update(
+-        material_id,
+-        query_user_id,
+-        {k: v for k, v in req.model_dump().items() if v is not None},
+-    )
++    try:
++        updated = await svc.update(
++            material_id,
++            query_user_id,
++            # 只忽略请求中未出现的字段；显式传入的空数组、False 或 null 都要保存，
++            # 否则编辑素材时清空规格/属性会被旧值覆盖。
++            req.model_dump(exclude_unset=True),
++        )
++    except MaterialSpecificationError as exc:
++        return ApiResponse(success=False, message=str(exc))
+     if not updated:
+         return ApiResponse(success=False, message="素材不存在或无权修改")
+     return ApiResponse(success=True, message="素材更新成功")
+@@ -199,7 +420,7 @@ async def delete_material(
+     deleted = await svc.delete(material_id, query_user_id)
+     if not deleted:
+         return ApiResponse(success=False, message="素材不存在或无权删除")
+-    return ApiResponse(success=True, message="素材删除成功")
++    return ApiResponse(success=True, message="素材已移出素材库")
+ 
+ 
+ # ==================== 发布接口 ====================
+@@ -210,10 +431,7 @@ async def publish_single(
+     current_user: User = Depends(get_current_active_user),
+     session: AsyncSession = Depends(get_db_session),
+ ) -> Dict[str, Any]:
+-    """单品发布（同步执行，等待 Playwright 完成后返回结果）
+-    
+-    注意：发布操作会启动无头浏览器，耗时约 30-60 秒，请前端设置合适的超时时间。
+-    """
++    """单品发布（同步调用闲鱼卖家工作台接口并返回结果）。"""
+     svc = PublishExecutorService(session)
+     result = await svc.publish_single(
+         user_id=current_user.id,
+@@ -245,7 +463,7 @@ async def publish_batch(
+     """批量发布（后台异步执行，立即返回 batch_id）
+     
+     前端通过 GET /publish/batch/{batch_id}/status 查询进度。
+-    后台会按账号循环，每个账号依次发布所有素材，复用同一浏览器实例。
++    后台会按账号循环，每个账号依次通过闲鱼接口发布所有素材。
+     """
+     mat_svc = ProductMaterialService(session)
+     from app.services.product_publish_service import _material_to_dict
+@@ -486,8 +704,6 @@ async def upload_product_images(
+ 
+     返回本地文件路径列表，这些路径将直接传给 Playwright 的 set_input_files。
+     """
+-    from app.core.paths import get_upload_path
+-
+     upload_dir = get_upload_path("products")
+ 
+     if len(files) > 9:
+@@ -519,6 +735,41 @@ async def upload_product_images(
+     )
+ 
+ 
++@router.post("/upload/videos", response_model=ApiResponse)
++async def upload_product_videos(
++    files: List[UploadFile] = File(...),
++    current_user: User = Depends(get_current_active_user),
++) -> Dict[str, Any]:
++    """上传商品视频（最多3个，每个最大100MB）。"""
++    del current_user
++    if len(files) > 3:
++        return ApiResponse(success=False, message="最多上传3个视频")
++
++    upload_dir = get_upload_path("products")
++    videos: List[dict] = []
++    for file in files:
++        try:
++            filepath, filename, size = await save_uploaded_video(file, upload_dir)
++        except VideoUploadError as exc:
++            return ApiResponse(success=False, message=f"文件 {file.filename}: {exc.message}")
++        videos.append({
++            "path": str(filepath),
++            "url": f"/static/uploads/products/{filename}",
++            "name": file.filename or filename,
++            "size": size,
++        })
++
++    return ApiResponse(
++        success=True,
++        message=f"成功上传 {len(videos)} 个视频",
++        data={
++            "videos": videos,
++            "paths": [item["path"] for item in videos],
++            "urls": [item["url"] for item in videos],
++        },
++    )
++
++
+ # ==================== 后台任务函数 ====================
+ 
+ async def _run_batch_publish_background(
+@@ -544,4 +795,4 @@ async def _run_batch_publish_background(
+             )
+         except Exception as e:
+             logger.error(f"批量发布后台任务异常: {e}\n{traceback.format_exc()}")
+-            await PublishBatchStatusService.clear_batch(batch_id)
+\ No newline at end of file
++            await PublishBatchStatusService.clear_batch(batch_id)
+diff --git a/backend-web/app/services/amap_inputtips_service.py b/backend-web/app/services/amap_inputtips_service.py
+new file mode 100644
+index 0000000..1cfe011
+--- /dev/null
++++ b/backend-web/app/services/amap_inputtips_service.py
+@@ -0,0 +1,143 @@
++"""
++高德宝贝所在地输入提示服务。
++
++功能：
++1. 按闲鱼卖家工作台网页 SDK 参数调用高德 inputtips 接口。
++2. 将高德 POI 提示转换为前端所在地选择所需的稳定结构。
++3. 将网络或高德业务错误转换为明确的中文业务异常，不返回模拟数据。
++"""
++from __future__ import annotations
++
++import asyncio
++import json
++from typing import Any
++
++from loguru import logger
++
++from app.core.http_client import get_http_client
++
++
++REQUEST_TIMEOUT_SECONDS = 20
++AMAP_INPUTTIPS_URL = "https://restapi.amap.com/v3/assistant/inputtips"
++AMAP_WEB_KEY = "c9b68d4ce9a2a97f22a4a439404488ca"
++AMAP_APP_NAME = "https://seller.goofish.com"
++AMAP_ORIGIN = "https://seller.goofish.com"
++
++
++class AmapInputTipsError(RuntimeError):
++    """高德输入提示接口请求失败或返回业务错误。"""
++
++
++def _as_text(value: Any) -> str:
++    """将高德响应字段安全转换为字符串，过滤空数组等非文本占位值。"""
++    if isinstance(value, str):
++        return value.strip()
++    if isinstance(value, (int, float)):
++        return str(value)
++    return ""
++
++
++def _parse_tip(raw_tip: Any) -> dict[str, str] | None:
++    """解析单条高德 POI 提示，无名称的无效记录不返回。"""
++    if not isinstance(raw_tip, dict):
++        return None
++
++    name = _as_text(raw_tip.get("name"))
++    if not name:
++        return None
++    district = _as_text(raw_tip.get("district"))
++    address = _as_text(raw_tip.get("address"))
++    detail_text = "".join(part for part in (district, address) if part)
++    expected_parts = [part for part in (name, detail_text) if part]
++
++    return {
++        "id": _as_text(raw_tip.get("id")),
++        "name": name,
++        "district": district,
++        "adcode": _as_text(raw_tip.get("adcode")),
++        "location": _as_text(raw_tip.get("location")),
++        "address": address,
++        "typecode": _as_text(raw_tip.get("typecode")),
++        "city": _as_text(raw_tip.get("city")),
++        "search_keyword": name,
++        "expected_text": " / ".join(expected_parts),
++    }
++
++
++class AmapInputTipsService:
++    """调用高德 inputtips 接口搜索宝贝所在地。"""
++
++    async def search(self, keywords: str, city: str = "全国") -> dict[str, Any]:
++        """
++        根据关键词查询高德 POI 输入提示。
++
++        Args:
++            keywords: 用户输入的所在地关键词。
++            city: 搜索城市，默认全国且不限制城市范围。
++        Returns:
++            包含高德实际返回提示列表和数量的字典。
++        Raises:
++            AmapInputTipsError: 请求失败或高德返回失败时抛出。
++        """
++        normalized_keywords = keywords.strip()
++        if not normalized_keywords:
++            raise AmapInputTipsError("请输入所在地关键词")
++
++        params = {
++            "s": "rsv3",
++            "key": AMAP_WEB_KEY,
++            "platform": "JS",
++            "logversion": "2.0",
++            "sdkversion": "2.0",
++            "appname": AMAP_APP_NAME,
++            "keywords": normalized_keywords,
++            "city": city.strip() or "全国",
++            "citylimit": "false",
++            "datatype": "all",
++        }
++        headers = {
++            "accept": "application/json, text/javascript, */*; q=0.01",
++            "origin": AMAP_ORIGIN,
++            "referer": f"{AMAP_ORIGIN.rstrip('/')}/",
++            "user-agent": (
++                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
++                "AppleWebKit/537.36 (KHTML, like Gecko) "
++                "Chrome/146.0.0.0 Safari/537.36"
++            ),
++        }
++
++        try:
++            body = await asyncio.wait_for(
++                get_http_client().get(
++                    AMAP_INPUTTIPS_URL,
++                    params=params,
++                    headers=headers,
++                ),
++                timeout=REQUEST_TIMEOUT_SECONDS,
++            )
++        except asyncio.TimeoutError as exc:
++            logger.warning(f"高德所在地搜索超时: keywords={normalized_keywords}")
++            raise AmapInputTipsError("所在地搜索超时，请稍后重试") from exc
++        except Exception as exc:
++            logger.warning(f"高德所在地搜索请求失败: keywords={normalized_keywords}, error={exc}")
++            raise AmapInputTipsError("所在地搜索接口请求失败，请稍后重试") from exc
++
++        logger.info(
++            f"高德inputtips接口完整返回: keywords={normalized_keywords}, "
++            f"response={json.dumps(body, ensure_ascii=False, default=str)}"
++        )
++        if not isinstance(body, dict) or str(body.get("status")) != "1":
++            info = _as_text(body.get("info")) if isinstance(body, dict) else ""
++            infocode = _as_text(body.get("infocode")) if isinstance(body, dict) else ""
++            logger.warning(
++                f"高德所在地搜索业务失败: keywords={normalized_keywords}, "
++                f"info={info}, infocode={infocode}"
++            )
++            raise AmapInputTipsError(f"所在地搜索失败：{info or '高德接口未返回成功状态'}")
++
++        tips = [
++            parsed_tip
++            for raw_tip in (body.get("tips") or [])
++            if (parsed_tip := _parse_tip(raw_tip)) is not None
++        ]
++        return {"tips": tips, "count": len(tips), "keywords": normalized_keywords}
+diff --git a/backend-web/app/services/platform_category_selection.py b/backend-web/app/services/platform_category_selection.py
+new file mode 100644
+index 0000000..99ebd5e
+--- /dev/null
++++ b/backend-web/app/services/platform_category_selection.py
+@@ -0,0 +1,164 @@
++"""
++平台分类选择状态构造工具。
++
++功能：
++1. 根据分类推荐接口返回的候选分类和完整属性卡定位选中项。
++2. 按单品发布界面的规则生成平台需要的 currentCardList 和 selectedList。
++"""
++from __future__ import annotations
++
++from copy import deepcopy
++from typing import Any
++
++
++class CategorySelectionError(RuntimeError):
++    """分类选择数据不完整或无法匹配属性卡时抛出的业务异常。"""
++
++
++def _as_text(value: Any) -> str:
++    """将分类字段安全转换为去除首尾空格的字符串。"""
++    return str(value).strip() if value is not None else ""
++
++
++def _transport_data(value: dict[str, Any]) -> dict[str, Any]:
++    """获取属性值中的 transportData 字典。"""
++    transport = value.get("transportData")
++    return transport if isinstance(transport, dict) else {}
++
++
++def _candidate_matches_value(
++    category: dict[str, Any],
++    value: dict[str, Any],
++) -> bool:
++    """按单品发布界面的优先级判断分类候选是否匹配属性卡选项。"""
++    transport = _transport_data(value)
++    channel_cat_id = _as_text(value.get("channelCatId")) or _as_text(
++        transport.get("channelCateId")
++    )
++    tb_cat_id = _as_text(value.get("tbCatId")) or _as_text(transport.get("tbCatId"))
++    cat_name = _as_text(value.get("catName")) or _as_text(transport.get("valueName"))
++
++    selected_channel_cat_id = _as_text(category.get("channel_cat_id"))
++    selected_tb_cat_id = _as_text(category.get("tb_cat_id"))
++    selected_cat_id = _as_text(category.get("cat_id"))
++    selected_cat_name = _as_text(category.get("cat_name"))
++
++    if selected_channel_cat_id and channel_cat_id:
++        return selected_channel_cat_id == channel_cat_id
++    if selected_tb_cat_id and tb_cat_id:
++        return selected_tb_cat_id == tb_cat_id
++    if selected_channel_cat_id or selected_tb_cat_id:
++        return False
++    if selected_cat_id and _as_text(value.get("catId")):
++        return selected_cat_id == _as_text(value.get("catId"))
++    return bool(selected_cat_name and selected_cat_name == cat_name)
++
++
++def build_category_selection(
++    card_list: list[dict[str, Any]],
++    category: dict[str, Any],
++) -> dict[str, Any]:
++    """
++    构造选择分类后重新获取动态属性所需的平台参数。
++
++    Args:
++        card_list: 第一次分类推荐接口原样返回的完整 card_list。
++        category: 第一次分类推荐接口 candidates 中用户选择的完整对象。
++    Returns:
++        包含 current_card_list、selected_list 和分类 ID 的请求参数。
++    Raises:
++        CategorySelectionError: 分类字段不完整或无法在分类卡中匹配选项。
++    """
++    if not card_list:
++        raise CategorySelectionError("card_list不能为空，请传入分类推荐接口返回的完整card_list")
++
++    category_name = _as_text(category.get("cat_name")) or _as_text(
++        category.get("channel_cat_name")
++    )
++    channel_cat_id = _as_text(category.get("channel_cat_id"))
++    tb_cat_id = _as_text(category.get("tb_cat_id"))
++    if not category_name or not channel_cat_id or not tb_cat_id:
++        raise CategorySelectionError(
++            "所选分类信息不完整，必须包含分类名称、channel_cat_id和tb_cat_id"
++        )
++
++    current_card_list = deepcopy(card_list)
++    selected_label: dict[str, Any] | None = None
++    category_card_found = False
++
++    for card in current_card_list:
++        if not isinstance(card, dict) or _as_text(card.get("propertyId")) != "-10000":
++            continue
++        category_card_found = True
++        values = card.get("valuesList")
++        if not isinstance(values, list):
++            continue
++
++        for value in values:
++            if not isinstance(value, dict):
++                continue
++            selected = _candidate_matches_value(category, value)
++            transport = _transport_data(value)
++            value_channel_id = (
++                _as_text(value.get("channelCatId"))
++                or _as_text(transport.get("channelCateId"))
++                or channel_cat_id
++            )
++            value_category_name = (
++                _as_text(value.get("catName"))
++                or _as_text(value.get("channelCatName"))
++                or category_name
++            )
++            properties = (
++                f"-10000##分类:{value_channel_id}##{value_category_name}"
++                if value_channel_id
++                else _as_text(value.get("properties"))
++            )
++            next_transport = {
++                **transport,
++                "channelCateName": _as_text(value.get("channelCatName"))
++                or _as_text(transport.get("channelCateName"))
++                or _as_text(category.get("channel_cat_name"))
++                or category_name,
++                "valueId": None,
++                "channelCateId": value_channel_id,
++                "valueName": None,
++                "tbCatId": _as_text(value.get("tbCatId"))
++                or _as_text(transport.get("tbCatId"))
++                or tb_cat_id,
++                "subPropertyId": None,
++                "labelType": _as_text(transport.get("labelType")) or "common",
++                "subValueId": None,
++                "labelId": None,
++                "propertyName": "分类",
++                "isUserClick": "1" if selected else "0",
++                "isUserCancel": None,
++                "from": "newPublishChoice",
++                "propertyId": "-10000",
++                "labelFrom": "newPublish",
++                "properties": properties,
++            }
++            if selected:
++                next_transport["text"] = value_category_name
++                selected_label = next_transport
++
++            value["isClicked"] = "1" if selected else "0"
++            value["isUserClick"] = "1" if selected else "0"
++            value["isUserCancel"] = None
++            value["transportData"] = next_transport
++
++    if not category_card_found:
++        raise CategorySelectionError("card_list中缺少分类卡，请重新调用分类推荐接口")
++    if selected_label is None:
++        raise CategorySelectionError("所选分类不在card_list中，请使用同一次分类推荐返回的数据")
++
++    return {
++        "current_card_list": current_card_list,
++        "selected_list": [selected_label],
++        "cat_id": _as_text(category.get("cat_id")),
++        "cat_name": category_name,
++        "channel_cat_id": channel_cat_id,
++    }
++
++
++__all__ = ["CategorySelectionError", "build_category_selection"]
+diff --git a/backend-web/app/services/platform_category_service.py b/backend-web/app/services/platform_category_service.py
+new file mode 100644
+index 0000000..5961d54
+--- /dev/null
++++ b/backend-web/app/services/platform_category_service.py
+@@ -0,0 +1,451 @@
++"""
++闲鱼平台分类推荐服务。
++
++功能：
++1. 按抓包中的 mtop 分类推荐接口提交商品标题和描述。
++2. 解析接口实际返回的所有分类候选及动态层级路径。
++3. 将第三方请求失败转换为可展示的业务异常，不返回模拟分类数据。
++"""
++from __future__ import annotations
++
++import hashlib
++import asyncio
++import json
++import re
++import time
++from typing import Any
++
++import aiohttp
++from loguru import logger
++
++from common.utils.cookie_refresh import (
++    handle_token_expired_response,
++    is_token_expired_error,
++    update_account_cookies_in_db,
++)
++
++
++APP_KEY = "34839810"
++CATEGORY_RECOMMEND_URL = (
++    "https://h5api.m.goofish.com/h5/"
++    "mtop.taobao.idle.kgraph.pc.property.recommend/2.0/"
++)
++REQUEST_TIMEOUT_SECONDS = 20
++
++
++class CategoryRecommendationError(RuntimeError):
++    """分类推荐接口不可用或未返回有效分类时抛出的业务异常。"""
++
++
++def _get_h5_token(cookie: str) -> str:
++    """从 Cookie 中提取 mtop 签名所需的 _m_h5_tk token。"""
++    for part in cookie.split(";"):
++        name, separator, value = part.strip().partition("=")
++        if separator and name == "_m_h5_tk":
++            return value.split("_", 1)[0]
++    return ""
++
++
++def _make_sign(timestamp: str, token: str, data: str) -> str:
++    """按 mtop 规则生成请求签名。"""
++    return hashlib.md5(f"{token}&{timestamp}&{APP_KEY}&{data}".encode("utf-8")).hexdigest()
++
++
++def _as_text(value: Any) -> str:
++    """将接口字段安全转换为去除首尾空格的字符串。"""
++    return str(value).strip() if value is not None else ""
++
++
++def _as_bool(value: Any) -> bool:
++    """兼容接口返回的布尔值和字符串布尔值。"""
++    if isinstance(value, str):
++        return value.strip().lower() in {"1", "true", "yes"}
++    return bool(value)
++
++
++def _build_path(value: dict[str, Any]) -> list[dict[str, str]]:
++    """根据响应中实际存在的 channelCatN 字段动态构建分类路径。"""
++    path: list[dict[str, str]] = []
++
++    def append_level(category_id: str, category_name: str) -> None:
++        if category_id and category_name and (not path or path[-1] != {"id": category_id, "name": category_name}):
++            path.append({"id": category_id, "name": category_name})
++
++    level_keys: list[tuple[int, str, str]] = []
++    for key, raw_id in value.items():
++        match = re.fullmatch(r"channelCat(\d+)Id", str(key))
++        if not match:
++            continue
++        level = int(match.group(1))
++        category_id = _as_text(raw_id)
++        category_name = _as_text(value.get(f"channelCat{level}Name"))
++        if category_id and category_name:
++            level_keys.append((level, category_id, category_name))
++
++    for _, category_id, category_name in sorted(level_keys):
++        append_level(category_id, category_name)
++
++    channel_id = _as_text(value.get("channelCatId"))
++    channel_name = _as_text(value.get("channelCatName"))
++    append_level(channel_id, channel_name)
++
++    # 有频道路径时，catId/catName 作为平台末级 ID 单独保存，不再重复显示同一条路径。
++    if not path:
++        append_level(_as_text(value.get("catId")), _as_text(value.get("catName")))
++    return path
++
++
++def _card_list(response: dict[str, Any]) -> list[dict[str, Any]]:
++    """读取推荐接口返回的 cardList，兼容字符串形式的 cardList。"""
++    data = response.get("data") or {}
++    cards = data.get("cardList") or []
++    if isinstance(cards, str):
++        try:
++            cards = json.loads(cards)
++        except json.JSONDecodeError:
++            cards = []
++    return cards if isinstance(cards, list) else []
++
++
++def _parse_current_card_list(response: dict[str, Any]) -> list[dict[str, Any]]:
++    """保留接口返回的完整 cardData，供下一次分类切换请求作为 currentCardList。
++
++    抓包显示 ``currentCardList`` 包含分类、品牌、成色及当前分类属性的全部卡片，
++    不能只保留分类卡；否则平台无法依据刚选中的分类收敛下一轮属性卡。
++    """
++    card_list: list[dict[str, Any]] = []
++    for card in _card_list(response):
++        card_data = card.get("cardData") if isinstance(card, dict) else None
++        if isinstance(card_data, dict) and _as_text(card_data.get("propertyId")):
++            card_list.append(card_data)
++    return card_list
++
++
++def _parse_candidates(response: dict[str, Any]) -> list[dict[str, Any]]:
++    """解析分类卡（propertyId=-10000），保留接口实际返回的候选数量。"""
++    cards = _card_list(response)
++
++    candidates: list[dict[str, Any]] = []
++    for card in cards:
++        card_data = card.get("cardData") if isinstance(card, dict) else None
++        if not isinstance(card_data, dict):
++            continue
++        if _as_text(card_data.get("propertyId")) != "-10000":
++            continue
++        values = card_data.get("valuesList") or []
++        for value in values if isinstance(values, list) else []:
++            if not isinstance(value, dict):
++                continue
++            transport = value.get("transportData") if isinstance(value.get("transportData"), dict) else {}
++            channel_cat_id = _as_text(value.get("channelCatId")) or _as_text(transport.get("channelCateId"))
++            channel_cat_name = _as_text(value.get("channelCatName")) or _as_text(transport.get("channelCateName"))
++            cat_name = _as_text(value.get("catName")) or _as_text(transport.get("valueName"))
++            tb_cat_id = _as_text(value.get("tbCatId")) or _as_text(transport.get("tbCatId"))
++            normalized_value = {
++                **transport,
++                **value,
++                "channelCatId": channel_cat_id,
++                "channelCatName": channel_cat_name,
++                "catName": cat_name,
++                "tbCatId": tb_cat_id,
++            }
++            path = _build_path(normalized_value)
++            if not path and channel_cat_id and channel_cat_name:
++                path = [{"id": channel_cat_id, "name": channel_cat_name}]
++            if not path:
++                continue
++            candidates.append(
++                {
++                    "cat_id": _as_text(value.get("catId")) or None,
++                    "cat_name": cat_name or None,
++                    "channel_cat_id": channel_cat_id or None,
++                    "channel_cat_name": channel_cat_name or None,
++                    "leaf_id": _as_text(value.get("leafId")) or None,
++                    "tb_cat_id": tb_cat_id or None,
++                    "path": path,
++                    "score": value.get("score"),
++                    "is_selected": _as_bool(value.get("isClicked")) or _as_bool(value.get("isUserClick")),
++                }
++            )
++    return candidates
++
++
++def _apply_category_predict_result(
++    response: dict[str, Any], candidates: list[dict[str, Any]]
++) -> list[dict[str, Any]]:
++    """用 categoryPredictResult 补全当前选中分类可能缺失的末级分类ID。
++
++    推荐卡的部分候选只携带频道分类ID，而同一响应的 categoryPredictResult
++    会给出当前选中项完整的 catId、channelCatId、tbCatId。发布接口要求三者
++    都存在，因此仅对当前命中的候选合并该信息。
++    """
++    data = response.get("data") or {}
++    result = data.get("categoryPredictResult") if isinstance(data, dict) else None
++    if not isinstance(result, dict):
++        return candidates
++
++    cat_id = _as_text(result.get("catId"))
++    cat_name = _as_text(result.get("catName"))
++    channel_cat_id = _as_text(result.get("channelCatId"))
++    tb_cat_id = _as_text(result.get("tbCatId"))
++    if not any((cat_id, cat_name, channel_cat_id, tb_cat_id)):
++        return candidates
++
++    for candidate in candidates:
++        matches = (
++            bool(channel_cat_id and candidate.get("channel_cat_id") == channel_cat_id)
++            or bool(tb_cat_id and candidate.get("tb_cat_id") == tb_cat_id)
++            or bool(cat_id and candidate.get("cat_id") == cat_id)
++            or bool(cat_name and candidate.get("cat_name") == cat_name)
++        )
++        if not matches:
++            continue
++        candidate["cat_id"] = candidate.get("cat_id") or cat_id or None
++        candidate["cat_name"] = candidate.get("cat_name") or cat_name or None
++        candidate["channel_cat_id"] = candidate.get("channel_cat_id") or channel_cat_id or None
++        candidate["tb_cat_id"] = candidate.get("tb_cat_id") or tb_cat_id or None
++        candidate["is_selected"] = True
++        break
++    return candidates
++
++
++def _parse_properties(response: dict[str, Any]) -> list[dict[str, Any]]:
++    """解析分类以外的动态平台属性卡及其选项。
++
++    闲鱼推荐接口不会固定返回品牌、成色等字段；每个 cardData 就对应页面上的
++    一个输入框，因此这里不写死属性名称，直接透传接口实际返回的卡片数量和选项。
++    """
++    properties: list[dict[str, Any]] = []
++    for card in _card_list(response):
++        card_data = card.get("cardData") if isinstance(card, dict) else None
++        if not isinstance(card_data, dict):
++            continue
++        property_id = _as_text(card_data.get("propertyId"))
++        property_name = _as_text(card_data.get("propertyName"))
++        if not property_id or property_id == "-10000" or not property_name:
++            continue
++
++        options: list[dict[str, Any]] = []
++        values = card_data.get("valuesList") or []
++        for value in values if isinstance(values, list) else []:
++            if not isinstance(value, dict):
++                continue
++            transport = value.get("transportData") if isinstance(value.get("transportData"), dict) else {}
++            value_id = _as_text(value.get("valueId")) or _as_text(transport.get("valueId"))
++            value_name = _as_text(value.get("valueName")) or _as_text(transport.get("valueName"))
++            if not value_name:
++                continue
++            channel_cat_id = _as_text(value.get("channelCatId")) or _as_text(transport.get("channelCateId"))
++            tb_cat_id = _as_text(value.get("tbCatId")) or _as_text(transport.get("tbCatId"))
++            options.append(
++                {
++                    "property_id": property_id,
++                    "property_name": property_name,
++                    "value_id": value_id or None,
++                    "value_name": value_name,
++                    "channel_cat_id": channel_cat_id or None,
++                    "tb_cat_id": tb_cat_id or None,
++                }
++            )
++
++        properties.append(
++            {
++                "property_id": property_id,
++                "property_name": property_name,
++                "input_word": _as_text(card_data.get("inputWord")) or None,
++                "is_multiple": _as_bool(card_data.get("isMultiple")),
++                "is_decisive_property": _as_bool(card_data.get("isDecisiveProperty")),
++                "options": options,
++            }
++        )
++    return properties
++
++
++class PlatformCategoryService:
++    """调用闲鱼 mtop 接口获取商品分类推荐。"""
++
++    async def recommend(
++        self,
++        title: str,
++        description: str,
++        cookie: str,
++        account_id: str = "",
++        owner_id: int | None = None,
++        current_card_list: list[dict[str, Any]] | None = None,
++        selected_list: list[dict[str, Any]] | None = None,
++        cat_id: str = "",
++        cat_name: str = "",
++        channel_cat_id: str = "",
++    ) -> dict[str, Any]:
++        """
++        根据标题和描述返回平台分类候选，令牌过期时自动刷新并重试一次。
++
++        Args:
++            title: 商品标题。
++            description: 商品描述。
++            cookie: 当前闲鱼账号Cookie。
++        account_id: 闲鱼账号标识，用于日志和Cookie写回。
++        owner_id: 账号所属用户ID，确保Cookie更新时保持用户隔离。
++        current_card_list: 分类切换时沿用上一次响应中的完整属性卡。
++        selected_list: 当前已选分类的属性标签列表。
++        cat_id: 当前已选的闲鱼末级分类ID。
++        cat_name: 当前已选分类名称。
++        channel_cat_id: 当前已选频道分类ID。
++        Returns:
++            包含接口实际返回分类候选的结果字典。
++        Raises:
++            CategoryRecommendationError: 请求失败、令牌刷新失败或未返回分类时抛出。
++        """
++        if not cookie.strip():
++            raise CategoryRecommendationError("闲鱼账号缺少Cookie，请先重新登录账号")
++
++        payload = {
++            "title": title.strip(),
++            "lockCpv": False,
++            "multiSKU": False,
++            "publishScene": "pcBackendPublish",
++            "scene": "shopPcPublish",
++            "description": description.strip(),
++            "uniqueCode": f"{int(time.time() * 1000)}{account_id[-4:]}",
++        }
++        if current_card_list:
++            payload["currentCardList"] = current_card_list
++        if selected_list:
++            payload["selectedList"] = selected_list
++        if cat_id:
++            payload["catId"] = cat_id
++        if cat_name:
++            payload["catName"] = cat_name
++        if channel_cat_id:
++            payload["channelCatId"] = channel_cat_id
++        data_text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
++
++        try:
++            timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT_SECONDS)
++            # 禁用 aiohttp 自动 CookieJar，避免它与手动 Cookie 请求头重复或覆盖账号 Cookie。
++            async with aiohttp.ClientSession(
++                timeout=timeout,
++                cookie_jar=aiohttp.DummyCookieJar(),
++            ) as client:
++                current_cookie = cookie.replace("\n", "").replace("\r", "")
++                for retry_count in range(2):
++                    token = _get_h5_token(current_cookie)
++                    if not token:
++                        logger.warning(
++                            f"分类推荐Cookie缺少_m_h5_tk，将请求平台获取新令牌: "
++                            f"account_id={account_id}, retry_count={retry_count}"
++                        )
++
++                    timestamp = str(int(time.time() * 1000))
++                    params = {
++                        "jsv": "2.7.2",
++                        "appKey": APP_KEY,
++                        "t": timestamp,
++                        "sign": _make_sign(timestamp, token, data_text),
++                        "v": "2.0",
++                        "type": "originaljson",
++                        "accountSite": "xianyu",
++                        "dataType": "json",
++                        "timeout": str(REQUEST_TIMEOUT_SECONDS * 1000),
++                        "api": "mtop.taobao.idle.kgraph.pc.property.recommend",
++                        "sessionOption": "AutoLoginOnly",
++                        "spm_cnt": "a21107h.42829679.0.0",
++                        "spm_pre": "a21107h.42829791.0.0",
++                    }
++                    headers = {
++                        "accept": "application/json",
++                        "content-type": "application/x-www-form-urlencoded",
++                        "origin": "https://seller.goofish.com",
++                        "referer": "https://seller.goofish.com/",
++                        "idle_site_biz_code": "COMMONPRO",
++                        "idle_user_group_member_id": "",
++                        "cookie": current_cookie,
++                    }
++                    async with client.post(
++                        CATEGORY_RECOMMEND_URL,
++                        params=params,
++                        data={"data": data_text},
++                        headers=headers,
++                    ) as response:
++                        response_text = await response.text()
++                        try:
++                            body = json.loads(response_text)
++                        except json.JSONDecodeError:
++                            logger.warning(
++                                f"分类推荐接口返回JSON解析失败: account_id={account_id}, "
++                                f"retry_count={retry_count}, http_status={response.status}, "
++                                f"response={response_text}"
++                            )
++                            raise
++                        ret = (body.get("ret") or []) if isinstance(body, dict) else []
++                        if is_token_expired_error(ret):
++                            logger.warning(
++                                f"分类推荐接口返回令牌错误: account_id={account_id}, "
++                                f"retry_count={retry_count}, http_status={response.status}, "
++                                f"ret={ret}, response={response_text}"
++                            )
++                            if retry_count >= 1:
++                                logger.error(
++                                    f"分类推荐令牌过期重试已达上限: account_id={account_id}, ret={ret}"
++                                )
++                                raise CategoryRecommendationError(
++                                    "闲鱼账号令牌已过期，自动刷新失败，请重新登录账号"
++                                )
++                            refreshed, refreshed_cookie = handle_token_expired_response(
++                                response,
++                                current_cookie,
++                            )
++                            if not refreshed or refreshed_cookie == current_cookie:
++                                raise CategoryRecommendationError(
++                                    "闲鱼账号令牌已过期且接口未返回新Cookie，请重新登录账号"
++                                )
++                            current_cookie = refreshed_cookie
++                            saved = await update_account_cookies_in_db(
++                                account_id,
++                                current_cookie,
++                                owner_id=owner_id,
++                            )
++                            if not saved:
++                                logger.error(
++                                    f"分类推荐令牌刷新Cookie写库失败: account_id={account_id}, owner_id={owner_id}"
++                                )
++                            logger.warning(
++                                f"分类推荐令牌过期，准备使用新Cookie重试: account_id={account_id}"
++                            )
++                            continue
++
++                        if not any("SUCCESS" in str(item) for item in ret):
++                            message = str(ret[0]) if ret else "闲鱼接口未返回成功状态"
++                            logger.warning(
++                                f"分类推荐接口业务失败: account_id={account_id}, "
++                                f"retry_count={retry_count}, http_status={response.status}, "
++                                f"ret={message}, response={response_text}"
++                            )
++                            raise CategoryRecommendationError(
++                                "分类推荐失败，请检查账号登录状态后重试"
++                            )
++
++                        candidates = _apply_category_predict_result(body, _parse_candidates(body))
++                        properties = _parse_properties(body)
++                        current_card_list = _parse_current_card_list(body)
++                        if not candidates:
++                            raise CategoryRecommendationError("接口未返回可用的商品分类")
++                        logger.info(
++                            f"分类推荐接口调用成功: account_id={account_id}, "
++                            f"retry_count={retry_count}, candidates={len(candidates)}, "
++                            f"properties={len(properties)}, card_list={len(current_card_list)}"
++                        )
++                        return {
++                            "candidates": candidates,
++                            "properties": properties,
++                            "card_list": current_card_list,
++                            "account_id": account_id,
++                        }
++        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError) as exc:
++            logger.warning(f"分类推荐请求失败: account_id={account_id}, error={exc}")
++            raise CategoryRecommendationError("分类推荐接口请求失败，请稍后重试") from exc
++        except CategoryRecommendationError:
++            raise
++        except Exception as exc:
++            logger.error(f"分类推荐解析异常: account_id={account_id}, error={exc}")
++            raise CategoryRecommendationError("分类推荐接口返回异常，请稍后重试") from exc
+diff --git a/backend-web/app/services/product_publish_service.py b/backend-web/app/services/product_publish_service.py
+index dffa20c..92f1ef5 100644
+--- a/backend-web/app/services/product_publish_service.py
++++ b/backend-web/app/services/product_publish_service.py
+@@ -18,6 +18,79 @@ from common.models.product_material import ProductMaterial
+ # ==================== 素材库服务 ====================
+ 
+ from common.utils.time_utils import safe_isoformat
++
++
++class MaterialSpecificationError(ValueError):
++    """商品素材规格不符合保存规则。"""
++
++
++def _normalize_specifications(value: Any) -> list[dict]:
++    """规范化规格 JSON，确保规格值名称和图片字段完整保存。"""
++    if not isinstance(value, list):
++        return []
++    normalized: list[dict] = []
++    for specification in value[:2]:
++        if not isinstance(specification, dict):
++            continue
++        name = str(specification.get("name") or "").strip()
++        if not name:
++            continue
++        values: list[dict] = []
++        seen_values: set[str] = set()
++        for item in specification.get("values") or []:
++            if not isinstance(item, dict):
++                continue
++            value_name = str(item.get("name") or "").strip()
++            if not value_name:
++                continue
++            if value_name in seen_values:
++                raise MaterialSpecificationError(f"规格“{name}”存在重复规格值：{value_name}")
++            seen_values.add(value_name)
++            values.append({"name": value_name, "image": item.get("image") or None})
++        normalized.append({
++            "name": name,
++            "support_image": bool(specification.get("support_image")),
++            "values": values,
++        })
++    return normalized
++
++
++def _normalize_sku_rows(value: Any) -> list[dict]:
++    """规范化 SKU JSON，保留每个规格组合的价格和库存。"""
++    if not isinstance(value, list):
++        return []
++    normalized: list[dict] = []
++    for row in value[:200]:
++        if not isinstance(row, dict):
++            continue
++        specs = row.get("specs") if isinstance(row.get("specs"), dict) else {}
++        try:
++            price = float(row.get("price"))
++            stock = int(row.get("stock"))
++        except (TypeError, ValueError):
++            continue
++        if price <= 0 or stock < 0:
++            continue
++        normalized.append({
++            "specs": {str(key): str(item) for key, item in specs.items()},
++            "price": price,
++            "stock": stock,
++        })
++    return normalized
++
++
++def _normalize_material_json(data: dict) -> dict:
++    """统一处理素材中嵌套 JSON，避免 Pydantic/ORM 转换时丢字段。"""
++    normalized = dict(data)
++    normalized["specifications"] = _normalize_specifications(data.get("specifications"))
++    normalized["sku_rows"] = _normalize_sku_rows(data.get("sku_rows"))
++    normalized["platform_category_path"] = data.get("platform_category_path") or []
++    normalized["platform_attributes"] = data.get("platform_attributes") or []
++    normalized["videos"] = data.get("videos") or []
++    normalized["images"] = data.get("images") or []
++    return normalized
++
++
+ class ProductMaterialService:
+     """商品素材库 CRUD 服务"""
+ 
+@@ -26,6 +99,7 @@ class ProductMaterialService:
+ 
+     async def create(self, user_id: int, data: dict) -> ProductMaterial:
+         """创建素材"""
++        data = _normalize_material_json(data)
+         material = ProductMaterial(
+             user_id=user_id,
+             title=data["title"],
+@@ -33,10 +107,27 @@ class ProductMaterialService:
+             price=float(data["price"]),
+             original_price=float(data["original_price"]) if data.get("original_price") else None,
+             category=data.get("category"),
+-            images=data.get("images", []),
++            platform_category_id=data.get("platform_category_id"),
++            platform_category_name=data.get("platform_category_name"),
++            platform_channel_category_id=data.get("platform_channel_category_id"),
++            platform_channel_category_name=data.get("platform_channel_category_name"),
++            platform_leaf_id=data.get("platform_leaf_id"),
++            platform_tb_category_id=data.get("platform_tb_category_id"),
++            platform_category_path=data.get("platform_category_path") or [],
++            platform_attributes=data.get("platform_attributes") or [],
++            category_source=data.get("category_source") or "manual",
++            category_confidence=data.get("category_confidence"),
++            images=data["images"],
++            videos=data.get("videos") or [],
++            specifications=data["specifications"],
++            sku_rows=data["sku_rows"],
++            quantity=int(data.get("quantity") or 1),
+             delivery_method=data.get("delivery_method", "express"),
++            shipping_method=data.get("shipping_method", "free"),
++            support_pickup=bool(data.get("support_pickup", False)),
+             postage=float(data.get("postage", 0)),
+             address=data.get("address"),
++            address_expected_text=data.get("address_expected_text"),
+             brand=data.get("brand"),
+             condition=data.get("condition", "全新"),
+             remark=data.get("remark"),
+@@ -49,6 +140,7 @@ class ProductMaterialService:
+     async def list_materials(
+         self, user_id: int = None, page: int = 1, page_size: int = 20,
+         title: str = None, category: str = None, condition: str = None,
++        platform_category_id: str = None,
+     ) -> Dict[str, Any]:
+         """分页查询素材列表
+         
+@@ -61,7 +153,7 @@ class ProductMaterialService:
+         page = max(page, 1)
+         page_size = page_size if page_size in (10, 20, 50, 100, 500, 1000) else 20
+ 
+-        base_cond = []
++        base_cond = [ProductMaterial.is_deleted.is_(False)]
+         if user_id is not None:
+             base_cond.append(ProductMaterial.user_id == user_id)
+         if title:
+@@ -70,6 +162,8 @@ class ProductMaterialService:
+             base_cond.append(ProductMaterial.category == category)
+         if condition:
+             base_cond.append(ProductMaterial.condition == condition)
++        if platform_category_id:
++            base_cond.append(ProductMaterial.platform_category_id == platform_category_id)
+ 
+         count_stmt = (
+             select(func.count())
+@@ -102,7 +196,7 @@ class ProductMaterialService:
+             material_id: 素材ID
+             user_id: 用户ID，为None时不限用户（管理员场景）
+         """
+-        conds = [ProductMaterial.id == material_id]
++        conds = [ProductMaterial.id == material_id, ProductMaterial.is_deleted.is_(False)]
+         if user_id is not None:
+             conds.append(ProductMaterial.user_id == user_id)
+         stmt = select(ProductMaterial).where(*conds)
+@@ -115,6 +209,7 @@ class ProductMaterialService:
+         stmt = select(ProductMaterial).where(
+             ProductMaterial.user_id == user_id,
+             ProductMaterial.id.in_(unique_ids),
++            ProductMaterial.is_deleted.is_(False),
+         )
+         rows = (await self.session.execute(stmt)).scalars().all()
+         material_map = {row.id: row for row in rows}
+@@ -127,13 +222,21 @@ class ProductMaterialService:
+         if not material:
+             return None
+ 
++        if "specifications" in data:
++            data["specifications"] = _normalize_specifications(data.get("specifications"))
++        if "sku_rows" in data:
++            data["sku_rows"] = _normalize_sku_rows(data.get("sku_rows"))
++
+         updatable = [
+             "title", "description", "price", "original_price", "category",
+-            "images", "delivery_method", "postage", "address", "brand",
+-            "condition", "remark",
++            "platform_category_id", "platform_category_name",
++            "platform_channel_category_id", "platform_channel_category_name",
++            "platform_leaf_id", "platform_tb_category_id", "platform_category_path", "platform_attributes",
++            "category_source", "category_confidence", "images", "videos", "specifications", "sku_rows", "quantity",
++            "delivery_method", "shipping_method", "support_pickup", "postage", "address", "address_expected_text", "brand", "condition", "remark",
+         ]
+         for field in updatable:
+-            if field in data and data[field] is not None:
++            if field in data:
+                 value = data[field]
+                 if field in ("price", "original_price", "postage"):
+                     value = float(value) if value else (None if field == "original_price" else 0)
+@@ -148,7 +251,7 @@ class ProductMaterialService:
+         material = await self.get(material_id, user_id)
+         if not material:
+             return False
+-        await self.session.delete(material)
++        material.is_deleted = True
+         await self.session.commit()
+         return True
+ 
+@@ -161,14 +264,15 @@ class ProductMaterialService:
+         """
+         if not material_ids:
+             return 0
+-        from sqlalchemy import delete as sa_delete
+-        conds = [ProductMaterial.id.in_(material_ids)]
++        conds = [ProductMaterial.id.in_(material_ids), ProductMaterial.is_deleted.is_(False)]
+         if user_id is not None:
+             conds.append(ProductMaterial.user_id == user_id)
+-        stmt = sa_delete(ProductMaterial).where(*conds)
+-        result = await self.session.execute(stmt)
++        stmt = select(ProductMaterial).where(*conds)
++        rows = (await self.session.execute(stmt)).scalars().all()
++        for row in rows:
++            row.is_deleted = True
+         await self.session.commit()
+-        return result.rowcount
++        return len(rows)
+ 
+ 
+ # ==================== 工具函数 ====================
+@@ -183,10 +287,27 @@ def _material_to_dict(m: ProductMaterial) -> dict:
+         "price": float(m.price) if m.price is not None else 0,
+         "original_price": float(m.original_price) if m.original_price is not None else None,
+         "category": m.category,
++        "platform_category_id": m.platform_category_id,
++        "platform_category_name": m.platform_category_name,
++        "platform_channel_category_id": m.platform_channel_category_id,
++        "platform_channel_category_name": m.platform_channel_category_name,
++        "platform_leaf_id": m.platform_leaf_id,
++        "platform_tb_category_id": m.platform_tb_category_id,
++        "platform_category_path": m.platform_category_path or [],
++        "platform_attributes": m.platform_attributes or [],
++        "category_source": m.category_source or "manual",
++        "category_confidence": float(m.category_confidence) if m.category_confidence is not None else None,
+         "images": m.images or [],
++        "videos": m.videos or [],
++        "specifications": m.specifications or [],
++        "sku_rows": m.sku_rows or [],
++        "quantity": m.quantity or 1,
+         "delivery_method": m.delivery_method,
++        "shipping_method": m.shipping_method or ("fixed" if m.postage else "free"),
++        "support_pickup": bool(m.support_pickup),
+         "postage": float(m.postage) if m.postage is not None else 0,
+         "address": m.address,
++        "address_expected_text": m.address_expected_text,
+         "brand": m.brand,
+         "condition": m.condition,
+         "remark": m.remark,
+diff --git a/backend-web/app/services/publish_account_capability_service.py b/backend-web/app/services/publish_account_capability_service.py
+new file mode 100644
+index 0000000..c5ee43e
+--- /dev/null
++++ b/backend-web/app/services/publish_account_capability_service.py
+@@ -0,0 +1,116 @@
++"""
++闲鱼发布账号能力检测服务。
++
++功能：
++1. 调用网页发布初始化接口识别鱼小铺与普通卖家账号；
++2. 返回多规格能力和服务费配置，供前端展示与后端发布分流使用。
++"""
++from __future__ import annotations
++
++from typing import Any
++
++from common.services.xianyu_mtop import mtop_call
++
++
++PREGET_API = "mtop.idle.pc.idleitem.preget"
++PUBLISH_ORIGIN = "https://www.goofish.com"
++PUBLISH_REFERER = "https://www.goofish.com/publish"
++
++
++class PublishAccountCapabilityService:
++    """根据账号 Cookie 查询闲鱼发布能力。"""
++
++    async def detect(
++        self,
++        *,
++        account_id: str,
++        cookie: str,
++        owner_id: int | None,
++    ) -> dict[str, Any]:
++        """
++        查询账号发布初始化配置。
++
++        Args:
++            account_id: 闲鱼账号标识。
++            cookie: 账号 Cookie。
++            owner_id: 账号所属用户 ID，用于令牌刷新后的 Cookie 回写。
++        Returns:
++            包含账号类型、多规格能力、服务费配置和最新 Cookie 的检测结果。
++        """
++        response = await mtop_call(
++            account_id=account_id,
++            cookies_str=cookie,
++            api=PREGET_API,
++            version="1.0",
++            data={},
++            owner_id=owner_id,
++            extra_params={"spm_cnt": "a21ybx.publish.0.0"},
++            origin=PUBLISH_ORIGIN,
++            referer=PUBLISH_REFERER,
++        )
++        latest_cookie = response.get("cookies_str") or cookie
++        if not response.get("success"):
++            return {
++                "success": False,
++                "message": f"账号发布能力检测失败：{response.get('error') or '闲鱼接口调用失败'}",
++                "account_invalid": bool(response.get("account_invalid")),
++                "cookies_str": latest_cookie,
++            }
++
++        raw_data = (response.get("res") or {}).get("data")
++        if not isinstance(raw_data, dict):
++            return {
++                "success": False,
++                "message": "账号发布能力检测失败：闲鱼接口未返回发布配置",
++                "account_invalid": False,
++                "cookies_str": latest_cookie,
++            }
++
++        commission = raw_data.get("commissionConfig")
++        commission = commission if isinstance(commission, dict) else {}
++        support_sku = raw_data.get("supportSkuOrInventory")
++        tip_url = str(commission.get("tipUrl") or "")
++        commission_title = str(commission.get("defaultCommissionTitle") or "")
++
++        has_shop_marker = (
++            "fish-shop-service-fee-rule" in tip_url
++            or "鱼小铺" in commission_title
++            or "鱼小铺" in str(commission.get("commissionTitle") or "")
++        )
++        has_personal_marker = (
++            "fish-seller-service-fee-rule" in tip_url
++            or commission_title == "基础软件服务费"
++        )
++        if has_shop_marker:
++            is_fish_shop = True
++        elif has_personal_marker:
++            is_fish_shop = False
++        elif isinstance(support_sku, bool):
++            is_fish_shop = support_sku
++        else:
++            return {
++                "success": False,
++                "message": "账号发布能力检测失败：无法识别账号是否开通鱼小铺",
++                "account_invalid": False,
++                "cookies_str": latest_cookie,
++            }
++
++        return {
++            "success": True,
++            "message": "账号发布能力检测成功",
++            "account_invalid": False,
++            "cookies_str": latest_cookie,
++            "is_fish_shop": is_fish_shop,
++            "support_sku_or_inventory": bool(support_sku) if isinstance(support_sku, bool) else is_fish_shop,
++            "commission_config": {
++                "title": str(commission.get("commissionTitle") or ""),
++                "default_title": commission_title,
++                "tips": str(commission.get("commissionTips") or ""),
++                "percent": str(commission.get("percent") or ""),
++                "max_commission": str(commission.get("maxCommission") or ""),
++                "tip_url": tip_url,
++            },
++        }
++
++
++__all__ = ["PublishAccountCapabilityService"]
+diff --git a/backend-web/app/services/publish_execution_service.py b/backend-web/app/services/publish_execution_service.py
+index 08adcd6..7632332 100644
+--- a/backend-web/app/services/publish_execution_service.py
++++ b/backend-web/app/services/publish_execution_service.py
+@@ -23,7 +23,12 @@ from app.services.item_service import ItemService
+ from common.models.publish_log import PublishLog
+ from common.models.xy_account import XYAccount
+ from common.services.publish_execution_service import execute_single_publish
+-from common.services.xianyu_publish_service import create_xianyu_publisher
++from common.services.xianyu_publish_service import (
++    detect_publish_account_capability,
++    publish_personal_single_item,
++    publish_single_item,
++)
++from common.utils.xianyu_utils import canonical_goofish_item_url
+ 
+ 
+ from common.utils.time_utils import safe_isoformat
+@@ -230,7 +235,7 @@ class PublishExecutorService:
+         materials: List[dict],
+         batch_id: str = None,
+     ) -> Dict[str, Any]:
+-        """批量发布（多账号×多商品，每账号复用同一浏览器实例）"""
++        """批量发布（多账号×多商品，逐条调用闲鱼发布接口）。"""
+         if not batch_id:
+             batch_id = str(uuid.uuid4())
+         log_svc = PublishLogService(self.session)
+@@ -246,15 +251,21 @@ class PublishExecutorService:
+         account_map = await self._get_account_map(account_ids, user_id)
+ 
+         for account_id in account_ids:
++            # 启用状态只控制自动任务；批量发布可使用用户明确选择的未启用账号。
+             account = account_map.get(account_id)
+             cookies_str = account.cookie if account and account.cookie else ""
+-            if not cookies_str:
++            if not account or not cookies_str.strip():
++                account_error = (
++                    "账号不存在或无权使用"
++                    if not account
++                    else "账号缺少Cookie，请重新登录账号"
++                )
+                 await PublishBatchStatusService.mark_account_sync_skipped(
+                     batch_id=batch_id,
+                     account_id=account_id,
+-                    message="账号不存在或无权使用，未触发自动获取商品",
++                    message=f"{account_error}，未触发自动获取商品",
+                 )
+-                logger.warning(f"账号 {account_id} 不存在或无权使用，跳过")
++                logger.warning(f"账号 {account_id} 无法发布，跳过: {account_error}")
+                 for material in materials:
+                     log = await log_svc.create_log(
+                         user_id=user_id,
+@@ -265,36 +276,41 @@ class PublishExecutorService:
+                         material_id=material.get("id"),
+                         batch_id=batch_id,
+                         status="failed",
+-                        error_message="账号不存在或无权使用",
++                        error_message=account_error,
+                     )
+                     log_ids.append(log.id)
+                 failed_count += len(materials)
+                 continue
+ 
+-            account_success_count = 0
+-            queue_state = await address_svc.build_queue_state(account_id)
+-            publisher = create_xianyu_publisher(static_root=STATIC_ROOT)
++            # 每个账号在一个批次内只检测一次，检测结果决定后续所有素材的发布接口。
+             try:
+-                for idx, material in enumerate(materials):
+-                    try:
+-                        resolved_address = await address_svc.resolve_publish_address(account_id, material, queue_state)
+-                    except ValueError as address_error:
+-                        failed_count += 1
+-                        log = await log_svc.create_log(
+-                            user_id=user_id,
+-                            account_id=account_id,
+-                            title=material.get("title", ""),
+-                            description=material.get("description", ""),
+-                            price=str(material.get("price", "")),
+-                            material_id=material.get("id"),
+-                            batch_id=batch_id,
+-                            status="failed",
+-                            error_message=str(address_error),
+-                        )
+-                        log_ids.append(log.id)
+-                        continue
++                capability = await detect_publish_account_capability(
++                    cookie=cookies_str,
++                    account_id=account.account_id,
++                    owner_id=user_id,
++                )
++                cookies_str = capability.get("cookies_str") or cookies_str
++                account.cookie = cookies_str
++            except Exception as capability_exc:
++                capability = {
++                    "success": False,
++                    "message": f"账号发布能力检测异常：{capability_exc}",
++                }
++                logger.error(
++                    f"批量发布账号能力检测异常: account={account_id}, error={capability_exc}"
++                )
+ 
+-                    publish_material = resolved_address.apply_to_item_data(material)
++            if not capability.get("success"):
++                capability_message = capability.get("message") or "账号发布能力检测失败"
++                await PublishBatchStatusService.mark_account_sync_skipped(
++                    batch_id=batch_id,
++                    account_id=account_id,
++                    message=f"{capability_message}，未触发自动获取商品",
++                )
++                logger.warning(
++                    f"账号 {account_id} 发布能力检测失败，跳过该账号所有素材: {capability_message}"
++                )
++                for material in materials:
+                     log = await log_svc.create_log(
+                         user_id=user_id,
+                         account_id=account_id,
+@@ -303,50 +319,99 @@ class PublishExecutorService:
+                         price=str(material.get("price", "")),
+                         material_id=material.get("id"),
+                         batch_id=batch_id,
+-                        status="publishing",
+-                        **resolved_address.to_log_fields(),
++                        status="failed",
++                        error_message=capability_message,
+                     )
+                     log_ids.append(log.id)
++                failed_count += len(materials)
++                continue
+ 
+-                    try:
+-                        reuse = idx > 0
+-                        result = await publisher.publish_item(
++            is_fish_shop = bool(capability.get("is_fish_shop"))
++            account_success_count = 0
++            queue_state = await address_svc.build_queue_state(account_id)
++            for idx, material in enumerate(materials):
++                try:
++                    resolved_address = await address_svc.resolve_publish_address(account_id, material, queue_state)
++                except ValueError as address_error:
++                    failed_count += 1
++                    log = await log_svc.create_log(
++                        user_id=user_id,
++                        account_id=account_id,
++                        title=material.get("title", ""),
++                        description=material.get("description", ""),
++                        price=str(material.get("price", "")),
++                        material_id=material.get("id"),
++                        batch_id=batch_id,
++                        status="failed",
++                        error_message=str(address_error),
++                    )
++                    log_ids.append(log.id)
++                    continue
++
++                publish_material = resolved_address.apply_to_item_data(material)
++                log = await log_svc.create_log(
++                    user_id=user_id,
++                    account_id=account_id,
++                    title=material.get("title", ""),
++                    description=material.get("description", ""),
++                    price=str(material.get("price", "")),
++                    material_id=material.get("id"),
++                    batch_id=batch_id,
++                    status="publishing",
++                    **resolved_address.to_log_fields(),
++                )
++                log_ids.append(log.id)
++
++                try:
++                    if is_fish_shop:
++                        # 鱼小铺账号继续走原有发布器，参数和接口逻辑均保持不变。
++                        result = await publish_single_item(
+                             item_data=publish_material,
+-                            cookie_data={"cookie": cookies_str},
+-                            reuse_browser=reuse,
+-                            should_close=False,
++                            cookie=cookies_str,
++                            account_id=account.account_id,
++                            owner_id=user_id,
++                            static_root=STATIC_ROOT,
+                         )
+-
+-                        if result.get("success"):
+-                            success_count += 1
+-                            account_success_count += 1
+-                            await log_svc.update_log(
+-                                log_id=log.id,
+-                                status="success",
+-                                item_url=result.get("item_url"),
+-                                item_id=result.get("item_id"),
+-                            )
+-                        else:
+-                            failed_count += 1
+-                            await log_svc.update_log(
+-                                log_id=log.id,
+-                                status="failed",
+-                                error_message=result.get("message"),
+-                            )
+-
+-                        if idx < len(materials) - 1:
+-                            await asyncio.sleep(3)
+-
+-                    except Exception as exc:
++                    else:
++                        result = await publish_personal_single_item(
++                            item_data=publish_material,
++                            cookie=cookies_str,
++                            account_id=account.account_id,
++                            owner_id=user_id,
++                            static_root=STATIC_ROOT,
++                        )
++                    cookies_str = result.get("cookies_str") or cookies_str
++                    account.cookie = cookies_str
++
++                    if result.get("success"):
++                        success_count += 1
++                        account_success_count += 1
++                        await log_svc.update_log(
++                            log_id=log.id,
++                            status="success",
++                            item_url=result.get("item_url"),
++                            item_id=result.get("item_id"),
++                        )
++                    else:
+                         failed_count += 1
+-                        logger.error(f"批量发布单品异常: account={account_id}, title={material.get('title')}: {exc}")
+-                        await log_svc.update_log(log_id=log.id, status="failed", error_message=str(exc))
++                        await log_svc.update_log(
++                            log_id=log.id,
++                            status="failed",
++                            error_message=result.get("message"),
++                        )
++
++                    if idx < len(materials) - 1:
++                        await asyncio.sleep(3)
+ 
+-            finally:
+-                await publisher.close()
++                except Exception as exc:
++                    failed_count += 1
++                    logger.error(f"批量接口发布单品异常: account={account_id}, title={material.get('title')}: {exc}")
++                    await log_svc.update_log(log_id=log.id, status="failed", error_message=str(exc))
+ 
+             if account_success_count > 0 and account is not None:
+                 try:
++                    # 接口调用可能刷新令牌，使用最新 Cookie 执行发布后的商品同步。
++                    account.cookie = cookies_str
+                     await PublishBatchStatusService.mark_account_sync_running(
+                         batch_id=batch_id,
+                         account_id=account_id,
+@@ -388,6 +453,9 @@ class PublishExecutorService:
+ 
+ def _log_to_dict(log: PublishLog) -> dict:
+     """将发布日志模型转为字典"""
++    item_url = log.item_url
++    if log.item_id:
++        item_url = canonical_goofish_item_url(log.item_id)
+     return {
+         "id": log.id,
+         "user_id": log.user_id,
+@@ -398,7 +466,7 @@ def _log_to_dict(log: PublishLog) -> dict:
+         "material_id": log.material_id,
+         "batch_id": log.batch_id,
+         "status": log.status,
+-        "item_url": log.item_url,
++        "item_url": item_url,
+         "item_id": log.item_id,
+         "error_message": log.error_message,
+         "resolved_address_id": log.resolved_address_id,
+diff --git a/backend-web/app/services/xianyu_direct_payload.py b/backend-web/app/services/xianyu_direct_payload.py
+new file mode 100644
+index 0000000..155229b
+--- /dev/null
++++ b/backend-web/app/services/xianyu_direct_payload.py
+@@ -0,0 +1,186 @@
++"""闲鱼接口发布的规格载荷与响应解析辅助函数。"""
++from __future__ import annotations
++
++import re
++from typing import Any
++from urllib.parse import parse_qs, urlparse
++
++
++class DirectPublishError(RuntimeError):
++    """直连接口发布前置校验或载荷构建异常。"""
++
++    def __init__(self, message: str, *, account_invalid: bool = False) -> None:
++        super().__init__(message)
++        self.account_invalid = account_invalid
++
++
++def text(value: Any) -> str:
++    """安全转换接口输入为去除空白的文本。"""
++    return str(value).strip() if value is not None else ""
++
++
++def price_in_cent(value: Any, field_name: str) -> str:
++    """将元价格转换为字符串分值。"""
++    try:
++        cents = round(float(value) * 100)
++    except (TypeError, ValueError) as exc:
++        raise DirectPublishError(f"{field_name}格式不正确") from exc
++    if cents <= 0:
++        raise DirectPublishError(f"{field_name}必须大于0")
++    return str(cents)
++
++
++def build_sku_payload(
++    item_data: dict[str, Any],
++) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, str]], bool]:
++    """构造 itemProperties、itemSkuList 和待上传的规格图片来源。"""
++    raw_specs = item_data.get("specifications") or []
++    raw_rows = item_data.get("sku_rows") or []
++    if not raw_specs and not raw_rows:
++        return [], [], [], False
++    if not raw_specs:
++        raise DirectPublishError("商品包含 SKU，但未提供规格定义")
++    if not raw_rows:
++        raise DirectPublishError("请选择规格组合并填写每个 SKU 的价格和库存")
++
++    item_properties: list[dict[str, Any]] = []
++    property_image_sources: list[dict[str, str]] = []
++    spec_names: list[str] = []
++    allowed_values: dict[str, set[str]] = {}
++    expected_count = 1
++    for index, specification in enumerate(raw_specs, 1):
++        if not isinstance(specification, dict):
++            raise DirectPublishError(f"第 {index} 个规格格式不正确")
++        name = text(specification.get("name"))
++        if not name:
++            raise DirectPublishError(f"第 {index} 个规格名称不能为空")
++        if name in allowed_values:
++            raise DirectPublishError(f"规格名称重复：{name}")
++        raw_values = specification.get("values") or []
++        values: list[str] = []
++        for value in raw_values:
++            value_name = text(value.get("name") if isinstance(value, dict) else value)
++            if not value_name:
++                continue
++            if value_name in values:
++                raise DirectPublishError(f"规格“{name}”存在重复规格值：{value_name}")
++            values.append(value_name)
++        if not values:
++            raise DirectPublishError(f"规格“{name}”至少需要一个规格值")
++        spec_names.append(name)
++        allowed_values[name] = set(values)
++        expected_count *= len(values)
++        property_values: list[dict[str, Any]] = []
++        has_value_image = False
++        for value in raw_values:
++            value_name = text(value.get("name") if isinstance(value, dict) else value)
++            if not value_name or value_name not in values:
++                continue
++            property_values.append({"propertyValue": value_name})
++            image_source = text(value.get("image")) if isinstance(value, dict) else ""
++            if image_source:
++                has_value_image = True
++                property_image_sources.append(
++                    {"property_name": name, "property_value": value_name, "source": image_source}
++                )
++        item_properties.append(
++            {
++                "propertyName": name,
++                "supportImage": bool(specification.get("support_image")) or has_value_image,
++                "propertyValues": property_values,
++            }
++        )
++
++    if len(raw_rows) != expected_count:
++        raise DirectPublishError(
++            f"规格组合数量不完整：应有 {expected_count} 组，实际收到 {len(raw_rows)} 组"
++        )
++    return (
++        item_properties,
++        _build_sku_rows(raw_rows, spec_names, allowed_values),
++        property_image_sources,
++        True,
++    )
++
++
++def _build_sku_rows(
++    raw_rows: list[Any], spec_names: list[str], allowed_values: dict[str, set[str]]
++) -> list[dict[str, Any]]:
++    """校验规格组合并生成接口 itemSkuList。"""
++    item_sku_list: list[dict[str, Any]] = []
++    seen_combinations: set[tuple[str, ...]] = set()
++    for index, row in enumerate(raw_rows, 1):
++        if not isinstance(row, dict):
++            raise DirectPublishError(f"第 {index} 个 SKU 格式不正确")
++        row_specs = row.get("specs") or {}
++        if not isinstance(row_specs, dict):
++            raise DirectPublishError(f"第 {index} 个 SKU 的规格值格式不正确")
++        property_list: list[dict[str, str]] = []
++        combination: list[str] = []
++        for spec_name in spec_names:
++            value_name = text(row_specs.get(spec_name))
++            if not value_name:
++                raise DirectPublishError(f"第 {index} 个 SKU 缺少规格“{spec_name}”")
++            if value_name not in allowed_values[spec_name]:
++                raise DirectPublishError(f"第 {index} 个 SKU 的规格值无效：{spec_name}={value_name}")
++            combination.append(value_name)
++            property_list.append({"propertyText": spec_name, "valueText": value_name})
++        combination_key = tuple(combination)
++        if combination_key in seen_combinations:
++            raise DirectPublishError(f"第 {index} 个 SKU 与已有规格组合重复")
++        seen_combinations.add(combination_key)
++        try:
++            stock = int(row.get("stock", 0))
++        except (TypeError, ValueError) as exc:
++            raise DirectPublishError(f"第 {index} 个 SKU 库存格式不正确") from exc
++        if stock < 0 or stock > 999999:
++            raise DirectPublishError(f"第 {index} 个 SKU 库存必须在 0 到 999999 之间")
++        item_sku_list.append(
++            {
++                "priceInCent": price_in_cent(row.get("price"), f"第 {index} 个 SKU 售价"),
++                "quantity": stock,
++                "propertyList": property_list,
++            }
++        )
++    return item_sku_list
++
++
++def extract_item_id_from_url(value: str) -> str | None:
++    """从商品查询参数或旧版路径地址中提取商品 ID。"""
++    if not value:
++        return None
++    try:
++        query = parse_qs(urlparse(value).query or "")
++        for key in ("id", "item_id", "itemId"):
++            candidate = query.get(key)
++            if candidate and candidate[0]:
++                return text(candidate[0])
++    except Exception:
++        pass
++    match = re.search(r"/item/(\d+)", value)
++    return match.group(1) if match else None
++
++
++def find_item_reference(value: Any) -> tuple[str | None, str | None]:
++    """递归提取发布响应中的商品 ID 和商品链接。"""
++    item_id: str | None = None
++    item_url: str | None = None
++    if isinstance(value, dict):
++        for key, current in value.items():
++            normalized = key.lower()
++            if normalized in {"itemid", "item_id", "idleitemid"} and current is not None:
++                item_id = text(current) or item_id
++            elif normalized in {"itemurl", "item_url", "url"} and isinstance(current, str):
++                extracted_id = extract_item_id_from_url(current)
++                item_id = item_id or extracted_id
++                if "goofish.com" in current and (extracted_id or "/item" in current):
++                    item_url = current
++            nested_id, nested_url = find_item_reference(current)
++            item_id = item_id or nested_id
++            item_url = item_url or nested_url
++    elif isinstance(value, list):
++        for current in value:
++            nested_id, nested_url = find_item_reference(current)
++            item_id = item_id or nested_id
++            item_url = item_url or nested_url
++    return item_id, item_url
+diff --git a/backend-web/app/services/xianyu_direct_publisher.py b/backend-web/app/services/xianyu_direct_publisher.py
+new file mode 100644
+index 0000000..689f89f
+--- /dev/null
++++ b/backend-web/app/services/xianyu_direct_publisher.py
+@@ -0,0 +1,380 @@
++"""
++闲鱼单品接口发布服务。
++
++功能：
++1. 按卖家工作台抓包构造 idleitem.publish 请求；
++2. 上传本地商品图片和视频封面、解析高德所在地并组装平台分类；
++3. 复用公共 mtop 客户端的令牌刷新、Cookie 回写和风控识别。
++"""
++from __future__ import annotations
++
++import json
++import time
++from pathlib import Path
++from typing import Any
++
++from loguru import logger
++
++from app.services.amap_inputtips_service import AmapInputTipsError, AmapInputTipsService
++from app.services.xianyu_direct_payload import (
++    DirectPublishError,
++    build_sku_payload as _build_sku_payload,
++    extract_item_id_from_url as _extract_item_id_from_url,
++    find_item_reference as _find_item_reference,
++    price_in_cent as _price_in_cent,
++    text as _text,
++)
++from common.services.xianyu_mtop import mtop_call
++from common.services.xianyu_publish_media import PublishMediaError, upload_publish_image
++from common.services.xianyu_publish_video import PublishVideoError, upload_publish_videos
++from common.utils.xianyu_utils import canonical_goofish_item_url
++
++
++PUBLISH_API = "mtop.idle.pc.backend.idleitem.publish"
++SELLER_ORIGIN = "https://seller.goofish.com"
++SELLER_REFERER = "https://seller.goofish.com/?site=COMMONPRO"
++
++
++def _location_to_gps(location: str) -> str:
++    """将高德经纬度转为闲鱼接口所需的纬度,经度。"""
++    parts = [part.strip() for part in location.split(",")]
++    if len(parts) != 2:
++        raise DirectPublishError("宝贝所在地缺少有效坐标，请重新选择地址")
++    try:
++        longitude = float(parts[0])
++        latitude = float(parts[1])
++    except ValueError as exc:
++        raise DirectPublishError("宝贝所在地坐标格式不正确，请重新选择地址") from exc
++    if not (-180 <= longitude <= 180 and -90 <= latitude <= 90):
++        raise DirectPublishError("宝贝所在地坐标无效，请重新选择地址")
++    return f"{latitude:.6f},{longitude:.6f}"
++
++
++def _address_match_score(tip: dict[str, Any], expected_text: str) -> tuple[int, int]:
++    """按用户选择时保存的期望文本优先匹配高德候选。"""
++    if not expected_text:
++        return (3, 0)
++    expected = expected_text.replace(" ", "")
++    candidate = _text(tip.get("expected_text")) or " / ".join(
++        value for value in (_text(tip.get("name")), _text(tip.get("address"))) if value
++    )
++    candidate = candidate.replace(" ", "")
++    if candidate == expected:
++        return (0, len(candidate))
++    if candidate.startswith(expected):
++        return (1, len(candidate))
++    if expected in candidate:
++        return (2, candidate.find(expected))
++    return (4, len(candidate))
++
++
++async def _resolve_item_address(item_data: dict[str, Any]) -> dict[str, str]:
++    """重新请求高德 inputtips，将素材文本地址解析为闲鱼发布地址结构。"""
++    address = _text(item_data.get("address"))
++    if not address:
++        raise DirectPublishError("请先选择带有效坐标的宝贝所在地")
++    expected_text = _text(item_data.get("address_expected_text"))
++    try:
++        result = await AmapInputTipsService().search(address)
++    except AmapInputTipsError as exc:
++        raise DirectPublishError(str(exc)) from exc
++
++    tips = result.get("tips") if isinstance(result, dict) else []
++    valid_tips = [
++        tip for tip in tips if isinstance(tip, dict)
++        and _text(tip.get("id")) and _text(tip.get("adcode")) and _text(tip.get("location"))
++    ]
++    if not valid_tips:
++        raise DirectPublishError("宝贝所在地未返回POI编号、行政区划或坐标，请重新选择地址")
++    selected = min(valid_tips, key=lambda tip: _address_match_score(tip, expected_text))
++    return {
++        "divisionId": _text(selected.get("adcode")),
++        "gps": _location_to_gps(_text(selected.get("location"))),
++        "poiId": _text(selected.get("id")),
++        "poiName": _text(selected.get("name")),
++    }
++
++
++def _build_category_label(item_data: dict[str, Any]) -> dict[str, Any]:
++    """构造抓包中的分类属性标签，确保平台分类和分类ID一同提交。"""
++    channel_id = _text(item_data.get("platform_channel_category_id"))
++    channel_name = _text(item_data.get("platform_channel_category_name"))
++    category_name = _text(item_data.get("platform_category_name"))
++    tb_cat_id = _text(item_data.get("platform_tb_category_id"))
++    if not channel_id or not channel_name or not tb_cat_id:
++        raise DirectPublishError("请先根据商品描述重新选择完整的平台商品分类")
++    return {
++        "channelCateName": channel_name,
++        "valueId": None,
++        "channelCateId": channel_id,
++        "valueName": None,
++        "tbCatId": tb_cat_id,
++        "subPropertyId": None,
++        "labelType": "common",
++        "subValueId": None,
++        "labelId": None,
++        "propertyName": "分类",
++        "isUserClick": "1",
++        "isUserCancel": None,
++        "from": "newPublishChoice",
++        "propertyId": "-10000",
++        "labelFrom": "newPublish",
++        "text": category_name or channel_name,
++        "properties": f"-10000##分类:{channel_id}##{category_name or channel_name}",
++    }
++
++
++def _build_attribute_labels(item_data: dict[str, Any]) -> list[dict[str, Any]]:
++    """转换前端保存的属性标签，未知或不完整标签不提交给平台。"""
++    labels = [_build_category_label(item_data)]
++    for attribute in item_data.get("platform_attributes") or []:
++        if not isinstance(attribute, dict) or _text(attribute.get("property_name")) == "分类":
++            continue
++        property_id = _text(attribute.get("property_id"))
++        property_name = _text(attribute.get("property_name"))
++        value_id = _text(attribute.get("value_id"))
++        value_name = _text(attribute.get("value_name")) or _text(attribute.get("text"))
++        if not property_id or not property_name or not value_name:
++            continue
++        labels.append(
++            {
++                "channelCateName": _text(item_data.get("platform_channel_category_name")) or None,
++                "valueId": value_id,
++                "channelCateId": _text(item_data.get("platform_channel_category_id")),
++                "valueName": value_name,
++                "tbCatId": _text(item_data.get("platform_tb_category_id")),
++                "subPropertyId": None,
++                "labelType": "common",
++                "subValueId": None,
++                "labelId": None,
++                "propertyName": property_name,
++                "isUserClick": "1",
++                "isUserCancel": None,
++                "from": "newPublishChoice",
++                "propertyId": property_id,
++                "labelFrom": "newPublish",
++                "text": value_name,
++                "properties": _text(attribute.get("properties"))
++                or f"{property_id}##{property_name}:{value_id or ''}##{value_name}",
++            }
++        )
++    return labels
++
++
++def _build_post_fee(item_data: dict[str, Any]) -> dict[str, bool]:
++    """转换已由抓包确认的包邮和仅自提发货方式。"""
++    shipping_method = _text(item_data.get("shipping_method")) or "free"
++    if shipping_method == "free":
++        return {"canFreeShipping": True, "supportFreight": True, "onlyTakeSelf": False}
++    if shipping_method == "none":
++        return {"canFreeShipping": False, "supportFreight": False, "onlyTakeSelf": True}
++    raise DirectPublishError("当前接口抓包未包含非包邮运费载荷，请改为包邮或无需邮寄后发布")
++
++
++class XianyuDirectPublisher:
++    """使用闲鱼卖家工作台 mtop 接口发布单个商品。"""
++
++    def __init__(self, static_root: str | Path | None = None):
++        self.static_root = Path(static_root) if static_root else None
++
++    async def publish_item(
++        self,
++        item_data: dict[str, Any],
++        cookie: str,
++        account_id: str,
++        owner_id: int | None,
++    ) -> dict[str, Any]:
++        """上传媒体并调用最终发布接口，返回统一发布结果。"""
++        title = _text(item_data.get("title"))
++        description = _text(item_data.get("description"))
++        if not title or not description:
++            raise DirectPublishError("商品标题和商品描述不能为空")
++        item_properties, item_sku_list, property_image_sources, is_multi_spec = _build_sku_payload(item_data)
++        images = [value for value in item_data.get("images") or [] if _text(value)]
++        if not images:
++            raise DirectPublishError("请至少上传一张商品图片")
++        labels = _build_attribute_labels(item_data)
++        category_info = {
++            "catId": _text(item_data.get("platform_category_id")),
++            "catName": _text(item_data.get("platform_category_name")),
++            "channelCatId": _text(item_data.get("platform_channel_category_id")),
++            "leafId": _text(item_data.get("platform_leaf_id")),
++            "tbCatId": _text(item_data.get("platform_tb_category_id")),
++        }
++        missing_category_fields = [
++            field for field in ("catId", "channelCatId", "tbCatId") if not category_info[field]
++        ]
++        if missing_category_fields:
++            field_names = {
++                "catId": "末级分类ID",
++                "channelCatId": "频道分类ID",
++                "tbCatId": "淘宝分类ID",
++            }
++            raise DirectPublishError(
++                "平台商品分类信息不完整，缺少 "
++                f"{', '.join(field_names[field] for field in missing_category_fields)}，请重新选择分类"
++            )
++        resolved_address = await _resolve_item_address(item_data)
++
++        video_items: list[dict[str, Any]] = []
++        if item_data.get("videos"):
++            try:
++                video_items, cookie = await upload_publish_videos(
++                    item_data.get("videos") or [],
++                    cookie,
++                    account_id,
++                    owner_id,
++                    static_root=self.static_root,
++            )
++            except PublishVideoError as exc:
++                if exc.account_invalid:
++                    return {
++                        "success": False,
++                        "message": f"视频上传失败：{exc}",
++                        "item_id": None,
++                        "item_url": None,
++                        "account_invalid": True,
++                        "cookies_str": cookie,
++                    }
++                raise DirectPublishError(f"视频上传失败：{exc}") from exc
++
++        image_items: list[dict[str, Any]] = []
++        for index, image in enumerate(images[:9], 1):
++            try:
++                uploaded = await upload_publish_image(
++                    _text(image),
++                    cookie,
++                    static_root=self.static_root,
++                )
++            except PublishMediaError as exc:
++                raise DirectPublishError(f"第 {index} 张图片上传失败：{exc}") from exc
++            uploaded["major"] = index == 1
++            image_items.append(uploaded)
++
++        property_image_list: list[dict[str, Any]] = []
++        if is_multi_spec and property_image_sources:
++            image_by_property: dict[tuple[str, str], dict[str, Any]] = {}
++            for image_source in property_image_sources:
++                property_name = image_source["property_name"]
++                property_value = image_source["property_value"]
++                try:
++                    uploaded = await upload_publish_image(
++                        image_source["source"],
++                        cookie,
++                        static_root=self.static_root,
++                    )
++                except PublishMediaError as exc:
++                    raise DirectPublishError(
++                        f"规格 {property_name}={property_value} 图片上传失败：{exc}"
++                    ) from exc
++                property_image = dict(uploaded)
++                property_image.pop("major", None)
++                image_by_property[(property_name, property_value)] = property_image
++                property_image_list.append(
++                    {
++                        "property": {
++                            "propertyText": property_name,
++                            "valueText": property_value,
++                        },
++                        "url": property_image["url"],
++                    }
++                )
++            for item_property in item_properties:
++                for property_value in item_property.get("propertyValues") or []:
++                    key = (
++                        _text(item_property.get("propertyName")),
++                        _text(property_value.get("propertyValue")),
++                    )
++                    image = image_by_property.get(key)
++                    if image:
++                        property_value["propertyValueImg"] = image
++
++        payload = {
++            "freebies": False,
++            "itemTypeStr": "b",
++            # 抓包中的多规格商品顶层数量为字符串 1，实际库存由 itemSkuList 提供。
++            "quantity": "1" if is_multi_spec else max(1, min(int(item_data.get("quantity") or 1), 999999)),
++            "simpleItem": "true",
++            "imageInfoDOList": video_items + image_items,
++            "itemTextDTO": {"desc": description, "title": title, "titleDescSeparate": False},
++            "itemLabelExtList": labels,
++            "itemProperties": item_properties,
++            "userRightsProtocols": [
++                {"enable": False, "serviceCode": "FAST_DELIVERY_48_HOUR"},
++                {"enable": False, "serviceCode": "FAST_DELIVERY_24_HOUR"},
++                {"enable": False, "serviceCode": "NONCONFORMITY_FREE_REFUND"},
++            ],
++            "itemPostFeeDTO": _build_post_fee(item_data),
++            "itemAddrDTO": resolved_address,
++            "itemSkuList": item_sku_list,
++            "defaultPrice": False,
++            "itemPriceDTO": (
++                {}
++                if is_multi_spec
++                else {
++                    "origPriceInCent": _price_in_cent(
++                        item_data.get("original_price") or item_data.get("price"), "原价"
++                    ),
++                    "priceInCent": _price_in_cent(item_data.get("price"), "售价"),
++                }
++            ),
++            "uniqueCode": f"{int(time.time() * 1000)}{account_id[-4:]}",
++            "sourceId": "pcBackendPublish",
++            "bizcode": "pcMainPublish",
++            "publishScene": "pcBackendPublish",
++        }
++        if property_image_list:
++            payload["propertyImageList"] = property_image_list
++        if not is_multi_spec:
++            payload.pop("itemProperties", None)
++            payload.pop("itemSkuList", None)
++        payload["itemCatDTO"] = category_info
++        response = await mtop_call(
++            account_id=account_id,
++            cookies_str=cookie,
++            api=PUBLISH_API,
++            version="1.0",
++            data={"inputJson": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))},
++            owner_id=owner_id,
++            extra_params={
++                "idle_site_biz_code": "COMMONPRO",
++                "spm_cnt": "a21107h.42826273.0.0",
++            },
++            origin=SELLER_ORIGIN,
++            referer=SELLER_REFERER,
++            extra_headers={"idle_site_biz_code": "COMMONPRO"},
++        )
++        if not response.get("success"):
++            logger.error(
++                f"闲鱼商品发布接口失败完整返回: account_id={account_id}, "
++                f"response={json.dumps(response, ensure_ascii=False, default=str)}"
++            )
++            return {
++                "success": False,
++                "message": f"闲鱼接口发布失败：{response.get('error') or '未知错误'}",
++                "item_id": None,
++                "item_url": None,
++                "account_invalid": bool(response.get("account_invalid")),
++                "cookies_str": response.get("cookies_str") or cookie,
++            }
++        item_id, item_url = _find_item_reference(response.get("res"))
++        if item_id:
++            # 发布接口可能返回旧版 /item/{id} 或带协议地址，统一改成当前网页格式。
++            item_url = canonical_goofish_item_url(item_id)
++        elif item_url:
++            extracted_id = _extract_item_id_from_url(item_url)
++            if extracted_id:
++                item_id = extracted_id
++                item_url = canonical_goofish_item_url(extracted_id)
++        logger.info(f"闲鱼商品发布接口调用成功: account_id={account_id}, item_id={item_id or '未返回'}")
++        return {
++            "success": True,
++            "message": "商品发布成功",
++            "item_id": item_id,
++            "item_url": item_url,
++            "account_invalid": False,
++            "cookies_str": response.get("cookies_str") or cookie,
++        }
++
++
++__all__ = ["DirectPublishError", "XianyuDirectPublisher"]
+diff --git a/backend-web/app/services/xianyu_personal_publisher.py b/backend-web/app/services/xianyu_personal_publisher.py
+new file mode 100644
+index 0000000..ee9e948
+--- /dev/null
++++ b/backend-web/app/services/xianyu_personal_publisher.py
+@@ -0,0 +1,221 @@
++"""
++闲鱼普通卖家单品接口发布服务。
++
++功能：
++1. 按普通卖家网页发布抓包构造 idleitem.publish 请求；
++2. 复用现有分类、地址、媒体上传与响应解析公共逻辑；
++3. 明确禁止普通卖家提交鱼小铺多规格库存载荷。
++"""
++from __future__ import annotations
++
++import json
++import time
++from pathlib import Path
++from typing import Any
++
++from loguru import logger
++
++from app.services.xianyu_direct_payload import (
++    DirectPublishError,
++    extract_item_id_from_url,
++    find_item_reference,
++    price_in_cent,
++    text,
++)
++from app.services.xianyu_direct_publisher import _build_attribute_labels, _resolve_item_address
++from common.services.xianyu_mtop import mtop_call
++from common.services.xianyu_publish_media import PublishMediaError, upload_publish_image
++from common.services.xianyu_publish_video import PublishVideoError, upload_publish_videos
++from common.utils.xianyu_utils import canonical_goofish_item_url
++
++
++PUBLISH_API = "mtop.idle.pc.idleitem.publish"
++PUBLISH_ORIGIN = "https://www.goofish.com"
++PUBLISH_REFERER = "https://www.goofish.com/publish"
++
++
++def _build_personal_post_fee(item_data: dict[str, Any]) -> dict[str, Any]:
++    """按普通卖家网页发布组件的字段规则构造发货配置。"""
++    shipping_method = text(item_data.get("shipping_method")) or "free"
++    only_take_self = bool(item_data.get("support_pickup"))
++    if shipping_method == "free":
++        return {"canFreeShipping": True, "supportFreight": True, "onlyTakeSelf": only_take_self}
++    if shipping_method == "distance":
++        return {
++            "canFreeShipping": False,
++            "supportFreight": True,
++            "onlyTakeSelf": only_take_self,
++            "templateId": "-100",
++        }
++    if shipping_method == "fixed":
++        postage = float(item_data.get("postage") or 0)
++        if postage < 0 or postage > 1000:
++            raise DirectPublishError("宝贝运费必须在0到1000元之间")
++        return {
++            "canFreeShipping": False,
++            "supportFreight": True,
++            "onlyTakeSelf": only_take_self,
++            "postPriceInCent": str(round(postage * 100)),
++            "templateId": "0",
++        }
++    if shipping_method == "none":
++        return {
++            "canFreeShipping": False,
++            "supportFreight": False,
++            "onlyTakeSelf": only_take_self,
++            "templateId": "0",
++        }
++    raise DirectPublishError("普通卖家发布不支持运费模板，请选择包邮、按距离计费、一口价或无需邮寄")
++
++
++class XianyuPersonalPublisher:
++    """使用闲鱼普通卖家网页 mtop 接口发布单个商品。"""
++
++    def __init__(self, static_root: str | Path | None = None):
++        self.static_root = Path(static_root) if static_root else None
++
++    async def publish_item(
++        self,
++        item_data: dict[str, Any],
++        cookie: str,
++        account_id: str,
++        owner_id: int | None,
++    ) -> dict[str, Any]:
++        """
++        上传媒体并调用普通卖家发布接口。
++
++        Args:
++            item_data: 前端提交的商品数据。
++            cookie: 账号 Cookie。
++            account_id: 闲鱼账号标识。
++            owner_id: 账号所属用户 ID。
++        Returns:
++            统一的发布结果与可能刷新的 Cookie。
++        """
++        title = text(item_data.get("title"))
++        description = text(item_data.get("description"))
++        if not title or not description:
++            raise DirectPublishError("商品标题和商品描述不能为空")
++        if item_data.get("specifications") or item_data.get("sku_rows"):
++            raise DirectPublishError("当前账号未开通鱼小铺，不能发布多规格和独立库存商品")
++        # 发货方式先校验，避免运费模板等不支持配置在媒体上传后才失败。
++        post_fee = _build_personal_post_fee(item_data)
++
++        images = [value for value in item_data.get("images") or [] if text(value)]
++        if not images:
++            raise DirectPublishError("请至少上传一张商品图片")
++        labels = _build_attribute_labels(item_data)
++        category_info = {
++            "catId": text(item_data.get("platform_category_id")),
++            "catName": text(item_data.get("platform_category_name")),
++            "channelCatId": text(item_data.get("platform_channel_category_id")),
++            "tbCatId": text(item_data.get("platform_tb_category_id")),
++        }
++        missing_fields = [field for field in ("catId", "channelCatId", "tbCatId") if not category_info[field]]
++        if missing_fields:
++            names = {"catId": "末级分类ID", "channelCatId": "频道分类ID", "tbCatId": "淘宝分类ID"}
++            raise DirectPublishError(
++                "平台商品分类信息不完整，缺少 "
++                f"{', '.join(names[field] for field in missing_fields)}，请重新选择分类"
++            )
++        resolved_address = await _resolve_item_address(item_data)
++        video_items: list[dict[str, Any]] = []
++        if item_data.get("videos"):
++            try:
++                video_items, cookie = await upload_publish_videos(
++                    item_data.get("videos") or [],
++                    cookie,
++                    account_id,
++                    owner_id,
++                    static_root=self.static_root,
++                )
++            except PublishVideoError as exc:
++                if exc.account_invalid:
++                    return {
++                        "success": False,
++                        "message": f"视频上传失败：{exc}",
++                        "item_id": None,
++                        "item_url": None,
++                        "account_invalid": True,
++                        "cookies_str": cookie,
++                    }
++                raise DirectPublishError(f"视频上传失败：{exc}") from exc
++
++        image_items: list[dict[str, Any]] = []
++        for index, image in enumerate(images[:9], 1):
++            try:
++                uploaded = await upload_publish_image(text(image), cookie, static_root=self.static_root)
++            except PublishMediaError as exc:
++                raise DirectPublishError(f"第 {index} 张图片上传失败：{exc}") from exc
++            uploaded["major"] = index == 1
++            image_items.append(uploaded)
++
++        payload = {
++            "freebies": False,
++            "itemTypeStr": "b",
++            "quantity": "1",
++            "simpleItem": "true",
++            "imageInfoDOList": video_items + image_items,
++            "itemTextDTO": {"desc": description, "title": title, "titleDescSeparate": False},
++            "itemLabelExtList": labels,
++            "itemPriceDTO": {
++                "origPriceInCent": price_in_cent(
++                    item_data.get("original_price") or item_data.get("price"), "原价"
++                ),
++                "priceInCent": price_in_cent(item_data.get("price"), "售价"),
++            },
++            "userRightsProtocols": [],
++            "itemPostFeeDTO": post_fee,
++            "itemAddrDTO": resolved_address,
++            "defaultPrice": False,
++            "itemCatDTO": category_info,
++            "uniqueCode": f"{int(time.time() * 1000)}{account_id[-4:]}",
++            "sourceId": "pcMainPublish",
++            "bizcode": "pcMainPublish",
++            "publishScene": "pcMainPublish",
++        }
++        response = await mtop_call(
++            account_id=account_id,
++            cookies_str=cookie,
++            api=PUBLISH_API,
++            version="1.0",
++            data=payload,
++            owner_id=owner_id,
++            extra_params={"spm_cnt": "a21ybx.publish.0.0"},
++            origin=PUBLISH_ORIGIN,
++            referer=PUBLISH_REFERER,
++        )
++        if not response.get("success"):
++            logger.error(
++                f"闲鱼普通卖家发布接口失败完整返回: account_id={account_id}, "
++                f"response={json.dumps(response, ensure_ascii=False, default=str)}"
++            )
++            return {
++                "success": False,
++                "message": f"闲鱼接口发布失败：{response.get('error') or '未知错误'}",
++                "item_id": None,
++                "item_url": None,
++                "account_invalid": bool(response.get("account_invalid")),
++                "cookies_str": response.get("cookies_str") or cookie,
++            }
++
++        item_id, item_url = find_item_reference(response.get("res"))
++        if item_id:
++            item_url = canonical_goofish_item_url(item_id)
++        elif item_url:
++            extracted_id = extract_item_id_from_url(item_url)
++            if extracted_id:
++                item_id = extracted_id
++                item_url = canonical_goofish_item_url(extracted_id)
++        logger.info(f"闲鱼普通卖家发布接口调用成功: account_id={account_id}, item_id={item_id or '未返回'}")
++        return {
++            "success": True,
++            "message": "商品发布成功",
++            "item_id": item_id,
++            "item_url": item_url,
++            "account_invalid": False,
++            "cookies_str": response.get("cookies_str") or cookie,
++        }
++
++
++__all__ = ["XianyuPersonalPublisher"]
+diff --git a/backend-web/pyproject.toml b/backend-web/pyproject.toml
+index 9533ceb..e35ed2c 100644
+--- a/backend-web/pyproject.toml
++++ b/backend-web/pyproject.toml
+@@ -37,6 +37,7 @@ dependencies = [
+     "certifi>=2023.11.0",
+     "qrcode[pil]>=7.4.0",
+     "pillow>=10.0.0",
++    "opencv-python-headless>=4.10.0",
+ ]
+ 
+ [build-system]
+diff --git a/common/models/product_material.py b/common/models/product_material.py
+index fcb71d1..8346b69 100644
+--- a/common/models/product_material.py
++++ b/common/models/product_material.py
+@@ -8,7 +8,7 @@
+ """
+ from __future__ import annotations
+ 
+-from sqlalchemy import BigInteger, Index, JSON, Numeric, String, Text
++from sqlalchemy import BigInteger, Boolean, Index, Integer, JSON, Numeric, String, Text
+ from sqlalchemy.orm import Mapped, mapped_column
+ 
+ from common.db.base_class import Base, TimestampMixin
+@@ -20,6 +20,7 @@ class ProductMaterial(TimestampMixin, Base):
+     __tablename__ = "xy_product_materials"
+     __table_args__ = (
+         Index("idx_pm_user_created", "user_id", "created_at"),
++        Index("idx_pm_platform_category", "platform_category_id"),
+     )
+ 
+     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键ID")
+@@ -29,10 +30,28 @@ class ProductMaterial(TimestampMixin, Base):
+     price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, comment="价格")
+     original_price: Mapped[float | None] = mapped_column(Numeric(12, 2), comment="原价")
+     category: Mapped[str | None] = mapped_column(String(100), comment="商品分类")
++    platform_category_id: Mapped[str | None] = mapped_column(String(64), comment="平台末级分类ID（catId）")
++    platform_category_name: Mapped[str | None] = mapped_column(String(100), comment="平台末级分类名称（catName）")
++    platform_channel_category_id: Mapped[str | None] = mapped_column(String(64), comment="平台频道分类ID（channelCatId）")
++    platform_channel_category_name: Mapped[str | None] = mapped_column(String(100), comment="平台频道分类名称（channelCatName）")
++    platform_leaf_id: Mapped[str | None] = mapped_column(String(64), comment="平台叶子分类ID（leafId）")
++    platform_tb_category_id: Mapped[str | None] = mapped_column(String(64), comment="淘宝分类ID（tbCatId）")
++    platform_category_path: Mapped[list | None] = mapped_column(JSON, comment="平台多级分类路径（各级ID和名称）")
++    platform_attributes: Mapped[list | None] = mapped_column(JSON, comment="平台属性标签列表（itemLabelExtList）")
++    category_source: Mapped[str] = mapped_column(String(20), default="manual", comment="分类来源：manual-手动，recommendation-推荐")
++    category_confidence: Mapped[float | None] = mapped_column(Numeric(8, 6), comment="分类推荐置信度")
+     images: Mapped[list | None] = mapped_column(JSON, comment="图片URL列表（最多9张）")
++    videos: Mapped[list | None] = mapped_column(JSON, comment="视频素材列表（URL、文件ID、尺寸等）")
++    specifications: Mapped[list | None] = mapped_column(JSON, comment="商品规格列表")
++    sku_rows: Mapped[list | None] = mapped_column(JSON, comment="规格组合价格和库存列表")
++    quantity: Mapped[int] = mapped_column(Integer, default=1, comment="发布数量")
+     delivery_method: Mapped[str] = mapped_column(String(20), default="express", comment="发货方式：express-快递, pickup-自提")
++    shipping_method: Mapped[str] = mapped_column(String(20), default="free", comment="运费方式：free/distance/fixed/template/none")
++    support_pickup: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, comment="是否支持自提")
+     postage: Mapped[float] = mapped_column(Numeric(8, 2), default=0, comment="邮费，0表示包邮")
+     address: Mapped[str | None] = mapped_column(String(200), comment="宝贝所在地")
++    address_expected_text: Mapped[str | None] = mapped_column(String(200), comment="所在地选择时的期望文本")
+     brand: Mapped[str | None] = mapped_column(String(100), comment="品牌")
+     condition: Mapped[str] = mapped_column(String(20), default="全新", comment="成色：全新/99新/95新等")
+     remark: Mapped[str | None] = mapped_column(String(500), comment="备注（仅内部使用，不发布到闲鱼）")
++    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, comment="是否已删除（软删除）")
+diff --git a/common/services/publish_execution_service.py b/common/services/publish_execution_service.py
+index 57e41a9..521c355 100644
+--- a/common/services/publish_execution_service.py
++++ b/common/services/publish_execution_service.py
+@@ -19,7 +19,13 @@ from common.models.xy_account import XYAccount
+ from common.services.item_service import ItemService
+ from common.services.publish_address_service import PublishAddressService
+ from common.services.publish_log_service import PublishLogService
+-from common.services.xianyu_publish_service import publish_single_item
++from common.services.xianyu_publish_service import (
++    detect_publish_account_capability,
++    publish_personal_single_item,
++    publish_single_item,
++)
++
++PERSONAL_SELLER_DEFAULT_STOCK = 1
+ 
+ 
+ async def _get_account(session: AsyncSession, account_id: str, user_id: int) -> Optional[XYAccount]:
+@@ -88,9 +94,15 @@ async def execute_single_publish(
+     log_svc = PublishLogService(session)
+     address_svc = PublishAddressService(session)
+ 
++    # 单品发布严格使用前端选择的账号；启用状态只控制自动任务，不限制手动发布。
+     account = await _get_account(session=session, account_id=account_id, user_id=user_id)
+     cookies_str = account.cookie if account and account.cookie else ""
+-    if not cookies_str:
++    if not account or not cookies_str.strip():
++        error_message = (
++            "选择的闲鱼账号不存在或无权使用"
++            if not account
++            else "选择的闲鱼账号缺少Cookie，请重新登录账号"
++        )
+         log = await log_svc.create_log(
+             user_id=user_id,
+             account_id=account_id,
+@@ -99,9 +111,13 @@ async def execute_single_publish(
+             price=str(item_data.get("price", "")),
+             material_id=item_data.get("id"),
+             status="failed",
+-            error_message="账号不存在或无权使用",
++            error_message=error_message,
+         )
+-        return {"success": False, "message": "账号不存在或无权使用", "log_id": log.id}
++        return {
++            "success": False,
++            "message": error_message,
++            "log_id": log.id,
++        }
+ 
+     try:
+         resolved_address = await address_svc.resolve_publish_address(account_id, item_data)
+@@ -133,11 +149,47 @@ async def execute_single_publish(
+     result = None
+     pub_error = None
+     try:
+-        result = await publish_single_item(
+-            item_data=publish_item_data,
++        capability = await detect_publish_account_capability(
+             cookie=cookies_str,
+-            static_root=static_root,
++            account_id=account.account_id,
++            owner_id=user_id,
+         )
++        cookies_str = capability.get("cookies_str") or cookies_str
++        if not capability.get("success"):
++            result = capability
++        elif capability.get("is_fish_shop"):
++            # 鱼小铺账号继续使用已验证稳定的原发布逻辑，不改变任何载荷与接口。
++            result = await publish_single_item(
++                item_data=publish_item_data,
++                cookie=cookies_str,
++                account_id=account.account_id,
++                owner_id=user_id,
++                static_root=static_root,
++            )
++        else:
++            # 普通卖家单品发布不提供视频能力，后端兜底丢弃绕过前端提交的视频。
++            personal_item_data = {
++                **publish_item_data,
++                "videos": [],
++                "quantity": PERSONAL_SELLER_DEFAULT_STOCK,
++                "stock": PERSONAL_SELLER_DEFAULT_STOCK,
++            }
++            result = await publish_personal_single_item(
++                item_data=personal_item_data,
++                cookie=cookies_str,
++                account_id=account.account_id,
++                owner_id=user_id,
++                static_root=static_root,
++            )
++        if result.get("account_invalid"):
++            logger.warning(
++                f"单品发布选定账号不可用，按要求不切换账号: account_id={account.account_id}, "
++                f"error={result.get('message') or '账号失效'}"
++            )
++        # mtop 令牌刷新可能返回合并后的 Cookie，后续发布后的同步必须继续使用该账号的新 Cookie。
++        refreshed_cookies = result.get("cookies_str")
++        if refreshed_cookies:
++            account.cookie = refreshed_cookies
+     except Exception as exc:
+         pub_error = exc
+         logger.error(f"单品发布异常: {exc}")
+diff --git a/common/services/xianyu_mtop.py b/common/services/xianyu_mtop.py
+index 2563bf7..ae856a6 100644
+--- a/common/services/xianyu_mtop.py
++++ b/common/services/xianyu_mtop.py
+@@ -115,11 +115,18 @@ async def mtop_call(
+     owner_id: Optional[int] = None,
+     extra_params: Optional[Dict[str, str]] = None,
+     proxy: Optional[str] = None,
++    app_key: str = "34839810",
++    origin: str = "https://www.goofish.com",
++    referer: str = "https://www.goofish.com/",
++    extra_headers: Optional[Dict[str, str]] = None,
++    form_field: str = "data",
++    request_method: str = "POST",
+ ) -> Dict[str, Any]:
+     """调用闲鱼 mtop 接口，统一处理令牌过期/Session过期/风控。
+ 
+     Args:
+         proxy: 代理地址URL（http://host:port 或 socks5://user:pass@host:port），空则直连。
++        request_method: mtop 请求方法，默认 POST；视频初始化等抓包为 GET 的接口可指定 GET。
+ 
+     Returns:
+         {
+@@ -145,13 +152,14 @@ async def mtop_call(
+             }
+ 
+         token = cookies.get("_m_h5_tk", "").split("_")[0] if cookies.get("_m_h5_tk") else ""
+-        t = str(int(time.time()) * 1000)
++        # mtop 抓包使用当前毫秒时间戳参与签名，不能先截断到秒。
++        t = str(int(time.time() * 1000))
+         data_val = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+-        sign = generate_sign(t, token, data_val)
++        sign = generate_sign(t, token, data_val, app_key=app_key)
+ 
+         params = {
+             "jsv": "2.7.2",
+-            "appKey": "34839810",
++            "appKey": app_key,
+             "t": t,
+             "sign": sign,
+             "v": version,
+@@ -169,22 +177,43 @@ async def mtop_call(
+         headers = {
+             "Accept": "application/json",
+             "Content-Type": "application/x-www-form-urlencoded",
+-            "Origin": "https://www.goofish.com",
+-            "Referer": "https://www.goofish.com/",
++            "Origin": origin,
++            "Referer": referer,
+             "User-Agent": (
+                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                 "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+             ),
+             "Cookie": current_cookies,
+         }
++        if extra_headers:
++            headers.update(extra_headers)
+ 
+         try:
+             timeout = aiohttp.ClientTimeout(total=30)
+             async with aiohttp.ClientSession(timeout=timeout) as session:
+                 # 代理为 HTTP 代理（来自代理API的 http://host:port），aiohttp 原生支持，无需额外依赖
+-                async with session.post(
+-                    url, params=params, data={"data": data_val}, headers=headers, proxy=proxy or None
+-                ) as resp:
++                method = request_method.upper()
++                if method == "GET":
++                    request = session.get(
++                        url,
++                        params={**params, form_field: data_val},
++                        headers=headers,
++                        proxy=proxy or None,
++                    )
++                elif method == "POST":
++                    request = session.post(
++                        url,
++                        params=params,
++                        data={form_field: data_val},
++                        headers=headers,
++                        proxy=proxy or None,
++                    )
++                else:
++                    return {
++                        "success": False, "account_invalid": False, "res": None,
++                        "error": f"不支持的 mtop 请求方法: {request_method}", "cookies_str": current_cookies,
++                    }
++                async with request as resp:
+                     res_json = await resp.json(content_type=None)
+                     set_cookies = extract_cookies_from_response(resp)
+         except Exception as exc:  # noqa: BLE001
+diff --git a/common/services/xianyu_publish_media.py b/common/services/xianyu_publish_media.py
+new file mode 100644
+index 0000000..faebaef
+--- /dev/null
++++ b/common/services/xianyu_publish_media.py
+@@ -0,0 +1,184 @@
++"""
++闲鱼接口发布的媒体处理服务。
++
++功能：
++1. 读取本地、静态目录或远程图片；
++2. 使用抓包中的 stream-upload 接口上传图片并返回发布载荷结构；
++3. 对媒体接口返回完整日志，便于定位账号、Cookie和平台业务错误。
++"""
++from __future__ import annotations
++
++import mimetypes
++import uuid
++from io import BytesIO
++from pathlib import Path
++from typing import Any
++from urllib.parse import urlparse
++
++import aiohttp
++from loguru import logger
++from PIL import Image
++
++
++IMAGE_UPLOAD_URL = (
++    "https://stream-upload.goofish.com/api/upload.api"
++    "?floderId=0&appkey=fleamarket&_input_charset=utf-8"
++)
++MEDIA_TIMEOUT = aiohttp.ClientTimeout(total=90)
++IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
++
++
++class PublishMediaError(RuntimeError):
++    """媒体读取、上传或平台响应异常。"""
++
++
++def _resolve_local_path(value: str, static_root: Path | None) -> Path:
++    """解析接口请求中的本地路径，禁止把不存在的路径传给上传接口。"""
++    normalized = value.strip()
++    if normalized.startswith("/static/") or normalized.startswith("static/"):
++        relative = normalized.lstrip("/").replace("static/", "", 1)
++        if static_root:
++            root = static_root
++        else:
++            repo_or_backend = Path(__file__).resolve().parents[2]
++            root = repo_or_backend / "static" if repo_or_backend.name == "backend-web" else repo_or_backend / "backend-web" / "static"
++        return root / relative
++    return Path(normalized).expanduser()
++
++
++def _content_type_for(name: str) -> str:
++    """根据文件名推断上传 Content-Type。"""
++    guessed = mimetypes.guess_type(name)[0]
++    return guessed if guessed and guessed.startswith("image/") else "image/jpeg"
++
++
++def _dimensions(content: bytes) -> tuple[int, int]:
++    """读取图片尺寸，平台载荷需要宽高字段。"""
++    try:
++        with Image.open(BytesIO(content)) as image:
++            return int(image.width), int(image.height)
++    except Exception as exc:  # noqa: BLE001
++        raise PublishMediaError(f"图片无法解析，不能发布：{exc}") from exc
++
++
++async def _read_image(value: str, static_root: Path | None) -> tuple[bytes, str, str]:
++    """读取远程或本地图片内容。"""
++    normalized = value.strip()
++    if normalized.lower().startswith(("http://", "https://")):
++        try:
++            async with aiohttp.ClientSession(timeout=MEDIA_TIMEOUT) as session:
++                async with session.get(normalized) as response:
++                    content = await response.read()
++                    if response.status != 200 or not content:
++                        raise PublishMediaError(f"远程图片下载失败：HTTP {response.status}")
++                    content_type = (response.headers.get("Content-Type") or "").split(";", 1)[0].strip()
++            name = Path(urlparse(normalized).path).name or "publish-image.jpg"
++            return content, name, content_type or _content_type_for(name)
++        except PublishMediaError:
++            raise
++        except Exception as exc:  # noqa: BLE001
++            raise PublishMediaError(f"远程图片下载失败：{exc}") from exc
++
++    path = _resolve_local_path(normalized, static_root)
++    if not path.is_file():
++        raise PublishMediaError(f"图片文件不存在：{path}")
++    try:
++        content = path.read_bytes()
++    except OSError as exc:
++        raise PublishMediaError(f"读取图片失败：{path}，{exc}") from exc
++    if not content:
++        raise PublishMediaError(f"图片文件为空：{path}")
++    return content, path.name, _content_type_for(path.name)
++
++
++async def upload_publish_image(
++    value: str,
++    cookie: str,
++    *,
++    static_root: str | Path | None = None,
++) -> dict[str, Any]:
++    """上传一张图片并返回闲鱼 imageInfoDOList 元素。"""
++    root = Path(static_root) if static_root else None
++    content, name, content_type = await _read_image(value, root)
++    return await upload_publish_image_content(
++        content,
++        name,
++        cookie,
++        content_type=content_type,
++        source=value,
++    )
++
++
++async def upload_publish_image_content(
++    content: bytes,
++    name: str,
++    cookie: str,
++    *,
++    content_type: str | None = None,
++    source: str = "内存图片",
++) -> dict[str, Any]:
++    """上传内存中的图片字节，用于视频封面等派生媒体。"""
++    if not content:
++        raise PublishMediaError("图片文件为空")
++    content_type = content_type or _content_type_for(name)
++    width, height = _dimensions(content)
++    suffix = Path(name).suffix.lower()
++    if suffix not in IMAGE_EXTENSIONS:
++        suffix = ".jpg"
++    filename = f"publish_api_{uuid.uuid4().hex}{suffix}"
++    form = aiohttp.FormData()
++    form.add_field("file", content, filename=filename, content_type=content_type)
++    headers = {
++        "Accept": "*/*",
++        "Cookie": cookie,
++        "Origin": "https://seller.goofish.com",
++        "Referer": "https://seller.goofish.com/?site=COMMONPRO",
++        "User-Agent": (
++            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
++            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
++        ),
++        "X-Requested-With": "XMLHttpRequest",
++    }
++    try:
++        async with aiohttp.ClientSession(
++            timeout=MEDIA_TIMEOUT,
++            cookie_jar=aiohttp.DummyCookieJar(),
++        ) as session:
++            async with session.post(IMAGE_UPLOAD_URL, data=form, headers=headers) as response:
++                response_text = await response.text()
++                logger.info(
++                    f"闲鱼图片上传完整返回: source={source}, "
++                    f"http_status={response.status}, response={response_text}"
++                )
++                if response.status != 200:
++                    raise PublishMediaError(f"闲鱼图片上传失败：HTTP {response.status}")
++                try:
++                    body = await response.json(content_type=None)
++                except ValueError as exc:
++                    raise PublishMediaError("闲鱼图片上传返回不是有效JSON") from exc
++    except PublishMediaError:
++        raise
++    except (aiohttp.ClientError, OSError, TimeoutError) as exc:
++        raise PublishMediaError(f"闲鱼图片上传请求失败：{exc}") from exc
++
++    uploaded = body.get("object") if isinstance(body, dict) else None
++    if not isinstance(uploaded, dict) or not uploaded.get("url") or body.get("success") is not True:
++        raise PublishMediaError("闲鱼图片上传失败：接口未返回有效图片地址")
++    pix = str(uploaded.get("pix") or f"{width}x{height}")
++    try:
++        pix_width, pix_height = (int(part) for part in pix.lower().split("x", 1))
++    except (TypeError, ValueError):
++        pix_width, pix_height = width, height
++    return {
++        "extraInfo": {"isH": "false", "isT": "false", "raw": "false"},
++        "isQrCode": False,
++        "url": str(uploaded["url"]),
++        "heightSize": pix_height,
++        "widthSize": pix_width,
++        "major": False,
++        "type": 0,
++        "status": "done",
++    }
++
++
++__all__ = ["PublishMediaError", "upload_publish_image", "upload_publish_image_content"]
+diff --git a/common/services/xianyu_publish_service.py b/common/services/xianyu_publish_service.py
+index 0243e77..7e537f2 100644
+--- a/common/services/xianyu_publish_service.py
++++ b/common/services/xianyu_publish_service.py
+@@ -3,7 +3,8 @@
+ 
+ 功能：
+ 1. 统一加载闲鱼发布器实现
+-2. 为不同后端提供共享的直调发布入口
++2. 保留鱼小铺卖家工作台发布逻辑
++3. 提供普通卖家能力检测与独立发布入口
+ """
+ from __future__ import annotations
+ 
+@@ -23,21 +24,83 @@ def get_xianyu_publisher_class() -> type[Any]:
+ 
+ 
+ def create_xianyu_publisher(static_root: str | Path | None = None) -> Any:
+-    """创建一个共享闲鱼发布器实例。"""
++    """创建旧版共享发布器实例，兼容其他非商品发布调用方。"""
+     publisher_class = get_xianyu_publisher_class()
+     return publisher_class(static_root=static_root)
+ 
+ 
++def get_xianyu_direct_publisher_class() -> type[Any]:
++    """动态加载单品接口发布器，避免批量浏览器模块被接口流程引入。"""
++    return load_backend_web_class(
++        module_name="common.services._shared_xianyu_direct_publisher",
++        relative_path="backend-web/app/services/xianyu_direct_publisher.py",
++        class_name="XianyuDirectPublisher",
++    )
++
++
++def get_xianyu_personal_publisher_class() -> type[Any]:
++    """动态加载普通卖家单品发布器。"""
++    return load_backend_web_class(
++        module_name="common.services._shared_xianyu_personal_publisher",
++        relative_path="backend-web/app/services/xianyu_personal_publisher.py",
++        class_name="XianyuPersonalPublisher",
++    )
++
++
++def get_publish_account_capability_service_class() -> type[Any]:
++    """动态加载发布账号能力检测服务。"""
++    return load_backend_web_class(
++        module_name="common.services._shared_publish_account_capability_service",
++        relative_path="backend-web/app/services/publish_account_capability_service.py",
++        class_name="PublishAccountCapabilityService",
++    )
++
++
+ async def publish_single_item(
+     item_data: dict,
+     cookie: str,
+     static_root: str | Path | None = None,
++    *,
++    account_id: str = "",
++    owner_id: int | None = None,
++) -> dict:
++    """使用闲鱼接口执行一次发布，不启动浏览器。"""
++    publisher_class = get_xianyu_direct_publisher_class()
++    publisher = publisher_class(static_root=static_root)
++    return await publisher.publish_item(
++        item_data=item_data,
++        cookie=cookie,
++        account_id=account_id,
++        owner_id=owner_id,
++    )
++
++
++async def detect_publish_account_capability(
++    cookie: str,
++    *,
++    account_id: str,
++    owner_id: int | None = None,
++) -> dict:
++    """查询账号是否开通鱼小铺及其发布能力。"""
++    service_class = get_publish_account_capability_service_class()
++    service = service_class()
++    return await service.detect(account_id=account_id, cookie=cookie, owner_id=owner_id)
++
++
++async def publish_personal_single_item(
++    item_data: dict,
++    cookie: str,
++    static_root: str | Path | None = None,
++    *,
++    account_id: str = "",
++    owner_id: int | None = None,
+ ) -> dict:
+-    """使用共享发布器执行一次单品发布。"""
+-    publisher = create_xianyu_publisher(static_root=static_root)
++    """使用普通卖家网页接口执行一次发布。"""
++    publisher_class = get_xianyu_personal_publisher_class()
++    publisher = publisher_class(static_root=static_root)
+     return await publisher.publish_item(
+         item_data=item_data,
+-        cookie_data={"cookie": cookie},
+-        reuse_browser=False,
+-        should_close=True,
++        cookie=cookie,
++        account_id=account_id,
++        owner_id=owner_id,
+     )
+diff --git a/common/services/xianyu_publish_video.py b/common/services/xianyu_publish_video.py
+new file mode 100644
+index 0000000..842aad9
+--- /dev/null
++++ b/common/services/xianyu_publish_video.py
+@@ -0,0 +1,508 @@
++"""
++闲鱼接口发布的视频上传服务。
++
++功能：
++1. 按闲鱼媒体 SDK 的 bizConfig/init/second/complete 流程申请视频上传策略；
++2. 使用 OSS 预签名地址分片上传本地视频并校验每片 ETag；
++3. 将完成接口返回的 fileId、ossUrl 和视频尺寸转换为发布载荷。
++"""
++from __future__ import annotations
++
++import asyncio
++import base64
++import hashlib
++import json
++import mimetypes
++import os
++import re
++import tempfile
++from pathlib import Path
++from typing import Any
++from urllib.parse import urlparse
++
++import aiohttp
++import cv2
++from Crypto.Cipher import PKCS1_v1_5
++from Crypto.PublicKey import RSA
++from loguru import logger
++
++from common.services.xianyu_mtop import mtop_call
++from common.services.xianyu_publish_media import PublishMediaError, upload_publish_image_content
++
++
++VIDEO_BIZ_CODE = "s_upload_xy_shequ"
++VIDEO_USER_SITE = 77
++VIDEO_APP_KEY = "12574478"
++VIDEO_SDK_VERSION = "0.6.3"
++VIDEO_CONFIG_URL = "https://upload.media.aliyun.com/api/gateway/bizConfig"
++SELLER_ORIGIN = "https://seller.goofish.com"
++SELLER_REFERER = "https://seller.goofish.com/?site=COMMONPRO"
++VIDEO_MTOP_PARAMS = {"preventFallback": "true", "dataType": "jsonp"}
++VIDEO_TIMEOUT = aiohttp.ClientTimeout(total=90)
++DEFAULT_SLICE_SIZE = 2 * 1024 * 1024
++MAX_PART_RETRIES = 3
++
++
++class PublishVideoError(RuntimeError):
++    """视频读取、授权、分片上传或完成接口异常。"""
++
++    def __init__(self, message: str, *, account_invalid: bool = False) -> None:
++        super().__init__(message)
++        self.account_invalid = account_invalid
++
++
++def _text(value: Any) -> str:
++    """把接口字段转换为去除首尾空白的字符串。"""
++    return str(value).strip() if value is not None else ""
++
++
++def _resolve_video_path(value: str, static_root: Path | None) -> Path:
++    """解析 /static 视频路径或本地绝对路径。"""
++    normalized = value.strip()
++    if normalized.startswith("/static/") or normalized.startswith("static/"):
++        relative = normalized.lstrip("/").replace("static/", "", 1)
++        root = static_root
++        if root is None:
++            root = Path(__file__).resolve().parents[2] / "backend-web" / "static"
++        return root / relative
++    return Path(normalized).expanduser()
++
++
++async def _read_video(video: dict[str, Any], static_root: Path | None) -> tuple[bytes, str, str]:
++    """读取本地或远程视频内容，并返回字节、文件名和 MIME 类型。"""
++    path_value = _text(video.get("path"))
++    source = path_value or _text(video.get("url"))
++    if not source:
++        raise PublishVideoError("视频缺少本地路径或视频地址")
++    if source.lower().startswith(("http://", "https://")):
++        try:
++            async with aiohttp.ClientSession(timeout=VIDEO_TIMEOUT) as session:
++                async with session.get(source) as response:
++                    content = await response.read()
++                    if response.status != 200 or not content:
++                        raise PublishVideoError(f"远程视频下载失败：HTTP {response.status}")
++                    content_type = (response.headers.get("Content-Type") or "").split(";", 1)[0].strip()
++            name = Path(urlparse(source).path).name or "publish-video.mp4"
++            return content, name, content_type or mimetypes.guess_type(name)[0] or "video/mp4"
++        except PublishVideoError:
++            raise
++        except (aiohttp.ClientError, OSError, TimeoutError) as exc:
++            raise PublishVideoError(f"远程视频下载失败：{exc}") from exc
++    path = _resolve_video_path(source, static_root)
++    if not path.is_file():
++        raise PublishVideoError(f"视频文件不存在：{path}")
++    try:
++        content = path.read_bytes()
++    except OSError as exc:
++        raise PublishVideoError(f"读取视频失败：{path}，{exc}") from exc
++    if not content:
++        raise PublishVideoError(f"视频文件为空：{path}")
++    return content, path.name, mimetypes.guess_type(path.name)[0] or "video/mp4"
++
++
++def _video_dimensions(content: bytes) -> tuple[int, int]:
++    """从 MP4/MOV 的 tkhd 盒读取视频宽高（16.16 定点数）。"""
++    marker = b"tkhd"
++    start = 0
++    while True:
++        index = content.find(marker, start)
++        if index < 0:
++            return 0, 0
++        box_start = index - 4
++        if box_start >= 0 and index + 84 <= len(content):
++            version = content[index + 4]
++            width_offset = index + (80 if version == 0 else 92)
++            if width_offset + 8 <= len(content):
++                width = int.from_bytes(content[width_offset:width_offset + 4], "big") >> 16
++                height = int.from_bytes(content[width_offset + 4:width_offset + 8], "big") >> 16
++                if width > 0 and height > 0:
++                    return width, height
++        start = index + len(marker)
++
++
++def _extract_video_cover_sync(content: bytes, suffix: str) -> tuple[bytes, int, int]:
++    """从本地视频首帧生成 JPEG 封面并读取其宽高。"""
++    fd, temporary_name = tempfile.mkstemp(suffix=suffix or ".mp4")
++    temporary_path = Path(temporary_name)
++    try:
++        with os.fdopen(fd, "wb") as output:
++            output.write(content)
++        capture = cv2.VideoCapture(str(temporary_path))
++        try:
++            success, frame = capture.read()
++            width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
++            height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
++        finally:
++            capture.release()
++        if not success or frame is None or width <= 0 or height <= 0:
++            raise PublishVideoError("无法读取视频首帧，请使用可正常播放的视频文件")
++        encoded, cover = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
++        if not encoded:
++            raise PublishVideoError("生成视频封面失败")
++        return cover.tobytes(), width, height
++    finally:
++        temporary_path.unlink(missing_ok=True)
++
++
++async def _extract_video_cover(content: bytes, name: str) -> tuple[bytes, int, int]:
++    """在线程中提取视频首帧，避免阻塞接口事件循环。"""
++    return await asyncio.to_thread(_extract_video_cover_sync, content, Path(name).suffix)
++
++
++async def _upload_video_cover(content: bytes, name: str, cookie: str) -> str:
++    """上传视频首帧封面并返回闲鱼图片地址。"""
++    try:
++        cover_item = await upload_publish_image_content(
++            content,
++            f"{Path(name).stem}_cover.jpg",
++            cookie,
++            content_type="image/jpeg",
++            source=f"视频封面:{name}",
++        )
++    except PublishMediaError as exc:
++        raise PublishVideoError(f"视频封面上传失败：{exc}") from exc
++    return _text(cover_item.get("url"))
++
++
++def _strategy_model(response: dict[str, Any]) -> dict[str, Any]:
++    """提取 mtop 响应中的 model。"""
++    raw = response.get("res") if isinstance(response, dict) else None
++    model = raw.get("data", {}).get("model") if isinstance(raw, dict) else None
++    if not isinstance(model, dict):
++        raise PublishVideoError(f"闲鱼视频接口返回缺少 model：{response.get('error') or raw}")
++    return model
++
++
++def _log_mtop_response(stage: str, account_id: str, response: dict[str, Any]) -> None:
++    """记录视频上传 mtop 接口的完整原始返回，不记录 Cookie。"""
++    logger.info(
++        f"闲鱼视频上传{stage}完整返回: account_id={account_id}, "
++        f"success={response.get('success')}, response="
++        f"{json.dumps(response.get('res'), ensure_ascii=False, default=str)}"
++    )
++
++
++def _parse_slice_size(value: Any) -> int:
++    """把策略中的 MB 分片大小转换为字节。"""
++    if value is None:
++        return DEFAULT_SLICE_SIZE
++    match = re.search(r"[0-9]+(?:\.[0-9]+)?", _text(value))
++    if not match:
++        return DEFAULT_SLICE_SIZE
++    return max(256 * 1024, int(float(match.group()) * 1024 * 1024))
++
++
++def _public_key(value: str) -> RSA.RsaKey:
++    """兼容 PEM、公钥 base64 和带转义换行的 RSA 公钥。"""
++    key_text = value.replace("\\n", "\n").strip()
++    try:
++        return RSA.import_key(key_text)
++    except (ValueError, IndexError, TypeError):
++        try:
++            der = base64.b64decode(key_text)
++            return RSA.import_key(der)
++        except (ValueError, IndexError, TypeError, base64.binascii.Error) as exc:
++            raise PublishVideoError("闲鱼视频上传授权返回的 RSA 公钥无效") from exc
++
++
++def _encrypt_second_upload(public_key: str, content: bytes, file_size: int) -> str:
++    """按官方 SDK 使用 RSA PKCS#1 v1.5 加密整体 MD5 和文件大小。"""
++    plain = json.dumps(
++        {"md5": hashlib.md5(content).hexdigest().upper(), "fileSize": file_size},
++        separators=(",", ":"),
++    ).encode("utf-8")
++    cipher = PKCS1_v1_5.new(_public_key(public_key))
++    encrypted = cipher.encrypt(plain)
++    return base64.b64encode(encrypted).decode("ascii")
++
++
++async def _fetch_biz_config(cookie: str) -> dict[str, Any]:
++    """获取闲鱼媒体上传接口映射。"""
++    params = {"bizCode": VIDEO_BIZ_CODE, "userSite": str(VIDEO_USER_SITE)}
++    headers = {
++        "Accept": "application/json",
++        "Cookie": cookie,
++        "Origin": SELLER_ORIGIN,
++        "Referer": SELLER_REFERER,
++        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/146.0.0.0 Safari/537.36",
++    }
++    try:
++        async with aiohttp.ClientSession(timeout=VIDEO_TIMEOUT, cookie_jar=aiohttp.DummyCookieJar()) as session:
++            async with session.get(VIDEO_CONFIG_URL, params=params, headers=headers) as response:
++                text = await response.text()
++                logger.info(f"闲鱼视频上传配置完整返回: http_status={response.status}, response={text}")
++                if response.status != 200:
++                    raise PublishVideoError(f"获取视频上传配置失败：HTTP {response.status}")
++                body = json.loads(text)
++    except PublishVideoError:
++        raise
++    except (aiohttp.ClientError, OSError, TimeoutError, ValueError) as exc:
++        raise PublishVideoError(f"获取视频上传配置失败：{exc}") from exc
++    config = body.get("data") if isinstance(body, dict) else None
++    if not isinstance(config, dict) or not isinstance(config.get("apiInfo"), dict):
++        raise PublishVideoError("视频上传配置缺少 API 映射")
++    return config
++
++
++async def _put_part(url: str, content: bytes, part_number: int) -> str:
++    """上传一个 OSS 分片并返回 ETag/本地 MD5。"""
++    local_md5 = hashlib.md5(content).hexdigest().upper()
++    headers = {
++        "Accept": "*/*",
++        "Origin": SELLER_ORIGIN,
++        "Referer": SELLER_REFERER,
++        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/146.0.0.0 Safari/537.36",
++    }
++    last_error = ""
++    for attempt in range(1, MAX_PART_RETRIES + 1):
++        try:
++            async with aiohttp.ClientSession(timeout=VIDEO_TIMEOUT, cookie_jar=aiohttp.DummyCookieJar()) as session:
++                async with session.put(url, data=content, headers=headers) as response:
++                    response_text = await response.text()
++                    logger.info(
++                        f"闲鱼视频分片上传完整返回: part={part_number}, attempt={attempt}, "
++                        f"http_status={response.status}, etag={response.headers.get('ETag')}, response={response_text}"
++                    )
++                    if 200 <= response.status < 300:
++                        etag = _text(response.headers.get("ETag")).strip('"')
++                        return etag or local_md5
++                    last_error = f"HTTP {response.status}"
++        except (aiohttp.ClientError, OSError, TimeoutError) as exc:
++            last_error = str(exc)
++        if attempt < MAX_PART_RETRIES:
++            await asyncio.sleep(0.5 * attempt)
++    raise PublishVideoError(f"第 {part_number} 个视频分片上传失败：{last_error}")
++
++
++async def upload_publish_video(
++    video: dict[str, Any],
++    cookie: str,
++    account_id: str,
++    owner_id: int | None = None,
++    *,
++    static_root: str | Path | None = None,
++) -> tuple[dict[str, Any], str]:
++    """上传一个视频并返回发布载荷及可能刷新后的 Cookie。"""
++    root = Path(static_root) if static_root else None
++    content, name, mime_type = await _read_video(video, root)
++    try:
++        width = int(video.get("width") or 0)
++        height = int(video.get("height") or 0)
++    except (TypeError, ValueError):
++        width, height = 0, 0
++    if not width or not height:
++        width, height = _video_dimensions(content)
++    cover_content, cover_width, cover_height = await _extract_video_cover(content, name)
++    width = width or cover_width
++    height = height or cover_height
++
++    config = await _fetch_biz_config(cookie)
++    api_info = config["apiInfo"]
++    init_api = _text(api_info.get("init")) or "mtop.video.upload.init.xianyu"
++    init_result = await mtop_call(
++        account_id=account_id,
++        cookies_str=cookie,
++        api=init_api,
++        version="1.0",
++        app_key=VIDEO_APP_KEY,
++        data={
++            "bizCode": VIDEO_BIZ_CODE,
++            "fileSize": len(content),
++            "mimeType": mime_type,
++            "localFileName": name,
++            "sdkVersion": VIDEO_SDK_VERSION,
++            "userSite": VIDEO_USER_SITE,
++        },
++        owner_id=owner_id,
++        origin=SELLER_ORIGIN,
++        referer=SELLER_REFERER,
++        extra_params=VIDEO_MTOP_PARAMS,
++        extra_headers={"idle_site_biz_code": "COMMONPRO"},
++        request_method="GET",
++    )
++    _log_mtop_response("初始化", account_id, init_result)
++    if not init_result.get("success"):
++        raise PublishVideoError(
++            f"视频上传初始化失败：{init_result.get('error') or '未知错误'}",
++            account_invalid=bool(init_result.get("account_invalid")),
++        )
++    cookie = init_result.get("cookies_str") or cookie
++    strategy = _strategy_model(init_result)
++    nested_strategy = strategy.get("uploadStrategy")
++    upload_strategy = {**strategy, **nested_strategy} if isinstance(nested_strategy, dict) else strategy
++    upload_id = _text(upload_strategy.get("uploadId"))
++    upload_urls = upload_strategy.get("uploadUrlList")
++    policy = upload_strategy.get("videoUploadPolicy") if isinstance(upload_strategy.get("videoUploadPolicy"), dict) else {}
++    if not upload_id or not isinstance(upload_urls, list) or not upload_urls:
++        raise PublishVideoError("视频上传初始化未返回 uploadId 或分片地址")
++
++    support_second = str(policy.get("supportSecondTransfer", "false")).lower() == "true" or policy.get("supportSecondTransfer") is True
++    if support_second and _text(upload_strategy.get("publicKey")) and _text(upload_strategy.get("requestId")):
++        second_result = await mtop_call(
++            account_id=account_id,
++            cookies_str=cookie,
++            api=_text(api_info.get("second")) or "mtop.video.second.upload.xianyu",
++            version="1.0",
++            app_key=VIDEO_APP_KEY,
++            data={
++                "bizCode": VIDEO_BIZ_CODE,
++                "authorization": _encrypt_second_upload(_text(upload_strategy["publicKey"]), content, len(content)),
++                "requestId": _text(upload_strategy["requestId"]),
++                "uploadId": upload_id,
++                "sdkVersion": VIDEO_SDK_VERSION,
++                "userSite": VIDEO_USER_SITE,
++            },
++            owner_id=owner_id,
++            origin=SELLER_ORIGIN,
++            referer=SELLER_REFERER,
++            extra_params=VIDEO_MTOP_PARAMS,
++        )
++        _log_mtop_response("秒传检查", account_id, second_result)
++        cookie = second_result.get("cookies_str") or cookie
++        if second_result.get("success"):
++            second_model = _strategy_model(second_result)
++            if second_model.get("secondUpload") is True:
++                file_id = _text(second_model.get("fileId"))
++                oss_url = _text(second_model.get("ossUrl"))
++                if file_id and oss_url:
++                    cover_url = await _upload_video_cover(cover_content, name, cookie)
++                    return _video_payload(video, file_id, oss_url, width, height, cover_url), cookie
++        else:
++            logger.warning(f"闲鱼视频秒传检查失败，继续分片上传：account_id={account_id}, error={second_result.get('error')}")
++
++    slice_size = _parse_slice_size(policy.get("sliceSize"))
++    chunks = [content[offset:offset + slice_size] for offset in range(0, len(content), slice_size)]
++    if len(chunks) > len(upload_urls):
++        raise PublishVideoError(f"视频分片数量超过授权上限：需要 {len(chunks)} 片，仅返回 {len(upload_urls)} 个地址")
++
++    try:
++        max_parallel = max(1, min(int(policy.get("concurrentSliceNum") or 3), 8))
++    except (TypeError, ValueError):
++        max_parallel = 3
++    semaphore = asyncio.Semaphore(max_parallel)
++
++    async def upload_one(index: int) -> tuple[int, str]:
++        entry = upload_urls[index]
++        url = _text(entry.get("url") if isinstance(entry, dict) else entry)
++        if not url:
++            raise PublishVideoError(f"第 {index + 1} 个视频分片地址为空")
++        async with semaphore:
++            return index + 1, await _put_part(url, chunks[index], index + 1)
++
++    started = asyncio.get_running_loop().time()
++    results = await asyncio.gather(*(upload_one(index) for index in range(len(chunks))))
++    part_list = json.dumps(
++        [json.dumps({"partNumber": number, "md5": md5}, separators=(",", ":")) for number, md5 in sorted(results)],
++        separators=(",", ":"),
++    )
++    elapsed = max(asyncio.get_running_loop().time() - started, 0.001)
++    net_speed = len(content) / 1024 / elapsed
++    keep_alive_api = _text(api_info.get("keepAlive"))
++    if keep_alive_api:
++        keep_alive_result = await mtop_call(
++            account_id=account_id,
++            cookies_str=cookie,
++            api=keep_alive_api,
++            version="1.0",
++            app_key=VIDEO_APP_KEY,
++            data={"userSite": VIDEO_USER_SITE},
++            owner_id=owner_id,
++            origin=SELLER_ORIGIN,
++            referer=SELLER_REFERER,
++            extra_params=VIDEO_MTOP_PARAMS,
++            request_method="GET",
++        )
++        _log_mtop_response("会话保活", account_id, keep_alive_result)
++        cookie = keep_alive_result.get("cookies_str") or cookie
++        if not keep_alive_result.get("success"):
++            logger.warning(
++                f"闲鱼视频上传会话保活失败，继续调用完成接口："
++                f"account_id={account_id}, error={keep_alive_result.get('error')}"
++            )
++    complete_result = await mtop_call(
++        account_id=account_id,
++        cookies_str=cookie,
++        api=_text(api_info.get("complete")) or "mtop.video.upload.complete.xianyu",
++        version="1.0",
++        app_key=VIDEO_APP_KEY,
++        data={
++            "bizCode": VIDEO_BIZ_CODE,
++            "uploadId": upload_id,
++            "partList": part_list,
++            "netSpeed": net_speed,
++            "sdkVersion": VIDEO_SDK_VERSION,
++            "userSite": VIDEO_USER_SITE,
++        },
++        owner_id=owner_id,
++        origin=SELLER_ORIGIN,
++        referer=SELLER_REFERER,
++        extra_params=VIDEO_MTOP_PARAMS,
++    )
++    _log_mtop_response("完成", account_id, complete_result)
++    cookie = complete_result.get("cookies_str") or cookie
++    if not complete_result.get("success"):
++        raise PublishVideoError(
++            f"视频上传完成接口失败：{complete_result.get('error') or '未知错误'}",
++            account_invalid=bool(complete_result.get("account_invalid")),
++        )
++    model = _strategy_model(complete_result)
++    file_id = _text(model.get("fileId"))
++    oss_url = _text(model.get("ossUrl"))
++    if not file_id or not oss_url:
++        raise PublishVideoError("视频上传完成接口未返回 fileId 或 ossUrl")
++    cover_url = await _upload_video_cover(cover_content, name, cookie)
++    return _video_payload(video, file_id, oss_url, width, height, cover_url), cookie
++
++
++def _video_payload(
++    video: dict[str, Any],
++    file_id: str,
++    oss_url: str,
++    width: int,
++    height: int,
++    uploaded_cover_url: str | None = None,
++) -> dict[str, Any]:
++    """构造 idleitem.publish 所需的视频对象。"""
++    poster = _text(video.get("thumbnail_url") or video.get("cover_url") or uploaded_cover_url)
++    if not poster.lower().startswith(("http://", "https://")):
++        poster = oss_url
++    return {
++        "heightSize": height,
++        "widthSize": width,
++        "major": True,
++        "mediaCloudFileId": file_id,
++        "type": 10000,
++        "url": poster,
++        "videoMD5": "0000",
++        "videoObject": "",
++        "videoUrl": oss_url,
++    }
++
++
++async def upload_publish_videos(
++    videos: list[Any],
++    cookie: str,
++    account_id: str,
++    owner_id: int | None = None,
++    *,
++    static_root: str | Path | None = None,
++) -> tuple[list[dict[str, Any]], str]:
++    """按顺序上传视频，返回视频发布对象和刷新后的 Cookie。"""
++    payloads: list[dict[str, Any]] = []
++    current_cookie = cookie
++    for index, video in enumerate(videos[:3], 1):
++        if not isinstance(video, dict):
++            raise PublishVideoError(f"第 {index} 个视频格式不正确")
++        payload, current_cookie = await upload_publish_video(
++            video,
++            current_cookie,
++            account_id,
++            owner_id,
++            static_root=static_root,
++        )
++        payload["major"] = index == 1
++        payloads.append(payload)
++    return payloads, current_cookie
++
++
++__all__ = ["PublishVideoError", "upload_publish_video", "upload_publish_videos"]
+diff --git a/common/utils/local_video_upload.py b/common/utils/local_video_upload.py
+new file mode 100644
+index 0000000..b922862
+--- /dev/null
++++ b/common/utils/local_video_upload.py
+@@ -0,0 +1,77 @@
++"""
++本地视频上传工具。
++
++功能：
++1. 校验视频 MIME 类型和扩展名
++2. 限制单个视频大小
++3. 使用随机文件名保存到静态上传目录
++"""
++from __future__ import annotations
++
++import os
++import uuid
++from pathlib import Path
++from typing import Optional, Tuple, Union
++
++from fastapi import UploadFile
++
++
++SAFE_VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".flv", ".wmv"}
++DEFAULT_VIDEO_EXT = ".mp4"
++DEFAULT_VIDEO_MAX_SIZE = 100 * 1024 * 1024
++
++
++class VideoUploadError(Exception):
++    """视频上传校验异常。"""
++
++    def __init__(self, message: str, status_code: int = 400) -> None:
++        super().__init__(message)
++        self.message = message
++        self.status_code = status_code
++
++
++def safe_video_ext(filename: Optional[str], default: str = DEFAULT_VIDEO_EXT) -> str:
++    """提取视频文件的安全扩展名。"""
++    if not filename:
++        return default
++    ext = os.path.splitext(filename)[1].lower()
++    return ext if ext in SAFE_VIDEO_EXTS else default
++
++
++async def save_uploaded_video(
++    video: UploadFile,
++    upload_dir: Union[str, Path],
++    *,
++    max_size: int = DEFAULT_VIDEO_MAX_SIZE,
++) -> Tuple[Path, str, int]:
++    """校验并保存一个视频文件。
++
++    Args:
++        video: FastAPI 上传文件对象
++        upload_dir: 保存目录
++        max_size: 单文件最大字节数
++    Returns:
++        本地绝对路径、随机文件名、文件字节数
++    Raises:
++        VideoUploadError: 文件类型或大小不符合要求
++    """
++    extension = safe_video_ext(video.filename)
++    content_type = (video.content_type or "").lower()
++    original_ext = os.path.splitext(video.filename or "")[1].lower()
++    if not content_type.startswith("video/") and original_ext not in SAFE_VIDEO_EXTS:
++        raise VideoUploadError("只支持上传视频文件")
++
++    content = await video.read()
++    if max_size > 0 and len(content) > max_size:
++        raise VideoUploadError(f"视频大小不能超过{max_size // (1024 * 1024)}MB")
++
++    upload_path = Path(upload_dir)
++    upload_path.mkdir(parents=True, exist_ok=True)
++    filename = f"{uuid.uuid4().hex}{extension}"
++    filepath = upload_path / filename
++    with filepath.open("wb") as output:
++        output.write(content)
++    return filepath, filename, len(content)
++
++
++__all__ = ["SAFE_VIDEO_EXTS", "VideoUploadError", "safe_video_ext", "save_uploaded_video"]
+diff --git a/common/utils/xianyu_utils.py b/common/utils/xianyu_utils.py
+index 520a081..4aa7436 100644
+--- a/common/utils/xianyu_utils.py
++++ b/common/utils/xianyu_utils.py
+@@ -20,6 +20,12 @@ from loguru import logger
+ CLOSE_NOTICE_API = "mtop.taobao.idlemessage.pc.profile.notice.update"
+ 
+ 
++def canonical_goofish_item_url(item_id: Any) -> str:
++    """根据商品 ID 生成当前 Goofish 网页端商品详情地址。"""
++    normalized_id = str(item_id or "").strip()
++    return f"https://www.goofish.com/item?id={normalized_id}" if normalized_id else ""
++
++
+ def trans_cookies(cookies_str: str) -> Dict[str, str]:
+     """将cookies字符串转换为字典
+     
+@@ -107,7 +113,7 @@ def generate_device_id(user_id: str) -> str:
+     return ''.join(result) + "-" + user_id
+ 
+ 
+-def generate_sign(t: str, token: str, data: str) -> str:
++def generate_sign(t: str, token: str, data: str, app_key: str = "34839810") -> str:
+     """生成API签名
+     
+     Args:
+@@ -118,7 +124,6 @@ def generate_sign(t: str, token: str, data: str) -> str:
+     Returns:
+         签名字符串
+     """
+-    app_key = "34839810"
+     msg = f"{token}&{t}&{app_key}&{data}"
+     
+     md5_hash = hashlib.md5()

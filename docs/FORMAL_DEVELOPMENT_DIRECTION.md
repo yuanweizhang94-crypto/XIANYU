@@ -131,120 +131,69 @@
 | 账号状态和暂停 | 上游 `status`、禁用原因、暂停和在线状态 | `ADOPT_UPSTREAM` | 第二套账号主状态表 |
 | 账号备注 | 上游 `XYAccount.remark`、API和账户页面编辑 | `ADOPT_UPSTREAM` | 新联系人表作为首期方案 |
 | 权限和归属 | 上游 `owner_id`、管理员和账号作用域 | `ADOPT_UPSTREAM` | 新权限平台 |
-| 发布原生流程 | 上游 `XianyuPublisher`、图片、分类、价格、地址和提交 | `PATCH_UPSTREAM` 仅修确认缺陷 | 重写发布器或新浏览器自动化引擎 |
-| 发布快速进入和诊断 | CHG-0017已补充快速进入、表单检查、按钮检查、脱敏诊断和失败分类 | `ADOPT_CURRENT_PATCH` | 新页面检查器、新失败分类平台 |
+| 发布原生流程 | 上游 `detect_publish_account_capability -> XianyuDirectPublisher / XianyuPersonalPublisher -> mtop` | `ADOPT_UPSTREAM`；旧 `XianyuPublisher`/Playwright 仅保留 legacy/其他真实调用 | 在正常 single/batch 前重新加入 `REAL_BROWSER_LOGIN_READY`/Profile/Playwright 门禁，或新建第二 Publisher |
+| Browser/Profile 发布诊断 | CHG-0017/CHG-0018 历史 Browser Publisher 诊断仍可服务真正需要浏览器的 legacy 调用 | `HISTORICAL_COMPATIBILITY_ONLY`，不是正常 single/batch 发布前置条件 | 将 Browser/Profile readiness 重新提升为 latest direct/personal publish 的全局门禁 |
 | 发布幂等和审核 | XIANYU `PublishService` 已有幂等、重复检测、授权、风险和人工审核决策 | `ADOPT_LOCAL_GOVERNANCE` | 第二套发布幂等、审核和审计系统 |
 | 风控日志 | 上游登录、续期和远程Token风险日志 | `ADOPT_UPSTREAM` | 新风控日志平台 |
 | 数据库备份 | 上游定时压缩备份和保留策略 | `CONFIGURE_UPSTREAM` | 新备份平台；只需后续验证恢复 |
 | WebSocket和消息 | 上游连接、接收、解析、自动回复和发送 | `ADOPT_UPSTREAM` | 本地IM协议、第二发送器、第二自动回复执行器 |
 
-## 正式开发只保留的四个核心缺口
+## 商品发布正式方向（2026-08-17 latest upstream）
 
-### 1. 商品发布器复用账号已有持久化Profile
+### 正常 single/batch 发布 owner
 
-#### 目标
-
-让商品发布、Cookie浏览器续期、官方快速进入和后续人工登录恢复使用同一个账号Profile，而不是发布时重新创建临时浏览器环境。
-
-#### 最小实现
-
-- 保留上游 `backend-web/app/services/xianyu_publisher.py` 的 `publish_item()` 接口、参数、返回格式和全部业务步骤。
-- 不重写图片上传、标题、描述、分类、价格、地址、交易方式和点击发布逻辑。
-- 只替换“怎样取得浏览器上下文”这一层。
-- 直接复用上游Cookie续期浏览器的账号Profile路径和启动方式。
-- 同一账号只能使用 `browser_data/user_{account_id}` 对应的唯一Profile。
-- 禁止复制、克隆或跨账号共用Profile。
-- 发布仍沿用CHG-0017现有快速进入处理、表单检查、发布按钮检查、请求诊断、脱敏和失败分类。
-- 增加默认关闭的回退开关，例如 `PUBLISH_USE_ACCOUNT_PROFILE=false`。首次上线只对批准账号开启；出现问题可以立即切回原临时上下文路径。
-
-#### 必须保持的兼容性
-
-- `publish_item()`公开调用方式不变。
-- `publish_execution_service`消费的结果字段不变。
-- `success`、`message`、`failure_reason`、`diagnostics`等现有字段继续保留。
-- 不改变上游账号Cookie、状态和所有权的权威来源。
-- 不新增常驻浏览器服务或第二发布执行器。
-
-#### 解决的问题
-
-- Cookie存在但发布页面仍未登录。
-- 官方快速进入成功后状态无法保存到下一次发布。
-- 登录续期浏览器和发布浏览器环境不同。
-- Profile缺失账号反复要求扫码。
-- 部分 `publish_form_not_rendered`。
-
-### 2. 新账号或缺失账号自动补建Profile
-
-#### 目标
-
-以后新增账号不再出现“WebSocket在线、Cookie存在，但首次批量发布没有Profile”的同类问题。
-
-#### 最小实现
-
-- 不新建登录流程。
-- 在上游扫码、密码登录或Cookie更新成功后，仅当账号Profile不存在时，调用现有Profile/续期浏览器能力完成一次初始化。
-- 初始化只允许：创建Profile目录、写入当前合法Cookie、打开闲鱼官方页面、确认登录状态、只读打开发布页并返回诊断。
-- 初始化禁止：填写商品、点击发布、发送消息、触发自动回复、绕过验证或自动处理官方人工验证。
-- 已有Profile时不得重复初始化或覆盖。
-- 初始化失败必须保留原Cookie和账号记录，并返回明确原因。
-
-#### 预期结果
-
-每个账号形成唯一对应关系：
+当前正式权威是 upstream `742fb58a483d9c27d0bef75d7e3a10b4cfe24cc1` 的接口发布架构：
 
 ```text
-账号ID
-→ Cookie
-→ browser_data/user_{account_id}
-→ 账号锁
-→ 发布预检结果
+明确选择 account_id
+→ authoritative owner/account lookup
+→ XYAccount authoritative Cookie
+→ execute_single_publish
+→ detect_publish_account_capability
+→ fish shop: XianyuDirectPublisher
+→ personal seller: XianyuPersonalPublisher
+→ mtop publish
+→ platform_item_id / item_url
+→ Publish Log
+→ authoritative item sync
 ```
 
-### 3. 把CHG-0017现有检查抽成只读发布预检
+永久规则：
 
-#### 目标
+- `LATEST_UPSTREAM_PUBLISH_IS_AUTHORITY=true`。
+- `NORMAL_DIRECT_PUBLISH_REQUIRES_BROWSER=false`。
+- `REAL_BROWSER_LOGIN_READY_IS_NOT_NORMAL_PUBLISH_GATE=true`。
+- `NORMAL_SINGLE_PUBLISH_BROWSER_OWNER=false`。
+- `NORMAL_BATCH_PUBLISH_BROWSER_OWNER=false`。
+- 不得因为账号不是鱼小铺而判定发布不可用；必须按 upstream capability detection 分流到普通卖家 Publisher。
+- `FAIL_SYS_USER_VALIDATE`、`RGV587`、punish/captcha/session 错误如果来自 Publish MTOP，必须作为真实 platform publish error 返回，不能转换成 Browser/Profile readiness 失败。
 
-在批量发布前先判断账号是否具备发布条件，不到正式提交阶段才发现登录或验证问题。
+### Browser/Profile 历史能力的保留边界
 
-#### 最小实现
+`XianyuPublisher`、canonical Profile、账号浏览器锁、全局 browser slot、Browser preflight 和历史 CHG-0017/CHG-0018 修复不删除，但它们只服务仍然真实需要 Browser 的 legacy/兼容/其他调用。
 
-- 不开发新的页面识别系统。
-- 复用CHG-0017已经存在的：官方快速进入处理、表单控件统计、风险验证识别、可见错误收集、发布按钮可见/启用/试点击检查和脱敏诊断。
-- 增加明确的 `preflight_only=true` 或等价内部模式。
-- 流程到“发布按钮试点击通过”即停止。
-- 不上传真实商品素材，不填正式商品，不发送发布请求，不点击正式发布。
-- 预检结果至少归类为：
-  - `READY`
-  - `PROFILE_MISSING`
-  - `LOGIN_REQUIRED`
-  - `QUICK_ENTER_FAILED`
-  - `MANUAL_VERIFICATION_REQUIRED`
-  - `PLATFORM_RISK_VERIFICATION`
-  - `PUBLISH_FORM_NOT_RENDERED`
-  - `PUBLISH_BUTTON_DISABLED`
-  - `BROWSER_BUSY`
-  - `UNKNOWN`
-- 所有诊断继续脱敏，不记录Cookie、Token、完整账号ID、完整URL查询参数、商品ID或验证链接。
+它们不得重新成为正常 single/batch Publish 的 owner，也不得在 latest direct/personal Publisher 之前增加：
 
-#### 批量发布入口
+- `REAL_BROWSER_LOGIN_READY`；
+- Persistent Profile ready；
+- Playwright session；
+- publish-page preflight；
+- publish form rendered。
 
-只有预检为 `READY` 的账号才允许进入现有正式发布边界。其他账号进入人工处理列表，不自动重试。
+### 正常发布必须保留的 XIANYU 安全语义
 
-### 4. 商品发布接入上游已有账号锁和浏览器槽位
+- 严格使用用户明确选择的 `account_id`，失败后不自动切换账号。
+- `owner_id` 必须与 authoritative account 归属一致。
+- 只使用 `XYAccount` 当前 authoritative Cookie；MTOP 原生 Set-Cookie 刷新后继续回写 authoritative Cookie。
+- 真实提交不自动重试；`UNKNOWN` 绝不触发自动重发。
+- 真实 batch 严格串行，`ACTIVE_REAL_BATCH_EXECUTORS_MAX=1`。
+- HTTP 200 / “任务已提交”只能表示 `SUBMITTED`。
+- `SUCCESS` 至少要求 `platform_item_id`、`item_url` 或 `AUTHORITATIVE_SYNC_CONFIRMED=true`。
+- 发布失败不得影响独立 Auto Reply WebSocket。
 
-#### 目标
+### 分类和 Material
 
-避免发布、Cookie续期、登录恢复和人工验证同时占用同一个Profile，也避免批量打开过多浏览器拖垮笔记本。
-
-#### 最小实现
-
-- 直接复用上游现有账号浏览器锁和全局浏览器槽位。
-- 不新建RabbitMQ、Celery、Redis队列、分布式调度服务或新的浏览器Broker。
-- 当前9账号的真实浏览器任务并发初始固定为1。
-- 批量发布按有界顺序执行；等待超时返回 `BROWSER_BUSY` 或现有等价错误，不无限等待。
-- 同一个账号在同一时间只能执行一种浏览器任务。
-- 锁必须覆盖Profile打开到关闭的完整生命周期。
-- 锁和槽位失败不得降级成绕过锁直接启动浏览器。
+分类、规格、视频、运费和地址数据契约直接跟随 latest upstream；不得恢复旧“强制虚拟商品分类”或另建第二套分类系统。`xy_product_materials` 需要的增量字段必须来自 upstream 自带 schema/migration 定义。
 
 ## 账户管理的最小增强
 

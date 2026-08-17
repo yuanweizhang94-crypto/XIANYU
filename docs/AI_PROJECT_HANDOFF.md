@@ -10,7 +10,9 @@ Never record or expose Cookie values, Token values, Authorization headers, passw
 
 - `UPSTREAM_FIRST=true`.
 - `PRODUCTION_RUNTIME_CODE_BASE_SHA=7c4d2828f7b2c2e3f2dd6d79acfe2c9e321521ed`.
-- `UPSTREAM_SHA=bf252be357f5e4261b04ce2b7419c5574aaf1b55`.
+- `LATEST_UPSTREAM_MAIN_SHA=742fb58a483d9c27d0bef75d7e3a10b4cfe24cc1`.
+- `CURRENT_CHAT_UPSTREAM_AUTHORITY_SHA=bf252be357f5e4261b04ce2b7419c5574aaf1b55`.
+- `CURRENT_PUBLISH_UPSTREAM_AUTHORITY_SHA=742fb58a483d9c27d0bef75d7e3a10b4cfe24cc1`.
 - `CURRENT_CHAT_ARCHITECTURE=LATEST_UPSTREAM_NATIVE`.
 - `CURRENT_CHAT_RECOVERY_STATUS=PROVEN_READY_ON_REAL_CANARY`.
 - `QR_EAGER_CHAT_AUTH=false`.
@@ -297,3 +299,24 @@ The latest repository documentation SHA is resolved from the current Git commit 
 - `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260816-restore-upstream-qr-login-semantics.md`
 - `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260816-restore-latest-upstream-chat.md`
 - `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260817-chat-platform-risk-recovery-success.md`
+
+## Publish authority update — 2026-08-17
+
+The normal product-publish authority is now current upstream `origin/main@742fb58a483d9c27d0bef75d7e3a10b4cfe24cc1` (`完善商品发布`).
+
+Permanent Publish invariants:
+
+- `LATEST_UPSTREAM_PUBLISH_IS_AUTHORITY=true`.
+- `NORMAL_DIRECT_PUBLISH_REQUIRES_BROWSER=false`.
+- `REAL_BROWSER_LOGIN_READY_IS_NOT_NORMAL_PUBLISH_GATE=true`.
+- `OLD_BROWSER_PUBLISH_PATCH_IS_HISTORICAL_ONLY=true`.
+- `PUBLISH_ACCOUNT_CAPABILITY_ROUTING_PRESERVED=true`.
+- Normal single/batch publish must route `execute_single_publish -> detect_publish_account_capability -> XianyuDirectPublisher (fish shop) / XianyuPersonalPublisher (personal seller) -> mtop`.
+- `XianyuPublisher`/Playwright may remain for legacy or other call sites, but it is not the owner of normal single/batch product publishing.
+- `FAIL_SYS_USER_VALIDATE`, `RGV587`, punish/captcha/session errors from the publish MTOP owner are platform publish errors; they must not be converted to `REAL_BROWSER_LOGIN_READY=false`.
+- Selected-account scope, owner scope, authoritative DB Cookie, serial real publishing, no automatic real-publish retry, duplicate safety, and strict SUCCESS evidence remain mandatory.
+- `HTTP 200 / task submitted` is `SUBMITTED`, never `SUCCESS`. SUCCESS requires `platform_item_id`, `item_url`, or `AUTHORITATIVE_SYNC_CONFIRMED=true`.
+
+Production recovery evidence: `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260817-latest-upstream-publish-restore.md`.
+
+The successful real Canary used account `2214313339860` and latest upstream personal-seller routing. It entered the latest upstream Publisher, issued one real platform publish request, returned a real item identity, and completed authoritative item sync while all six enabled Auto Reply accounts remained online.
