@@ -1,0 +1,190 @@
+diff --git a/backend-web/app/api/routes/search.py b/backend-web/app/api/routes/search.py
+index 4848fbfb20c69c888c2d9c716588a4de256cb3d7..b445a816f0f79359984907721cb7d44c6e0202d0 100644
+--- a/backend-web/app/api/routes/search.py
++++ b/backend-web/app/api/routes/search.py
+@@ -5,16 +5,22 @@
+ """
+ from __future__ import annotations
+ 
++import asyncio
++from typing import Any, Optional
++
+ from fastapi import APIRouter, Depends
+ from loguru import logger
+ from pydantic import BaseModel, Field
++from sqlalchemy import select
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from app.api import deps
+ from app.services.search import search_xianyu_items
+ from app.api.deps import get_db_session as get_db
+-from common.models import User
++from common.models import User, UserRole
++from common.models.xy_account import XYAccount
+ from common.schemas.common import ApiResponse
++from common.services.xianyu_search_client import XianyuSearchClient, parse_search_item
+ 
+ router = APIRouter(prefix="/search", tags=["商品搜索"])
+ 
+@@ -26,6 +32,161 @@ class ItemSearchRequest(BaseModel):
+     page_size: int = Field(default=20, ge=1, le=100, description="每页数量")
+ 
+ 
++class MarketSearchRequest(BaseModel):
++    """严格单账号、验证失败即停止的市场搜索请求。"""
++
++    keyword: str = Field(..., min_length=1, max_length=100, description="搜索关键词")
++    account_id: str = Field(..., min_length=1, max_length=80, description="唯一采集账号ID")
++    start_page: int = Field(default=1, ge=1, le=50, description="起始页")
++    pages: int = Field(default=1, ge=1, le=5, description="连续采集页数")
++    rows_per_page: int = Field(default=30, ge=1, le=50, description="每页数量")
++    sort_field: str = Field(default="", max_length=80)
++    sort_value: str = Field(default="", max_length=80)
++    price_min: Optional[float] = Field(default=None, ge=0)
++    price_max: Optional[float] = Field(default=None, ge=0)
++    publish_days: Optional[int] = Field(default=None, ge=1, le=365)
++
++
++_PLATFORM_VERIFICATION_MARKERS = (
++    "fail_sys_user_validate",
++    "rgv587",
++    "fail_sys_illegal_access",
++    "fail_biz_wua_is_machine",
++    "wua_is_machine",
++    "挤爆",
++    "punish",
++    "captcha",
++    "validate",
++    "验证",
++)
++
++
++def _market_verification_required(error: Any) -> bool:
++    text = str(error or "").strip().lower()
++    return bool(text) and any(marker in text for marker in _PLATFORM_VERIFICATION_MARKERS)
++
++
++def _public_market_item(parsed: dict[str, Any]) -> dict[str, Any]:
++    """只暴露选品/定价需要的公开商品字段，不返回 raw_main 或账号凭据。"""
++
++    return {
++        "item_id": str(parsed.get("item_id") or ""),
++        "title": parsed.get("title"),
++        "price": parsed.get("price"),
++        "area": parsed.get("area"),
++        "pic_url": parsed.get("pic_url"),
++        "seller_nick": parsed.get("seller_nick"),
++        "want_count": parsed.get("want_count"),
++        "view_count": None,
++        "tags": parsed.get("tags"),
++        "publish_time_ms": parsed.get("publish_time_ms"),
++        "target_url": parsed.get("target_url"),
++    }
++
++
++@router.post("/market-items")
++async def search_market_items(
++    request: MarketSearchRequest,
++    current_user: User = Depends(deps.get_current_active_user),
++    db: AsyncSession = Depends(get_db),
++) -> ApiResponse:
++    """复用现有 XianyuSearchClient；不调用浏览器验证处理器，也不切换账号规避验证。"""
++
++    if request.price_min is not None and request.price_max is not None and request.price_min > request.price_max:
++        return ApiResponse(success=False, message="price_min 不能大于 price_max")
++
++    account = (
++        await db.execute(select(XYAccount).where(XYAccount.account_id == request.account_id))
++    ).scalar_one_or_none()
++    if not account:
++        return ApiResponse(success=False, message="ACCOUNT_NOT_FOUND")
++    if current_user.role != UserRole.ADMIN and account.owner_id != current_user.id:
++        return ApiResponse(success=False, message="ACCOUNT_NOT_ACCESSIBLE")
++    if (account.status or "active").strip().lower() not in {"active", "enabled", "normal"}:
++        return ApiResponse(success=False, message="ACCOUNT_DISABLED")
++    if not str(account.cookie or "").strip():
++        return ApiResponse(success=False, message="ACCOUNT_LOGIN_REQUIRED")
++
++    client = XianyuSearchClient(
++        account.account_id,
++        account.cookie,
++        owner_id=account.owner_id,
++        proxy=None,
++    )
++    items_by_id: dict[str, dict[str, Any]] = {}
++    pages_collected = 0
++    last_page = request.start_page - 1
++
++    for page_number in range(request.start_page, request.start_page + request.pages):
++        result = await client.search(
++            keyword=request.keyword.strip(),
++            page_number=page_number,
++            sort_field=request.sort_field.strip(),
++            sort_value=request.sort_value.strip(),
++            rows_per_page=request.rows_per_page,
++            price_min=request.price_min,
++            price_max=request.price_max,
++            publish_days=request.publish_days,
++        )
++        last_page = page_number
++        if not result.get("success"):
++            error = str(result.get("error") or "MARKET_SEARCH_FAILED")
++            if _market_verification_required(error):
++                return ApiResponse(
++                    success=False,
++                    message="PLATFORM_VERIFICATION_REQUIRED",
++                    data={
++                        "status": "PLATFORM_VERIFICATION_REQUIRED",
++                        "keyword": request.keyword,
++                        "pages_collected": pages_collected,
++                        "stopped_page": page_number,
++                        "items": list(items_by_id.values()),
++                    },
++                )
++            return ApiResponse(
++                success=False,
++                message="ACCOUNT_OR_SEARCH_UNAVAILABLE" if result.get("account_invalid") else "MARKET_SEARCH_FAILED",
++                data={
++                    "status": "FAILED",
++                    "keyword": request.keyword,
++                    "pages_collected": pages_collected,
++                    "stopped_page": page_number,
++                    "items": list(items_by_id.values()),
++                },
++            )
++
++        pages_collected += 1
++        for entry in result.get("items") or []:
++            parsed = parse_search_item(entry)
++            if not parsed:
++                continue
++            public_item = _public_market_item(parsed)
++            item_id = public_item["item_id"]
++            if item_id:
++                items_by_id[item_id] = public_item
++
++        if not result.get("has_next_page"):
++            break
++        if page_number < request.start_page + request.pages - 1:
++            await asyncio.sleep(0.8)
++
++    return ApiResponse(
++        success=True,
++        message="搜索成功",
++        data={
++            "status": "SUCCESS",
++            "keyword": request.keyword,
++            "account_id": request.account_id,
++            "pages_collected": pages_collected,
++            "last_page": last_page,
++            "items": list(items_by_id.values()),
++            "total": len(items_by_id),
++            "source": "xianyu_search_client",
++            "verification_policy": "FAIL_CLOSED_NO_ACCOUNT_SWITCH",
++        },
++    )
++
++
+ @router.post("/items")
+ async def search_items(
+     request: ItemSearchRequest,
