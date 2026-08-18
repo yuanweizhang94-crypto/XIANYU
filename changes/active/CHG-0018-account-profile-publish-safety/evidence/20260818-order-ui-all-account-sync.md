@@ -36,13 +36,17 @@ The Backend runtime was patched to the same proven sold-order request semantics 
 
 The local `请先选择账号` warning/return guard was removed.
 
-To avoid deploying unrelated dirty frontend source, the current production bundle was patched narrowly and cache-busted:
+To avoid deploying unrelated dirty frontend source, the Orders runtime repair is isolated to the Orders chunk. An earlier attempt also rewrote the main bundle reference; a hard browser reload later exposed that approach as unsafe because the SPA could load APIs while rendering a blank page. That main-bundle hot patch was rolled back to the exact frontend image baseline.
 
-- a new Orders chunk was created from the currently served chunk with only the selection guard removed;
-- a new main entry references the new Orders chunk;
-- `index.html` references the new main entry, so a normal page refresh loads the repaired behavior despite one-year immutable asset caching.
+Final runtime method:
 
-No other frontend route or feature was rebuilt as part of this runtime repair.
+- restore the exact production-image HTML/assets baseline first;
+- keep the image's original main bundle unchanged;
+- create one patched Orders chunk with only the selection guard removed;
+- use a document-level import map to redirect only the Orders chunk to the patched file;
+- keep the SPA entry non-cacheable so a document reload picks up the runtime mapping.
+
+No Backend, WebSocket, Scheduler, account Session, or non-Orders frontend route is changed by this runtime isolation.
 
 ## Validation
 
@@ -51,9 +55,10 @@ No other frontend route or feature was rebuilt as part of this runtime repair.
 - Clean post-apply regression tests: 4/4 PASS.
 - `python scripts/verify_repository.py` was executed in the formal repository and stopped only on the pre-existing `tmp/publish_restore/...` sensitive-pattern findings already present before this repair; no order-UI recovery file was reported by that scan.
 - Production frontend HTTP 200.
-- Production `index.html` references the new main entry.
-- New main entry references the new Orders chunk.
-- New Orders chunk contains no `请先选择账号` guard and retains the optional-account fetch call.
+- Production `index.html` uses the exact image-baseline main entry and a narrow Orders-only import map.
+- The original main bundle is not modified.
+- The patched Orders chunk passes `node --check`, contains no `请先选择账号` guard, and retains the optional-account fetch call.
+- Independent Chrome Headless smoke tests for `/login` and `/orders` render non-empty application DOM with no detected JavaScript runtime/syntax error after the rollback.
 - Production Backend health: HTTP 200 after targeted restart.
 - Production Backend `OrderService` for recovered account `2214313339860`: `total_fetched=1`, `failed=0`, `errors=[]`.
 
@@ -82,12 +87,14 @@ A later user reproduction still showed the old `请先选择账号` toast. Produ
 
 To prevent the same stale-entry behavior on future frontend updates, `docker/frontend/nginx.conf` now keeps hashed `/assets` immutable while making the SPA entry and route fallback non-cacheable. The running frontend Nginx configuration was updated and reloaded after `nginx -t` passed.
 
-Runtime validation:
+Runtime validation after the blank-page reproduction and rollback:
 
-- `/` HTTP 200 and references the cache-busted main entry.
-- `/index.html` HTTP 200 and is returned with no-cache semantics.
-- the served main entry references `Orders-DbMPg1v6-all-sync.js`.
-- the served repaired Orders chunk does not contain the `请先选择账号` guard.
+- `/` and `/index.html` HTTP 200 with no-cache semantics.
+- the exact image-baseline main bundle is restored and served unchanged.
+- the unsafe `ordersfix` main-bundle hot patch is absent.
+- the Orders-only patched chunk does not contain the `请先选择账号` guard and still calls the existing optional-account fetch path.
+- the Orders-only chunk passes `node --check`.
+- independent Chrome Headless smoke tests render non-empty DOM for `/login` and `/orders` with no detected JavaScript runtime/syntax error.
 - clean follow-up patch apply check: PASS.
 - combined order/UI/cache regression tests: 6/6 PASS.
 
