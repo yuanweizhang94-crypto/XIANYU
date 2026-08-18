@@ -334,13 +334,17 @@ For later ordinary failures, read the new `failure_reason`. Do not assume “Pub
 
 ## 14. Session production rule
 
-Final account readiness authority:
+`REAL_BROWSER_LOGIN_READY` applies only to XIANYU operations that actually require a browser/page session. It is not the normal Direct/Personal Publisher gate.
+
+Current normal publish authority is:
 
 ```text
-REAL_BROWSER_LOGIN_READY
+detect_publish_account_capability
+→ XianyuDirectPublisher / XianyuPersonalPublisher
+→ MTOP
 ```
 
-Do not equate Cookie presence, Profile presence, or DB `healthy` with a valid platform Session.
+Do not equate Cookie presence, Profile presence, or DB `healthy` with universal platform readiness, and do not reinsert Browser/Profile/Playwright readiness in front of normal Direct Publish.
 
 Current production Session maintenance uses the established background renewal path:
 

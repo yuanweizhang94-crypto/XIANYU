@@ -2,6 +2,32 @@
 
 PRIORITY=HIGHEST
 
+## P0 — THREE_REPOSITORY_REALTIME_SYNC
+
+本规则与其他 P0 规则同级。只要本轮执行对源码、Runtime、工具契约、业务流程或权威经营状态产生实质变化，就必须在本轮结束前完成对应仓库同步。
+
+三个权威仓库：`XIANYU`（业务实现与业务 Runtime）、`COMPANY_LOCAL_EXECUTION_TOOL`（MCP/Proxy/Runner/thin adapters/工具契约）、`ZIDONGZHUA`（经营流程、商品、订单、收入、决策）。
+
+完成条件：
+
+```text
+REFRESH_CURRENT_GITHUB_LOCAL_RUNTIME
+→ UPDATE_ALL_IMPACTED_AUTHORITATIVE_DOCS/STATE
+→ CORRECT_OR_REMOVE_STALE_CONFLICTING_REDUNDANT_CONTENT
+→ TARGETED_TESTS / REPOSITORY_VERIFY / git diff --check
+→ COMMIT_EXACT_TASK_FILES
+→ PUSH_INTENDED_BRANCH
+→ VERIFY_LOCAL_COMMIT_SHA == REMOTE_BRANCH_SHA
+```
+
+纯只读检查且没有事实/结论变化时，不制造空提交。XIANYU 业务/Runtime 变化先更新 XIANYU；若改变 ChatGPT-facing 工具/桥接契约，再同步 COMPANY；若改变赚钱流程、商品、订单、交付或经营决策，再同步 ZIDONGZHUA。不得复制业务实现，只同步职责、契约和真值。
+
+每次实质更新必须检查同主题旧文档；被新 Runtime 证据推翻的旧结论必须修正或标记 historical，明显重复且会误导新 AI 的内容必须合并/清理。保留仍有审计价值的测试、证据和历史。
+
+Git 传输失败时保留原始 Commit 并记录 `PENDING_GITHUB_SYNC`，禁止因 push 失败重新生成同一补丁或 force push。只有远端 SHA 与目标 Commit 一致时，才允许 `GITHUB_SYNC_COMPLETE=true`。
+
+严禁提交 Cookie、Token、JWT、Authorization、密码、API Key、私钥、浏览器 Profile 秘密或真实客户敏感数据。
+
 FIRST_READ=docs/AI_PROJECT_HANDOFF.md
 
 UPSTREAM_FIRST=true
@@ -265,11 +291,21 @@ If `UNKNOWN`, do not execute again until authoritative state is recovered.
 
 ## Session authority
 
-Final account publish readiness is `REAL_BROWSER_LOGIN_READY`, not merely Cookie presence, Profile presence, or a database `healthy` flag.
+`REAL_BROWSER_LOGIN_READY` is authoritative only for operations that actually require a browser/page session. It is **not** a normal Direct/Personal Publisher gate.
+
+Current normal publish authority is the latest upstream account-capability routing:
+
+```text
+detect_publish_account_capability
+→ XianyuDirectPublisher / XianyuPersonalPublisher
+→ MTOP
+```
+
+Do not reinsert Browser/Profile/Playwright readiness in front of normal Direct Publish. Cookie presence, Profile presence, or DB `healthy` also must not be treated as universal proof that every browser-requiring operation is ready.
 
 Production Session maintenance uses the established Session renewal path. Do not create overlapping schedulers or a second renewal system.
 
-If a real page requires human QR verification during normal business execution, skip that account and use another healthy account. One account must not block the whole batch.
+If a platform operation genuinely requires human QR/face/CAPTCHA/slider verification, fail closed for that account/action and continue other independently healthy business work where XIANYU supports it. One account must not block the whole batch.
 
 ## Change scope discipline
 

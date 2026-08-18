@@ -660,3 +660,13 @@ WEBSOCKET_ZOMBIES=0
 ```
 
 完整故障经过和解决路径以 `docs/PROJECT_PROGRESS_2026-08-18.md` 为当前综合历史参考。
+
+---
+
+# 22. 三仓库实时同步与当前治理清理状态
+
+根 `AGENTS.md` 已把 `XIANYU / COMPANY_LOCAL_EXECUTION_TOOL / ZIDONGZHUA` 的对应变动实时同步写为 P0 规则。每次实质执行完成前，必须更新受影响仓库、清理同主题过时/冲突说明、Commit + Push，并以远端 SHA 与本地目标 Commit 一致作为同步完成条件。
+
+2026-08-18 本轮同时清理了一个明确冲突：旧文档/根规则中把 `REAL_BROWSER_LOGIN_READY` 写成正常发布统一门禁的表述，已改为“仅适用于真正需要 Browser/Page Session 的操作；正常 Direct/Personal Publish 使用最新 upstream account-capability routing → MTOP”。
+
+当前仓库 `scripts/verify_repository.py` 仍有一个**本轮之前已存在**的治理失败：`CHG-0020-zidongzhua-market-search` 归档缺少 design/tasks 等要求文件与 upstream-first 字段。该失败已在纯净 `origin/main` worktree 独立复现，不能归因于本轮 P0 文档修改。禁止伪造历史设计/验收文件只为让验证变绿；后续应在有真实历史证据时单独完成 CHG-0020 治理清理。

@@ -129,13 +129,11 @@ A future ordinary failure must be classified from its new `failure_reason`; do n
 
 ## Session production authority
 
-Account readiness authority:
+For operations that genuinely require a browser/page session, readiness must come from the real upstream Session/browser state rather than Cookie/Profile/DB presence alone.
 
-```text
-REAL_BROWSER_LOGIN_READY
-```
+For **normal Direct/Personal Publish**, `REAL_BROWSER_LOGIN_READY` is not a publish gate. Current upstream publishing uses account-capability routing into `XianyuDirectPublisher / XianyuPersonalPublisher → MTOP`; Browser/Profile/Playwright readiness must not be reinserted in front of that normal path.
 
-The following are not sufficient alone:
+The following are not universal readiness proof by themselves:
 
 ```text
 COOKIE_PRESENT
