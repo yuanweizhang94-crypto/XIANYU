@@ -351,3 +351,26 @@ existing canonical Profile and quick-enter recovery paths were exhausted.
 
 Runtime and patch evidence:
 `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-order-sold-permission-fix.md`.
+
+## CHG-0018 Order UI all-account sync follow-up
+
+- Applies after: `64c245-chg0018-order-sold-permission-fix.patch`
+- Patch file: `64c245-chg0018-order-ui-all-account-sync.patch`
+- SHA256: `E223A29F6257B5EC2758D0D23AA4A7AECD9401E83A6DD063854C1DACDD29ACE4`
+- Patch size: 2066 bytes
+- Clean apply check: `git apply --check --whitespace=error-all --unidiff-zero` PASS
+- Clean post-apply targeted tests: 4/4 PASS
+
+This follow-up restores the existing Backend order-sync contract to the UI.
+The Backend already supports `cookie_id = null` as "synchronize all enabled
+accounts"; the Orders page had added a redundant `请先选择账号` early return
+that made the account selector mandatory. The guard is removed while the
+existing optional single-account path is preserved.
+
+The production Backend was also aligned with the already-proven seller-order
+permission fix because its container still carried the old forced `COMMONPRO`
+header. The recovered `2214313339860` account then synchronized one real order
+through the live Backend with `failed=0` and `errors=[]`.
+
+Runtime and patch evidence:
+`changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-order-ui-all-account-sync.md`.
