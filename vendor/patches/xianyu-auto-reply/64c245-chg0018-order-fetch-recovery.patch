@@ -1,0 +1,75 @@
+diff --git a/scheduler/app/services/scheduler/fetch_orders_task.py b/scheduler/app/services/scheduler/fetch_orders_task.py
+index 33ae3175ba4e51e034a90502a6516623a1701f2d..7d394a72bcc1eeb8cc7895a442b2e40a13f3cd59 100644
+--- a/scheduler/app/services/scheduler/fetch_orders_task.py
++++ b/scheduler/app/services/scheduler/fetch_orders_task.py
+@@ -69 +69,3 @@ class FetchOrdersTaskService:
+-                # 检查账号是否处于Session过期冷却期内
++                # 检查账号是否处于Session过期冷却期内。
++                # 订单采集只复用 upstream 原生 Session 冷却；Auto Reply 的 PVR marker
++                # 不能跨能力域阻断订单同步。
+@@ -71 +73 @@ class FetchOrdersTaskService:
+-                if is_account_session_cooled(account.account_id, account.metadata_json):
++                if is_account_session_cooled(account.account_id):
+@@ -89,0 +92 @@ class FetchOrdersTaskService:
++                        failed_count += 1
+@@ -92 +95 @@ class FetchOrdersTaskService:
+-                            f"获取订单有警告: {errors}"
++                            f"获取订单失败: {errors}"
+@@ -94,2 +97,2 @@ class FetchOrdersTaskService:
+-
+-                    success_count += 1
++                    else:
++                        success_count += 1
+@@ -188 +191 @@ class FetchRefundOrdersTaskService:
+-                # 跳过Session过期冷却期内的账号
++                # 跳过 upstream 原生 Session 过期冷却；不复用 Auto Reply PVR marker。
+@@ -190 +193 @@ class FetchRefundOrdersTaskService:
+-                if is_account_session_cooled(account.account_id, account.metadata_json):
++                if is_account_session_cooled(account.account_id):
+@@ -203,0 +207 @@ class FetchRefundOrdersTaskService:
++                        failed_count += 1
+@@ -205 +209 @@ class FetchRefundOrdersTaskService:
+-                            f"【{self.task_name}】账号 {account.account_id} 获取退款订单有警告: {errors}"
++                            f"【{self.task_name}】账号 {account.account_id} 获取退款订单失败: {errors}"
+@@ -207 +211,2 @@ class FetchRefundOrdersTaskService:
+-                    success_count += 1
++                    else:
++                        success_count += 1
+diff --git a/tests/test_chg0018_order_fetch_recovery.py b/tests/test_chg0018_order_fetch_recovery.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..5e7686aa4a10a644d2981687ef87524eb07034cf
+--- /dev/null
++++ b/tests/test_chg0018_order_fetch_recovery.py
+@@ -0,0 +1,32 @@
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++FETCH_ORDERS = ROOT / "scheduler/app/services/scheduler/fetch_orders_task.py"
++
++
++def _source() -> str:
++    return FETCH_ORDERS.read_text(encoding="utf-8")
++
++
++def test_order_fetch_uses_upstream_session_cooldown_without_auto_reply_metadata() -> None:
++    source = _source()
++    assert source.count("is_account_session_cooled(account.account_id)") == 2
++    assert "is_account_session_cooled(account.account_id, account.metadata_json)" not in source
++
++
++def test_order_fetch_errors_are_not_counted_as_success() -> None:
++    source = _source()
++    assert 'f"获取订单失败: {errors}"' in source
++    assert "if errors:\n                        failed_count += 1" in source.replace("\r\n", "\n")
++    assert "else:\n                        success_count += 1" in source.replace("\r\n", "\n")
++
++
++def test_refund_fetch_errors_are_not_counted_as_success() -> None:
++    source = _source()
++    assert 'f"【{self.task_name}】账号 {account.account_id} 获取退款订单失败: {errors}"' in source
++    normalized = source.replace("\r\n", "\n")
++    refund_anchor = normalized.index("class FetchRefundOrdersTaskService")
++    refund_source = normalized[refund_anchor:]
++    assert "if errors:\n                        failed_count += 1" in refund_source
++    assert "else:\n                        success_count += 1" in refund_source

@@ -300,3 +300,29 @@ Session/QR/platform-verification states remain explicit and fail closed.
 
 Runtime and patch evidence:
 `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-auto-reply-session-safety-repair.md`.
+
+## CHG-0018 Order fetch recovery follow-up
+
+- Reconstructed base: `64c245b`
+- Applies after: `64c245-chg0018-auto-reply-stability-consolidation.patch`
+- Patch file: `64c245-chg0018-order-fetch-recovery.patch`
+- SHA256: `8FC6B31FAE1398AC3A8F67D6C20D986FF506654D0DC9E3EC89837FAA44850F6A`
+- Patch size: 3989 bytes
+- Clean apply check: `git apply --check --whitespace=error-all --unidiff-zero` PASS
+- Clean post-apply targeted tests: 3/3 PASS
+
+This follow-up restores the native order Scheduler path after an operational
+regression disabled `fetch_orders`, `fetch_pending_orders`, and
+`fetch_refund_orders` and a local Auto Reply patch caused stale PVR metadata to
+block order synchronization. The order tasks again use upstream-native Session
+cooldown only, and API error results are no longer counted as successful
+zero-order fetches.
+
+The three existing order tasks are re-enabled at their prior 600/60/120-second
+intervals. No second order crawler, order model, API, queue, worker, or
+scheduler executor is added. Current platform `SESSION_EXPIRED` / permission
+responses remain explicit account-session blockers rather than being hidden as
+local success.
+
+Runtime and patch evidence:
+`changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-order-fetch-recovery.md`.
