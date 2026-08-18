@@ -326,3 +326,28 @@ local success.
 
 Runtime and patch evidence:
 `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-order-fetch-recovery.md`.
+
+## CHG-0018 Seller order permission follow-up
+
+- Reconstructed base: `64c245b`
+- Applies after: `64c245-chg0018-auto-reply-stability-consolidation.patch`
+- Patch file: `64c245-chg0018-order-sold-permission-fix.patch`
+- SHA256: `701421E7FCF883CD290782EDBBD2A1992374EFE4416FE6BDD24D13D647DCE4A5`
+- Patch size: 1833 bytes
+- Clean apply check: `git apply --check --whitespace=error-all --unidiff-zero` PASS
+- Clean post-apply targeted tests: 2/2 PASS
+
+The native sold-order endpoint must not force every account into the
+`COMMONPRO` business code. A controlled same-account comparison proved that
+`idle_site_biz_code: COMMONPRO` caused `PERMISSION_EXCEPTION`, while removing
+that forced header returned native `SUCCESS` and allowed the existing
+`OrderService` to synchronize a real order. Seller Origin/Referer are retained;
+the refund-order request is unchanged because no equivalent defect was proven.
+
+No second order engine or Session owner is introduced. One production account
+was restored without QR and synchronized one real order. Five other accounts
+were independently confirmed to have expired seller browser Sessions after the
+existing canonical Profile and quick-enter recovery paths were exhausted.
+
+Runtime and patch evidence:
+`changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-order-sold-permission-fix.md`.

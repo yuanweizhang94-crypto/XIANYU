@@ -1,0 +1,41 @@
+diff --git a/common/services/order_service.py b/common/services/order_service.py
+index f587764fc9a263d73649b35d72f6a85653d0ee0c..8f9476155386b1f6c09a8d7ec735d921987acadb 100644
+--- a/common/services/order_service.py
++++ b/common/services/order_service.py
+@@ -1052 +1051,0 @@ class OrderService:
+-            'idle_site_biz_code': 'COMMONPRO',
+@@ -1054 +1053,2 @@ class OrderService:
+-            'Referer': 'https://seller.goofish.com/',
++            'Referer': 'https://seller.goofish.com/?site=COMMONPRO',
++            'Origin': 'https://seller.goofish.com',
+diff --git a/tests/test_chg0018_order_sold_permission_header.py b/tests/test_chg0018_order_sold_permission_header.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..cbbfe2eeda095db9821c85e3eb5585c78802e420
+--- /dev/null
++++ b/tests/test_chg0018_order_sold_permission_header.py
+@@ -0,0 +1,25 @@
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++ORDER_SERVICE = ROOT / "common/services/order_service.py"
++
++
++def _block(source: str, start: str, end: str) -> str:
++    a = source.index(start)
++    b = source.index(end, a)
++    return source[a:b]
++
++
++def test_sold_order_request_does_not_force_commonpro_business_header() -> None:
++    source = ORDER_SERVICE.read_text(encoding="utf-8")
++    sold = _block(source, "async def _fetch_sold_orders_page", "# ---- 获取退款订单列表")
++    assert "idle_site_biz_code" not in sold
++    assert "\'Referer\': \'https://seller.goofish.com/?site=COMMONPRO\'" in sold
++    assert "\'Origin\': \'https://seller.goofish.com\'" in sold
++
++
++def test_refund_order_request_is_not_changed_by_sold_order_fix() -> None:
++    source = ORDER_SERVICE.read_text(encoding="utf-8")
++    refund = source[source.index("# ---- 获取退款订单列表"): ]
++    assert "idle_site_biz_code" in refund
