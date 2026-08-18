@@ -275,3 +275,28 @@ Stop the host manual listener, keep Docker websocket stopped, restore the
 previous patch artifact from Git, and run the repository validation scripts
 before any further live validation. Default replies remain disabled pending
 project-owner decision.
+
+## CHG-0018 Auto Reply Session safety follow-up
+
+- Reconstructed base: `64c245b`
+- Applies after: `64c245-chg0018-auto-reply-stability-consolidation.patch`
+- Patch file: `64c245-chg0018-auto-reply-session-safety-followup.patch`
+- SHA256: `8B6BD8F8B4A6DBF44CCC03CD140FC597DD911C11CD501201C80BBE967A5E7991`
+- Patch size: 15514 bytes
+- Clean apply check: `git apply --check --whitespace=error-all --unidiff-zero` PASS
+- Clean post-apply targeted tests: 47/47 PASS
+
+This follow-up closes the 2026-08-12 Auto Reply regression without creating a
+second Token, Session, WebSocket, or reply engine. Expected Session lifecycle
+states (`no_credentials`, `failed_session_expired`, human QR, and platform
+verification) no longer accumulate toward the generic automatic-disable
+threshold. Standalone missing/bad credential refresh failures also preserve the
+account enabled state, matching CHG-0018 acceptance.
+
+The existing WebSocket status owner now exposes sanitized Token readiness, and
+the Backend no longer treats heartbeat connectivity alone as proof that Auto
+Reply is ONLINE. ONLINE requires both a connected WebSocket and a current Token;
+Session/QR/platform-verification states remain explicit and fail closed.
+
+Runtime and patch evidence:
+`changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-auto-reply-session-safety-repair.md`.

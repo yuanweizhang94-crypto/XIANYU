@@ -1,0 +1,331 @@
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+index 4a29c82c207a1451b4b3fad9c614ee7006921d96..74bc147f9807b2e8b8856e408c6b9edb2fda55aa 100644
+--- a/backend-web/app/api/routes/cookies.py
++++ b/backend-web/app/api/routes/cookies.py
+@@ -246,5 +246,3 @@ async def _load_websocket_task_statuses(
+-    targets = [
+-        account
+-        for account in accounts
+-        if _status_to_enabled(account.status) and account.account_id not in online_ids
+-    ]
++    # connection-stats 只能证明 WebSocket 心跳连接；即使已 connected，
++    # 仍读取单账号运行态以获得 Token/Session 可用性，避免“心跳在线=自动回复可用”的假绿。
++    targets = [account for account in accounts if _status_to_enabled(account.status)]
+@@ -254,0 +253 @@ async def _load_websocket_task_statuses(
++        fallback = statuses.get(account.account_id, {})
+@@ -266 +265 @@ async def _load_websocket_task_statuses(
+-        return account.account_id, {}
++        return account.account_id, fallback
+@@ -301,0 +301,6 @@ def _build_business_capabilities(
++    ws_token_ready = bool(ws_status.get("token_ready"))
++    ws_token_status = str(
++        ws_status.get("token_refresh_status")
++        or ws_status.get("token_refresh_state")
++        or "not_started"
++    )
+@@ -309,3 +314,3 @@ def _build_business_capabilities(
+-    # 当前业务可用性以真实 WebSocket 连接为最高优先级。后台维护曾遇到 PVR 只说明
+-    # 下一次认证可能需要平台验证，不能覆盖一个仍在正常收消息的 live WS。
+-    if ws_connected:
++    # WebSocket connected 只证明心跳链存在；自动回复 ONLINE 还必须有当前 Token。
++    # 平台验证/QR/Session 失败必须优先暴露，不能被 live heartbeat 覆盖成假绿。
++    if ws_connected and ws_token_ready:
+@@ -315 +320 @@ def _build_business_capabilities(
+-            reason="websocket_connected",
++            reason="websocket_connected_token_ready",
+@@ -320 +325 @@ def _build_business_capabilities(
+-    elif ws_platform_verification_required:
++    elif ws_platform_verification_required or ws_token_status == "platform_verification_required":
+@@ -331 +336 @@ def _build_business_capabilities(
+-    elif ws_human_qr_required:
++    elif ws_human_qr_required or ws_token_status in {"human_qr_required", "no_credentials"}:
+@@ -335 +340,5 @@ def _build_business_capabilities(
+-            reason="authoritative_human_qr_required",
++            reason=(
++                "authoritative_human_qr_required"
++                if ws_human_qr_required or ws_token_status == "human_qr_required"
++                else "no_credentials_after_session_expiry"
++            ),
+@@ -340,0 +350,18 @@ def _build_business_capabilities(
++    elif ws_connected and ws_token_status == "failed_session_expired":
++        auto_reply = _business_capability(
++            state="TEMPORARY_FAILURE",
++            label="Session失效",
++            reason="websocket_connected_but_session_expired",
++            source="websocket_manager",
++            last_checked_at=checked_at,
++            auto_recoverable=True,
++        )
++    elif ws_connected:
++        auto_reply = _business_capability(
++            state="TEMPORARY_FAILURE",
++            label="暂不可用",
++            reason=f"websocket_connected_but_token_not_ready:{ws_token_status}",
++            source="websocket_manager",
++            last_checked_at=checked_at,
++            auto_recoverable=True,
++        )
+diff --git a/tests/test_chg0018_auto_reply_session_safety.py b/tests/test_chg0018_auto_reply_session_safety.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..132b5179201fb12006ac3ecdc8b59c32edba94df
+--- /dev/null
++++ b/tests/test_chg0018_auto_reply_session_safety.py
+@@ -0,0 +1,175 @@
++from __future__ import annotations
++
++import ast
++from datetime import datetime, timedelta, timezone
++from pathlib import Path
++from types import SimpleNamespace
++from typing import Any
++
++
++ROOT = Path(__file__).resolve().parents[1]
++ACCOUNT_ROUTE = ROOT / "backend-web" / "app" / "api" / "routes" / "cookies.py"
++WS_COOKIE_MANAGER = ROOT / "websocket" / "app" / "services" / "xianyu" / "cookie_manager.py"
++WS_TOKEN_MANAGER = ROOT / "websocket" / "app" / "services" / "xianyu" / "cookie_token_manager.py"
++WS_MAIN = ROOT / "websocket" / "app" / "services" / "xianyu" / "xianyu_async.py"
++WS_INTERNAL = ROOT / "websocket" / "app" / "api" / "routes" / "internal.py"
++
++
++def _read(path: Path) -> str:
++    return path.read_text(encoding="utf-8-sig")
++
++
++def _load_capability_builder():
++    source = _read(ACCOUNT_ROUTE)
++    tree = ast.parse(source)
++    wanted = {
++        "_status_to_enabled",
++        "_consumer_record",
++        "_build_platform_restriction",
++        "_business_capability",
++        "_bounded_operation_active",
++        "_build_business_capabilities",
++    }
++    nodes = [
++        node
++        for node in tree.body
++        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in wanted
++    ]
++    namespace = {
++        "Any": Any,
++        "XYAccount": object,
++        "datetime": datetime,
++        "timedelta": timedelta,
++        "timezone": timezone,
++        "safe_isoformat": lambda value: value.isoformat() if value else None,
++    }
++    module = ast.Module(body=nodes, type_ignores=[])
++    exec(compile(module, str(ACCOUNT_ROUTE), "exec"), namespace)
++    return namespace["_build_business_capabilities"]
++
++
++_build_business_capabilities = _load_capability_builder()
++
++
++def _account():
++    return SimpleNamespace(
++        status="active",
++        disable_reason="",
++        updated_at=None,
++        metadata_json={
++            "session_maintenance": {
++                "state": "SESSION_CHECK_PENDING",
++                "consumers": {},
++            }
++        },
++    )
++
++
++def _auto_reply(ws_status: dict[str, Any]):
++    return _build_business_capabilities(
++        _account(),
++        ws_status,
++        {},
++        "2026-08-18T14:40:00+08:00",
++    )["auto_reply"]
++
++
++def test_connected_websocket_requires_token_before_auto_reply_is_online():
++    ready = _auto_reply(
++        {
++            "running": True,
++            "is_connected": True,
++            "connection_state": "connected",
++            "token_ready": True,
++            "token_refresh_status": "success",
++        }
++    )
++    assert ready["state"] == "ONLINE"
++    assert ready["reason"] == "websocket_connected_token_ready"
++
++    no_credentials = _auto_reply(
++        {
++            "running": True,
++            "is_connected": True,
++            "connection_state": "connected",
++            "token_ready": False,
++            "token_refresh_status": "no_credentials",
++        }
++    )
++    assert no_credentials["state"] == "LOGIN_REQUIRED"
++    assert no_credentials["label"] == "需登录"
++
++    expired = _auto_reply(
++        {
++            "running": True,
++            "is_connected": True,
++            "connection_state": "connected",
++            "token_ready": False,
++            "token_refresh_status": "failed_session_expired",
++        }
++    )
++    assert expired["state"] == "TEMPORARY_FAILURE"
++    assert expired["label"] == "Session失效"
++
++
++def test_platform_verification_cannot_be_reported_as_auto_reply_online():
++    capability = _auto_reply(
++        {
++            "running": True,
++            "is_connected": True,
++            "connection_state": "connected",
++            "token_ready": False,
++            "token_refresh_status": "platform_verification_required",
++        }
++    )
++    assert capability["state"] == "PLATFORM_VERIFICATION_REQUIRED"
++    assert capability["auto_recoverable"] is False
++
++
++def test_websocket_status_exposes_token_readiness_and_backend_reads_connected_accounts():
++    manager_source = _read(WS_COOKIE_MANAGER)
++    assert '"token_ready"' in manager_source
++    assert '"token_refresh_status"' in manager_source
++
++    route_source = _read(ACCOUNT_ROUTE)
++    block = route_source[
++        route_source.index("async def _load_websocket_task_statuses") :
++        route_source.index("def _build_business_capabilities")
++    ]
++    assert "account.account_id not in online_ids" not in block
++    assert "websocket_client.get_account_status(account.account_id)" in block
++
++
++def test_session_expiry_and_no_credentials_are_non_counted_and_do_not_auto_disable():
++    source = _read(WS_MAIN)
++    block = source[
++        source.index("non_counted_statuses = (") :
++        source.index("# 更新连接状态", source.index("non_counted_statuses = ("))
++    ]
++    for status in (
++        "human_qr_required",
++        "platform_verification_required",
++        "failed_session_expired",
++        "no_credentials",
++    ):
++        assert repr(status) in block
++    assert "sleep_duration = 300" in block
++
++    token_source = _read(WS_TOKEN_MANAGER)
++    no_credentials_block = token_source[
++        token_source.index('if refresh_result == "no_credentials":') :
++        token_source.index("if refresh_result is True:", token_source.index('if refresh_result == "no_credentials":'))
++    ]
++    assert 'self.last_token_refresh_status = "no_credentials"' in no_credentials_block
++    assert "disable_account" not in no_credentials_block
++
++
++def test_standalone_password_refresh_never_disables_for_missing_or_bad_credentials():
++    source = _read(WS_INTERNAL)
++    block = source[
++        source.index("async def _standalone_password_login") :
++        source.index('@router.post("/accounts/{account_id}/create-chat")')
++    ]
++    assert "disable_account" not in block
++    assert "账号状态保持不变" in block
++    assert '"reason": "no_credentials"' in block
+diff --git a/tests/test_chg0018_auto_reply_stability_consolidation.py b/tests/test_chg0018_auto_reply_stability_consolidation.py
+index ff541c82d0c747e71ecf22c0993a3126ac27ad63..83f2de1eb54ed527cc2878ea28e481aabaf5efed 100644
+--- a/tests/test_chg0018_auto_reply_stability_consolidation.py
++++ b/tests/test_chg0018_auto_reply_stability_consolidation.py
+@@ -489,0 +490,2 @@ def test_40_live_websocket_business_truth_wins_over_stale_pvr_marker():
++            "token_ready": True,
++            "token_refresh_status": "success",
+@@ -499 +501 @@ def test_40_live_websocket_business_truth_wins_over_stale_pvr_marker():
+-    assert auto["reason"] == "websocket_connected"
++    assert auto["reason"] == "websocket_connected_token_ready"
+diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
+index 8bfac57210886c8813a6ff3ba970d7a5b5c3e505..14735700174f26719c0cb7d84b67eb2b6043d94f 100644
+--- a/websocket/app/api/routes/internal.py
++++ b/websocket/app/api/routes/internal.py
+@@ -2531,8 +2531,4 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-            err_msg = f"{_api_renew_fail_msg}，且未配置用户名或密码，账号已自动禁用"
+-            logger.warning(f"【内部API】账号 {account_id} 未配置用户名或密码")
+-            # 自动禁用账号
+-            try:
+-                db_manager.disable_account(account_id, reason=f"{trigger_reason}且未配置密码，自动禁用")
+-                logger.warning(f"【内部API】账号 {account_id} 已自动禁用")
+-            except Exception as disable_e:
+-                logger.error(f"【内部API】自动禁用账号失败: {disable_e}")
++            err_msg = f"{_api_renew_fail_msg}，且未配置用户名或密码；账号状态保持不变"
++            logger.warning(
++                f"【内部API】账号 {account_id} 未配置用户名或密码；仅记录 no_credentials，不修改账号状态"
++            )
+@@ -2544 +2540 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-                "message": "未配置用户名或密码，账号已自动禁用",
++                "message": "未配置用户名或密码；账号状态保持不变",
+@@ -2670 +2666 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-        # 检测账密错误，禁用账号
++        # 检测账密错误：只记录失败分类，不修改账号启用/禁用状态。
+@@ -2677,6 +2673,3 @@ async def _standalone_password_login(account_id: str, trigger_reason: str) -> di
+-            disable_reason = error_msg if error_msg else "账号密码错误"
+-            try:
+-                db_manager.disable_account(account_id, reason=disable_reason)
+-                logger.warning(f"【内部API】检测到账密错误，账号 {account_id} 已自动禁用，原因: {disable_reason}")
+-            except Exception as disable_e:
+-                logger.error(f"【内部API】禁用账号失败: {disable_e}")
++            logger.warning(
++                f"【内部API】检测到账密错误，账号 {account_id} 状态保持不变；等待用户修正凭据"
++            )
+diff --git a/websocket/app/services/xianyu/cookie_manager.py b/websocket/app/services/xianyu/cookie_manager.py
+index f2ccddc1a59d8902a1f4d9b509d9230dca633890..7ea0858fcce6c49147e3d110e68fcabd21bd8b40 100644
+--- a/websocket/app/services/xianyu/cookie_manager.py
++++ b/websocket/app/services/xianyu/cookie_manager.py
+@@ -483,0 +484,2 @@ class CookieManager:
++            "token_refresh_status": "not_started",
++            "token_ready": False,
+@@ -498,0 +501,2 @@ class CookieManager:
++                    "token_refresh_status": token_refresh_state,
++                    "token_ready": bool(getattr(instance, "current_token", None)),
+diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
+index 1e4e0333be758cd7db6f68fcfef3af454c4e3f4b..0edfcb52f799f435df7b0e25547991aabc30c440 100644
+--- a/websocket/app/services/xianyu/cookie_token_manager.py
++++ b/websocket/app/services/xianyu/cookie_token_manager.py
+@@ -1588,0 +1589,2 @@ class CookieTokenManager:
++                    self.last_token_refresh_status = "no_credentials"
++                    self.current_token = None
+@@ -1592,0 +1595 @@ class CookieTokenManager:
++                    await self._delete_cached_token()
+@@ -2065 +2068 @@ class CookieTokenManager:
+-                            f"账号密码登录失败，账号已自动禁用，请检查账号密码是否正确后重新启用。\n"
++                            f"账号密码登录失败，账号状态保持不变，请检查账号密码是否正确。\n"
+diff --git a/websocket/app/services/xianyu/xianyu_async.py b/websocket/app/services/xianyu/xianyu_async.py
+index 6e01efba1ef44f6f90e57faa2f6332f3cafc0b4c..9a4fad61ab2e9707fc76a6836c6847e517698c48 100644
+--- a/websocket/app/services/xianyu/xianyu_async.py
++++ b/websocket/app/services/xianyu/xianyu_async.py
+@@ -2555,0 +2556,3 @@ class XianyuAsync:
++                                'human_qr_required',
++                                'failed_session_expired',
++                                'no_credentials',
+@@ -2609,2 +2612,7 @@ class XianyuAsync:
+-                                sleep_duration = self.token_retry_interval
+-                            elif refresh_status == 'skipped_cooldown':
++                                sleep_duration = 300
++                            elif refresh_status in (
++                                'skipped_cooldown',
++                                'human_qr_required',
++                                'failed_session_expired',
++                                'no_credentials',
++                            ):
