@@ -5,6 +5,10 @@
 **适用对象：ChatGPT、Codex、其他 AI 开发代理、公司同事、维护人员**  
 **用途：正常业务执行、故障判断、Upstream 同步、生产修复、GitHub 维护、Runtime 核验**
 
+> **跨版本接管前置要求**：任何新对话、模型、Agent 或升级后恢复，必须先读取并执行 ZIDONGZHUA 当前 main 的 `docs/UNIVERSAL_AI_HANDOFF_PROTOCOL.md`。该协议要求完整刷新 ZIDONGZHUA + COMPANY_LOCAL_EXECUTION_TOOL + XIANYU，以及当前 Runtime / upstream / 业务真值；只有九域覆盖矩阵达到 `FULL_PROJECT_CONTEXT_READY=true` 后，才允许使用本文件的当前 XIANYU 快照继续执行。
+>
+> Canonical protocol: `https://github.com/yuanweizhang94-crypto/zidongzhua/blob/main/docs/UNIVERSAL_AI_HANDOFF_PROTOCOL.md`
+>
 > 本文件是当前 Living Handoff。完整的本轮故障时间线、历史错误路径、根因、修复和真实生产证据见：
 >
 > - `docs/PROJECT_PROGRESS_2026-08-18.md`

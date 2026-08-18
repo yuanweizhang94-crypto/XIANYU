@@ -28,6 +28,16 @@ Git 传输失败时保留原始 Commit 并记录 `PENDING_GITHUB_SYNC`，禁止�
 
 严禁提交 Cookie、Token、JWT、Authorization、密码、API Key、私钥、浏览器 Profile 秘密或真实客户敏感数据。
 
+## P0 — Universal three-repository bootstrap before any new context
+
+任何新对话、模型、Agent、跨版本接管或升级后恢复，第一步必须读取并执行 ZIDONGZHUA 当前 main 中的版本无关三仓库接管协议：
+
+`https://github.com/yuanweizhang94-crypto/zidongzhua/blob/main/docs/UNIVERSAL_AI_HANDOFF_PROTOCOL.md`
+
+该协议要求完整读取并校准 ZIDONGZHUA + COMPANY_LOCAL_EXECUTION_TOOL + XIANYU 的当前 GitHub、Local、Runtime、upstream 和业务真值。不得依据旧 SHA、旧工具数量、旧 Publisher/Session 流程或旧聊天摘要直接判断当前 XIANYU。
+
+只有协议九域覆盖矩阵完成并达到 `FULL_PROJECT_CONTEXT_READY=true` 后，才允许继续当前 BUSINESS_EXECUTION / REPAIR / DEVELOPMENT。未来若 canonical 文件改名，以 ZIDONGZHUA 当前根 `AGENTS.md` / README 指向的新入口为准。
+
 FIRST_READ=docs/AI_PROJECT_HANDOFF.md
 
 UPSTREAM_FIRST=true
