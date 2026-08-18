@@ -75,3 +75,29 @@ No other frontend route or feature was rebuilt as part of this runtime repair.
 - New order engine created: false.
 - Customer messages sent: 0.
 - Products changed: 0.
+
+## Stale SPA entry follow-up
+
+A later user reproduction still showed the old `请先选择账号` toast. Production access logs proved that the browser tab was navigating within the already-loaded SPA and requesting only order APIs; it did not request `/`, `index.html`, the new main entry, or the new Orders chunk after the runtime repair. The server files were correct, but the live tab retained the pre-fix JavaScript execution context.
+
+To prevent the same stale-entry behavior on future frontend updates, `docker/frontend/nginx.conf` now keeps hashed `/assets` immutable while making the SPA entry and route fallback non-cacheable. The running frontend Nginx configuration was updated and reloaded after `nginx -t` passed.
+
+Runtime validation:
+
+- `/` HTTP 200 and references the cache-busted main entry.
+- `/index.html` HTTP 200 and is returned with no-cache semantics.
+- the served main entry references `Orders-DbMPg1v6-all-sync.js`.
+- the served repaired Orders chunk does not contain the `请先选择账号` guard.
+- clean follow-up patch apply check: PASS.
+- combined order/UI/cache regression tests: 6/6 PASS.
+
+Because an already-executing browser tab cannot be replaced server-side without a real document reload, one browser-level reload is still required for a tab that loaded the old SPA before the deployment. The in-page `刷新` button only reloads order data and does not reload the application JavaScript.
+
+Follow-up artifact:
+
+- Patch: `vendor/patches/xianyu-auto-reply/64c245-chg0018-frontend-spa-no-cache-followup.patch`
+- Patch SHA256: `032897E506A8142EC1E24ADDF8F33C26A773301EA41FA6965D72ED06F2398320`
+- Patch size: 1978 bytes.
+- Changed upstream files:
+  - `docker/frontend/nginx.conf`
+  - `tests/test_chg0018_frontend_spa_cache.py`

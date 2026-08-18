@@ -374,3 +374,26 @@ through the live Backend with `failed=0` and `errors=[]`.
 
 Runtime and patch evidence:
 `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-order-ui-all-account-sync.md`.
+
+## CHG-0018 Frontend SPA no-cache follow-up
+
+- Applies after: `64c245-chg0018-order-ui-all-account-sync.patch`
+- Patch file: `64c245-chg0018-frontend-spa-no-cache-followup.patch`
+- SHA256: `032897E506A8142EC1E24ADDF8F33C26A773301EA41FA6965D72ED06F2398320`
+- Patch size: 1978 bytes
+- Clean apply check: `git apply --check --whitespace=error-all --unidiff-zero` PASS
+- Combined targeted tests: 6/6 PASS
+
+This follow-up keeps content-hashed `/assets` immutable but prevents the SPA
+entry (`index.html` and route fallback) from being cached. It addresses the
+observed case where an already-open browser tab kept executing the old Orders
+chunk even though the server had already deployed the all-account sync fix.
+
+The in-page Order Management `刷新` control refreshes order data only; a tab
+that loaded the old SPA before deployment still requires one real document
+reload. After that reload, the no-cache entry policy ensures subsequent
+frontend deployments resolve to their new hashed bundles rather than a stale
+entry document.
+
+Runtime and patch evidence remains in:
+`changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-order-ui-all-account-sync.md`.

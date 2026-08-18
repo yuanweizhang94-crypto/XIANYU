@@ -1,0 +1,45 @@
+diff --git a/docker/frontend/nginx.conf b/docker/frontend/nginx.conf
+index 87cac7571e7dcfceeba37377000a087d940f63e0..e8c34c63a64fba1cf8670d711597866a1426f398 100644
+--- a/docker/frontend/nginx.conf
++++ b/docker/frontend/nginx.conf
+@@ -54 +54,9 @@ server {
+-    # SPA路由支持
++    # SPA入口禁止缓存，确保前端热修/新版本能立即加载新的 hash 资源。
++    location = /index.html {
++        expires -1;
++        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
++        add_header Pragma "no-cache" always;
++        add_header Expires "0" always;
++    }
++
++    # SPA路由支持；路由页本身也不缓存，hash 静态资源仍由 /assets 长缓存。
+@@ -55,0 +64 @@ server {
++        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+diff --git a/tests/test_chg0018_frontend_spa_cache.py b/tests/test_chg0018_frontend_spa_cache.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..e890811015ac77bda9be447d3787deec6420c2b0
+--- /dev/null
++++ b/tests/test_chg0018_frontend_spa_cache.py
+@@ -0,0 +1,22 @@
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++NGINX = ROOT / "docker/frontend/nginx.conf"
++
++
++def test_spa_entry_is_not_cached_while_hashed_assets_stay_immutable() -> None:
++    source = NGINX.read_text(encoding="utf-8")
++    assert "location /assets" in source
++    assert 'Cache-Control "public, immutable"' in source
++    assert "location = /index.html" in source
++    assert 'Cache-Control "no-cache, no-store, must-revalidate"' in source
++    assert 'add_header Pragma "no-cache" always;' in source
++    assert 'add_header Expires "0" always;' in source
++
++
++def test_spa_route_fallback_is_not_cached() -> None:
++    source = NGINX.read_text(encoding="utf-8")
++    location = source[source.index("location / {"):]
++    assert 'Cache-Control "no-cache, no-store, must-revalidate"' in location
++    assert "try_files $uri $uri/ /index.html;" in location
