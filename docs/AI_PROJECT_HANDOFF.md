@@ -12,14 +12,15 @@ Authority date: 2026-08-19 15:26 (Asia/Taipei / UTC+8)
 
 ```text
 ACTIVE_BRANCH=feat/CHG-0018-account-profile-publish-safety
-LATEST_VERIFIED_REMOTE_SHA=2c1f18fc57ff62a72d632348b39e074845aa39a7
+LAST_PRODUCTION_CODE_BASE_SHA=2c1f18fc57ff62a72d632348b39e074845aa39a7
+CURRENT_BRANCH_HEAD_MUST_BE_REFETCHED=true
 UPSTREAM_FIRST=true
 CURRENT_RUNTIME_FIRST=true
 NO_DUPLICATE_DEVELOPMENT=true
 NO_CROSS_SUBSYSTEM_REGRESSION=true
 ```
 
-`main` 可能落后于当前生产修复分支；不得因为 main SHA 较旧就回退生产或重复修复。执行前必须重新读取当前 branch/local/runtime/upstream。
+`LAST_PRODUCTION_CODE_BASE_SHA` 只是最近完成 Runtime 验证的代码基线；后续 docs-only commit 会继续推进 branch HEAD，但不等于生产代码再次变化。不得因为 main/branch HEAD 与 Runtime SHA 不同就自动回退或重复修复。
 
 ## 2. 当前正式 Publisher 架构
 
