@@ -22,8 +22,13 @@ def _text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _locked_patch_sha256(path: Path) -> str:
+    data = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(data).hexdigest()
+
+
 def test_qr_password_refresh_guard_patch_hash_is_locked() -> None:
-    assert hashlib.sha256(PATCH.read_bytes()).hexdigest() == EXPECTED_PATCH_SHA256
+    assert _locked_patch_sha256(PATCH) == EXPECTED_PATCH_SHA256
 
 
 def test_qr_guard_precedes_processing_and_background_login() -> None:

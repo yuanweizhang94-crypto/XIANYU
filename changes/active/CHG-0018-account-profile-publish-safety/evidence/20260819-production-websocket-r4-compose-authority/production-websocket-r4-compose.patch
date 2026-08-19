@@ -1,0 +1,16 @@
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -110,10 +110,9 @@
+       retries: 5
+       start_period: 90s
+   websocket:
+-    build:
+-      context: D:/xianyu-upstream-delivery-chg0017
+-      dockerfile: websocket/Dockerfile
+-    image: xianyu-chg0017-websocket:4c5e1ac
++    # Production authority: rebuildable auth/session + Auto Reply self-heal image.
++    # Do not restore the old upstream build context here; that would erase the verified runtime closures.
++    image: xianyu-chg0018-websocket:auth-cookie-closure-20260819-r4
+     container_name: xianyu_chg0017_websocket
+     restart: unless-stopped
+     env_file:
