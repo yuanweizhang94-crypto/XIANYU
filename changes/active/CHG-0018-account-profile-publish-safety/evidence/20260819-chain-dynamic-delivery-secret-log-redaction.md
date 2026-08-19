@@ -14,12 +14,26 @@ Patch artifact:
 
 `vendor/patches/xianyu-auto-reply/bda1a85-chain-delivery-secret-log-redaction.patch`
 
+Patch base:
+
+`zhinianboke/xianyu-auto-reply@bda1a859df63fa5f24e51398fa80a23490bb6dfc`
+
+Patch SHA256:
+
+`2E68CD97DD3E2BAF00715A8D8D414713ACAA822F99FF7FD503E1E34CDDF73EA9`
+
 Only the successful text-send log line changes:
 
 - before: logs the first 50 characters of `content`;
 - after: logs only `content_length`.
 
 The text sent to the official XIANYU WebSocket is unchanged. Send-result waiting and rejection detection remain unchanged.
+
+## Patch validation correction
+
+The first artifact written during this task had an incorrect unified-diff hunk start and was rejected as a corrupt patch. It was not treated as a valid persisted fix.
+
+The artifact was then replaced using the exact source window from the pinned upstream commit above. The corrected hunk is anchored at the real sender location around line 1856, and an independent `git apply --check` against that exact pinned-source window passes. The malformed artifact is superseded and must not be used.
 
 ## Runtime evidence
 
