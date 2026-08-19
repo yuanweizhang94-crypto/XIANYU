@@ -1,0 +1,50 @@
+--- a/websocket/rootfs/websocket/app/services/xianyu/cookie_token_manager.py
++++ b/websocket/rootfs/websocket/app/services/xianyu/cookie_token_manager.py
+@@ -1290,6 +1290,28 @@
+         notification_sent = False
+ 
+         try:
++            # Authoritative Session lifecycle wins over Auto Reply recovery.
++            # If this exact Cookie has already been proven to require human QR
++            # (official renewal exhausted + safe MTOP still expired), do not
++            # keep showing active recovery or spend Token/CAPTCHA/password-login attempts.
++            account_info = await self._load_account_info()
++            if account_info and is_human_qr_required_for_cookie(
++                account_info.get("metadata_json"),
++                account_info.get("cookie_value", ""),
++            ):
++                setattr(
++                    self.parent,
++                    "_human_qr_required_cookie_fingerprint",
++                    cookie_fingerprint(account_info.get("cookie_value", "")),
++                )
++                self.current_token = None
++                self.last_token_refresh_status = "human_qr_required"
++                logger.warning(
++                    f"【{self.cookie_id}】authoritative Session 已确认 HUMAN_QR_REQUIRED；"
++                    "Auto Reply 停止 Token/CAPTCHA/密码登录恢复，等待官方扫码"
++                )
++                return None
++
+             # 平台已经明确要求用户验证后，本实例进入稳定等待态。
+             # 后台 Token/Cookie loop 不再调用平台、自动滑块、Browser 或 Cookie writer。
+             if getattr(self.parent, "_auto_reply_platform_verification_required", False):
+--- a/websocket/rootfs/websocket/app/services/xianyu/xianyu_async.py
++++ b/websocket/rootfs/websocket/app/services/xianyu/xianyu_async.py
+@@ -2610,9 +2610,15 @@
+                                     "等待用户完成官方平台验证",
+                                 )
+                                 sleep_duration = 300
++                            elif refresh_status == 'human_qr_required':
++                                # Authoritative Session 已经证明必须人工 QR；恢复窗口立即结束。
++                                self.connection_manager.set_connection_state(
++                                    ConnectionState.DISCONNECTED,
++                                    "等待用户完成官方QR登录",
++                                )
++                                sleep_duration = 300
+                             elif refresh_status in (
+                                 'skipped_cooldown',
+-                                'human_qr_required',
+                                 'failed_session_expired',
+                                 'no_credentials',
+                             ):
