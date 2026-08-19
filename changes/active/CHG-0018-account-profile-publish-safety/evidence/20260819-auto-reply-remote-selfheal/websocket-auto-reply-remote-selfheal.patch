@@ -1,0 +1,170 @@
+--- a/websocket/app/services/xianyu/cookie_token_manager.py
++++ b/websocket/app/services/xianyu/cookie_token_manager.py
+@@ -25,6 +25,7 @@
+ from common.models.system_setting import SystemSetting
+ from common.models.token_cache import TokenCache
+ from common.services.im_token_api import (
++    _try_remote_token_fallback,
+     extract_im_access_token,
+     is_session_expired_token_result,
+     request_im_token_with_fallback,
+@@ -67,6 +68,7 @@
+ 
+ 
+ STARTUP_EXPIRED_CACHE_REFRESH_JITTER_SECONDS = 120
++PLATFORM_VERIFICATION_REMOTE_RETRY_SECONDS = 180
+ 
+ class CookieTokenManager:
+     """Cookie/Token管理器"""
+@@ -82,6 +84,7 @@
+         self._startup_expired_cache_available = True
+         self._last_cache_lookup_succeeded = True
+         self._cached_token_in_use: str | None = None
++        self._platform_verification_remote_retry_after = 0.0
+ 
+     def _platform_verification_generation(self, reason: str) -> str:
+         """Build a non-sensitive generation id from current auth context and challenge class."""
+@@ -137,6 +140,89 @@
+         self.parent._auto_reply_platform_verification_at = 0.0
+         self.parent._auto_reply_platform_verification_url = ""
+         self.parent._auto_reply_platform_verification_generation = ""
++        self._platform_verification_remote_retry_after = 0.0
++
++    async def _try_platform_verification_remote_recovery(
++        self,
++        account_info: dict,
++    ) -> str | None:
++        """Recover Auto Reply with remote Token only when authoritative Session is still valid.
++
++        This is deliberately narrower than normal Token refresh: it never invokes the local Web
++        Token endpoint, CAPTCHA/slider handling, Browser/Profile renewal, password login, QR, or an
++        authoritative Cookie writer. A Publisher-equivalent safe MTOP probe must first prove the
++        current database Cookie is AUTH_VALID. Remote response Cookies, if any, are ignored.
++        """
++        now = time.monotonic()
++        if now < self._platform_verification_remote_retry_after:
++            return None
++
++        self._platform_verification_remote_retry_after = (
++            now + PLATFORM_VERIFICATION_REMOTE_RETRY_SECONDS
++        )
++        authoritative_cookie = str(account_info.get("cookie_value") or "")
++        if not authoritative_cookie:
++            return "SESSION_EXPIRED"
++
++        auth_probe = await safe_mtop_auth_probe(
++            authoritative_cookie,
++            account_id=self.cookie_id,
++        )
++        auth_status = str(auth_probe.get("status") or "UNKNOWN")
++        if auth_status == "SESSION_EXPIRED":
++            logger.warning(
++                f"【{self.cookie_id}】平台验证等待态复核发现 authoritative Session 已过期；"
++                "退出 Token-only 等待，交回既有 Session renewal owner"
++            )
++            return "SESSION_EXPIRED"
++        if auth_status != "AUTH_VALID":
++            logger.warning(
++                f"【{self.cookie_id}】平台验证等待态 safe MTOP={auth_status}；"
++                "本轮不调用远程 Token，等待低频复核"
++            )
++            return None
++
++        # Keep the in-memory owner aligned with the latest authoritative Cookie without writing DB.
++        if authoritative_cookie != self.cookies_str:
++            self.cookies_str = authoritative_cookie
++            self.cookies = trans_cookies(authoritative_cookie)
++
++        remote_result = await _try_remote_token_fallback(
++            self.device_id,
++            cookies=authoritative_cookie,
++            timeout_seconds=30,
++            log_tag=self.cookie_id,
++            local_failure_reason="platform_verification_remote_only_recovery",
++            local_duration_seconds=0.0,
++        )
++        remote_token = (
++            extract_im_access_token(remote_result.response_json)
++            if remote_result is not None
++            else None
++        )
++        if not remote_token:
++            logger.warning(
++                f"【{self.cookie_id}】authoritative Session 仍有效，但 remote-only Token 暂未恢复；"
++                f"{PLATFORM_VERIFICATION_REMOTE_RETRY_SECONDS}秒后允许再次低频重试"
++            )
++            return None
++
++        if remote_result.device_id and remote_result.device_id != self.device_id:
++            self.device_id = remote_result.device_id
++        self.current_token = remote_token
++        self.parent._using_expired_startup_token = False
++        self.last_token_refresh_time = time.time()
++        self.parent.last_message_received_time = 0
++        self.last_token_refresh_status = "success_remote_recovery"
++        await self._set_cached_token(remote_token, self.device_id)
++        await self._persist_platform_verification_marker(required=False)
++        self._clear_platform_verification_required()
++        token_fp = hashlib.sha256(str(remote_token).encode("utf-8")).hexdigest()[:12]
++        logger.info(
++            f"【{self.cookie_id}】remote-only Token 自动恢复成功 "
++            f"token_fingerprint={token_fp}; authoritative Cookie 未修改"
++        )
++        return remote_token
+ 
+     async def _persist_platform_verification_marker(
+         self,
+@@ -1312,9 +1398,37 @@
+                 )
+                 return None
+ 
+-            # 平台已经明确要求用户验证后，本实例进入稳定等待态。
+-            # 后台 Token/Cookie loop 不再调用平台、自动滑块、Browser 或 Cookie writer。
+-            if getattr(self.parent, "_auto_reply_platform_verification_required", False):
++            # 平台验证等待态不能永久吞掉可恢复的远程 Token 路径。
++            # 若 authoritative Session 仍 AUTH_VALID，只做低频 remote-only Token 恢复；
++            # 若 safe MTOP 已 SESSION_EXPIRED，则退出 PVR 等待并交回既有 Session renewal 链。
++            metadata = dict(account_info.get("metadata_json") or {}) if account_info else {}
++            pvr_marker = metadata.get("auto_reply_platform_verification")
++            pvr_marker = pvr_marker if isinstance(pvr_marker, dict) else {}
++            pvr_marker_state = str(pvr_marker.get("state") or "")
++            pvr_waiting = bool(
++                getattr(self.parent, "_auto_reply_platform_verification_required", False)
++                or pvr_marker_state in {
++                    "PLATFORM_VERIFICATION_REQUIRED",
++                    "AUTOMATIC_ATTEMPT_IN_PROGRESS",
++                }
++            )
++            if pvr_waiting:
++                if not getattr(self.parent, "_auto_reply_platform_verification_required", False):
++                    self._mark_platform_verification_required(
++                        str(pvr_marker.get("reason") or "platform_verification_required")
++                    )
++                recovery = await self._try_platform_verification_remote_recovery(account_info or {})
++                if recovery and recovery != "SESSION_EXPIRED":
++                    return recovery
++                if recovery == "SESSION_EXPIRED":
++                    await self._persist_platform_verification_marker(required=False)
++                    self._clear_platform_verification_required()
++                    # Re-enter the existing bounded Session-expiry path exactly once; the PVR flag
++                    # is now clear, so this recursive call cannot loop back through this branch.
++                    return await self.refresh_token(
++                        captcha_retry_count=captcha_retry_count,
++                        token_expiry_retry_count=token_expiry_retry_count,
++                    )
+                 self.last_token_refresh_status = "platform_verification_required"
+                 return None
+ 
+--- a/websocket/app/services/xianyu/xianyu_async.py
++++ b/websocket/app/services/xianyu/xianyu_async.py
+@@ -2609,7 +2609,9 @@
+                                     ConnectionState.DISCONNECTED,
+                                     "等待用户完成官方平台验证",
+                                 )
+-                                sleep_duration = 300
++                                # Manager 内部以 180 秒门禁 remote-only 恢复；这里 60 秒只做状态轮询，
++                                # 不会每分钟调用远程接口或 CAPTCHA。
++                                sleep_duration = 60
+                             elif refresh_status == 'human_qr_required':
+                                 # Authoritative Session 已经证明必须人工 QR；恢复窗口立即结束。
+                                 self.connection_manager.set_connection_state(
