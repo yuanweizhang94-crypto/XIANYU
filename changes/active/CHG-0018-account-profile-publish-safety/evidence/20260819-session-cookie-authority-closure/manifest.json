@@ -1,0 +1,289 @@
+{
+  "generated_at": "2026-08-19T14:39:00+08:00",
+  "change_id": "CHG-0018-account-profile-publish-safety",
+  "reuse_decision": "PATCH_UPSTREAM",
+  "production_runtime_code_base_sha": "7c4d2828f7b2c2e3f2dd6d79acfe2c9e321521ed",
+  "repository_remote_base_sha": "0c4cc2195943c89e1879a0a916efa91df9e9f120",
+  "runtime_images": {
+    "backend": "xianyu-chg0018-backend-web:auth-cookie-closure-20260819-r2",
+    "websocket": "xianyu-chg0018-websocket:auth-cookie-closure-20260819-r2",
+    "scheduler": "xianyu-chg0018-scheduler:auth-cookie-closure-20260819-r2"
+  },
+  "patches": {
+    "backend": {
+      "changed_files": [
+        {
+          "path": "backend-web/app/services/account_import_service.py",
+          "before_sha256": "519a2590e2cc823d04e2e698e53c59eab72f036871cfaefa7373cc64915bea1c",
+          "after_sha256": "b4e4814d862d485dcdbb4f7f4bbb8a3a1481abb19b128bc72e39d9302291bb01"
+        },
+        {
+          "path": "backend-web/app/services/account_service.py",
+          "before_sha256": "85efe5b898da23ec25a8f49c9cd6bda30c62443599ebb05a6c02cac1cefaf7b2",
+          "after_sha256": "e1a351476f78154bf0e972530732748a4e5425abf3fe2f0e29c01384aa069b69"
+        },
+        {
+          "path": "backend-web/app/services/platform_category_service.py",
+          "before_sha256": "6855c0f00225905a99f1352a838e2146d4f6ed814d399397ab975b6f3c73e5ef",
+          "after_sha256": "6ba6d4220ea3ed65f66a757cb4cbef69ca0406da9118758f2db52c2226659c2f"
+        },
+        {
+          "path": "backend-web/app/api/routes/cookies.py",
+          "before_sha256": "8b3727be7fcc2bb4b9e908658f85d759db685d700ae79cda02b699e50c266541",
+          "after_sha256": "3c3dab0b0a4a3a7cdcfe696413b47def32aa92722c89632294d9e3d361ef2ab1"
+        },
+        {
+          "path": "backend-web/app/api/routes/external_cookie.py",
+          "before_sha256": "bad95e57f7b392b54b82c9e4c0655913f6670f350de7bf50b1381a8c82f892f5",
+          "after_sha256": "70c46ff9f311a6b922484ffd08d32e850c0887465bdde8610d4d3f31145f8da6"
+        },
+        {
+          "path": "backend-web/app/services/chat_new/avatar_service.py",
+          "before_sha256": "22b4e658f19f6068a006281e7080e41d9e5703be3a21803545c2c55ab0ac28c9",
+          "after_sha256": "f70def20c7b1bfb6f425fec0d2a6381b15790566e63234a293a046f062b964b2"
+        },
+        {
+          "path": "backend-web/app/services/chat_new/im_client.py",
+          "before_sha256": "37a18398a53b224bca1c01966e148a50fd16cc985f22a8a4795fda4117aee9ed",
+          "after_sha256": "131790d0da652468e0f31f33d6bf176a4daf31918642b9c299c79bb74791f6a3"
+        },
+        {
+          "path": "common/services/account_cookie_service.py",
+          "before_sha256": "c7d17798e11a11af302e5cbda8d6d0608060f57c464eb4dd68c53b2c2e34d27d",
+          "after_sha256": "f4fa9d6f1ad329d3abb22b174c3844b4ff631dcd50439834babfbaff86e263e7"
+        },
+        {
+          "path": "common/services/item_delete_service.py",
+          "before_sha256": "aa216f0eb1ff6fadf24de9a3752b23b0995efa5a8ad20d927d922f4da5e0e4b6",
+          "after_sha256": "43dc21bb639672694fb2f8363787b3995ef84c43af00c16a457bbd6ea1103cab"
+        },
+        {
+          "path": "common/services/item_offline_service.py",
+          "before_sha256": "3e613b7b355fde3c98cb2803e54033f6049702c4ba82a8d8e1484965bd9bdbdc",
+          "after_sha256": "d171b6ad728868f6377f7d47c8798de96b8dace20dc95c690f14e12110217504"
+        },
+        {
+          "path": "common/services/order_service.py",
+          "before_sha256": "e901e8e7feade4106a0748085b2985e6e300172ea11fa25298a88da7bd585459",
+          "after_sha256": "68061b711ce21593d56df85e12ea77413d95d667847df2cc5e337ea02847a3f6"
+        },
+        {
+          "path": "common/services/rate_service.py",
+          "before_sha256": "939f21d377ff0a96a9beabbc2e49d14f4eb2855ad0835a5cd97e52e622b4d766",
+          "after_sha256": "1b2cd17a610de0af6ef431060c8f39be4a4500aad5af37fe5185cad9b54364cd"
+        },
+        {
+          "path": "common/services/xianyu_mtop.py",
+          "before_sha256": "b7f7a0a1b778ff8f3fdc7d9bab8b00c2346b012f066ecd0f44854ecdb2b0efb7",
+          "after_sha256": "17a9def5f01b1282050f00f44c93500f15c92eda083db4e831e573f46331c6d2"
+        },
+        {
+          "path": "common/utils/cookie_refresh.py",
+          "before_sha256": "f721e8ee05d60422fd156395e5aee4eb078e5439d103abaa5895b0221df9d921",
+          "after_sha256": "eb9f4abdc03ac6f2852d8efd3e1b4523fc502e0374d507f0f42c445ca31d9d65"
+        },
+        {
+          "path": "common/utils/fish_nick_utils.py",
+          "before_sha256": "9ea3e5ae236e9c648f55239552f41fa9fc430ff3ea179c3c5e0134738e876334",
+          "after_sha256": "cadf9538e8bf3049de5bd55021bbe97e5949e6e437e887be7dc215c36f03b847"
+        }
+      ],
+      "patch_path": "changes/active/CHG-0018-account-profile-publish-safety/evidence/20260819-session-cookie-authority-closure/backend-runtime.patch",
+      "patch_sha256": "e5cbdbdc425c31ccf070c9d3cbdb536fc27ba92091d5233321f0b64ca705fc25",
+      "patch_bytes": 46550
+    },
+    "websocket": {
+      "changed_files": [
+        {
+          "path": "common/services/account_cookie_service.py",
+          "before_sha256": "c7d17798e11a11af302e5cbda8d6d0608060f57c464eb4dd68c53b2c2e34d27d",
+          "after_sha256": "9f0363b47870dec2436d0215d90f2f4e39bc82026a25c270abd3e28b195f1ee2"
+        },
+        {
+          "path": "common/services/item_delete_service.py",
+          "before_sha256": "aa216f0eb1ff6fadf24de9a3752b23b0995efa5a8ad20d927d922f4da5e0e4b6",
+          "after_sha256": "43dc21bb639672694fb2f8363787b3995ef84c43af00c16a457bbd6ea1103cab"
+        },
+        {
+          "path": "common/services/item_offline_service.py",
+          "before_sha256": "45575799273ba0a708805c95fe0e7fceadc417ce12db4277b6104f4547fa3dd4",
+          "after_sha256": "b7da91062fc978b4417c56108c5edcdb3fdff3e9478caf572d263dd02833e91d"
+        },
+        {
+          "path": "common/services/order_service.py",
+          "before_sha256": "7d84e3ed0360fc799654d2916f7f6b4d7a99b28a34adf8bdd0cbc2399fbe3881",
+          "after_sha256": "190401bcad0bdaae15da180438bf805cf7b4d98bdf38e97157f8e015b57d5c87"
+        },
+        {
+          "path": "common/services/rate_service.py",
+          "before_sha256": "939f21d377ff0a96a9beabbc2e49d14f4eb2855ad0835a5cd97e52e622b4d766",
+          "after_sha256": "1b2cd17a610de0af6ef431060c8f39be4a4500aad5af37fe5185cad9b54364cd"
+        },
+        {
+          "path": "common/services/xianyu_mtop.py",
+          "before_sha256": "ac39752bad5e25d427203201f7d8eb0e94bcfb09bcb22abf92e2e28f5818a813",
+          "after_sha256": "97294767b3c728a78a7349c057c37bffa4e15b9b0104c97d8d40f965dc209aa2"
+        },
+        {
+          "path": "common/utils/cookie_refresh.py",
+          "before_sha256": "f721e8ee05d60422fd156395e5aee4eb078e5439d103abaa5895b0221df9d921",
+          "after_sha256": "53fdf2b3769daa6767fb869553f934c769ea243175b8e3d87f2cb1823d0f7d70"
+        },
+        {
+          "path": "common/utils/fish_nick_utils.py",
+          "before_sha256": "9ea3e5ae236e9c648f55239552f41fa9fc430ff3ea179c3c5e0134738e876334",
+          "after_sha256": "cadf9538e8bf3049de5bd55021bbe97e5949e6e437e887be7dc215c36f03b847"
+        },
+        {
+          "path": "websocket/app/api/routes/cookies_refresh.py",
+          "before_sha256": "14f092c41e2f373a7c712e35a95ae1f6db5ebff31ab8f626f9bcba8cc6906a0b",
+          "after_sha256": "ce055f7720a8fad5ba81887d61794947e2a213749c5c0df6e83cb308d5716d61"
+        },
+        {
+          "path": "websocket/app/api/routes/internal.py",
+          "before_sha256": "bba362f03a9ce4578d38f91e273e44dc589ba8923a7f3ec6df7a5f1c23fb74c5",
+          "after_sha256": "cf746bb70debe02a40e4486a3f0e39f34ae8aa2b2f111928412c2790468e9f81"
+        },
+        {
+          "path": "websocket/app/api/routes/password_login.py",
+          "before_sha256": "1e98e53ed5cff13ba2f65b728e4540894052211fecac31b7964f6396e92a78e5",
+          "after_sha256": "0db14da5fc5440572b69ecae3e122e95c47c19c3bae792c3168f8829549a0551"
+        },
+        {
+          "path": "websocket/app/services/xianyu/cookie_token_manager.py",
+          "before_sha256": "ae37780fb04b550507481290c5666baa1ce3cc839f77807802b6c1fb421dc034",
+          "after_sha256": "ffcc54f40056e3ee5c2b8d1c2ca9077352f730499460bad809a5487b6837c8e8"
+        },
+        {
+          "path": "websocket/app/services/xianyu/rate_service.py",
+          "before_sha256": "bb75f7cb3e2e8bf6094568263bb5c1c75663297fde8fe3dd7f55fd6b95027795",
+          "after_sha256": "d7d0578176fd1d5a517f108324a6d295638954b5ca60900439832843898742c1"
+        }
+      ],
+      "patch_path": "changes/active/CHG-0018-account-profile-publish-safety/evidence/20260819-session-cookie-authority-closure/websocket-runtime.patch",
+      "patch_sha256": "0a2c210082e6c2ba155c97e835bf9686a73a2e30bac145d9c4f5b8cb38198522",
+      "patch_bytes": 87577
+    },
+    "scheduler": {
+      "changed_files": [
+        {
+          "path": "common/services/account_cookie_service.py",
+          "before_sha256": "c7d17798e11a11af302e5cbda8d6d0608060f57c464eb4dd68c53b2c2e34d27d",
+          "after_sha256": "f4fa9d6f1ad329d3abb22b174c3844b4ff631dcd50439834babfbaff86e263e7"
+        },
+        {
+          "path": "common/services/item_delete_service.py",
+          "before_sha256": "aa216f0eb1ff6fadf24de9a3752b23b0995efa5a8ad20d927d922f4da5e0e4b6",
+          "after_sha256": "43dc21bb639672694fb2f8363787b3995ef84c43af00c16a457bbd6ea1103cab"
+        },
+        {
+          "path": "common/services/item_offline_service.py",
+          "before_sha256": "3e613b7b355fde3c98cb2803e54033f6049702c4ba82a8d8e1484965bd9bdbdc",
+          "after_sha256": "d171b6ad728868f6377f7d47c8798de96b8dace20dc95c690f14e12110217504"
+        },
+        {
+          "path": "common/services/order_service.py",
+          "before_sha256": "e901e8e7feade4106a0748085b2985e6e300172ea11fa25298a88da7bd585459",
+          "after_sha256": "68061b711ce21593d56df85e12ea77413d95d667847df2cc5e337ea02847a3f6"
+        },
+        {
+          "path": "common/services/rate_service.py",
+          "before_sha256": "939f21d377ff0a96a9beabbc2e49d14f4eb2855ad0835a5cd97e52e622b4d766",
+          "after_sha256": "1b2cd17a610de0af6ef431060c8f39be4a4500aad5af37fe5185cad9b54364cd"
+        },
+        {
+          "path": "common/services/xianyu_mtop.py",
+          "before_sha256": "ac39752bad5e25d427203201f7d8eb0e94bcfb09bcb22abf92e2e28f5818a813",
+          "after_sha256": "e392974bca945434a1d4ecfa38db0e4e735ab8a13bde4b4004bab385357d97ac"
+        },
+        {
+          "path": "common/utils/cookie_refresh.py",
+          "before_sha256": "33c580cba02434fb4cd5321b78cda3c3b0fda5a92174bc3e7dda587e86203923",
+          "after_sha256": "829810f1183a281cd94b2d239be188a8cd1b82a31e5437403a8357259063ed04"
+        },
+        {
+          "path": "common/utils/fish_nick_utils.py",
+          "before_sha256": "9ea3e5ae236e9c648f55239552f41fa9fc430ff3ea179c3c5e0134738e876334",
+          "after_sha256": "cadf9538e8bf3049de5bd55021bbe97e5949e6e437e887be7dc215c36f03b847"
+        },
+        {
+          "path": "scheduler/app/services/scheduler/cookies_refresh_task.py",
+          "before_sha256": "bdef78ed0c2dfd790ed539adf52958994d0770ba71f01a2551f89067478f4c1e",
+          "after_sha256": "d63261a672519e8e1c415da967220a139da17593b0663ed0a260e42772b1648a"
+        },
+        {
+          "path": "scheduler/app/services/scheduler/login_renew_task.py",
+          "before_sha256": "6dd9974f4b3d8435814266b0252c876dfcef321bf46ed9c7c4d8a897907cd406",
+          "after_sha256": "be4cd0bd2c259be0516608dc78edfec64ea5d17a0eed35aef1c5b00ab2e21664"
+        },
+        {
+          "path": "scheduler/app/services/scheduler/polish_task.py",
+          "before_sha256": "c6d47b3c47939808778c3c92ce18d46cf0c1f5d23ca2fd69b1151bb9aaa49bb4",
+          "after_sha256": "5e6a09bb24fc69deceb6229e333a12108e06dfca0b54cacdf60541dfe1ed5ea7"
+        },
+        {
+          "path": "scheduler/app/services/scheduler/red_flower_task.py",
+          "before_sha256": "9f4049579798527dfc258a922a53ceb290b4baf092bf35b2456da19a066e2b3c",
+          "after_sha256": "0b05120a6443a2fe3b2108f3811ead6c9dbb50761251636cb0c771060ead6f18"
+        },
+        {
+          "path": "scheduler/app/services/scheduler/token_captcha_renewal.py",
+          "before_sha256": "cfa7bcdc257d18e70636591886798e686eff90632300e281ceafba835d6750c2",
+          "after_sha256": "1e997c05f0ce65f543ac87f0c78eeebed8afbf5d6fc430b66049d50b9c21f25f"
+        },
+        {
+          "path": "scheduler/app/services/scheduler/token_renewal_task.py",
+          "before_sha256": "9645b10c609a3ddd8dc89ef48ca2a055753cc10b3ca53b9653e27daa120da813",
+          "after_sha256": "d153b5d33966202e5980ef9b33d81477942f45debe7e318d8b9b231e35ef4140"
+        }
+      ],
+      "patch_path": "changes/active/CHG-0018-account-profile-publish-safety/evidence/20260819-session-cookie-authority-closure/scheduler-runtime.patch",
+      "patch_sha256": "ee821f7c3ed9134b526bea592ad013ac086d8492f8a9c6b624890b0dc13dbf8d",
+      "patch_bytes": 41697
+    }
+  },
+  "acceptance": {
+    "safe_mtop_probe": "PASS",
+    "candidate_gate_tests": "15/15 PASS",
+    "qr_evidence_gate_tests": "4/4 PASS",
+    "offline_overlay_hash_match": "PASS",
+    "offline_py_compile": "PASS",
+    "unknown_cookie_writers": 0,
+    "missing_expected_baseline_callers": 0,
+    "websocket_connected": "5/5 enabled",
+    "websocket_zombies": 0,
+    "orders_regression": "PASS",
+    "chat_regression": "PASS",
+    "item_read_regression": "PASS",
+    "publisher_healthy_refs": [
+      "2196106636",
+      "2214313339860"
+    ],
+    "publisher_healthy_ref_auth": "AUTH_VALID",
+    "qr_required_accounts": [
+      "1034641456",
+      "2219319284219",
+      "2858469041"
+    ],
+    "qr_evidence_reason": "OFFICIAL_RENEWAL_FAILED_SAFE_MTOP_SESSION_EXPIRED",
+    "real_product_actions": 0,
+    "publish_calls": 0,
+    "messages_sent": 0,
+    "qr_actions": 0,
+    "captcha_calls_during_chat_restore": 0,
+    "token_api_calls_during_chat_restore": 0
+  },
+  "repository_validation": {
+    "initial_verify": "649 passed / 5 worktree-environment failures",
+    "environment_root_causes": [
+      "locked patch working-tree CRLF byte conversion",
+      "editable/import path resolving repository constants to D:/xianyu instead of isolated worktree"
+    ],
+    "head_locked_patch_sha_validation": "PASS for all 4 affected historical patch artifacts",
+    "targeted_environment_corrected_failures": "5/5 PASS",
+    "second_full_verify_transport": "connector 502 before result retrieval; no production side effect",
+    "effective_test_accounting": "649 previously passing + 5 corrected targeted = all 654 collected tests have passing evidence",
+    "cached_diff_check_non_patch": "required PASS",
+    "runtime_patch_outer_whitespace": "allowed immutable-artifact exception; exact SHA256 locked in this manifest"
+  }
+}

@@ -1,0 +1,746 @@
+--- a/common/services/account_cookie_service.py
++++ b/common/services/account_cookie_service.py
+@@ -9,14 +9,22 @@
+ from __future__ import annotations
+ 
+ import asyncio
+-from typing import Mapping
++from datetime import datetime, timezone
++from typing import Any, Mapping
+ 
+ from loguru import logger
+ from sqlalchemy import select
+ 
+ from common.db.session import async_session_maker
+ from common.models.xy_account import XYAccount
+-from common.utils.cookie_refresh import clear_cookie_refresh_snapshot
++from common.services.xianyu_mtop import safe_mtop_auth_probe
++from common.utils.cookie_refresh import (
++    clear_cookie_refresh_snapshot,
++    cookie_fingerprint,
++    get_session_maintenance_state,
++    mark_cookie_update_session_pending,
++    set_session_maintenance_state,
++)
+ from common.utils.xianyu_utils import trans_cookies
+ 
+ 
+@@ -25,68 +33,64 @@
+     account_id: str,
+     cookie_updates: Mapping[str, object],
+     *,
+-    max_attempts: int = 3,
+-    retry_delay_seconds: float = 0.5,
++    expected_authoritative_cookie: str | None = None,
++    source: str = "legacy_merge_account_cookie_fields",
++    max_attempts: int = 1,
++    retry_delay_seconds: float = 0.0,
+ ) -> str | None:
+-    """将新 Cookie 字段合并写回指定账号。
++    """Deprecated merge gateway: fail closed unless caller supplies its request baseline."""
++    if expected_authoritative_cookie is None:
++        logger.error(f"【{account_id}】拒绝无expected Cookie的legacy merge写入: source={source}")
++        return None
++    updates = {str(name).strip(): "" if value is None else str(value) for name, value in (cookie_updates or {}).items() if str(name).strip()}
++    if not updates: return expected_authoritative_cookie
++    merged = trans_cookies(expected_authoritative_cookie or ""); merged.update(updates)
++    candidate = "; ".join(f"{name}={value}" for name, value in merged.items())
++    commit = await validate_and_commit_authoritative_cookie_candidate(account_id, expected_authoritative_fingerprint=cookie_fingerprint(expected_authoritative_cookie or ""), candidate_cookie=candidate, source=source)
++    return str(commit.get("cookies_str") or "") if commit.get("committed") else None
+ 
+-    Args:
+-        account_row_id: ``xy_accounts.id``，用于精确定位账号并加行锁。
+-        account_id: 账号业务 ID，仅用于二次校验和日志。
+-        cookie_updates: 新增或更新的 Cookie 字段映射。
+-        max_attempts: 数据库写入最大尝试次数。
+-        retry_delay_seconds: 相邻重试之间的等待秒数。
+ 
+-    Returns:
+-        成功返回合并后的 Cookie 字符串；账号不存在或写入失败返回 ``None``。
+-    """
+-    updates = {
+-        str(name).strip(): "" if value is None else str(value)
+-        for name, value in (cookie_updates or {}).items()
+-        if str(name).strip()
+-    }
+-    if not updates:
+-        return None
++async def claim_authoritative_cookie_renewal(account_id: str, *, source: str, lease_seconds: int = 600) -> dict[str, Any]:
++    async with async_session_maker() as session:
++        result=await session.execute(select(XYAccount).where(XYAccount.account_id==account_id).order_by(XYAccount.id.desc()).limit(1).with_for_update()); account=result.scalars().first()
++        if not account: return {"claimed":False,"reason":"ACCOUNT_NOT_FOUND","expected_fingerprint":""}
++        current_cookie=account.cookie or ""; current_fp=cookie_fingerprint(current_cookie); state=get_session_maintenance_state(account.metadata_json)
++        qualified_qr=(state.get("state")=="HUMAN_QR_REQUIRED" and str(state.get("failure_reason") or "").startswith("OFFICIAL_RENEWAL_FAILED_SAFE_MTOP_SESSION_EXPIRED") and str(state.get("qr_required_cookie_fingerprint") or "")==current_fp)
++        if qualified_qr:
++            return {"claimed":False,"reason":"HUMAN_QR_REQUIRED_EVIDENCE_QUALIFIED","expected_fingerprint":current_fp,"authoritative_cookie":current_cookie}
++        if state.get("state")=="SESSION_RENEWING":
++            raw=str(state.get("updated_at") or "")
++            try:
++                updated=datetime.fromisoformat(raw.replace("Z","+00:00")); updated=updated if updated.tzinfo else updated.replace(tzinfo=timezone.utc); age=(datetime.now(timezone.utc)-updated).total_seconds()
++            except Exception: age=0.0
++            if age<max(1,int(lease_seconds)): return {"claimed":False,"reason":"SESSION_RENEWING","expected_fingerprint":current_fp}
++        account.metadata_json=set_session_maintenance_state(account.metadata_json,state="SESSION_RENEWING",cookie_string=current_cookie,failure_reason=f"OWNER:{source}"[:500]); session.add(account); await session.commit()
++        return {"claimed":True,"reason":"CLAIMED","expected_fingerprint":current_fp,"authoritative_cookie":current_cookie}
+ 
+-    attempts = max(1, int(max_attempts))
+-    last_error = ""
+-    for attempt in range(1, attempts + 1):
+-        try:
+-            async with async_session_maker() as session:
+-                result = await session.execute(
+-                    select(XYAccount)
+-                    .where(
+-                        XYAccount.id == account_row_id,
+-                        XYAccount.account_id == account_id,
+-                    )
+-                    .with_for_update()
+-                )
+-                account = result.scalars().first()
+-                if not account:
+-                    logger.warning(
+-                        f"【{account_id}】未找到账号数据库行，无法合并 "
+-                        f"{len(updates)} 个Cookie字段"
+-                    )
+-                    return None
++async def release_authoritative_cookie_renewal(account_id: str, *, expected_authoritative_fingerprint: str, source: str, reason: str, state: str = "SESSION_RENEW_FAILED") -> bool:
++    async with async_session_maker() as session:
++        result=await session.execute(select(XYAccount).where(XYAccount.account_id==account_id).order_by(XYAccount.id.desc()).limit(1).with_for_update()); account=result.scalars().first()
++        if not account: return False
++        current_cookie=account.cookie or ""
++        if cookie_fingerprint(current_cookie)!=expected_authoritative_fingerprint: return False
++        current_state=get_session_maintenance_state(account.metadata_json)
++        if current_state.get("state")!="SESSION_RENEWING": return False
++        account.metadata_json=set_session_maintenance_state(account.metadata_json,state=state,cookie_string=current_cookie,failure_reason=f"{source}:{reason}"[:500]); session.add(account); await session.commit(); return True
+ 
+-                merged_cookies = trans_cookies(account.cookie or "")
+-                merged_cookies.update(updates)
+-                merged_cookies_str = "; ".join(
+-                    f"{name}={value}" for name, value in merged_cookies.items()
+-                )
+-                account.cookie = merged_cookies_str
+-                account.metadata_json = clear_cookie_refresh_snapshot(
+-                    account.metadata_json
+-                )
+-                session.add(account)
+-                await session.commit()
+-                return merged_cookies_str
+-        except Exception as exc:
+-            last_error = f"{type(exc).__name__}: {exc}"
+-            if attempt < attempts:
+-                await asyncio.sleep(max(0.0, retry_delay_seconds))
+-
+-    logger.error(
+-        f"【{account_id}】合并Cookie字段失败，已重试{attempts}次: {last_error}"
+-    )
+-    return None
++async def validate_and_commit_authoritative_cookie_candidate(account_id: str, *, expected_authoritative_fingerprint: str, candidate_cookie: str, source: str, owner_id: int | None = None) -> dict[str, Any]:
++    probe=await safe_mtop_auth_probe(candidate_cookie,account_id=account_id); auth_status=str(probe.get("status") or "UNKNOWN"); validated_cookie=str(probe.get("cookies_str") or candidate_cookie or "")
++    if auth_status!="AUTH_VALID":
++        await release_authoritative_cookie_renewal(account_id,expected_authoritative_fingerprint=expected_authoritative_fingerprint,source=source,reason=f"SAFE_MTOP_{auth_status}",state="PLATFORM_VERIFICATION_REQUIRED" if auth_status=="PLATFORM_VERIFICATION" else "SESSION_RENEW_FAILED")
++        return {"status":"PLATFORM_VERIFICATION" if auth_status=="PLATFORM_VERIFICATION" else "INVALID_CANDIDATE" if auth_status=="SESSION_EXPIRED" else "UNKNOWN","auth_status":auth_status,"committed":False,"stale_discarded":False,"cookies_str":""}
++    async with async_session_maker() as session:
++        where=[XYAccount.account_id==account_id]
++        if owner_id is not None: where.append(XYAccount.owner_id==owner_id)
++        result=await session.execute(select(XYAccount).where(*where).order_by(XYAccount.id.desc()).limit(1).with_for_update()); account=result.scalars().first()
++        if not account: return {"status":"UNKNOWN","auth_status":auth_status,"committed":False,"stale_discarded":False,"cookies_str":""}
++        current_cookie=account.cookie or ""
++        if cookie_fingerprint(current_cookie)!=expected_authoritative_fingerprint: return {"status":"STALE_DISCARDED","auth_status":auth_status,"committed":False,"stale_discarded":True,"cookies_str":current_cookie}
++        changed=validated_cookie!=current_cookie
++        if changed: account.cookie=validated_cookie; account.metadata_json=mark_cookie_update_session_pending(account.metadata_json,validated_cookie)
++        else: account.metadata_json=set_session_maintenance_state(account.metadata_json,state="SESSION_RENEW_SUCCESS",cookie_string=current_cookie,failure_reason=f"AUTH_VALID:{source}"[:500])
++        session.add(account); await session.commit(); logger.info(f"【{account_id}】authoritative Cookie candidate通过safe MTOP并完成CAS: source={source} changed={changed}")
++        return {"status":"COMMITTED","auth_status":auth_status,"committed":True,"stale_discarded":False,"cookies_str":validated_cookie,"changed":changed}
+--- a/common/services/item_delete_service.py
++++ b/common/services/item_delete_service.py
+@@ -67,7 +67,9 @@
+             account_row_id,
+             account_id,
+             new_cookies,
+-                                )
++            expected_authoritative_cookie=cookies_str,
++            source="item_delete_response",
++        )
+         if saved_cookies_str:
+             return (
+                 saved_cookies_str,
+@@ -81,7 +83,9 @@
+         account_id,
+         merged_cookies_str,
+         owner_id=owner_id,
+-                    )
++        expected_authoritative_cookie=cookies_str,
++        source="item_delete_response",
++    )
+     return (
+         merged_cookies_str,
+         saved,
+--- a/common/services/item_offline_service.py
++++ b/common/services/item_offline_service.py
+@@ -148,8 +148,9 @@
+                 # 处理响应中的 Set-Cookie，合并更新到内存和数据库
+                 new_cookies = extract_cookies_from_response(response)
+                 if new_cookies:
++                    expected_cookie = cookies_str
+                     cookies_str = merge_cookies(cookies_str, new_cookies)
+-                    await update_account_cookies_in_db(account_id, cookies_str)
++                    await update_account_cookies_in_db(account_id, cookies_str, expected_authoritative_cookie=expected_cookie, source="item_offline_response")
+                     logger.info(
+                         f"【{account_id}】批量下架API已从Set-Cookie合并 {len(new_cookies)} 个Cookie字段并更新到数据库"
+                     )
+--- a/common/services/order_service.py
++++ b/common/services/order_service.py
+@@ -1085,7 +1085,7 @@
+                         )
+                         if has_new:
+                             if account_id:
+-                                await update_account_cookies_in_db(account_id, new_cookies_str)
++                                await update_account_cookies_in_db(account_id, new_cookies_str, expected_authoritative_cookie=cookies_str, source="orders_sold_token_refresh")
+                             # 用新Cookie重试，并将最新Cookie传递给调用方
+                             retry_result = await self._fetch_sold_orders_page(
+                                 new_cookies_str, page, account_id, is_retry=True,
+@@ -1422,7 +1422,7 @@
+                         has_new, new_cookies_str = handle_token_expired_response(response, cookies_str)
+                         if has_new:
+                             if account_id:
+-                                await update_account_cookies_in_db(account_id, new_cookies_str)
++                                await update_account_cookies_in_db(account_id, new_cookies_str, expected_authoritative_cookie=cookies_str, source="orders_refund_token_refresh")
+                             retry_result = await self._fetch_refund_orders_page(
+                                 new_cookies_str, dispute_status, account_id, is_retry=True
+                             )
+@@ -1846,8 +1846,9 @@
+             
+             new_cookies = extract_cookies_from_response(response)
+             if new_cookies:
++                expected_cookie = self.cookies_str
+                 self.cookies_str = merge_cookies(self.cookies_str, new_cookies)
+-                await update_account_cookies_in_db(self.cookie_id, self.cookies_str)
++                await update_account_cookies_in_db(self.cookie_id, self.cookies_str, expected_authoritative_cookie=expected_cookie, source="order_detail_response")
+                 logger.info(
+                     f"【{self.cookie_id}】已从响应中合并 {len(new_cookies)} 个Cookie字段并更新到数据库"
+                 )
+@@ -2222,7 +2223,7 @@
+                             if has_new:
+                                 # 更新数据库
+                                 if self.account_id:
+-                                    await update_account_cookies_in_db(self.account_id, new_cookies_str)
++                                    await update_account_cookies_in_db(self.account_id, new_cookies_str, expected_authoritative_cookie=self.cookies_str, source="raw_order_detail_token_refresh")
+                                 # 更新本地Cookie并重试
+                                 self.cookies_str = new_cookies_str
+                                 return await self._fetch_raw_order_detail(order_id, is_retry=True)
+--- a/common/services/rate_service.py
++++ b/common/services/rate_service.py
+@@ -136,7 +136,7 @@
+                         )
+                         if has_new:
+                             if self.account_id:
+-                                await update_account_cookies_in_db(self.account_id, new_cookies_str)
++                                await update_account_cookies_in_db(self.account_id, new_cookies_str, expected_authoritative_cookie=self.cookie_string, source="rate_buyer_token_refresh")
+                             # 更新本地Cookie并重试
+                             self.cookie_string = new_cookies_str
+                             self.cookies_dict = self._parse_cookies(new_cookies_str)
+@@ -281,9 +281,10 @@
+                             response, current_cookie
+                         )
+                         if has_new:
++                            expected_cookie = current_cookie
+                             current_cookie = new_cookies_str
+                             if account_id:
+-                                await update_account_cookies_in_db(account_id, new_cookies_str)
++                                await update_account_cookies_in_db(account_id, new_cookies_str, expected_authoritative_cookie=expected_cookie, source="merchant_rate_list_token_refresh")
+                             continue  # 重试
+                         else:
+                             if attempt < max_retries - 1:
+--- a/common/services/xianyu_mtop.py
++++ b/common/services/xianyu_mtop.py
+@@ -131,6 +131,7 @@
+         }
+     """
+     current_cookies = cookies_str
++    expected_authoritative_cookie = cookies_str
+     token_refreshed = False
+     last_error = ""
+     url = f"https://h5api.m.goofish.com/h5/{api}/{version}/"
+@@ -199,7 +200,7 @@
+         if "SUCCESS::" in ret_msg:
+             # 期间刷新过令牌：把最新 Cookie 写回数据库
+             if token_refreshed:
+-                await update_account_cookies_in_db(account_id, current_cookies, owner_id=owner_id)
++                await update_account_cookies_in_db(account_id, current_cookies, owner_id=owner_id, expected_authoritative_cookie=expected_authoritative_cookie, source=f"mtop:{api}:token_refresh")
+                 logger.info(f"【{account_id}】{api} 令牌已刷新并更新到数据库")
+             return {"success": True, "account_invalid": False, "res": res_json, "error": "", "cookies_str": current_cookies}
+ 
+@@ -244,4 +245,34 @@
+     }
+ 
+ 
+-__all__ = ["mtop_call", "fetch_proxy_from_api"]
++async def safe_mtop_auth_probe(cookies_str: str, *, account_id: str = "", proxy: Optional[str] = None) -> Dict[str, Any]:
++    """Publisher-equivalent auth probe with no authoritative side effects."""
++    current_cookies = cookies_str or ""
++    if not current_cookies.strip(): return {"status":"UNKNOWN","cookies_str":current_cookies,"ret":[]}
++    api="mtop.idle.pc.idleitem.preget"; version="1.0"; data_val="{}"; url=f"https://h5api.m.goofish.com/h5/{api}/{version}/"
++    for _attempt in range(_MAX_ATTEMPTS):
++        try: cookies=trans_cookies(current_cookies)
++        except Exception: return {"status":"UNKNOWN","cookies_str":current_cookies,"ret":[]}
++        token=cookies.get("_m_h5_tk","").split("_")[0] if cookies.get("_m_h5_tk") else ""; t=str(int(time.time()*1000)); sign=generate_sign(t,token,data_val)
++        params={"jsv":"2.7.2","appKey":"34839810","t":t,"sign":sign,"v":version,"type":"originaljson","accountSite":"xianyu","dataType":"json","timeout":"20000","api":api,"sessionOption":"AutoLoginOnly","spm_cnt":"a21ybx.publish.0.0"}
++        headers={"Accept":"application/json","Content-Type":"application/x-www-form-urlencoded","Origin":"https://www.goofish.com","Referer":"https://www.goofish.com/publish","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36","Cookie":current_cookies}
++        try:
++            timeout=aiohttp.ClientTimeout(total=30)
++            async with aiohttp.ClientSession(timeout=timeout,cookie_jar=aiohttp.DummyCookieJar()) as session:
++                async with session.post(url,params=params,data={"data":data_val},headers=headers,proxy=proxy or None) as resp:
++                    res_json=await resp.json(content_type=None); set_cookies=extract_cookies_from_response(resp)
++        except (asyncio.TimeoutError,aiohttp.ClientError): return {"status":"NETWORK_ERROR","cookies_str":current_cookies,"ret":[]}
++        except Exception as exc:
++            logger.warning(f"【{account_id}】safe MTOP auth probe异常: {type(exc).__name__}"); return {"status":"UNKNOWN","cookies_str":current_cookies,"ret":[]}
++        ret=res_json.get("ret") or [] if isinstance(res_json,dict) else []; ret_msg=str(ret[0]) if ret else ""
++        if "SUCCESS::" in ret_msg: return {"status":"AUTH_VALID","cookies_str":current_cookies,"ret":ret}
++        if any(m in ret_msg for m in _TOKEN_EXPIRED_MARKERS):
++            if set_cookies: current_cookies=merge_cookies(current_cookies,set_cookies); continue
++            return {"status":"UPSTREAM_ERROR","cookies_str":current_cookies,"ret":ret}
++        if is_session_expired_error(ret): return {"status":"SESSION_EXPIRED","cookies_str":current_cookies,"ret":ret}
++        if any(m in ret_msg for m in _VALIDATE_MARKERS): return {"status":"PLATFORM_VERIFICATION","cookies_str":current_cookies,"ret":ret}
++        return {"status":"UPSTREAM_ERROR" if ret_msg else "UNKNOWN","cookies_str":current_cookies,"ret":ret}
++    return {"status":"UNKNOWN","cookies_str":current_cookies,"ret":[]}
++
++
++__all__ = ["mtop_call", "fetch_proxy_from_api", "safe_mtop_auth_probe"]
+--- a/common/utils/cookie_refresh.py
++++ b/common/utils/cookie_refresh.py
+@@ -447,63 +447,24 @@
+     owner_id: Optional[int] = None,
+     session: Optional[AsyncSession] = None,
+     *,
+-    allow_platform_verification_write: bool = False,
++    expected_authoritative_cookie: str | None = None,
++    source: str = "legacy_update_account_cookies_in_db",
+ ) -> bool:
+-    """更新数据库中账号的Cookie
+-    
+-    Args:
+-        account_id: 账号ID（account_id字段）
+-        new_cookies_str: 新的Cookie字符串
+-        owner_id: 所属用户ID，传入后优先按 owner_id + account_id 精确命中
+-        session: 可选的数据库会话，为None时自动创建
+-        
+-    Returns:
+-        是否更新成功
+-    """
++    if expected_authoritative_cookie is None:
++        logger.error(f"【{account_id}】拒绝无expected Cookie的legacy整串写入: source={source}")
++        return False
+     try:
+-        if session:
+-            account = await get_account_by_identity(account_id, owner_id=owner_id, session=session)
+-            if not account:
+-                logger.warning(f"【{account_id}】数据库中未找到账号，无法更新Cookie")
+-                return False
+-            if (
+-                is_auto_reply_platform_verification_waiting(account.metadata_json)
+-                and not allow_platform_verification_write
+-            ):
+-                logger.info(
+-                    f"【{account_id}】Auto Reply等待/执行官方平台验证，"
+-                    "拒绝非Token-owner后台Cookie写入"
+-                )
+-                return False
+-            account.cookie = new_cookies_str
+-            account.metadata_json = mark_cookie_update_session_pending(account.metadata_json, new_cookies_str)
+-            session.add(account)
+-            await session.commit()
+-        else:
+-            from common.db.session import async_session_maker
+-            async with async_session_maker() as db_session:
+-                account = await get_account_by_identity(account_id, owner_id=owner_id, session=db_session)
+-                if not account:
+-                    logger.warning(f"【{account_id}】数据库中未找到账号，无法更新Cookie")
+-                    return False
+-                if (
+-                    is_auto_reply_platform_verification_waiting(account.metadata_json)
+-                    and not allow_platform_verification_write
+-                ):
+-                    logger.info(
+-                        f"【{account_id}】Auto Reply等待/执行官方平台验证，"
+-                        "拒绝非Token-owner后台Cookie写入"
+-                    )
+-                    return False
+-                account.cookie = new_cookies_str
+-                account.metadata_json = mark_cookie_update_session_pending(account.metadata_json, new_cookies_str)
+-                db_session.add(account)
+-                await db_session.commit()
+-        
+-        logger.info(f"【{account_id}】令牌过期后已更新Cookie到数据库")
+-        return True
+-    except Exception as e:
+-        logger.error(f"【{account_id}】更新Cookie到数据库失败: {e}")
++        from common.services.account_cookie_service import validate_and_commit_authoritative_cookie_candidate
++        commit = await validate_and_commit_authoritative_cookie_candidate(
++            account_id,
++            expected_authoritative_fingerprint=cookie_fingerprint(expected_authoritative_cookie or ""),
++            candidate_cookie=new_cookies_str,
++            source=source,
++            owner_id=owner_id,
++        )
++        return bool(commit.get("committed") and commit.get("auth_status") == "AUTH_VALID")
++    except Exception as exc:
++        logger.error(f"【{account_id}】canonical Cookie写入异常: {type(exc).__name__}")
+         return False
+ 
+ 
+--- a/common/utils/fish_nick_utils.py
++++ b/common/utils/fish_nick_utils.py
+@@ -194,7 +194,7 @@
+         if new_cookies:
+             merged_str = merge_cookies(old_cookies_str, new_cookies)
+             # 写入数据库
+-            await update_account_cookies_in_db(account_id, merged_str)
++            await update_account_cookies_in_db(account_id, merged_str, expected_authoritative_cookie=old_cookies_str, source="fish_nick_response")
+             logger.info(
+                 f"【{account_id}】[获取昵称]已从响应中合并 {len(new_cookies)} 个Cookie字段并更新到数据库"
+             )
+--- a/scheduler/app/services/scheduler/cookies_refresh_task.py
++++ b/scheduler/app/services/scheduler/cookies_refresh_task.py
+@@ -20,11 +20,17 @@
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from common.db.session import async_session_maker
++from common.services.account_cookie_service import (
++    claim_authoritative_cookie_renewal,
++    release_authoritative_cookie_renewal,
++    validate_and_commit_authoritative_cookie_candidate,
++)
+ from common.models.cookie_refresh_schedule import CookieRefreshSchedule
+ from common.models.scheduled_cookies_refresh_log import ScheduledCookiesRefreshLog
+ from common.models.xy_account import XYAccount
+ from common.utils.cookie_refresh import (
+     build_cookie_string_from_browser_cookies,
++    cookie_fingerprint,
+     get_cookie_refresh_snapshot,
+     normalize_browser_cookie_snapshot,
+     normalize_cookie_string,
+@@ -249,8 +255,29 @@
+             await session.commit()
+             return CookiesRefreshProcessResult(status="failed", message="账号Cookie为空，且无完整Cookie快照，无法执行续期")
+ 
++        claim = await claim_authoritative_cookie_renewal(
++            account.account_id, source="scheduler_browser_cookie_refresh"
++        )
++        if not claim.get("claimed"):
++            schedule.last_status = "skipped"
++            schedule.last_error_message = str(claim.get("reason") or "SESSION_RENEWING")[:500]
++            await session.commit()
++            return CookiesRefreshProcessResult(
++                status="skipped",
++                message=str(claim.get("reason") or "SESSION_RENEWING"),
++            )
++        expected_fp = str(
++            claim.get("expected_fingerprint") or cookie_fingerprint(account.cookie or "")
++        )
++
+         browser_result = await cookies_refresh_browser_service.refresh_account_cookies(account)
+         if not browser_result.success:
++            await release_authoritative_cookie_renewal(
++                account.account_id,
++                expected_authoritative_fingerprint=expected_fp,
++                source="scheduler_browser_cookie_refresh",
++                reason=f"BROWSER_FAILED:{browser_result.message[:120]}",
++            )
+             schedule.last_status = "failed"
+             schedule.last_error_message = browser_result.message[:500]
+             await session.commit()
+@@ -260,10 +287,25 @@
+         updated_cookie_names = self._get_changed_cookie_labels(old_cookie_snapshot, new_cookie_snapshot)
+         updated_cookie_count = len(updated_cookie_names)
+         merged_cookie_string = build_cookie_string_from_browser_cookies(new_cookie_snapshot)
++        commit = await validate_and_commit_authoritative_cookie_candidate(
++            account.account_id,
++            expected_authoritative_fingerprint=expected_fp,
++            candidate_cookie=merged_cookie_string,
++            source="scheduler_browser_cookie_refresh",
++            owner_id=account.owner_id,
++        )
++        if not (commit.get("committed") and commit.get("auth_status") == "AUTH_VALID"):
++            schedule.last_status = "failed"
++            schedule.last_error_message = f"SAFE_MTOP_{commit.get('auth_status') or 'UNKNOWN'}"[:500]
++            await session.commit()
++            return CookiesRefreshProcessResult(
++                status="failed",
++                message=schedule.last_error_message,
++            )
++
+         refresh_time = get_beijing_now_naive()
+         next_expire_at = self._build_success_expire_at(refresh_time)
+-
+-        account.cookie = merged_cookie_string
++        await session.refresh(account)
+         account.metadata_json = set_cookie_refresh_snapshot(account.metadata_json, new_cookie_snapshot)
+         account.last_refresh_at = refresh_time
+         schedule.expire_at = next_expire_at
+--- a/scheduler/app/services/scheduler/login_renew_task.py
++++ b/scheduler/app/services/scheduler/login_renew_task.py
+@@ -25,9 +25,14 @@
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from common.db.session import async_session_maker
++from common.services.account_cookie_service import (
++    claim_authoritative_cookie_renewal,
++    release_authoritative_cookie_renewal,
++    validate_and_commit_authoritative_cookie_candidate,
++)
+ from common.models.scheduled_login_renew_log import ScheduledLoginRenewLog
+ from common.models.xy_account import XYAccount
+-from common.utils.cookie_refresh import clear_cookie_refresh_snapshot
++from common.utils.cookie_refresh import cookie_fingerprint
+ from common.utils.xianyu_utils import trans_cookies, generate_sign
+ from common.utils.time_utils import get_beijing_now_naive
+ 
+@@ -168,54 +173,70 @@
+         session: AsyncSession,
+         account: XYAccount
+     ) -> tuple[str, Optional[str]]:
+-        """
+-        对单个账号执行续期检查
+-        
+-        Returns:
+-            (状态, 消息)
+-            状态: success/token_refreshed/session_expired/failed
+-        """
++        """Run one login-renew check under the shared authoritative Cookie lease."""
+         account_id = account.account_id
+-        cookies_str = account.cookie
+-        
++        cookies_str = account.cookie or ""
+         logger.info(f"【{self.task_name}】开始检查账号: {account_id}")
+-        
+-        try:
+-            # 调用登录用户接口检查登录状态
+-            result = await self._fetch_login_user_for_renew(cookies_str, account_id)
+-            
++
++        claim = await claim_authoritative_cookie_renewal(
++            account_id, source="scheduler_login_renew"
++        )
++        if not claim.get("claimed"):
++            return "skipped", str(claim.get("reason") or "SESSION_RENEWING")
++        expected_fp = str(
++            claim.get("expected_fingerprint") or cookie_fingerprint(cookies_str)
++        )
++        authoritative_cookie = str(
++            claim.get("authoritative_cookie") or cookies_str
++        )
++
++        try:
++            result = await self._fetch_login_user_for_renew(
++                authoritative_cookie, account_id
++            )
+             status = result.get("status", "failed")
+             message = result.get("message")
+-            new_cookies = result.get("new_cookies")
+-            
+-            # 如果获取到新Cookie，更新数据库
+-            if new_cookies and new_cookies != cookies_str:
+-                account.cookie = new_cookies
+-                account.metadata_json = clear_cookie_refresh_snapshot(account.metadata_json)
++            candidate_cookie = result.get("new_cookies") or authoritative_cookie
++
++            commit = await validate_and_commit_authoritative_cookie_candidate(
++                account_id,
++                expected_authoritative_fingerprint=expected_fp,
++                candidate_cookie=candidate_cookie,
++                source="scheduler_login_renew",
++                owner_id=account.owner_id,
++            )
++            if commit.get("committed") and commit.get("auth_status") == "AUTH_VALID":
++                await session.refresh(account)
+                 account.last_refresh_at = get_beijing_now_naive()
+                 session.add(account)
+                 await session.commit()
+-                logger.info(f"【{self.task_name}】账号 {account_id} Cookie已更新")
+-            
+-            # Session过期或令牌为空时触发后台密码登录
+-            if status in ("session_expired", "token_empty"):
++                return (
++                    "token_refreshed" if candidate_cookie != authoritative_cookie else "success",
++                    message,
++                )
++
++            auth_status = str(commit.get("auth_status") or "UNKNOWN")
++            if auth_status == "SESSION_EXPIRED" or status in ("session_expired", "token_empty"):
+                 from common.utils.cookie_refresh import (
+                     mark_account_session_expired, trigger_password_login_async
+                 )
+                 mark_account_session_expired(account_id)
+                 trigger_password_login_async(account_id)
+-                status_desc = "Session过期" if status == "session_expired" else "令牌为空"
+-                logger.warning(
+-                    f"【{self.task_name}】账号 {account_id} {status_desc}，"
+-                    f"已标记冷却并触发后台密码登录"
+-                )
+-            
+-            return status, message
+-            
+-        except Exception as e:
+-            error_msg = str(e)
+-            logger.error(f"【{self.task_name}】账号 {account_id} 续期检查失败: {error_msg}")
+-            return "failed", error_msg
++                return "session_expired", message or "SAFE_MTOP_SESSION_EXPIRED"
++            if auth_status == "PLATFORM_VERIFICATION":
++                return "failed", "SAFE_MTOP_PLATFORM_VERIFICATION"
++            return "failed", f"SAFE_MTOP_{auth_status}"
++        except Exception as exc:
++            await release_authoritative_cookie_renewal(
++                account_id,
++                expected_authoritative_fingerprint=expected_fp,
++                source="scheduler_login_renew",
++                reason=f"EXCEPTION:{type(exc).__name__}",
++            )
++            logger.error(
++                f"【{self.task_name}】账号 {account_id} 续期检查异常: {type(exc).__name__}"
++            )
++            return "failed", type(exc).__name__
+ 
+     async def _fetch_login_user_for_renew(
+         self,
+--- a/scheduler/app/services/scheduler/polish_task.py
++++ b/scheduler/app/services/scheduler/polish_task.py
+@@ -172,8 +172,9 @@
+                     
+                     # 如果返回了更新后的cookie，写入数据库并用于后续商品
+                     if result.get("cookie_str") and result["cookie_str"] != current_cookie_str:
++                        expected_cookie = current_cookie_str
+                         current_cookie_str = result["cookie_str"]
+-                        await update_account_cookies_in_db(account.account_id, current_cookie_str)
++                        await update_account_cookies_in_db(account.account_id, current_cookie_str, expected_authoritative_cookie=expected_cookie, source="scheduler_polish_response")
+                         logger.info(f"【{self.task_name}】账号 {account.account_id} Cookie已通过Set-Cookie更新并写入数据库")
+                     
+                     # 判断是否成功（包括"一天只能擦亮一次"的情况）
+--- a/scheduler/app/services/scheduler/red_flower_task.py
++++ b/scheduler/app/services/scheduler/red_flower_task.py
+@@ -396,8 +396,9 @@
+                     # ---- 处理响应中的 Set-Cookie，更新到数据库 ----
+                     new_resp_cookies = extract_cookies_from_response(response)
+                     if new_resp_cookies:
++                        expected_cookie = cookie_str
+                         cookie_str = merge_cookies(cookie_str, new_resp_cookies)
+-                        await update_account_cookies_in_db(account_id, cookie_str)
++                        await update_account_cookies_in_db(account_id, cookie_str, expected_authoritative_cookie=expected_cookie, source="scheduler_red_flower_response")
+                         logger.info(
+                             f"[求小红花] {retry_tag}账号 {account_id} "
+                             f"从Set-Cookie合并了 {len(new_resp_cookies)} 个字段并更新数据库"
+@@ -429,8 +430,8 @@
+                                 response, cookie_str
+                             )
+                             if has_new:
+-                                # 更新数据库
+-                                await update_account_cookies_in_db(account_id, refreshed_cookie)
++                                # 更新数据库：以本次请求使用的Cookie为CAS baseline
++                                await update_account_cookies_in_db(account_id, refreshed_cookie, expected_authoritative_cookie=cookie_str, source="scheduler_red_flower_token_refresh")
+                                 # 使用新Cookie重试一次
+                                 return await self._request_red_flower(
+                                     session, account_id, refreshed_cookie, order, is_retry=True,
+--- a/scheduler/app/services/scheduler/token_captcha_renewal.py
++++ b/scheduler/app/services/scheduler/token_captcha_renewal.py
+@@ -15,7 +15,8 @@
+ 
+ from loguru import logger
+ 
+-from common.services.account_cookie_service import merge_account_cookie_fields
++from common.services.account_cookie_service import validate_and_commit_authoritative_cookie_candidate
++from common.utils.cookie_refresh import cookie_fingerprint, merge_cookies
+ from common.services.captcha.token_response import extract_token_captcha_url
+ from common.services.captcha.websocket_solver import solve_captcha_via_websocket
+ 
+@@ -120,11 +121,14 @@
+     )
+     if token_already_available:
+         if isinstance(new_cookies, dict) and new_cookies:
+-            merged_cookies_str = await merge_account_cookie_fields(
+-                account_row_id,
++            candidate_cookie = merge_cookies(cookies_str, new_cookies)
++            commit = await validate_and_commit_authoritative_cookie_candidate(
+                 account_id,
+-                new_cookies,
++                expected_authoritative_fingerprint=cookie_fingerprint(cookies_str),
++                candidate_cookie=candidate_cookie,
++                source="scheduler_token_captcha_token_available",
+             )
++            merged_cookies_str = str(commit.get("cookies_str") or "") if commit.get("committed") else ""
+             if not merged_cookies_str:
+                 reason = "风控解除后的Cookie合并写回失败"
+                 logger.error(f"【{task_name}】【{account_id}】{reason}")
+@@ -142,11 +146,14 @@
+         logger.error(f"【{task_name}】【{account_id}】{reason}")
+         return CaptchaRenewalResult(failure_message=reason)
+ 
+-    merged_cookies_str = await merge_account_cookie_fields(
+-        account_row_id,
++    candidate_cookie = merge_cookies(cookies_str, new_cookies)
++    commit = await validate_and_commit_authoritative_cookie_candidate(
+         account_id,
+-        new_cookies,
++        expected_authoritative_fingerprint=cookie_fingerprint(cookies_str),
++        candidate_cookie=candidate_cookie,
++        source="scheduler_token_captcha_result",
+     )
++    merged_cookies_str = str(commit.get("cookies_str") or "") if commit.get("committed") else ""
+     if not merged_cookies_str:
+         cookie_names = ",".join(str(name) for name in new_cookies.keys())[:200]
+         reason = f"滑块Cookie合并写回失败（Cookie字段：{cookie_names or '无'}）"
+--- a/scheduler/app/services/scheduler/token_renewal_task.py
++++ b/scheduler/app/services/scheduler/token_renewal_task.py
+@@ -27,7 +27,8 @@
+ from common.models.scheduled_token_renewal_log import ScheduledTokenRenewalLog
+ from common.models.token_cache import TokenCache
+ from common.models.xy_account import XYAccount
+-from common.services.account_cookie_service import merge_account_cookie_fields
++from common.services.account_cookie_service import validate_and_commit_authoritative_cookie_candidate
++from common.utils.cookie_refresh import cookie_fingerprint, merge_cookies
+ from common.services.captcha.token_response import (
+     is_token_captcha_required,
+     is_token_expired_response,
+@@ -239,28 +240,25 @@
+         cookies_str: str,
+         response_cookies: dict[str, str],
+     ) -> str | None:
+-        """将接口下发的 Set-Cookie 合并进账号 Cookie 并写回数据库。
+-
+-        未下发新 Cookie 时原样返回；写入失败返回 ``None``。
+-        """
+-        if not response_cookies:
+-            return cookies_str
+-
+-        merged_cookies_str = await merge_account_cookie_fields(
+-            candidate.account_row_id,
++        """Validate/CAS any Token response Cookie against the request baseline."""
++        merged_cookies_str = (
++            merge_cookies(cookies_str, response_cookies)
++            if response_cookies
++            else cookies_str
++        )
++        commit = await validate_and_commit_authoritative_cookie_candidate(
+             candidate.account_id,
+-            response_cookies,
++            expected_authoritative_fingerprint=cookie_fingerprint(cookies_str),
++            candidate_cookie=merged_cookies_str,
++            source="scheduler_token_renewal_response",
+         )
+-        if merged_cookies_str:
+-            logger.info(
+-                f"【{self.task_name}】【{candidate.account_id}】已合并接口下发Cookie并写回数据库"
+-            )
+-        else:
+-            logger.error(
+-                f"【{self.task_name}】【{candidate.account_id}】接口下发Cookie合并写回失败，"
+-                "停止本次Token续期"
+-            )
+-        return merged_cookies_str
++        if commit.get("committed") and commit.get("auth_status") == "AUTH_VALID":
++            return str(commit.get("cookies_str") or merged_cookies_str)
++        logger.warning(
++            f"【{self.task_name}】【{candidate.account_id}】Token响应Cookie未成为authoritative: "
++            f"status={commit.get('status')} auth={commit.get('auth_status')}"
++        )
++        return None
+ 
+     async def _renew_candidate(
+         self,
