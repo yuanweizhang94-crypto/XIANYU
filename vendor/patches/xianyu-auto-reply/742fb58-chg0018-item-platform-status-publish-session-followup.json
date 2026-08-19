@@ -1,0 +1,14 @@
+{
+  "patch": "vendor/patches/xianyu-auto-reply/742fb58-chg0018-item-platform-status-publish-session-followup.patch",
+  "sha256": "2D27EAE393035220C9E8DD7578197F59FE88FD2A2D6C7451CDC6866BDEFE37BD",
+  "runtime_before_hashes": {
+    "item_service": "6A4EFE6CEAFF01088A60ED07DCC639C91F397719856BAC02CB7F4E1ED4ABA6BD",
+    "xianyu_publish_service": "A04961F1AE60E992560A19342F14E013E0ED4658C35B8240B0609767A80C5711"
+  },
+  "fixes": [
+    "raw item_status=0 required for ACTIVE",
+    "restore read-only account restriction probe via current upstream capability detection",
+    "replace three undefined session.refresh(account) references with self.session.refresh(account)"
+  ],
+  "temporary_text_edit_included": false
+}

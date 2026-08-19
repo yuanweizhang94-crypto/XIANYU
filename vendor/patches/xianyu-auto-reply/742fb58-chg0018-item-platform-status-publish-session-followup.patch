@@ -1,0 +1,153 @@
+diff --git a/backend-web/app/services/publish_execution_service.py b/backend-web/app/services/publish_execution_service.py
+index c8a70f6..47049ca 100644
+--- a/backend-web/app/services/publish_execution_service.py
++++ b/backend-web/app/services/publish_execution_service.py
+@@ -290,7 +290,7 @@ class PublishExecutorService:
+                     owner_id=user_id,
+                 )
+                 cookies_str = capability.get("cookies_str") or cookies_str
+-                await session.refresh(account)
++                await self.session.refresh(account)
+                 cookies_str = account.cookie or cookies_str
+             except Exception as capability_exc:
+                 capability = {
+@@ -382,7 +382,7 @@ class PublishExecutorService:
+                             static_root=STATIC_ROOT,
+                         )
+                     cookies_str = result.get("cookies_str") or cookies_str
+-                    await session.refresh(account)
++                    await self.session.refresh(account)
+                     cookies_str = account.cookie or cookies_str
+ 
+                     if result.get("success"):
+@@ -413,7 +413,7 @@ class PublishExecutorService:
+             if account_success_count > 0 and account is not None:
+                 try:
+                     # 接口调用可能刷新令牌；从authoritative DB读取最新Cookie，禁止ORM隐式回写。
+-                    await session.refresh(account)
++                    await self.session.refresh(account)
+                     cookies_str = account.cookie or cookies_str
+                     await PublishBatchStatusService.mark_account_sync_running(
+                         batch_id=batch_id,
+diff --git a/common/services/item_service.py b/common/services/item_service.py
+index 2940d66..0e11f79 100644
+--- a/common/services/item_service.py
++++ b/common/services/item_service.py
+@@ -78,14 +78,34 @@ class ItemService:
+         return datetime.now(timezone.utc).isoformat()
+ 
+     def _active_item_platform_metadata(self, item: dict, now: str) -> dict[str, Any]:
++        raw_status = item.get("item_status")
++        normalized_raw_status = str(raw_status).strip() if raw_status is not None else ""
++        if normalized_raw_status == "0":
++            return {
++                "platform_status": self.PLATFORM_STATUS_ACTIVE,
++                "platform_status_reason": "seen_with_active_raw_item_status",
++                "platform_status_source": "ItemInfoManager.get_item_list_info",
++                "platform_status_updated_at": now,
++                "last_seen_active_at": now,
++                "last_status_check_at": now,
++                "raw_platform_item_status": raw_status,
++            }
+         return {
+-            "platform_status": self.PLATFORM_STATUS_ACTIVE,
+-            "platform_status_reason": "seen_in_active_item_list",
++            "platform_status": (
++                self.PLATFORM_STATUS_MISSING
++                if normalized_raw_status
++                else self.PLATFORM_STATUS_UNKNOWN
++            ),
++            "platform_status_reason": (
++                f"raw_platform_item_status_not_active:{normalized_raw_status}"
++                if normalized_raw_status
++                else "raw_platform_item_status_missing"
++            ),
+             "platform_status_source": "ItemInfoManager.get_item_list_info",
+             "platform_status_updated_at": now,
+-            "last_seen_active_at": now,
++            "last_seen_active_at": None,
+             "last_status_check_at": now,
+-            "raw_platform_item_status": item.get("item_status"),
++            "raw_platform_item_status": raw_status,
+         }
+ 
+     def _summarize_official_text(self, value: Any, limit: int = 180) -> str:
+diff --git a/common/services/xianyu_publish_service.py b/common/services/xianyu_publish_service.py
+index 7c420a9..a77b349 100644
+--- a/common/services/xianyu_publish_service.py
++++ b/common/services/xianyu_publish_service.py
+@@ -87,6 +87,74 @@ async def detect_publish_account_capability(
+     return await service.detect(account_id=account_id, cookie=cookie, owner_id=owner_id)
+ 
+ 
++async def probe_account_publish_restriction(
++    *,
++    cookie: str | None,
++    account_id: str | None = None,
++    owner_id: int | None = None,
++    static_root: str | Path | None = None,
++) -> dict[str, Any]:
++    """Read-only compatibility probe backed by the current upstream preget capability check."""
++    del static_root
++    result = await detect_publish_account_capability(
++        cookie=cookie or "",
++        account_id=str(account_id or ""),
++        owner_id=owner_id,
++    )
++    message = str(result.get("message") or result.get("error") or "")
++    lowered = message.lower()
++    if result.get("success"):
++        return {
++            "success": True,
++            "probe_mode": "READ_ONLY",
++            "state": "NORMAL",
++            "reason": "upstream_preget_capability_ready",
++            "restriction_until": None,
++            "duration_seconds": None,
++            "source": "detect_publish_account_capability",
++            "evidence_type": "UPSTREAM_PREGET_SUCCESS",
++            "real_products_published": 0,
++        }
++    if (
++        "user_was_forbidden2" in lowered
++        or "发布权限被限制" in message
++        or "限制发布" in message
++        or "无法发布" in message
++    ):
++        return {
++            "success": True,
++            "probe_mode": "READ_ONLY",
++            "state": "PUBLISH_RESTRICTED",
++            "reason": message[:180] or "upstream_preget_publish_restricted",
++            "restriction_until": None,
++            "duration_seconds": None,
++            "source": "detect_publish_account_capability",
++            "evidence_type": "UPSTREAM_PREGET_RESTRICTION",
++            "real_products_published": 0,
++        }
++    if any(marker in lowered for marker in ("session", "login", "token")) or any(
++        marker in message for marker in ("登录", "扫码")
++    ):
++        state = "HUMAN_QR_REQUIRED"
++    elif any(marker in lowered for marker in ("captcha", "verification", "validate")) or any(
++        marker in message for marker in ("验证", "滑块")
++    ):
++        state = "PLATFORM_VERIFICATION_REQUIRED"
++    else:
++        state = "UNKNOWN"
++    return {
++        "success": False,
++        "probe_mode": "READ_ONLY",
++        "state": state,
++        "reason": message[:180] or "upstream_preget_probe_failed",
++        "restriction_until": None,
++        "duration_seconds": None,
++        "source": "detect_publish_account_capability",
++        "evidence_type": "NO_AUTHORITATIVE_RESTRICTION",
++        "real_products_published": 0,
++    }
++
++
+ async def publish_personal_single_item(
+     item_data: dict,
+     cookie: str,
