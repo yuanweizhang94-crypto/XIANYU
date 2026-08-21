@@ -1,10 +1,10 @@
 # CHG-0023 Acceptance
 
-Status: DRAFT
+Status: APPROVED
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 
-This DRAFT records the approved scope and future acceptance contract only. It does not authorize implementation.
+This APPROVED Change records the authorized implementation and acceptance contract. Implementation is authorized only within the current scope and safety boundaries.
 
 - [ ] Existing WebSocket status exposes `token_ready=true` only when the existing live instance owns a current token.
 - [ ] Existing WebSocket status exposes `token_ready=false` when no current token is present.

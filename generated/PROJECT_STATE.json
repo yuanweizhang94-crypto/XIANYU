@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0023-websocket-auto-reply-readiness-contract-restoration",
-    "status": "DRAFT",
+    "status": "APPROVED",
     "path": "changes/active/CHG-0023-websocket-auto-reply-readiness-contract-restoration"
   },
   "tasks": {
     "total": 6,
     "completed": 0,
-    "next_task": null,
+    "next_task": "T1 Re-run project context after Owner approval to execute; refresh current upstream/local/runtime read-only evidence and confirm the historical contract delta is still exact.",
     "items": [
       {
         "text": "T1 Re-run project context after Owner approval to execute; refresh current upstream/local/runtime read-only evidence and confirm the historical contract delta is still exact.",

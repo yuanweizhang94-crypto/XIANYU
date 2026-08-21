@@ -1,6 +1,6 @@
 # CHG-0023 Tasks
 
-Status: DRAFT
+Status: APPROVED
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 

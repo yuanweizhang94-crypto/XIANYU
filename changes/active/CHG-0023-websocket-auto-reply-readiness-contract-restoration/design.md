@@ -1,6 +1,6 @@
 # CHG-0023 Design
 
-Status: DRAFT
+Status: APPROVED
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 
@@ -22,7 +22,7 @@ Restore only the previously validated readiness contract in the existing executi
 
 - `2221422775489` and `2221501265279` remain untouched QR fail-closed negative controls.
 - `2219319284219` is excluded from untouched negative controls because the Owner performed a legitimate QR recovery action; it is only a conditional positive until Session convergence is read-only proven.
-- No QR scan, password login, automatic login, Cookie refresh, Token refresh, Chat connect, message send, Item Sync, Runtime restart, or deployment is part of this DRAFT transition.
+- No QR scan, password login, automatic login, Cookie refresh, Token refresh, Chat connect, message send, or Item Sync is authorized by this Change. Targeted Runtime deployment is allowed only after the approved executable test and regression gates pass.
 
 ## Upstream capability audit
 
