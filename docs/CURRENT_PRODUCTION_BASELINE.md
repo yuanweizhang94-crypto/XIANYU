@@ -228,6 +228,21 @@ Only modify the existing implementation after proving the issue is not stale Run
 
 See `docs/AI_PROJECT_HANDOFF.md`, `AGENTS.md`, and `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md` for the mandatory precheck.
 
+## External procurement integration boundary — 2026-08-21
+
+The next-generation ZIDONGZHUA JZAI just-in-time procurement/payment loop is external to XIANYU business ownership. XIANYU remains authoritative for the source order state and native delivery result.
+
+```text
+PROCUREMENT_TRIGGER=XIANYU_AUTHORITATIVE_PAID_ONLY
+UNKNOWN != PAID
+XIANYU_OWNS_OKX_API=false
+XIANYU_OWNS_SUPPLIER_PAYMENT=false
+REUSE_EXISTING_NATIVE_DELIVERY=true
+UNKNOWN_NEVER_REPAY=true
+```
+
+No JZAI supplier credentials, OKX API credentials, wallet/payment secrets or second payment state machine belong in XIANYU. External fulfillment may return a dynamic CDK/redeem result to the existing XIANYU native delivery path only after the external payment/fulfillment state is authoritative.
+
 ## Security
 
 No secret values are part of this baseline. Never commit Cookie/Token/JWT/Authorization/password/API key/private key/QR payload/browser Profile secret/real customer message material.

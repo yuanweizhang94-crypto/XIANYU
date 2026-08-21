@@ -574,6 +574,33 @@ COMPANY_LOCAL_EXECUTION_TOOL 正常 XIANYU 业务优先：
 
 ---
 
+# 17.1 外部即时采购 / 自动支付边界（2026-08-21）
+
+ZIDONGZHUA 正在建设 JZAI Just-in-Time Procurement V2。XIANYU 在该闭环中的职责保持不变：它只提供闲鱼权威订单状态和现有 native delivery 能力，不拥有供应商采购状态机、OKX API、链上付款密钥或第二套付款系统。
+
+长期契约：
+
+```text
+XIANYU_AUTHORITATIVE_PAID=true
+-> external PROCUREMENT_ROUTER / Payment Engine may proceed
+
+UNKNOWN != PAID
+buyer_message_claiming_paid != PAID
+```
+
+外部采购/付款完成后，动态 CDK/兑换链接必须回到 XIANYU 现有正式 sender / auto-delivery owner；只有发送成功并完成权威 readback 后才能确认发货。不得为了 JZAI/OKX 重新实现 Publisher、Session、Chat、Auto Reply、Order owner、WebSocket 或 delivery sender。
+
+当前阶段仍为 Shadow/安全验证：
+
+```text
+REAL_AUTO_PAYMENT_ENABLED=false
+UNKNOWN_NEVER_REPAY=true
+NO_BLIND_PAYMENT_RETRY=true
+ONE_XIANYU_ORDER_ONE_PROCUREMENT=true
+```
+
+历史 `¥0.01 paid + delivered` 订单由 Owner 明确认定为主动的自动采购/交付测试，不是异常客户订单。该历史测试不得重新制造、重新付款或重新发货；其中 XIANYU `paid + delivered` 可作为已发生事实，供应链中间证据不足的部分仍标记 `NOT_PROVEN`。
+
 # 18. 永久禁止平行系统
 
 无明确证明不得创建：
