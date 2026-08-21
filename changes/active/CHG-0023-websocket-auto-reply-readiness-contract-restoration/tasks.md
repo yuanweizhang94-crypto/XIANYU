@@ -1,14 +1,14 @@
 # CHG-0023 Tasks
 
-Status: APPROVED
+Status: VERIFYING
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 
-- [ ] T1 Re-run project context after Owner approval to execute; refresh current upstream/local/runtime read-only evidence and confirm the historical contract delta is still exact.
-- [ ] T2 Restore only the existing WebSocket `token_ready` status producer and existing Backend authoritative readiness precedence; do not add new owners or endpoints.
-- [ ] T3 Run targeted producer/consumer tests for healthy token-ready, no-token, authoritative HUMAN_QR_REQUIRED, platform-verification-required, and expired Session states.
-- [ ] T4 Run CHG-0022 network/token regressions plus QR fail-closed and healthy-maintenance regressions without real messages or QR actions.
-- [ ] T5 If tests pass and executable status authorizes it, activate only the minimal required Runtime components and verify source/runtime match plus current acceptance controls.
+- [x] T1 Re-run project context after Owner approval to execute; refresh current upstream/local/runtime read-only evidence and confirm the historical contract delta is still exact.
+- [x] T2 Restore only the existing WebSocket `token_ready` status producer and existing Backend authoritative readiness precedence; do not add new owners or endpoints.
+- [x] T3 Run targeted producer/consumer tests for healthy token-ready, no-token, authoritative HUMAN_QR_REQUIRED, platform-verification-required, and expired Session states.
+- [x] T4 Run CHG-0022 network/token regressions plus QR fail-closed and healthy-maintenance regressions without real messages or QR actions.
+- [ ] T5 BLOCKED: predeploy gates pass, but the local execution connector rejects the protected runtime `.env` before targeted container recreation; production source/runtime and acceptance controls therefore remain unverified for CHG-0023.
 - [ ] T6 Persist exact Change implementation/evidence to GitHub only after production acceptance; keep unrelated governance debt and other repositories out of scope.
 
 ## Upstream capability audit

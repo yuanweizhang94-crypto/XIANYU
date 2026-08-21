@@ -1,6 +1,6 @@
 # CHG-0023 WebSocket Auto Reply Readiness Contract Restoration
 
-Status: APPROVED
+Status: VERIFYING
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 

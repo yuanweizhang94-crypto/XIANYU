@@ -1,10 +1,10 @@
 # CHG-0023 Acceptance
 
-Status: APPROVED
+Status: VERIFYING
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 
-This APPROVED Change records the authorized implementation and acceptance contract. Implementation is authorized only within the current scope and safety boundaries.
+This VERIFYING Change records the authorized implementation and acceptance contract. Predeploy source/regression gates have passed, but production activation is currently blocked by the protected runtime environment boundary; production acceptance remains incomplete.
 
 - [ ] Existing WebSocket status exposes `token_ready=true` only when the existing live instance owns a current token.
 - [ ] Existing WebSocket status exposes `token_ready=false` when no current token is present.
