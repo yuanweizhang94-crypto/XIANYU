@@ -1,0 +1,27 @@
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+index a4ed1c0ec5d2a5bad29ba69aefbad71d46d089c0..fbbfbd93aa5fbd97a6e11b00d4c756fb3853737b 100644
+GIT binary patch
+delta 276
+zcmZo)#d2#E%LZ<}$%W3MlZ*7tCqFcDn0(twVX_Y&=j1!4+>_-D)c6uhOEU6{GD{Lm
+zGRsoqflB2k*BbOpcG4A^tZQfs*0S2r*;s>10Szdj>dYw3P0WigEQ&8mEiBC}N=;Fk
+z{*a$hWU{@kD9|9`AX{4nB}_FKrl#f;rz$Ar<;N!jjY!Qa$xO^Cj!#T0NiB*mPAx9Z
+z%+HHYttiMWs#M~dER!KUdA>8p<Odd!lMe(6PG0BAIeDAWHeM8mO>Q<`x>-cefpN2j
+H$^8caGOS?i
+
+delta 161
+zcmcb$ilu!O%LZ<}%|^zaj2sGyc_|7S<;9c#>4{BN&@*S$oczzwVX~gH!ek#l&dCS#
+z3@1mKaq%bT=jEj)m!zh|m*i)s<^ff&L5M-jm~5{rI(d)2Ez|@{1Lw&srebVh_3@MS
+lOdBVEaFv>@Z!9(Wj^SF6p}Yt~lS)e_PcvG&x!UCZ0{{(jJHY?|
+
+diff --git a/websocket/app/services/xianyu/cookie_manager.py b/websocket/app/services/xianyu/cookie_manager.py
+index 13223958a1439bbafa6d7e1bc834f69e4580f304..76cfd2f200d6d1c23d48d74cd38cdc13dfff65a1 100644
+GIT binary patch
+delta 143
+zcmcbAo$>ok#ti{}ljS1#COe3*OxB6uo*eDRJ9$F@ACCeMC>53F<z?ojPww*<pL`-h
+zWO7=dz-0Ci@yU0CIVLX(keSRK!poePQVEtX3l!bF)K7^CDj>0We?TNND^OO+YO+tX
+nq<C^^QBi7MNqk9uc50rIj)Gr)UaF?1&g6@-Vw?FxE{FpFQtvV_
+
+delta 75
+zcmex<lkxs_#ti{}T1v$wi6y1QN>&O=dHE&rKweQvYKoGMf>KdwUS4KiI#9+fF{e0H
+dXYx8fvCW45=1h|fLisn(3Up%LY!G@}8~{g*8({zd
+

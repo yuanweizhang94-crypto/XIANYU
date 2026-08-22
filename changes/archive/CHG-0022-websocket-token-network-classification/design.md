@@ -1,6 +1,6 @@
 # CHG-0022 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0022-websocket-token-network-classification
 
