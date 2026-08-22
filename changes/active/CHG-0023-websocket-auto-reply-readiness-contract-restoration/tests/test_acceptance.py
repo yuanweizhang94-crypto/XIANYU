@@ -2,9 +2,10 @@ from hashlib import sha256
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[2]
+CHANGE = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[4]
 PATCH = ROOT / "vendor/patches/xianyu-auto-reply/chg0023-readiness-owner-deltas.patch"
-EVIDENCE = ROOT / "changes/active/CHG-0023-websocket-auto-reply-readiness-contract-restoration/evidence/20260823-runtime-acceptance-and-formal-persistence.md"
+EVIDENCE = CHANGE / "evidence/20260823-runtime-acceptance-and-formal-persistence.md"
 
 
 def patch_text() -> str:
