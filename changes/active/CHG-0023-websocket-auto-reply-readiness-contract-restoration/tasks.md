@@ -8,8 +8,8 @@ Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 - [x] T2 Restore only the existing WebSocket `token_ready` status producer and existing Backend authoritative readiness precedence; do not add new owners or endpoints.
 - [x] T3 Run targeted producer/consumer tests for healthy token-ready, no-token, authoritative HUMAN_QR_REQUIRED, platform-verification-required, and expired Session states.
 - [x] T4 Run CHG-0022 network/token regressions plus QR fail-closed and healthy-maintenance regressions without real messages or QR actions.
-- [ ] T5 BLOCKED: predeploy gates pass, but the local execution connector rejects the protected runtime `.env` before targeted container recreation; production source/runtime and acceptance controls therefore remain unverified for CHG-0023.
-- [ ] T6 Persist exact Change implementation/evidence to GitHub only after production acceptance; keep unrelated governance debt and other repositories out of scope.
+- [x] T5 Production runtime acceptance passed on the second controlled activation; source/runtime match, positive/negative controls, CHG-0022 regression, and Session/Cookie safety all passed with zero real messages.
+- [ ] T6 Persist the exact two-owner vendor patch, formal evidence, tests, and generated state to GitHub; complete only after fresh remote SHA readback proves the pushed commit is authoritative.
 
 ## Upstream capability audit
 

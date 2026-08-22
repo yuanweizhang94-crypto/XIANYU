@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 6,
-    "completed": 4,
-    "next_task": "T5 BLOCKED: predeploy gates pass, but the local execution connector rejects the protected runtime `.env` before targeted container recreation; production source/runtime and acceptance controls therefore remain unverified for CHG-0023.",
+    "completed": 5,
+    "next_task": "T6 Persist the exact two-owner vendor patch, formal evidence, tests, and generated state to GitHub; complete only after fresh remote SHA readback proves the pushed commit is authoritative.",
     "items": [
       {
         "text": "T1 Re-run project context after Owner approval to execute; refresh current upstream/local/runtime read-only evidence and confirm the historical contract delta is still exact.",
@@ -28,11 +28,11 @@
         "completed": true
       },
       {
-        "text": "T5 BLOCKED: predeploy gates pass, but the local execution connector rejects the protected runtime `.env` before targeted container recreation; production source/runtime and acceptance controls therefore remain unverified for CHG-0023.",
-        "completed": false
+        "text": "T5 Production runtime acceptance passed on the second controlled activation; source/runtime match, positive/negative controls, CHG-0022 regression, and Session/Cookie safety all passed with zero real messages.",
+        "completed": true
       },
       {
-        "text": "T6 Persist exact Change implementation/evidence to GitHub only after production acceptance; keep unrelated governance debt and other repositories out of scope.",
+        "text": "T6 Persist the exact two-owner vendor patch, formal evidence, tests, and generated state to GitHub; complete only after fresh remote SHA readback proves the pushed commit is authoritative.",
         "completed": false
       }
     ]

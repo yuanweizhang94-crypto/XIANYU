@@ -4,20 +4,20 @@ Status: VERIFYING
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 
-This VERIFYING Change records the authorized implementation and acceptance contract. Predeploy source/regression gates have passed, but production activation is currently blocked by the protected runtime environment boundary; production acceptance remains incomplete.
+This VERIFYING Change records the authorized implementation and acceptance contract. Production runtime acceptance passed on the second controlled activation, and the exact two-owner source delta is now persisted as a per-file proven production-owner patch. GitHub main integration remains commander-owned.
 
-- [ ] Existing WebSocket status exposes `token_ready=true` only when the existing live instance owns a current token.
-- [ ] Existing WebSocket status exposes `token_ready=false` when no current token is present.
-- [ ] Existing internal status route returns the existing status payload including `token_ready` and `token_refresh_state` without adding a new endpoint or state owner.
-- [ ] Backend authoritative `HUMAN_QR_REQUIRED` takes precedence over `connected + token_ready`; such an account must not be ONLINE.
-- [ ] Backend authoritative platform-verification-required state takes precedence over `connected + token_ready`; such an account must not be ONLINE.
-- [ ] Backend authoritative expired/invalid Session state takes precedence over `connected + token_ready`; such an account must not be ONLINE.
-- [ ] Healthy authenticated controls may become ONLINE only when authoritative blockers are absent and existing WebSocket readiness is satisfied.
-- [ ] Confirmed positive-control set remains `2804730247`, `1951966327`, `2214313339860`, `2196106636`.
-- [ ] Conditional positive `2219319284219` is added to positive acceptance only after later read-only evidence proves Session convergence; current truth must not be rewritten as `SESSION_AUTH_VALID=true` prematurely.
-- [ ] Untouched negative controls `2221422775489` and `2221501265279` remain authoritative `HUMAN_QR_REQUIRED` and fail closed even if future WebSocket observations report connected/token-ready.
-- [ ] CHG-0022 DNS/gaierror/reset/timeout/network-recovery, explicit-auth, QR fail-closed, and healthy-maintenance regressions remain PASS.
-- [ ] No real message, automated QR action, password login, Cookie refresh, Token refresh, Chat connect, Item Sync, Scheduler/Publisher change, JZAI/COMPANY/ZIDONG/Payment change, or new execution owner is introduced.
+- [x] Existing WebSocket status exposes `token_ready=true` only when the existing live instance owns a current token.
+- [x] Existing WebSocket status exposes `token_ready=false` when no current token is present.
+- [x] Existing internal status route returns the existing status payload including `token_ready` and `token_refresh_state` without adding a new endpoint or state owner.
+- [x] Backend authoritative `HUMAN_QR_REQUIRED` takes precedence over `connected + token_ready`; such an account must not be ONLINE.
+- [x] Backend authoritative platform-verification-required state takes precedence over `connected + token_ready`; such an account must not be ONLINE.
+- [x] Backend authoritative expired/invalid Session state takes precedence over `connected + token_ready`; such an account must not be ONLINE.
+- [x] Healthy authenticated controls may become ONLINE only when authoritative blockers are absent and existing WebSocket readiness is satisfied.
+- [x] Confirmed positive-control set remains `2804730247`, `1951966327`, `2214313339860`, `2196106636`.
+- [x] `2219319284219` (王侠) passed as a positive runtime control; this acceptance does not rewrite its Session truth as `SESSION_AUTH_VALID=true`.
+- [x] Untouched negative controls `2221422775489` and `2221501265279` remain authoritative `HUMAN_QR_REQUIRED` and fail closed even when the modeled WebSocket input is connected/token-ready.
+- [x] CHG-0022 DNS/gaierror/reset/timeout/network-recovery, explicit-auth, QR fail-closed, and healthy-maintenance regressions remain PASS.
+- [x] No real message, automated QR action, password login, Cookie refresh, Token refresh, Chat connect, Item Sync, Scheduler/Publisher change, JZAI/COMPANY/ZIDONG/Payment change, or new execution owner is introduced.
 
 ## Upstream capability audit
 
