@@ -1,10 +1,14 @@
 # CHG-0023 Acceptance
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 
-This VERIFYING Change records the authorized implementation and acceptance contract. Production runtime acceptance passed on the second controlled activation, and the exact two-owner source delta is now persisted as a per-file proven production-owner patch. GitHub main integration remains commander-owned.
+This archived Change records the authorized implementation and acceptance contract. Production runtime acceptance passed on the second controlled activation, the exact two-owner source delta is persisted as a per-file proven production-owner patch, and GitHub main integration is complete.
+
+GIT_MAIN_INTEGRATION=PASS
+RUNTIME_ACCEPTANCE=PASS
+FINAL_STATUS=ARCHIVED
 
 - [x] Existing WebSocket status exposes `token_ready=true` only when the existing live instance owns a current token.
 - [x] Existing WebSocket status exposes `token_ready=false` when no current token is present.

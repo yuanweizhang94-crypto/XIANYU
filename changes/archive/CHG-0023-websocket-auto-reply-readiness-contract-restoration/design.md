@@ -1,6 +1,6 @@
 # CHG-0023 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 
