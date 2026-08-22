@@ -258,11 +258,16 @@ The repository also contains an already-existing CHG-0022 unit-test path assumpt
 
 ## Integration boundary
 
-Runtime acceptance is complete and T5 may be closed. Formal persistence is complete only when the exact reviewed task files are committed, pushed to `chore/CHG-0023-websocket-auto-reply-readiness-contract-restoration`, and fresh readback proves local commit SHA equals remote branch SHA.
-
-Until GitHub main integration is performed by the commander:
+Runtime acceptance is complete and T5 is closed. The exact reviewed task files were committed as `7f4d864928baf2d5695ed984e764bd1292158022`, pushed to `chore/CHG-0023-websocket-auto-reply-readiness-contract-restoration`, then fresh-fetched with exact local/remote SHA equality. That readback satisfied the T6 persistence condition; the final task-state/generated-state closeout is a governance-only follow-up commit.
 
 ```text
+FORMAL_SOURCE_PERSISTED=true
+FORMAL_EVIDENCE_PERSISTED=true
+FORMAL_BRANCH_PUSHED=true
+FIRST_PERSISTENCE_COMMIT=7f4d864928baf2d5695ed984e764bd1292158022
+FIRST_PERSISTENCE_LOCAL_REMOTE_MATCH=true
+T5_COMPLETE=true
+T6_COMPLETE=true
 AUTO_REPLY_FULL_PRODUCTION_READY=PENDING_GIT_MAIN_INTEGRATION
-NEXT_SINGLE_ACTION=COMPLETE_FORMAL_GIT_PERSISTENCE_THEN_STOP_FOR_COMMANDER_INTEGRATION
+NEXT_SINGLE_ACTION=STOP_AND_RETURN_TO_COMMANDER_FOR_CHG0023_GIT_INTEGRATION
 ```

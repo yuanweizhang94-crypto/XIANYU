@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 6,
-    "completed": 5,
-    "next_task": "T6 Persist the exact two-owner vendor patch, formal evidence, tests, and generated state to GitHub; complete only after fresh remote SHA readback proves the pushed commit is authoritative.",
+    "completed": 6,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Re-run project context after Owner approval to execute; refresh current upstream/local/runtime read-only evidence and confirm the historical contract delta is still exact.",
@@ -32,8 +32,8 @@
         "completed": true
       },
       {
-        "text": "T6 Persist the exact two-owner vendor patch, formal evidence, tests, and generated state to GitHub; complete only after fresh remote SHA readback proves the pushed commit is authoritative.",
-        "completed": false
+        "text": "T6 Persisted the exact two-owner vendor patch, formal evidence, tests, and generated state to GitHub; fresh remote SHA readback proved the persistence commit authoritative.",
+        "completed": true
       }
     ]
   },
