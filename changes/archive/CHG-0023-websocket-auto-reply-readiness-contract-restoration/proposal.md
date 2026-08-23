@@ -1,6 +1,6 @@
 # CHG-0023 WebSocket Auto Reply Readiness Contract Restoration
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 
@@ -11,6 +11,10 @@ Implementation is authorized only within the current approved scope by the expli
 OWNER_APPROVAL=`批准 CHG-0023 按当前已定义 scope 实施`
 
 CHG0023_IMPLEMENTATION_AUTHORIZED=true
+
+GIT_MAIN_INTEGRATION=PASS
+RUNTIME_ACCEPTANCE=PASS
+FINAL_STATUS=ARCHIVED
 
 ## Execution contract
 

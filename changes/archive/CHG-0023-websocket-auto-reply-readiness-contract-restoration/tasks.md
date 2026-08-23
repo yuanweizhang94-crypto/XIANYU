@@ -1,6 +1,6 @@
 # CHG-0023 Tasks
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 
@@ -10,6 +10,10 @@ Change ID: CHG-0023-websocket-auto-reply-readiness-contract-restoration
 - [x] T4 Run CHG-0022 network/token regressions plus QR fail-closed and healthy-maintenance regressions without real messages or QR actions.
 - [x] T5 Production runtime acceptance passed on the second controlled activation; source/runtime match, positive/negative controls, CHG-0022 regression, and Session/Cookie safety all passed with zero real messages.
 - [x] T6 Persisted the exact two-owner vendor patch, formal evidence, tests, and generated state to GitHub; fresh remote SHA readback proved the persistence commit authoritative.
+
+GIT_MAIN_INTEGRATION=PASS
+RUNTIME_ACCEPTANCE=PASS
+FINAL_STATUS=ARCHIVED
 
 ## Upstream capability audit
 
