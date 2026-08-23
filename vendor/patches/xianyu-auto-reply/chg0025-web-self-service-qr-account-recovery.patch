@@ -1,0 +1,702 @@
+diff --git a/backend-web/app/api/routes/qr_login.py b/backend-web/app/api/routes/qr_login.py
+index 5316e6ee9724d27397b609b841e8df6bcf358648..85c4df35f95de5acb25df89a22413430542b8ef5 100644
+--- a/backend-web/app/api/routes/qr_login.py
++++ b/backend-web/app/api/routes/qr_login.py
+@@ -8,7 +8,7 @@ from __future__ import annotations
+ import asyncio
+ from typing import Dict
+ 
+-from fastapi import APIRouter, Depends
++from fastapi import APIRouter, Body, Depends, HTTPException
+ from loguru import logger
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+@@ -26,6 +26,9 @@ router = APIRouter(prefix="/qr-login", tags=["二维码登录"])
+ # 会话所有者映射
+ SESSION_OWNER: Dict[str, int] = {}
+ 
++# CHG-0025：现有 QR owner 的账号级绑定，不创建第二套登录/Session owner。
++SESSION_TARGET_ACCOUNT: Dict[str, str] = {}
++
+ # 已处理的会话记录，防止重复处理
+ PROCESSED_SESSIONS: Dict[str, Dict] = {}
+ 
+@@ -43,6 +46,7 @@ def _get_session_lock(session_id: str) -> asyncio.Lock:
+ def _cleanup_session(session_id: str):
+     """清理会话相关数据"""
+     SESSION_OWNER.pop(session_id, None)
++    SESSION_TARGET_ACCOUNT.pop(session_id, None)
+     SESSION_LOCKS.pop(session_id, None)
+ 
+ 
+@@ -67,41 +71,50 @@ def _build_processed_response(processed_info: dict) -> ApiResponse:
+ 
+ @router.post("/generate")
+ async def generate_qr_code(
++    target_account_id: str = Body(..., embed=True),
+     current_user: User = Depends(deps.get_current_active_user),
++    account_service: AccountService = Depends(deps.get_account_service),
+ ) -> ApiResponse:
+-    """
+-    生成二维码
+-    
+-    返回二维码图片的Base64编码和会话ID
+-    """
++    """为当前登录用户拥有的一个既有账号生成官方登录二维码。"""
++    target_account_id = target_account_id.strip()
++    if not target_account_id:
++        raise HTTPException(status_code=404, detail="账号不存在")
++
++    # CHG-0025: target 必须属于当前 authenticated user。管理员也不能借
++    # account-scoped recovery 覆盖其他 owner 的账号；跨 owner 管理继续走原有管理边界。
++    target_account = await account_service.get_account_for_user(current_user.id, target_account_id)
++    if not target_account:
++        raise HTTPException(status_code=404, detail="账号不存在")
++
+     try:
+         result = await qr_login_manager.generate_qr_code()
+         session_id = result.get("session_id")
+-        
++
+         if result.get("success") and session_id:
+             SESSION_OWNER[session_id] = current_user.id
+-            logger.info(f"二维码生成成功: session_id={session_id}, user_id={current_user.id}")
++            SESSION_TARGET_ACCOUNT[session_id] = target_account.account_id
++            logger.info(
++                f"账号级二维码生成成功: session_id={session_id}, "
++                f"user_id={current_user.id}, target_account_id={target_account.account_id}"
++            )
+             return ApiResponse(
+                 success=True,
+                 message="二维码生成成功",
+                 data={
+                     "session_id": session_id,
+                     "qr_code_url": result.get("qr_code_url"),
+-                }
+-            )
+-        else:
+-            error_msg = result.get("message", "生成二维码失败")
+-            logger.error(f"二维码生成失败: {error_msg}")
+-            return ApiResponse(
+-                success=False,
+-                message=error_msg,
++                    "target_account_id": target_account.account_id,
++                },
+             )
++
++        error_msg = result.get("message", "生成二维码失败")
++        logger.error(f"二维码生成失败: {error_msg}")
++        return ApiResponse(success=False, message=error_msg)
++    except HTTPException:
++        raise
+     except Exception as e:
+         logger.exception("生成二维码时发生异常")
+-        return ApiResponse(
+-            success=False,
+-            message=f"生成二维码失败: {str(e)}",
+-        )
++        return ApiResponse(success=False, message=f"生成二维码失败: {str(e)}")
+ 
+ 
+ @router.get("/status/{session_id}")
+@@ -124,17 +137,35 @@ async def get_qr_status(
+     - already_processed: 已处理过
+     """
+     try:
+-        # 检查是否已处理过
++        account_service = AccountService(db)
++
++        # 已处理会话也必须保持原 owner/target，不允许 session id 跨用户读取。
+         if session_id in PROCESSED_SESSIONS:
+             processed_info = PROCESSED_SESSIONS[session_id]
++            if processed_info.get("owner_id") != current_user.id:
++                raise HTTPException(status_code=404, detail="二维码会话不存在")
++            processed_target_id = str(processed_info.get("target_account_id") or "").strip()
++            if not processed_target_id or not await account_service.get_account_for_user(
++                current_user.id, processed_target_id
++            ):
++                raise HTTPException(status_code=404, detail="目标账号不存在")
+             return _build_processed_response(processed_info)
+-        
++
++        owner_id = SESSION_OWNER.get(session_id)
++        target_account_id = str(SESSION_TARGET_ACCOUNT.get(session_id) or "").strip()
++        if owner_id != current_user.id or not target_account_id:
++            raise HTTPException(status_code=404, detail="二维码会话不存在")
++
++        # target 来自 server-side immutable session metadata；status 请求不接受 account_id 覆盖。
++        target_account = await account_service.get_account_for_user(current_user.id, target_account_id)
++        if not target_account:
++            raise HTTPException(status_code=404, detail="目标账号不存在")
++
+         status_info = qr_login_manager.get_session_status(session_id)
+         status = status_info.get("status")
+-        
+-        # 如果扫码成功，自动创建或更新账号
++
++        # 如果扫码成功，只允许恢复创建该 session 时绑定的既有账号。
+         if status == "success":
+-            owner_id = SESSION_OWNER.get(session_id, current_user.id)
+             
+             # 使用锁防止并发处理
+             lock = _get_session_lock(session_id)
+@@ -142,27 +173,69 @@ async def get_qr_status(
+                 # 双重检查
+                 if session_id in PROCESSED_SESSIONS:
+                     processed_info = PROCESSED_SESSIONS[session_id]
++                    if processed_info.get("owner_id") != current_user.id:
++                        raise HTTPException(status_code=404, detail="二维码会话不存在")
+                     return _build_processed_response(processed_info)
+-                
++
+                 cookies_info = qr_login_manager.get_session_cookies(session_id)
+                 if cookies_info:
+                     cookies_str = cookies_info.get("cookies", "")
+-                    unb = cookies_info.get("unb")
+-                    
++                    scanned_unb = str(cookies_info.get("unb") or "").strip()
++                    authoritative_unb = str(getattr(target_account, "unb", "") or "").strip()
++                    matched_account = (
++                        await account_service.get_account_by_unb(owner_id, scanned_unb)
++                        if scanned_unb
++                        else None
++                    )
++
++                    # Critical CHG-0025 pre-write guard. No account/Cookie/Session/WS write
++                    # may occur unless the scanned identity resolves to the exact target row.
++                    identity_matches_target = bool(
++                        scanned_unb
++                        and authoritative_unb
++                        and scanned_unb == authoritative_unb
++                        and matched_account is not None
++                        and getattr(matched_account, "id", None) == getattr(target_account, "id", None)
++                    )
++                    if not identity_matches_target:
++                        message = "QR_IDENTITY_TARGET_MISMATCH"
++                        PROCESSED_SESSIONS[session_id] = {
++                            "status": "failed",
++                            "message": message,
++                            "account_id": target_account.account_id,
++                            "is_new_account": False,
++                            "owner_id": owner_id,
++                            "target_account_id": target_account.account_id,
++                        }
++                        _cleanup_session(session_id)
++                        return ApiResponse(
++                            success=True,
++                            message=message,
++                            data={
++                                "status": "failed",
++                                "message": message,
++                                "account_info": {
++                                    "account_id": target_account.account_id,
++                                    "is_new_account": False,
++                                },
++                            },
++                        )
++
+                     try:
+-                        account_service = AccountService(db)
+                         account, is_new_account = await account_service.upsert_account_from_qr(
+                             owner_id=owner_id,
+                             cookies=cookies_str,
+-                            unb=unb,
++                            unb=scanned_unb,
+                         )
+                     except AccountLimitExceededError as exc:
+                         message = str(exc)
+                         PROCESSED_SESSIONS[session_id] = {
+                             "status": "failed",
+                             "message": message,
+-                            "account_id": unb or "",
+-                            "is_new_account": True,
++                            "account_id": target_account.account_id,
++                            "is_new_account": False,
++                            "owner_id": owner_id,
++                            "target_account_id": target_account.account_id,
+                         }
+                         _cleanup_session(session_id)
+                         return ApiResponse(
+@@ -172,8 +245,8 @@ async def get_qr_status(
+                                 "status": "failed",
+                                 "message": message,
+                                 "account_info": {
+-                                    "account_id": unb or "",
+-                                    "is_new_account": True,
++                                    "account_id": target_account.account_id,
++                                    "is_new_account": False,
+                                 }
+                             }
+                         )
+@@ -225,6 +298,8 @@ async def get_qr_status(
+                     PROCESSED_SESSIONS[session_id] = {
+                         "account_id": account.account_id,
+                         "is_new_account": is_new_account,
++                        "owner_id": owner_id,
++                        "target_account_id": target_account.account_id,
+                     }
+                     
+                     _cleanup_session(session_id)
+@@ -252,6 +327,8 @@ async def get_qr_status(
+             data=status_info
+         )
+         
++    except HTTPException:
++        raise
+     except Exception as e:
+         logger.exception(f"查询扫码状态时发生异常: {session_id}")
+         return ApiResponse(
+diff --git a/frontend/src/api/accounts.ts b/frontend/src/api/accounts.ts
+index c09da05c4ba913a3adac97f5e3d049ef144c0876..7ab972a8dc0260c64d086fec3ffaa0b40e904681 100644
+--- a/frontend/src/api/accounts.ts
++++ b/frontend/src/api/accounts.ts
+@@ -1,5 +1,5 @@
+ import { get, post, put, del } from '@/utils/request'
+-import type { AccountDetail, ApiResponse, BusinessCapabilities, ConsumerReadinessState } from '@/types'
++import type { AccountDetail, ApiResponse, BusinessCapabilities, ConsumerReadinessState, QRLoginResult } from '@/types'
+ 
+ // API前缀
+ const COOKIE_PREFIX = '/api/v1/cookies'
+@@ -390,30 +390,30 @@ export const passwordLogin = (data: { account_id: string; account: string; passw
+   return post(PASSWORD_LOGIN_PREFIX, data)
+ }
+ 
+-// 生成扫码登录二维码
+-export const generateQRLogin = async (): Promise<{ success: boolean; session_id?: string; qr_code_url?: string; message?: string }> => {
+-  const result = await post<{ success: boolean; message: string; data?: { session_id: string; qr_code_url: string } }>(`${QR_LOGIN_PREFIX}/generate`)
+-  // 从标准ApiResponse格式中提取数据
++// 为指定既有账号生成账号级扫码恢复二维码。
++export const generateQRLogin = async (targetAccountId: string): Promise<{
++  success: boolean
++  session_id?: string
++  qr_code_url?: string
++  target_account_id?: string
++  message?: string
++}> => {
++  const result = await post<{
++    success: boolean
++    message: string
++    data?: { session_id: string; qr_code_url: string; target_account_id: string }
++  }>(`${QR_LOGIN_PREFIX}/generate`, { target_account_id: targetAccountId })
+   return {
+     success: result.success,
+     message: result.message,
+     session_id: result.data?.session_id,
+     qr_code_url: result.data?.qr_code_url,
++    target_account_id: result.data?.target_account_id,
+   }
+ }
+ 
+-// 检查扫码登录状态
+-export const checkQRLoginStatus = async (sessionId: string): Promise<{
+-  success: boolean
+-  status: 'pending' | 'scanned' | 'success' | 'failed' | 'expired' | 'cancelled' | 'verification_required' | 'processing' | 'already_processed' | 'error'
+-  message?: string
+-  face_qr_url?: string
+-  verification_url?: string
+-  account_info?: {
+-    account_id: string
+-    is_new_account: boolean
+-  }
+-}> => {
++// 检查扫码登录状态；此 GET 不携带 account_id，target 只来自服务端 session metadata。
++export const checkQRLoginStatus = async (sessionId: string): Promise<QRLoginResult> => {
+   const result = await get<{
+     success: boolean
+     message?: string
+@@ -429,7 +429,7 @@ export const checkQRLoginStatus = async (sessionId: string): Promise<{
+   const status = result.data?.status || 'error'
+   return {
+     success: result.success,
+-    status: status as 'pending' | 'scanned' | 'success' | 'failed' | 'expired' | 'cancelled' | 'verification_required' | 'processing' | 'already_processed' | 'error',
++    status: status as QRLoginResult['status'],
+     message: result.message || result.data?.message,
+     face_qr_url: result.data?.face_qr_url,
+     verification_url: result.data?.verification_url,
+diff --git a/frontend/src/pages/accounts/Accounts.tsx b/frontend/src/pages/accounts/Accounts.tsx
+index 6af04ddbaf689f687aec6222e2e0bc2d6e868659..914d126bf27c82723a8196a37e7c06d727b4839e 100644
+--- a/frontend/src/pages/accounts/Accounts.tsx
++++ b/frontend/src/pages/accounts/Accounts.tsx
+@@ -57,6 +57,36 @@ const businessCapabilityDotClass = (state: BusinessCapabilityState): string => {
+   return 'status-dot-warning'
+ }
+ 
++// CHG-0025 only renders the existing Backend readiness truth; it does not own readiness.
++const accountNeedsQrRecovery = (account: AccountDetail): boolean => (
++  account.browser_session_state === 'HUMAN_QR_REQUIRED'
++  || account.auto_reply_state === 'HUMAN_QR_REQUIRED'
++  || account.business_capabilities?.auto_reply?.state === 'QR_REQUIRED'
++)
++
++const describeQrReadiness = (account: AccountDetail): { ready: boolean; message: string } => {
++  const capability = account.business_capabilities?.auto_reply
++  if (capability?.state === 'PLATFORM_VERIFICATION_REQUIRED') {
++    return { ready: false, message: capability.label || '平台验证未完成' }
++  }
++  if (accountNeedsQrRecovery(account) || capability?.state === 'LOGIN_REQUIRED') {
++    return { ready: false, message: capability?.label || '仍需人工扫码登录' }
++  }
++  if (account.browser_session_state === 'SESSION_EXPIRED' || account.auto_reply_state === 'SESSION_EXPIRED') {
++    return { ready: false, message: 'Session 已失效' }
++  }
++  // CHG-0023 defines ONLINE only after authoritative blockers are absent and connected+token_ready is true.
++  if (account.online === true && capability?.state === 'ONLINE') {
++    return { ready: true, message: '账号已在线' }
++  }
++  return {
++    ready: false,
++    message: capability?.label || capability?.reason || '账号连接尚未就绪',
++  }
++}
++
++const waitForQrReadback = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms))
++
+ const renderBusinessCapabilityBadge = (
+   capability: BusinessCapability | undefined,
+   diagnostics: string[] = [],
+@@ -206,10 +236,11 @@ export function Accounts() {
+   const [defaultReplyImageUploading, setDefaultReplyImageUploading] = useState(false)
+   const defaultReplyImageInputRef = useRef<HTMLInputElement>(null)
+ 
+-  // 扫码登录状态
++  // 账号级扫码恢复状态。target 在 modal 生命周期内保持不可变，status polling 不重新提交 account_id。
+   const [qrCodeUrl, setQrCodeUrl] = useState('')
+-  const [, setQrSessionId] = useState('')
+-  const [qrStatus, setQrStatus] = useState<'loading' | 'ready' | 'scanned' | 'verification_required' | 'success' | 'failed' | 'expired' | 'error'>('loading')
++  const [qrSessionId, setQrSessionId] = useState('')
++  const [qrTargetAccountId, setQrTargetAccountId] = useState('')
++  const [qrStatus, setQrStatus] = useState<'loading' | 'ready' | 'scanned' | 'verification_required' | 'checking' | 'success' | 'failed' | 'expired' | 'error'>('loading')
+   const [qrErrorMessage, setQrErrorMessage] = useState('')
+   // 扫码登录触发人脸验证时的人脸二维码(base64)
+   const [qrFaceQrUrl, setQrFaceQrUrl] = useState('')
+@@ -582,6 +613,7 @@ export function Accounts() {
+     setActiveModal(null)
+     setQrCodeUrl('')
+     setQrSessionId('')
++    setQrTargetAccountId('')
+     setQrStatus('loading')
+     setQrErrorMessage('')
+     setQrFaceQrUrl('')
+@@ -629,45 +661,43 @@ export function Accounts() {
+     }
+   }
+ 
+-  // ==================== 扫码登录 ====================
+-  const startQRCodeLogin = async () => {
+-    // 管理员默认密码检查
+-    const passed = await checkAdminPassword()
+-    if (!passed) return
+-
+-    setActiveModal('qrcode')
+-    setQrStatus('loading')
++  // ==================== 账号级扫码恢复 ====================
++  const verifyQrAccountReadiness = async (targetAccountId: string) => {
++    setQrStatus('checking')
+     setQrErrorMessage('')
+-    setQrFaceQrUrl('')
+-    try {
+-      const result = await generateQRLogin()
+-      if (result.success && result.qr_code_url && result.session_id) {
+-        setQrCodeUrl(result.qr_code_url)
+-        setQrSessionId(result.session_id)
+-        setQrStatus('ready')
+-        // 开始轮询
+-        startQrCheck(result.session_id)
+-      } else {
+-        setQrStatus('error')
+-        setQrErrorMessage(result.message || '生成二维码失败')
+-        addToast({ type: 'error', message: result.message || '生成二维码失败' })
++    let lastMessage = '账号连接尚未就绪'
++
++    // Bounded read-only readback only. No generate/maintain/refresh/password action is called here.
++    for (let attempt = 0; attempt < 6; attempt += 1) {
++      try {
++        const readback = await getAccountDetailsPaginated(1, 100, { account_id: targetAccountId })
++        const account = readback.data.find(item => item.id === targetAccountId)
++        if (account) {
++          const readiness = describeQrReadiness(account)
++          lastMessage = readiness.message
++          if (readiness.ready) {
++            setQrStatus('success')
++            addToast({ type: 'success', message: `账号 ${targetAccountId} 已恢复在线` })
++            void loadAccounts()
++            return
++          }
++        } else {
++          lastMessage = '目标账号状态暂不可用'
++        }
++      } catch {
++        lastMessage = '账号状态读取失败'
+       }
+-    } catch {
+-      setQrStatus('error')
+-      setQrErrorMessage('生成二维码失败')
+-      addToast({ type: 'error', message: '生成二维码失败' })
++
++      if (attempt < 5) await waitForQrReadback(2000)
+     }
+-  }
+ 
+-  const refreshBusinessCapabilitiesAfterQr = () => {
+-    ;[0, 2000, 5000, 10000].forEach((delay) => {
+-      window.setTimeout(() => {
+-        void loadAccounts()
+-      }, delay)
+-    })
++    setQrStatus('failed')
++    setQrErrorMessage(lastMessage)
++    addToast({ type: 'warning', message: `扫码已完成，但 ${lastMessage}` })
++    void loadAccounts()
+   }
+ 
+-  const startQrCheck = (sessionId: string) => {
++  const startQrCheck = (sessionId: string, targetAccountId: string) => {
+     clearQrCheck()
+     qrCheckIntervalRef.current = setInterval(async () => {
+       try {
+@@ -675,27 +705,20 @@ export function Accounts() {
+ 
+         switch (result.status) {
+           case 'scanned':
+-            setQrStatus('scanned')
+-            break
+           case 'processing':
+-            // 正在处理中，显示已扫描状态
+             setQrStatus('scanned')
+             break
+           case 'success':
+           case 'already_processed':
+-            // 登录成功或已处理完成
+-            setQrStatus('success')
+             clearQrCheck()
+-            addToast({
+-              type: 'success',
+-              message: result.account_info?.account_id
+-                ? `账号 ${result.account_info.account_id} 登录成功，正在恢复业务能力...`
+-                : '账号登录成功，正在恢复业务能力...',
+-            })
+-            refreshBusinessCapabilitiesAfterQr()
+-            setTimeout(() => {
+-              closeModal()
+-            }, 1500)
++            if (result.account_info?.account_id && result.account_info.account_id !== targetAccountId) {
++              setQrStatus('failed')
++              setQrErrorMessage('二维码会话账号与目标账号不一致')
++              addToast({ type: 'error', message: '二维码会话账号与目标账号不一致' })
++              break
++            }
++            // Protocol success is not UI success. Wait for existing CHG-0023 authoritative readiness.
++            void verifyQrAccountReadiness(targetAccountId)
+             break
+           case 'expired':
+             setQrStatus('expired')
+@@ -713,7 +736,6 @@ export function Accounts() {
+             closeModal()
+             break
+           case 'verification_required':
+-            // 触发人脸验证：展示人脸二维码，保持轮询，用户手机完成后自动过渡到 success
+             setQrStatus('verification_required')
+             if (result.face_qr_url) setQrFaceQrUrl(result.face_qr_url)
+             break
+@@ -724,23 +746,73 @@ export function Accounts() {
+             break
+         }
+       } catch {
+-        // 忽略网络错误，继续轮询
++        // GET polling is read-only. A transient read failure does not create a new QR or auth action.
+       }
+     }, 2000)
+   }
+ 
++  const startQRCodeLogin = async (account: AccountDetail) => {
++    if (!accountNeedsQrRecovery(account)) {
++      addToast({ type: 'warning', message: '该账号当前没有人工扫码恢复要求' })
++      return
++    }
++
++    const passed = await checkAdminPassword()
++    if (!passed) return
++
++    setQrTargetAccountId(account.id)
++    setActiveModal('qrcode')
++    setQrStatus('loading')
++    setQrErrorMessage('')
++    setQrFaceQrUrl('')
++    try {
++      const result = await generateQRLogin(account.id)
++      if (
++        result.success
++        && result.qr_code_url
++        && result.session_id
++        && (!result.target_account_id || result.target_account_id === account.id)
++      ) {
++        setQrCodeUrl(result.qr_code_url)
++        setQrSessionId(result.session_id)
++        setQrStatus('ready')
++        startQrCheck(result.session_id, account.id)
++      } else {
++        setQrStatus('error')
++        setQrErrorMessage(result.message || '生成二维码失败')
++        addToast({ type: 'error', message: result.message || '生成二维码失败' })
++      }
++    } catch {
++      setQrStatus('error')
++      setQrErrorMessage('生成二维码失败')
++      addToast({ type: 'error', message: '生成二维码失败' })
++    }
++  }
++
+   const refreshQRCode = async () => {
++    // Explicit user action only; never auto-regenerate. Preserve the original modal target.
++    if (!qrTargetAccountId) {
++      setQrStatus('error')
++      setQrErrorMessage('目标账号不存在')
++      return
++    }
++
+     setQrStatus('loading')
+     setQrErrorMessage('')
+     setQrFaceQrUrl('')
+     clearQrCheck()
+     try {
+-      const result = await generateQRLogin()
+-      if (result.success && result.qr_code_url && result.session_id) {
++      const result = await generateQRLogin(qrTargetAccountId)
++      if (
++        result.success
++        && result.qr_code_url
++        && result.session_id
++        && (!result.target_account_id || result.target_account_id === qrTargetAccountId)
++      ) {
+         setQrCodeUrl(result.qr_code_url)
+         setQrSessionId(result.session_id)
+         setQrStatus('ready')
+-        startQrCheck(result.session_id)
++        startQrCheck(result.session_id, qrTargetAccountId)
+       } else {
+         setQrStatus('error')
+         setQrErrorMessage(result.message || '生成二维码失败')
+@@ -2052,20 +2124,19 @@ export function Accounts() {
+         </div>
+         <div className="vben-card-body">
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+-            {/* 扫码登录 */}
+-            <button
+-              onClick={startQRCodeLogin}
++            {/* CHG-0025: QR recovery is account-scoped; global/unbound QR creation is intentionally removed. */}
++            <div
+               className="flex items-center gap-3 p-4 rounded-md border border-blue-200 dark:border-blue-800 
+-                         bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors text-left"
++                         bg-blue-50 dark:bg-blue-900/30 text-left"
+             >
+               <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                 <QrCode className="w-4 h-4 text-white" />
+               </div>
+               <div>
+-                <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">扫码登录</p>
+-                <p className="text-xs text-slate-500 dark:text-slate-400">推荐方式</p>
++                <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">扫码恢复</p>
++                <p className="text-xs text-slate-500 dark:text-slate-400">请在需要恢复的账号行点击“扫码恢复”</p>
+               </div>
+-            </button>
++            </div>
+ 
+             {!isExeMode && (
+               <button
+@@ -2667,6 +2738,17 @@ export function Accounts() {
+                     </td>
+                     <td className="sticky right-0 bg-white dark:bg-slate-800 z-[5] shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                       <div className="flex items-center gap-1">
++                        {/* 只有 authoritative HUMAN_QR/QR_REQUIRED blocker 才显示账号级扫码恢复。 */}
++                        {accountNeedsQrRecovery(account) && (
++                          <button
++                            onClick={() => void startQRCodeLogin(account)}
++                            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-300 transition-colors"
++                            title="使用现有官方二维码恢复此账号"
++                          >
++                            <QrCode className="w-3.5 h-3.5" />
++                            <span>扫码恢复</span>
++                          </button>
++                        )}
+                         {/* 常用操作按钮 */}
+                         <button
+                           onClick={() => handleToggleEnabled(account)}
+@@ -2864,7 +2946,7 @@ export function Accounts() {
+         <div className="modal-overlay">
+           <div className="modal-content max-w-sm">
+             <div className="modal-header">
+-              <h2 className="modal-title">扫码登录</h2>
++              <h2 className="modal-title">扫码恢复{qrTargetAccountId ? ` · ${qrTargetAccountId}` : ''}</h2>
+               <button onClick={closeModal} className="modal-close">
+                 <X className="w-4 h-4" />
+               </button>
+@@ -2879,8 +2961,9 @@ export function Accounts() {
+               {qrStatus === 'ready' && (
+                 <div className="flex flex-col items-center gap-3">
+                   <img src={qrCodeUrl} alt="登录二维码" className="w-44 h-44 rounded-lg border" />
+-                  <p className="text-sm text-slate-600 dark:text-slate-300">请使用闲鱼APP扫描二维码</p>
+-                  <p className="text-xs text-slate-400 dark:text-slate-500">二维码有效期约5分钟</p>
++                  <p className="text-sm text-slate-600 dark:text-slate-300">请使用目标闲鱼账号扫描二维码</p>
++                  <p className="text-xs text-slate-400 dark:text-slate-500">目标账号：{qrTargetAccountId}</p>
++                  {qrSessionId && <p className="text-xs text-slate-400 dark:text-slate-500">恢复会话已建立 · 二维码有效期约5分钟</p>}
+                 </div>
+               )}
+               {qrStatus === 'scanned' && (
+@@ -2910,12 +2993,19 @@ export function Accounts() {
+                   </div>
+                 </div>
+               )}
++              {qrStatus === 'checking' && (
++                <div className="flex flex-col items-center gap-3 text-blue-600 dark:text-blue-400">
++                  <Loader2 className="w-9 h-9 animate-spin" />
++                  <p className="font-medium">扫码已确认，正在读取账号真实在线状态...</p>
++                  <p className="text-xs text-slate-400 dark:text-slate-500">只有现有 Auto Reply readiness 为 ONLINE 才会显示恢复成功</p>
++                </div>
++              )}
+               {qrStatus === 'success' && (
+                 <div className="flex flex-col items-center gap-3 text-green-600">
+                   <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
+                     <Power className="w-7 h-7" />
+                   </div>
+-                  <p className="font-medium">登录成功！</p>
++                  <p className="font-medium">账号已恢复在线</p>
+                 </div>
+               )}
+               {qrStatus === 'expired' && (
+diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
+index aaece655105d4302c318c2d81afd450b36756cf5..88ca5467cd9a01c61b1ed9163f04d3eff8817b21 100644
+--- a/frontend/src/types/index.ts
++++ b/frontend/src/types/index.ts
+@@ -50,6 +50,32 @@ export interface BusinessCapabilities {
+   publish: BusinessCapability
+ }
+ 
++export type QRLoginProtocolStatus =
++  | 'pending'
++  | 'scanned'
++  | 'success'
++  | 'failed'
++  | 'expired'
++  | 'cancelled'
++  | 'verification_required'
++  | 'processing'
++  | 'already_processed'
++  | 'error'
++
++export interface QRLoginAccountInfo {
++  account_id: string
++  is_new_account: boolean
++}
++
++export interface QRLoginResult {
++  success: boolean
++  status: QRLoginProtocolStatus
++  message?: string
++  face_qr_url?: string
++  verification_url?: string
++  account_info?: QRLoginAccountInfo
++}
++
+ export interface User {
+   user_id: number
+   username: string

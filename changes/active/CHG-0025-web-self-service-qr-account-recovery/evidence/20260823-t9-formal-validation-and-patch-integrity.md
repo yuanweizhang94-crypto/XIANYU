@@ -1,0 +1,49 @@
+# CHG-0025 T9 Formal Validation and Patch Integrity
+
+Date: 2026-08-23 Asia/Taipei
+
+CHG0025_GOVERNANCE_FORMAT_FIXED=true
+REUSE_DECISION=PATCH_UPSTREAM
+EXISTING_QR_OWNER_REUSED=true
+EXISTING_SESSION_OWNER_REUSED=true
+EXISTING_COOKIE_OWNER_REUSED=true
+EXISTING_WEBSOCKET_OWNER_REUSED=true
+NEW_LOGIN_OWNER_COUNT=0
+NEW_QR_OWNER_COUNT=0
+NEW_SESSION_OWNER_COUNT=0
+NEW_COOKIE_OWNER_COUNT=0
+
+VALIDATE_CHANGE=FAIL_PRE_EXISTING_ONLY__CHG0020_ARCHIVE_MISSING_DESIGN_TASKS
+VERIFY_REPOSITORY=FAIL_PRE_EXISTING_ONLY__CHG0020_ARCHIVE_MISSING_DESIGN_TASKS
+PRE_EXISTING_UNRELATED_GOVERNANCE_DEBT=true
+NEW_CHG0025_SPECIFIC_FAILURES=0
+
+DUPLICATE_CAPABILITY_VALIDATION=PASS
+SECURITY_SCAN=PASS
+CHG0025_TESTS=8/8_PASS
+CHG0023_REGRESSION=5/5_PASS
+CHG0024_RELEVANT_REGRESSION=8/8_PASS
+GIT_DIFF_CHECK=PASS
+STAGED_SCOPE_CLEAN=true
+GIT_DIFF_CACHED_CHECK=IMMUTABLE_PATCH_WHITESPACE_ONLY__EXPECTED_ARTIFACT_EXCEPTION
+GIT_DIFF_CACHED_CHECK_EXCLUDING_LOCKED_PATCH=PASS
+
+PATCH_PATH=vendor/patches/xianyu-auto-reply/chg0025-web-self-service-qr-account-recovery.patch
+PATCH_SHA256=f3ecaf30603ec593521fcc84b0cce5dac92d0da45da0514ddcf8d577ab6fe8e8
+PATCH_BYTES_CHANGED=false
+PATCH_APPLY_CHECK=PASS
+PATCH_CLEAN_APPLY=PASS
+PATCH_REPLAY_POSTIMAGE_MATCH=true
+NON_CHG0025_HUNKS=0
+
+Fresh T9 replay reconstructed all four authoritative preimages from the locked fixture HEAD with `core.autocrlf=false`, verified every preimage SHA256, ran `git apply --check`, clean-applied the locked vendor patch in a temporary isolated repository, and reproduced exactly the four accepted postimage SHA256 values. No patch bytes were changed.
+
+Final pre-stage scope audit contains only the approved CHG0024 governance archive, CHG0025 formal docs/evidence/tests, generated `PROJECT_STATE.json`, and the locked CHG0025 vendor patch. No runtime source workspace, `node_modules`, `dist`, `.local` harness output, candidate binary, production dump, secret, credential, README, AGENTS, CHG0020, or CHG0022 repair is included.
+
+REAL_QR_CREATE_COUNT=0
+REAL_QR_SCAN_COUNT=0
+PASSWORD_LOGIN_ATTEMPTS=0
+REAL_MESSAGES_SENT=0
+TOTAL_NEW_T7_ITEM_SYNC_BUSINESS_INVOCATIONS=1
+
+T9_COMPLETE=true
