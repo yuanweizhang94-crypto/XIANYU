@@ -3,45 +3,45 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0024-item-sync-no-auth-recovery-safety",
-    "status": "APPROVED",
+    "status": "VERIFYING",
     "path": "changes/active/CHG-0024-item-sync-no-auth-recovery-safety"
   },
   "tasks": {
     "total": 8,
-    "completed": 1,
-    "next_task": "T2 Exact implementation diff design against current source.",
+    "completed": 8,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Capability audit and formal scope lock: persist the existing owner chain, two authentication-recovery callsites, reuse decision, safety invariants, failed-closed prior attempt, and commander authorization without runtime implementation or production execution.",
         "completed": true
       },
       {
-        "text": "T2 Exact implementation diff design against current source.",
-        "completed": false
+        "text": "T2 Exact implementation diff design against current accepted-image source; reconcile stale audit hashes and lock the `no_auth_recovery` propagation/persistence design.",
+        "completed": true
       },
       {
-        "text": "T3 Implement Item-specific no-auth-recovery safe mode in the existing Item owner.",
-        "completed": false
+        "text": "T3 Implement Item-specific `no_auth_recovery` safe mode as the exact two-owner vendor patch without changing Session/Cookie/Token owners.",
+        "completed": true
       },
       {
-        "text": "T4 Add targeted deterministic implementation tests for both authentication-recovery callsites.",
-        "completed": false
+        "text": "T4 Run deterministic postimage behavior/mock-spy tests for both auth-recovery callsites plus exact patch replay.",
+        "completed": true
       },
       {
-        "text": "T5 Update the existing COMPANY `xianyu_item_sync` thin-adapter fixed-safe-mode mapping only if proven necessary.",
-        "completed": false
+        "text": "T5 Activate the proven existing COMPANY `xianyu_item_sync` trusted safe-mode mapping; public schema unchanged.",
+        "completed": true
       },
       {
-        "text": "T6 Controlled candidate/runtime validation with zero business writes.",
-        "completed": false
+        "text": "T6 Activate and verify the exact Backend candidate through the existing COMPANY replacement transaction owner.",
+        "completed": true
       },
       {
-        "text": "T7 One newly authorized controlled fresh Item Sync.",
-        "completed": false
+        "text": "T7 Execute exactly one controlled fresh Item Sync for `2804730247`; result SUCCESS.",
+        "completed": true
       },
       {
-        "text": "T8 Negative-control post-check and formal persistence.",
-        "completed": false
+        "text": "T8 Negative-control/runtime acceptance post-check PASS; formal persistence is this commit preparation phase.",
+        "completed": true
       }
     ]
   },

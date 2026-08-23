@@ -1,18 +1,18 @@
 # CHG-0024 Item Sync No-Auth-Recovery Safety
 
-Status: APPROVED
+Status: VERIFYING
 
 Change ID: CHG-0024-item-sync-no-auth-recovery-safety
 
 CHG0024_SCOPE_APPROVED=true
 COMMANDER_AUTHORIZATION_RECORDED=true
-ITEM_SYNC_EXECUTION_APPROVED=false
-PRODUCTION_ACTIVATION_APPROVED=false
-QR_RESTORATION_APPROVED=false
+ITEM_SYNC_EXECUTION_APPROVED=true_CONDITIONAL_AFTER_T6_GATES
+PRODUCTION_ACTIVATION_APPROVED=true
+QR_RESTORATION_APPROVED=false_PENDING_PR_MAIN_GATE
 
 ## Execution contract
 
-User outcome: preserve the existing full-account Item Sync owner while adding, in a later implementation phase only, an Item-specific safe mode that never performs automatic credential recovery.
+User outcome: preserve the existing full-account Item Sync owner while adding the commander-authorized Item-specific safe mode that never performs automatic credential recovery.
 
 Confirmed blocker: the existing full-account Item Sync has two authentication-recovery callsites and no caller-selectable no-auth-recovery mode.
 
@@ -28,14 +28,14 @@ COMMANDER_DECISION=AUTHORIZE_NEW_NARROW_ITEM_SYNC_SAFETY_CHANGE
 NEW_CHANGE_ID=CHG-0024-item-sync-no-auth-recovery-safety
 PATCH_EXISTING_ITEM_SYNC_OWNER_ONLY=true
 
-DO_NOT_IMPLEMENT_CHG0024=true for this bootstrap phase.
-DO_NOT_DEPLOY=true.
-DO_NOT_ITEM_SYNC=true.
-DO_NOT_QR_RESTORE=true.
+BOOTSTRAP_DO_NOT_IMPLEMENT_CHG0024=HISTORICAL_SUPERSEDED_BY_20260823_AUTONOMOUS_AUTHORIZATION
+AUTONOMOUS_T2_T8_AUTHORIZED=true
+ITEM_SYNC_AUTHORIZATION=EXACTLY_ONE_AFTER_T6_GATES
+QR_RESTORATION_AUTHORIZATION=CONDITIONAL_AFTER_ITEM_SYNC_AND_GIT_MAIN_GATE
 
 ## Purpose
 
-Add an `ITEM_SPECIFIC_NO_AUTH_RECOVERY_SAFE_MODE` to the existing full-account Item Sync owner in a future authorized implementation phase.
+Add `no_auth_recovery: bool = False` as the narrow Item-specific safe mode on the existing full-account Item Sync owner; no new owner or lifecycle abstraction is introduced.
 
 Target semantics remain:
 
@@ -82,11 +82,14 @@ SESSION_MAINTAIN_ROUTE_FILE=`websocket/app/api/routes/cookies_refresh.py`
 SESSION_MAINTAIN_SERVICE_FILE=`common/services/cookie_renew_api_service.py`
 COMPANY_ITEM_SYNC_ADAPTER_FILE=`D:/TikTok_Auto/devspace_proxy/proxy.cjs`
 
-ITEM_ROUTE_SHA256=`405d6fa3fea84740050b37783de9b9da422efde918e086fb709d6c29d6cacf5`
-ITEM_SERVICE_SHA256=`909307861de1df2e07dafd0ac936ca00959f81992a4a36c74419842883ff3c5f`
+STALE_AUDIT_ITEM_ROUTE_SHA256=`405d6fa3fea84740050b37783de9b9da422efde918e086fb709d6c29d6cacf5`
+STALE_AUDIT_ITEM_SERVICE_SHA256=`909307861de1df2e07dafd0ac936ca00959f81992a4a36c74419842883ff3c5f`
+AUTHORITATIVE_IMPLEMENTATION_PREIMAGE_ITEM_ROUTE_SHA256=`5be558b4c01cc14b99a88dde19c8f8a9c2f890aedbd132f0bc97dbf464a5d78a`
+AUTHORITATIVE_IMPLEMENTATION_PREIMAGE_ITEM_SERVICE_SHA256=`5a875adc11adb6b19320206a4e9c34cd63453f9c5f35be482bf055574325b517`
 SESSION_MAINTAIN_ROUTE_SHA256=`421251967fff0cceb2af3eabdd5659ac7539a81d17511a217006fae6f62ceb3b`
 SESSION_MAINTAIN_SERVICE_SHA256=`49074386640af9f938b3165329ed70fa9725ef9a955f423bdac2d4e3f782f95f`
-COMPANY_ADAPTER_SHA256=`7aa238c6f4747255a584a61e4d1b1d5952a23338528ad643e73f1f7aa2ede346`
+STALE_AUDIT_COMPANY_ADAPTER_SHA256=`7aa238c6f4747255a584a61e4d1b1d5952a23338528ad643e73f1f7aa2ede346`
+AUTHORITATIVE_PRE_T5_COMPANY_PROXY_SHA256=`b7537ad0a2b5e3e24310ec1fb99b7aac374e02c7f72894ffad642632107d1bf7`
 
 EXISTING_OWNER_CHAIN_PROVEN=true
 CURRENT_ITEM_SYNC_OWNER=`ItemService.fetch_all_items_from_account`
@@ -123,7 +126,7 @@ _reconcile_missing_active_items
 
 CURRENT_AUTH_RECOVERY_FALLBACK_PROVEN=true
 
-Both callsites are in scope for the future safe-mode patch. Fixing only CALLSITE_1 is insufficient.
+Both callsites are covered by the exact existing-owner patch. Fixing only CALLSITE_1 remains insufficient.
 
 ## Reuse decision
 
@@ -140,15 +143,19 @@ Project policy label: `PATCH_UPSTREAM` because the current existing owner is pat
 
 The existing single-page primitive is not a replacement full-account owner. Manual remote-read plus DB-upsert orchestration is forbidden.
 
-## Allowed future implementation scope
+## Authorized implementation scope and current result
 
-Only the following existing XIANYU owner files may be changed when a later phase authorizes implementation:
+The implementation remains limited to the following existing XIANYU owner paths:
 
 - `backend-web/app/api/routes/items.py`
 - `common/services/item_service.py`
-- directly related targeted tests if proven necessary
+- targeted deterministic tests/evidence
 
-The existing COMPANY `xianyu_item_sync` thin-adapter mapping may be updated only if later proven necessary. Bootstrap does not modify COMPANY.
+PERSISTENCE_MODEL=EXACT_VENDOR_PATCH_OVER_CURRENT_OWNER_PREIMAGE
+PATCH_PATH=`vendor/patches/xianyu-auto-reply/chg0024-item-sync-no-auth-recovery-safety.patch`
+PATCH_RUNTIME_FILE_COUNT=2
+
+The existing COMPANY `xianyu_item_sync` mapping was proven necessary for trusted safe-mode selection. Its public schema is unchanged; only the existing thin mapping is patched.
 
 ## Forbidden scope
 
@@ -173,7 +180,7 @@ PUBLIC_CALLER_AUTH_RECOVERY_CONTROL_REQUIRED=false
 
 The public ChatGPT-facing caller must continue to expose only normal Item Sync request fields such as `account_id`, `page_size`, and `max_pages`. It must not expose generic Session/Cookie/Token lifecycle controls such as `allow_renew`, refresh controls, Session maintain, login, or password login.
 
-If the existing COMPANY adapter is later used for controlled safe sync, the trusted adapter/backend boundary must select the Item-specific safe mode without creating a new tool owner.
+The existing COMPANY adapter is used for controlled safe sync; the trusted mapping fixes `no_auth_recovery=true` while the public schema remains `account_id`, `page_size`, and `max_pages` only. No new tool owner is created.
 
 ## Safety invariants
 
@@ -199,7 +206,7 @@ QR_FALSE_GREEN_COUNT=0
 
 ## Upstream capability audit
 
-The completed read-only capability audit establishes that the existing full-account Item Sync owner already exists and that the correct decision is to patch that owner, not build a parallel implementation. This bootstrap persists that audit rather than repeating live or business execution.
+The completed read-only capability audit and current accepted-image provenance reconciliation establish that the existing full-account Item Sync owner remains authoritative and that the correct decision is to patch that owner, not build a parallel implementation.
 
 ## Pinned upstream evidence
 
@@ -228,3 +235,21 @@ Existing XIANYU `ItemService.fetch_all_items_from_account` remains the sole full
 ## Retirement plan for overlapping local code
 
 No overlapping local owner will be introduced. If upstream later provides an equivalent verified Item-specific safe mode, any local patch must be reviewed for retirement in favor of upstream.
+## Runtime acceptance (2026-08-23)
+
+CHG0024_RUNTIME_ACCEPTANCE=PASS
+T5_COMPLETE=true
+T6_COMPLETE=true
+T7_COMPLETE=true
+T8_COMPLETE=true
+ITEM_SYNC_TARGET=`2804730247`
+ITEM_SYNC_BUSINESS_INVOCATION_COUNT=1
+ITEM_SYNC_RESULT=SUCCESS
+QR_RESTORATION_NOT_YET_PERFORMED=true
+NEGATIVE_CONTROLS_PRESERVED=true
+
+The existing COMPANY thin adapter was activated from commit `c2cbaae2e658c371a950db56a4ac1cad4e7e2bce`; runtime/source SHA matched after Runner-owned Proxy reload, the public `xianyu_item_sync` schema remained unchanged, and the trusted mapping fixed `no_auth_recovery=true`. The accepted Backend candidate `xianyu-chg0024-backend-web:item-sync-no-auth-recovery-20260823-r1` (`sha256:923cc15d72900c7f6af3d3bd9a9bd3aeb0bccb80a9ac2af2cf307deea07cf1fb`) was activated exactly once through the existing COMPANY replacement transaction owner.
+
+Exactly one fresh Item Sync then completed successfully for account `2804730247`: pre/post local item count `3 -> 3`, created `0`, updated `3`, removed `0`, unchanged `0`. Its exact execution window contained zero Session maintain/renew, Cookie refresh, Token refresh, password login, QR action, remote listing mutation, reconnect attempt, or real message send. Negative controls `2221422775489` and `2221501265279` remained authoritative `HUMAN_QR_REQUIRED` with zero auth-write indicators and `QR_FALSE_GREEN_COUNT=0`.
+
+`2219319284219` retained its pre-existing authoritative `HUMAN_QR_REQUIRED` / `token_ready=false` state; this was not a new CHG-0024 invalidation and was not treated as green by the acceptance authority.

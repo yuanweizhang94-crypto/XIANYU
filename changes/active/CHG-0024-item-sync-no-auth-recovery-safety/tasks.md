@@ -1,31 +1,35 @@
 # CHG-0024 Tasks
 
-Status: APPROVED
+Status: VERIFYING
 
 Change ID: CHG-0024-item-sync-no-auth-recovery-safety
 
 - [x] T1 Capability audit and formal scope lock: persist the existing owner chain, two authentication-recovery callsites, reuse decision, safety invariants, failed-closed prior attempt, and commander authorization without runtime implementation or production execution.
-- [ ] T2 Exact implementation diff design against current source.
-- [ ] T3 Implement Item-specific no-auth-recovery safe mode in the existing Item owner.
-- [ ] T4 Add targeted deterministic implementation tests for both authentication-recovery callsites.
-- [ ] T5 Update the existing COMPANY `xianyu_item_sync` thin-adapter fixed-safe-mode mapping only if proven necessary.
-- [ ] T6 Controlled candidate/runtime validation with zero business writes.
-- [ ] T7 One newly authorized controlled fresh Item Sync.
-- [ ] T8 Negative-control post-check and formal persistence.
+- [x] T2 Exact implementation diff design against current accepted-image source; reconcile stale audit hashes and lock the `no_auth_recovery` propagation/persistence design.
+- [x] T3 Implement Item-specific `no_auth_recovery` safe mode as the exact two-owner vendor patch without changing Session/Cookie/Token owners.
+- [x] T4 Run deterministic postimage behavior/mock-spy tests for both auth-recovery callsites plus exact patch replay.
+- [x] T5 Activate the proven existing COMPANY `xianyu_item_sync` trusted safe-mode mapping; public schema unchanged.
+- [x] T6 Activate and verify the exact Backend candidate through the existing COMPANY replacement transaction owner.
+- [x] T7 Execute exactly one controlled fresh Item Sync for `2804730247`; result SUCCESS.
+- [x] T8 Negative-control/runtime acceptance post-check PASS; formal persistence is this commit preparation phase.
 
 T1_COMPLETE=true
-T2_COMPLETE=false
-T3_COMPLETE=false
-T4_COMPLETE=false
-T5_COMPLETE=false
-T6_COMPLETE=false
-T7_COMPLETE=false
-T8_COMPLETE=false
+T2_COMPLETE=true
+T3_COMPLETE=true
+T4_COMPLETE=true
+T5_COMPLETE=true
+T6_COMPLETE=true
+T7_COMPLETE=true
+T8_COMPLETE=true
 
-DO_NOT_IMPLEMENT_CHG0024=true for this bootstrap phase.
-ITEM_SYNC_EXECUTION_APPROVED=false
-PRODUCTION_ACTIVATION_APPROVED=false
-QR_RESTORATION_APPROVED=false
+BOOTSTRAP_DO_NOT_IMPLEMENT_CHG0024=HISTORICAL_SUPERSEDED_BY_20260823_AUTONOMOUS_AUTHORIZATION
+ITEM_SYNC_EXECUTION_APPROVED=true_CONDITIONAL_AFTER_T6_GATES
+PRODUCTION_ACTIVATION_APPROVED=true
+QR_RESTORATION_APPROVED=false_PENDING_PR_MAIN_GATE
+CHG0024_RUNTIME_ACCEPTANCE=PASS
+ITEM_SYNC_RESULT=SUCCESS
+NEGATIVE_CONTROLS_PRESERVED=true
+QR_RESTORATION_NOT_YET_PERFORMED=true
 
 ## Upstream capability audit
 
