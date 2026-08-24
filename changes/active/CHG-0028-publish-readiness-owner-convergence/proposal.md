@@ -1,7 +1,7 @@
 # CHG-0028 Publisher Readiness Owner Convergence
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: APPROVED
+Status: VERIFYING
 Created: 2026-08-24
 Predecessor: CHG-0027-session-transient-classification-qr-cooldown-lineage
 
@@ -16,6 +16,14 @@ The CHG0027 evidence shows existing Publisher readiness consumers can remain `LA
 ## User outcome
 
 Make Publisher readiness converge truthfully through the existing upstream/current owner so an account is reported `READY` only when authoritative native readiness evidence exists. Preserve truthful `LAZY_PENDING` and fail-closed blockers when that evidence does not exist.
+
+## Execution contract
+
+User outcome: expose Publisher capability truth only for the selected account or an explicit on-demand request, using the existing Backend native capability owner.
+
+Confirmed blocker: the previous Accounts-level persisted readiness contract expected an unwritten `session_maintenance.consumers.publish` record and misrepresented unprobed accounts as a stuck readiness problem.
+
+Smallest success test: deterministic tests prove unprobed global/account-list Publisher status is `ON_DEMAND`/not checked, selected-account capability calls `PublishAccountCapabilityService.detect` exactly once when explicitly requested, and no persisted Publisher readiness writer or polling producer exists.
 
 ## Scope
 
@@ -116,3 +124,29 @@ Stop without implementation if:
 `IMPLEMENTATION_AUTHORIZED=false`
 
 The approved read-only investigation is complete. T4 and every code/runtime/production action are blocked pending a separate project-owner decision.
+
+## 2026-08-25 owner contract decision
+
+`CHG0028_OWNER_CONTRACT_DECISION=APPROVED__SELECTED_ACCOUNT_ON_DEMAND_CAPABILITY`
+
+`GLOBAL_PERSISTED_PUBLISH_READINESS=DEPRECATED`
+
+`LINEAGE_AWARE_READINESS_WRITER=NOT_AUTHORIZED`
+
+`IMPLEMENTATION_AUTHORIZED=true`
+
+The project owner selected the non-persisted contract option identified by T1-T3: Publisher capability is computed only for a selected account or another explicit on-demand request. The Accounts/global overview must express unchecked Publisher capability as `ON_DEMAND`/`NOT_CHECKED` instead of `READY`, permanent `PENDING`, system fault, or Session invalid. This decision does not authorize a lineage-aware readiness writer, a new table, a scheduled producer, a background probe, a Browser gate, or a second owner.
+
+## Continuation reuse decision
+
+Decision: PATCH_UPSTREAM
+
+Execution decision: CONTINUE_SELECTED_ACCOUNT_ON_DEMAND
+
+The upstream native path already exists in fresh upstream: `GET /product-publish/accounts/{account_id}/capability` calls `PublishAccountCapabilityService.detect` for the selected account. The minimal patch is to adopt that route shape in the existing Backend owner where absent and replace the old global persisted-readiness expectation with an explicit on-demand/not-checked outward contract. `ADOPT_UPSTREAM` alone is still insufficient because deployed source lacks the route registration and the existing Accounts readiness consumer still describes the missing persisted record as pending readiness. `CONFIGURE_UPSTREAM` remains unavailable. No `BUILD_LOCAL_EXCEPTION` is authorized.
+
+## Updated duplicate implementation risk and rollback
+
+Duplicate-development risk: low only if the patch stays inside the existing Backend route/consumer and uses `PublishAccountCapabilityService.detect`; high if COMPANY, Browser, Scheduler, Session maintenance, or a new persisted readiness owner produces Publisher truth.
+
+Rollback: remove the CHG-0028 upstream patch layer and return to the previous CHG0027 behavior. No database cleanup, Profile cleanup, Cookie mutation, production account mutation, or persisted readiness data migration is required because this option does not write readiness.

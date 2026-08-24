@@ -216,6 +216,27 @@ Historical CHG-0019 artifacts are retained for audit and are **HISTORICAL / SUPE
 
 These historical files are not deleted or rewritten. They remain evidence of the originally reviewed CHG-0019 delivery; the new main-integration Patch is the only current CHG-0019 layer applied after the B379 T12 CHG-0018 Patch.
 
+## CHG-0028 selected-account on-demand publish capability patch
+
+- Runtime preimage source: read-only extraction from `xianyu-chg0027-backend-web:session-transient-classification-20260824-r1`.
+- Patch file: `chg0028-selected-account-on-demand-capability.patch`
+- SHA256: `CED451293701C53475E23F9B87DF205AB97AFDD0B3696D35A4D9C8675BC4E490`
+- Patch builder: `D:/xianyu-worktrees/_chg0028_patch_builder_runtime`; production runtime was not modified.
+- Patch parse check: passed with `git apply --numstat --unidiff-zero`.
+- Patch clean-apply check: passed against a clean committed runtime preimage copy with `git apply --check --whitespace=error-all --unidiff-zero`.
+- Patch-included deterministic tests: 11/11 passed with `python -m pytest tests/test_chg0028_selected_account_on_demand_capability.py -q`.
+- Changed upstream/runtime files:
+  - `backend-web/app/api/routes/_exports.py`
+  - `backend-web/app/api/routes/cookies.py`
+  - `backend-web/app/api/routes/product_publish_capability.py`
+  - `tests/test_chg0028_selected_account_on_demand_capability.py`
+
+This patch implements the owner-approved CHG-0028 `SELECTED_ACCOUNT_ON_DEMAND_CAPABILITY` contract. It registers the selected-account route `/product-publish/accounts/{account_id}/capability`, which uses the existing `detect_publish_account_capability` helper and current account Cookie for an explicit on-demand check. The Accounts/global overview no longer represents an unprobed Publisher capability as a stuck persisted readiness defect; it returns `state=NOT_CHECKED`, `mode=ON_DEMAND`, and `checked=false`.
+
+The patch-included behavior tests use dependency stubs and `AsyncMock` to assert the selected-account route calls the existing helper exactly once with the current account Cookie, returns `READY` only on current success, classifies transient failures as retryable `RETRY_LATER`, classifies account-invalid failures as non-retryable `ACCOUNT_INVALID`, and performs no session/database writes. The helper is the existing thin loader in `common/services/xianyu_publish_service.py`, which dispatches to `PublishAccountCapabilityService.detect`; CHG-0028 does not introduce a replacement capability service.
+
+The patch does not create a lineage-aware writer, persistent `consumers.publish` producer, readiness table, scheduler/background probe, Browser gate, COMPANY-side truth source, or second Publisher owner. It does not call MTop from account-list polling and does not perform real publish, item mutation, QR/login, reconnect, Browser, Item Sync, message, account-state, container, or production configuration actions.
+
 ## Artifact Format
 
 Historical text artifacts use Git-generated zero-context unified diffs. The T12 current formal CHG-0018 Patch uses Git-generated binary patch records for exact source preservation.

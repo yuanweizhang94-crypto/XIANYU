@@ -14,7 +14,7 @@ def test_change_is_approved_and_has_consistent_identity():
     for name in REQUIRED_DOCS:
         text = (CHANGE / name).read_text(encoding="utf-8")
         assert expected_id in text
-        assert "Status: APPROVED" in text
+        assert "Status: VERIFYING" in text
 
 
 def test_scope_locks_publisher_readiness_and_excludes_browser_followup():
@@ -25,6 +25,9 @@ def test_scope_locks_publisher_readiness_and_excludes_browser_followup():
     assert "OWNER_APPROVAL_RECEIVED=true" in proposal
     assert "OWNER_APPROVED_SCOPE=PUBLISHER_READINESS_ONLY" in proposal
     assert "BROWSER_SCOPE_INCLUDED=false" in proposal
+    assert "CHG0028_OWNER_CONTRACT_DECISION=APPROVED__SELECTED_ACCOUNT_ON_DEMAND_CAPABILITY" in proposal
+    assert "GLOBAL_PERSISTED_PUBLISH_READINESS=DEPRECATED" in proposal
+    assert "LINEAGE_AWARE_READINESS_WRITER=NOT_AUTHORIZED" in proposal
 
 
 def test_safety_and_no_parallel_owner_invariants_are_explicit():
@@ -72,25 +75,26 @@ def test_t1_t3_evidence_proves_missing_transition_and_stop_boundary():
         assert marker in evidence
 
 
-def test_implementation_remains_blocked_after_stop_decision():
+def test_implementation_is_unblocked_by_selected_account_contract():
     proposal = (CHANGE / "proposal.md").read_text(encoding="utf-8")
     tasks = (CHANGE / "tasks.md").read_text(encoding="utf-8")
     acceptance = (CHANGE / "acceptance.md").read_text(encoding="utf-8")
     assert "Decision: PATCH_UPSTREAM" in proposal
-    assert "Execution decision: STOP" in proposal
-    assert "IMPLEMENTATION_AUTHORIZED=false" in proposal
+    assert "Execution decision: CONTINUE_SELECTED_ACCOUNT_ON_DEMAND" in proposal
+    assert "IMPLEMENTATION_AUTHORIZED=true" in proposal
     assert "- [x] T3 Finalized `REUSE_DECISION=PATCH_UPSTREAM` with `EXECUTION_DECISION=STOP`" in tasks
-    assert "- [ ] T4 BLOCKED" in tasks
+    assert "- [x] T4 UNBLOCKED" in tasks
     assert "STOP_ACCEPTANCE=PASS" in acceptance
+    assert "T4_STATUS=UNBLOCKED_AND_COMPLETE" in acceptance
 
 
-def test_generated_state_reports_approved_blocked_next_task():
+def test_generated_state_reports_implementing_next_task():
     state = json.loads((ROOT / "generated/PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": "CHG-0028-publish-readiness-owner-convergence",
-        "status": "APPROVED",
+        "status": "VERIFYING",
         "path": "changes/active/CHG-0028-publish-readiness-owner-convergence",
     }
     assert state["tasks"]["total"] == 8
-    assert state["tasks"]["completed"] == 3
-    assert state["tasks"]["next_task"].startswith("T4 BLOCKED")
+    assert state["tasks"]["completed"] == 7
+    assert state["tasks"]["next_task"].startswith("T8 Persist")

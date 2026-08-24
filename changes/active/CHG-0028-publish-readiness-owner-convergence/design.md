@@ -1,7 +1,7 @@
 # CHG-0028 Design
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: APPROVED
+Status: VERIFYING
 
 ## Design intent
 
@@ -42,14 +42,28 @@ Evidence: `evidence/20260824-t1-t3-read-only-owner-audit-and-stop-decision.md`.
 - `PATCH_UPSTREAM` cannot proceed under this approval: persisted convergence requires a new lineage-aware readiness writer, while avoiding persistence requires an explicit retirement/replacement of the current Accounts contract.
 - invoking the native MTOP probe from the Accounts polling path is rejected because it is not the upstream-native trigger, fans out calls, and can enter the established Cookie update path after token refresh.
 
-The design therefore stops before IMPLEMENTING. A separate project-owner decision must choose the readiness contract before any failing code test or source patch is added.
+The original T1-T3 design stopped before IMPLEMENTING because a separate project-owner decision was required.
+
+## T4 owner decision
+
+`CHG0028_OWNER_CONTRACT_DECISION=APPROVED__SELECTED_ACCOUNT_ON_DEMAND_CAPABILITY`
+
+The approved contract is selected-account on-demand capability:
+
+- keep `PublishAccountCapabilityService.detect -> mtop.idle.pc.idleitem.preget` as the only native Publisher capability producer;
+- expose the existing upstream-style selected-account route, `/product-publish/accounts/{account_id}/capability`, for explicit capability checks;
+- do not project selected-account success into `session_maintenance.consumers.publish`;
+- do not create a lineage-aware writer, readiness table, scheduler, background producer, cache, Browser gate, or COMPANY-side truth source;
+- represent global/unchecked Publisher capability as `mode=ON_DEMAND`, `checked=false`, and `state=NOT_CHECKED` or equivalent wire-compatible fields.
+
+This is a `PATCH_UPSTREAM` continuation because fresh upstream already provides the selected-account route/service workflow, while the current deployed/patch source still needs the route adoption and Accounts consumer contract replacement.
 
 ## Readiness truth model
 
 | Authoritative condition | Required outward state |
 |---|---|
 | Existing native readiness evidence is present for the selected account and current lineage | `READY` |
-| Native workflow has not yet produced authoritative readiness evidence | `LAZY_PENDING` / existing retry-later semantics |
+| Selected-account capability has not been explicitly checked | `ON_DEMAND` / `NOT_CHECKED`; `checked=false`; never false `READY` |
 | Confirmed authentication, platform-verification, or fatal session blocker applies | Existing fail-closed blocker; never `READY` |
 | Transient transport/upstream failure prevents a current determination | Existing temporary/retry-later semantics; never a false fatal session label |
 | Evidence is missing or contradictory | Not ready / unknown according to the existing contract; never fabricated `READY` |
@@ -71,12 +85,14 @@ The completed read-only reproduction proves missing record -> `RETRY_LATER`, syn
 If a separately approved implementation follows, it must first add deterministic tests that prove:
 
 - an existing native authoritative signal produces `READY`;
-- absence of that signal remains lazy/pending and never becomes false `READY`;
+- absence of selected-account on-demand checking is represented as `ON_DEMAND`/`NOT_CHECKED` and never becomes false `READY`, permanent pending, or Session invalid;
 - fatal blockers remain fail-closed;
 - transient failures do not become false Session-expired outcomes;
 - selected-account and owner scope are preserved;
 - normal Direct/Personal Publisher paths do not acquire a Browser prerequisite;
 - no real publish or production mutation is needed for acceptance.
+
+Additional owner-decision tests must prove the account list / periodic polling path does not call `PublishAccountCapabilityService.detect`, `mtop.idle.pc.idleitem.preget`, preget, MTop, or any capability producer.
 
 Regression selection must be component-specific and include the relevant CHG0026/CHG0027 safety tests if shared Session/capability composition is touched.
 

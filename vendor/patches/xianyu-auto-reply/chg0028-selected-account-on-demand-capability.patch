@@ -1,0 +1,390 @@
+diff --git a/backend-web/app/api/routes/_exports.py b/backend-web/app/api/routes/_exports.py
+index 0d6cb139c8cd3cf47d40568e9fe4da948fe910b9..39e10f3160bd76f545007127eb443eca510b09f8 100644
+--- a/backend-web/app/api/routes/_exports.py
++++ b/backend-web/app/api/routes/_exports.py
+@@ -53,0 +54 @@ from . import (
++    product_publish_capability,
+@@ -105,0 +107 @@ api_router.include_router(product_publish.router, tags=["商品发布"])  # 已
++api_router.include_router(product_publish_capability.router, tags=["商品发布账号能力"])
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+index 034efa93831d04b6c67fca3ff70a396ee5d2a56c..f0d99f5cc01c5dd20e5d3190f0003ea749144fe9 100644
+--- a/backend-web/app/api/routes/cookies.py
++++ b/backend-web/app/api/routes/cookies.py
+@@ -195,0 +196,13 @@ def _business_capability(
++def _build_on_demand_publish_capability(checked_at: str) -> dict[str, Any]:
++    capability = _business_capability(
++        state="NOT_CHECKED",
++        label="按需检查",
++        reason="selected_account_capability_not_checked",
++        source="selected_account_on_demand",
++        last_checked_at=checked_at,
++        auto_recoverable=True,
++    )
++    capability.update({"mode": "ON_DEMAND", "checked": False})
++    return capability
++
++
+@@ -621,6 +634 @@ def _build_business_capabilities(
+-            publish_capability = _business_capability(
+-                state="RETRY_LATER", label="待检查",
+-                reason=("publish_check_timed_out" if publish_check_expired_effective else "session_check_pending_no_active_check"),
+-                source="session_maintenance", last_checked_at=publish_checked_at, auto_recoverable=True,
+-                deadline_at=publish_check_deadline,
+-            )
++            publish_capability = _build_on_demand_publish_capability(checked_at)
+@@ -639,4 +647 @@ def _build_business_capabilities(
+-        publish_capability = _business_capability(
+-            state="READY", label="可用", reason=publish_reason or "publish_auth_ready",
+-            source="publish_auth_readiness", last_checked_at=publish_checked_at, auto_recoverable=True,
+-        )
++        publish_capability = _build_on_demand_publish_capability(checked_at)
+diff --git a/backend-web/app/api/routes/product_publish_capability.py b/backend-web/app/api/routes/product_publish_capability.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..704cc1ac320db579f61b47c50e456cb53de1d3ee
+--- /dev/null
++++ b/backend-web/app/api/routes/product_publish_capability.py
+@@ -0,0 +1,79 @@
++"""
++商品发布账号能力接口。
++
++该接口只服务于用户选中的账号或显式按需请求；账号列表轮询不得调用它。
++"""
++from __future__ import annotations
++
++from typing import Any
++
++from fastapi import APIRouter, Depends
++from loguru import logger
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from app.api.deps import get_current_active_user, get_db_session
++from app.services.account_service import AccountService
++from common.models.user import User, UserRole
++from common.schemas.common import ApiResponse
++from common.services.xianyu_publish_service import detect_publish_account_capability
++
++
++router = APIRouter(prefix="/product-publish/accounts", tags=["商品发布账号能力"])
++
++
++@router.get("/{account_id}/capability", response_model=ApiResponse)
++async def get_publish_account_capability(
++    account_id: str,
++    current_user: User = Depends(get_current_active_user),
++    session: AsyncSession = Depends(get_db_session),
++) -> dict[str, Any]:
++    """Return current point-in-time publish capability for one selected account."""
++    try:
++        owner_id = None if current_user.role == UserRole.ADMIN else current_user.id
++        account = await AccountService(session).get_account_for_user(owner_id, account_id)
++        if not account:
++            return ApiResponse(success=False, message="发布账号不存在或无权使用", data=None)
++        if not (account.cookie or "").strip():
++            return ApiResponse(success=False, message="发布账号缺少Cookie，请重新登录账号", data=None)
++
++        result = await detect_publish_account_capability(
++            cookie=account.cookie,
++            account_id=account.account_id,
++            owner_id=account.owner_id,
++        )
++    except Exception as exc:
++        logger.error(f"账号发布能力检测异常: account_id={account_id}, error={exc}")
++        return ApiResponse(
++            success=False,
++            message=f"账号发布能力检测失败：{exc}",
++            data={"state": "RETRY_LATER", "retryable": True, "account_invalid": False},
++        )
++
++    if not result.get("success"):
++        account_invalid = bool(result.get("account_invalid"))
++        return ApiResponse(
++            success=False,
++            message=result.get("message") or "账号发布能力检测失败",
++            data={
++                "state": "ACCOUNT_INVALID" if account_invalid else "RETRY_LATER",
++                "retryable": not account_invalid,
++                "account_invalid": account_invalid,
++            },
++        )
++
++    return ApiResponse(
++        success=True,
++        message="账号发布能力检测成功",
++        data={
++            "state": "READY",
++            "checked": True,
++            "mode": "ON_DEMAND",
++            "account_id": account.account_id,
++            "is_fish_shop": bool(result.get("is_fish_shop")),
++            "support_sku_or_inventory": bool(result.get("support_sku_or_inventory")),
++            "commission_config": result.get("commission_config") or {},
++        },
++    )
++
++
++__all__ = ["router"]
+diff --git a/tests/test_chg0028_selected_account_on_demand_capability.py b/tests/test_chg0028_selected_account_on_demand_capability.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f98c0f912780344489ae2324af7cb0442b3391b9
+--- /dev/null
++++ b/tests/test_chg0028_selected_account_on_demand_capability.py
+@@ -0,0 +1,259 @@
++from __future__ import annotations
++
++import importlib.util
++import asyncio
++import sys
++import types
++from dataclasses import dataclass
++from pathlib import Path
++from unittest.mock import AsyncMock
++
++import pytest
++
++ROOT = Path(__file__).resolve().parents[1]
++ROUTE = ROOT / "backend-web/app/api/routes/product_publish_capability.py"
++COOKIES = ROOT / "backend-web/app/api/routes/cookies.py"
++EXPORTS = ROOT / "backend-web/app/api/routes/_exports.py"
++
++
++def test_unchecked_account_list_publish_capability_is_on_demand_not_ready() -> None:
++    text = COOKIES.read_text(encoding="utf-8")
++
++    assert '"mode": "ON_DEMAND"' in text
++    assert '"checked": False' in text
++    assert 'state="NOT_CHECKED"' in text
++    assert 'source="selected_account_on_demand"' in text
++    assert 'state="READY", label="可用"' not in text
++
++
++def test_account_list_does_not_call_publish_capability_producer() -> None:
++    text = COOKIES.read_text(encoding="utf-8")
++
++    assert "detect_publish_account_capability" not in text
++    assert "PublishAccountCapabilityService" not in text
++    assert "mtop.idle.pc.idleitem.preget" not in text
++    assert "session_maintenance.consumers.publish" not in text
++
++
++def test_selected_account_capability_calls_existing_service_once() -> None:
++    text = ROUTE.read_text(encoding="utf-8")
++
++    assert 'prefix="/product-publish/accounts"' in text
++    assert 'router.get("/{account_id}/capability"' in text
++    assert text.count("detect_publish_account_capability(") == 1
++    assert "cookie=account.cookie" in text
++    assert "owner_id=account.owner_id" in text
++    assert '"state": "READY"' in text
++    assert '"mode": "ON_DEMAND"' in text
++    assert '"checked": True' in text
++
++
++def test_transient_failure_is_retryable_not_session_invalid() -> None:
++    text = ROUTE.read_text(encoding="utf-8")
++
++    assert '"state": "RETRY_LATER"' in text
++    assert '"retryable": True' in text
++    assert "SESSION_EXPIRED" not in text
++
++
++def test_account_invalid_and_fatal_semantics_are_preserved() -> None:
++    text = ROUTE.read_text(encoding="utf-8")
++
++    assert '"state": "ACCOUNT_INVALID" if account_invalid else "RETRY_LATER"' in text
++    assert '"retryable": not account_invalid' in text
++    assert '"account_invalid": account_invalid' in text
++
++
++def test_route_is_registered_without_polling_producer() -> None:
++    text = EXPORTS.read_text(encoding="utf-8")
++
++    assert "product_publish_capability" in text
++    assert "api_router.include_router(product_publish_capability.router" in text
++
++
++@dataclass
++class _User:
++    id: int = 42
++    role: str = "USER"
++
++
++@dataclass
++class _Account:
++    account_id: str = "acct-1"
++    cookie: str = "current-cookie"
++    owner_id: int = 42
++
++
++class _ApiResponse:
++    def __init__(self, *, success: bool, message: str, data=None):
++        self.success = success
++        self.message = message
++        self.data = data
++
++
++class _Router:
++    def __init__(self, *args, **kwargs):
++        self.args = args
++        self.kwargs = kwargs
++
++    def get(self, *args, **kwargs):
++        def _decorator(func):
++            return func
++
++        return _decorator
++
++
++def _install_route_import_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
++    def ensure_module(name: str) -> types.ModuleType:
++        module = types.ModuleType(name)
++        monkeypatch.setitem(sys.modules, name, module)
++        return module
++
++    ensure_module("app")
++    ensure_module("app.api")
++    deps = ensure_module("app.api.deps")
++    deps.get_current_active_user = object()
++    deps.get_db_session = object()
++
++    ensure_module("app.services")
++    account_service = ensure_module("app.services.account_service")
++    account_service.AccountService = object
++
++    common = ensure_module("common")
++    common.__path__ = []
++    ensure_module("common.models")
++    user_module = ensure_module("common.models.user")
++    user_module.User = _User
++    user_module.UserRole = types.SimpleNamespace(ADMIN="ADMIN")
++    ensure_module("common.schemas")
++    common_schemas = ensure_module("common.schemas.common")
++    common_schemas.ApiResponse = _ApiResponse
++    ensure_module("common.services")
++    publish_service = ensure_module("common.services.xianyu_publish_service")
++    publish_service.detect_publish_account_capability = AsyncMock()
++
++    fastapi = ensure_module("fastapi")
++    fastapi.APIRouter = _Router
++    fastapi.Depends = lambda dependency: dependency
++
++    loguru = ensure_module("loguru")
++    loguru.logger = types.SimpleNamespace(error=lambda *args, **kwargs: None)
++
++    ensure_module("sqlalchemy")
++    ensure_module("sqlalchemy.ext")
++    sqlalchemy_asyncio = ensure_module("sqlalchemy.ext.asyncio")
++    sqlalchemy_asyncio.AsyncSession = object
++
++
++def _load_route(monkeypatch: pytest.MonkeyPatch):
++    _install_route_import_stubs(monkeypatch)
++    module_name = "chg0028_product_publish_capability_route"
++    sys.modules.pop(module_name, None)
++    spec = importlib.util.spec_from_file_location(module_name, ROUTE)
++    assert spec is not None
++    module = importlib.util.module_from_spec(spec)
++    assert spec.loader is not None
++    spec.loader.exec_module(module)
++    return module
++
++
++def _install_account_service(module, account: _Account | None):
++    service = types.SimpleNamespace(get_account_for_user=AsyncMock(return_value=account))
++    module.AccountService = lambda session: service
++    return service
++
++
++def test_selected_account_success_uses_current_cookie_and_existing_service_once(monkeypatch: pytest.MonkeyPatch) -> None:
++    module = _load_route(monkeypatch)
++    account = _Account()
++    service = _install_account_service(module, account)
++    detector = AsyncMock(
++        return_value={
++            "success": True,
++            "is_fish_shop": False,
++            "support_sku_or_inventory": False,
++            "commission_config": {"title": "basic"},
++        }
++    )
++    module.detect_publish_account_capability = detector
++    session = types.SimpleNamespace(commit=AsyncMock(), execute=AsyncMock())
++
++    response = asyncio.run(
++        module.get_publish_account_capability(
++            account.account_id,
++            current_user=_User(),
++            session=session,
++        )
++    )
++
++    service.get_account_for_user.assert_awaited_once_with(42, account.account_id)
++    detector.assert_awaited_once_with(
++        cookie="current-cookie",
++        account_id=account.account_id,
++        owner_id=account.owner_id,
++    )
++    assert response.success is True
++    assert response.data["state"] == "READY"
++    assert response.data["mode"] == "ON_DEMAND"
++    assert response.data["checked"] is True
++    session.commit.assert_not_awaited()
++    session.execute.assert_not_awaited()
++
++
++def test_transient_failure_is_retryable_and_not_session_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
++    module = _load_route(monkeypatch)
++    _install_account_service(module, _Account())
++    detector = AsyncMock(return_value={"success": False, "message": "temporary", "account_invalid": False})
++    module.detect_publish_account_capability = detector
++
++    response = asyncio.run(module.get_publish_account_capability("acct-1", current_user=_User(), session=object()))
++
++    detector.assert_awaited_once()
++    assert response.success is False
++    assert response.data == {"state": "RETRY_LATER", "retryable": True, "account_invalid": False}
++    assert "Session" not in response.message
++
++
++def test_account_invalid_failure_is_fatal_not_retryable(monkeypatch: pytest.MonkeyPatch) -> None:
++    module = _load_route(monkeypatch)
++    _install_account_service(module, _Account())
++    detector = AsyncMock(return_value={"success": False, "message": "invalid", "account_invalid": True})
++    module.detect_publish_account_capability = detector
++
++    response = asyncio.run(module.get_publish_account_capability("acct-1", current_user=_User(), session=object()))
++
++    detector.assert_awaited_once()
++    assert response.success is False
++    assert response.data == {"state": "ACCOUNT_INVALID", "retryable": False, "account_invalid": True}
++
++
++def test_missing_account_or_cookie_fails_without_capability_call(monkeypatch: pytest.MonkeyPatch) -> None:
++    module = _load_route(monkeypatch)
++    _install_account_service(module, None)
++    detector = AsyncMock()
++    module.detect_publish_account_capability = detector
++
++    missing = asyncio.run(module.get_publish_account_capability("missing", current_user=_User(), session=object()))
++    assert missing.success is False
++    detector.assert_not_awaited()
++
++    _install_account_service(module, _Account(cookie=" "))
++    no_cookie = asyncio.run(module.get_publish_account_capability("acct-1", current_user=_User(), session=object()))
++    assert no_cookie.success is False
++    detector.assert_not_awaited()
++
++
++def test_detector_exception_is_retryable_without_session_write(monkeypatch: pytest.MonkeyPatch) -> None:
++    module = _load_route(monkeypatch)
++    _install_account_service(module, _Account())
++    detector = AsyncMock(side_effect=RuntimeError("temporary upstream failure"))
++    module.detect_publish_account_capability = detector
++    session = types.SimpleNamespace(commit=AsyncMock(), execute=AsyncMock())
++
++    response = asyncio.run(module.get_publish_account_capability("acct-1", current_user=_User(), session=session))
++
++    detector.assert_awaited_once()
++    assert response.success is False
++    assert response.data == {"state": "RETRY_LATER", "retryable": True, "account_invalid": False}
++    session.commit.assert_not_awaited()
++    session.execute.assert_not_awaited()

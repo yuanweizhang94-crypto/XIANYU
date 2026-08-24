@@ -1,7 +1,7 @@
 # CHG-0028 Acceptance
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: APPROVED
+Status: VERIFYING
 
 ## Entry gate
 
@@ -11,6 +11,7 @@ Status: APPROVED
 - the scope remains Publisher readiness only;
 - CHG0027 remains archived and production-frozen;
 - the Browser fixed-target access follow-up remains separate.
+- on 2026-08-25 the project owner separately approved `SELECTED_ACCOUNT_ON_DEMAND_CAPABILITY` and did not authorize a lineage-aware writer or global persisted Publisher readiness.
 
 ## Required evidence
 
@@ -33,13 +34,15 @@ After a separately approved implementation:
 
 ## Scoped acceptance criteria
 
-- an authoritative native readiness signal in the existing owner can converge the selected account to `READY`;
-- no authoritative signal leaves the result truthfully lazy/pending or not ready;
+- an explicit selected-account capability request invokes the existing Backend `PublishAccountCapabilityService.detect` owner exactly once and can return `READY` only from that current point-in-time native signal;
+- account-list/global Publisher capability that has not been explicitly checked is represented as `mode=ON_DEMAND`, `checked=false`, and `state=NOT_CHECKED` or equivalent wire-compatible fields;
+- no authoritative selected-account signal leaves the result truthfully on-demand/not checked, retryable, or not ready;
 - fatal authentication, platform-verification, and session blockers remain fail-closed;
 - transient failures do not create a false Session-expired state;
 - selected-account and owner scope remain intact;
 - normal Direct/Personal Publisher execution remains Browser-independent;
-- no second readiness owner, writer, service, table, schema, state machine, scheduler, or adapter-side truth source is introduced;
+- no second readiness owner, writer, persisted READY record, service, table, schema, state machine, scheduler, account-list polling producer, or adapter-side truth source is introduced;
+- the account-list / periodic polling path does not call `preget`, MTop, `PublishAccountCapabilityService.detect`, or any Publisher capability producer;
 - all changed runtime source is proven deployed before any runtime acceptance claim;
 - CHG0028-specific CI and deterministic tests pass.
 
@@ -60,6 +63,10 @@ The complete Change must record:
 `MANUAL_RECONNECT_INVOCATION_COUNT=0`
 
 `PRODUCTION_ACCOUNT_MUTATION_COUNT=0`
+
+`GLOBAL_PERSISTED_PUBLISH_READINESS_WRITER_CREATED=0`
+
+`BROWSER_INVOCATION_COUNT=0`
 
 ## Explicit non-acceptance
 
@@ -82,3 +89,15 @@ Stopping is the correct outcome if current evidence proves that convergence need
 `IMPLEMENTATION_AUTHORIZED=false`
 
 T1-T3 proved that the current native producer is point-in-time only and the deployed Accounts consumer requires an unwritten persisted record. Enabling the newer upstream route alone is insufficient; polling it from account status can invoke the existing Cookie update path. T4-T8 therefore remain blocked pending a separate project-owner contract decision.
+
+## Continuation acceptance
+
+`OWNER_CONTRACT_DECISION=SELECTED_ACCOUNT_ON_DEMAND_CAPABILITY`
+
+`T4_STATUS=UNBLOCKED_AND_COMPLETE`
+
+`IMPLEMENTATION_AUTHORIZED=true`
+
+`PRODUCTION_FREEZE=true`
+
+The prior stop acceptance remains the historical reason T4 required an owner decision. The current continuation can complete source, tests, GitHub PR, and CI closure without production deployment. It must stop before any production deployment, container restart, real account mutation, Browser action, QR/reconnect, Item Sync, real MTop call, real publish, real product mutation, or message send.
