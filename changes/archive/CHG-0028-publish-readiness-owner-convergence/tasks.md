@@ -1,7 +1,7 @@
 # CHG-0028 Tasks
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: VERIFYING
+Status: ARCHIVED
 
 - [x] T1 Fresh-fetched upstream and recorded current GitHub, local, runtime, and upstream SHAs plus the exact Publisher capability producer / Accounts readiness consumer ownership map.
 - [x] T2 Reproduced lazy pending deterministically and proved the missing native transition without real publish, external MTOP, Browser, or production mutation.
@@ -10,7 +10,7 @@ Status: VERIFYING
 - [x] T5 Implement only the proven existing-owner adoption, configuration, or patch while preserving Publisher routing, selected-account on-demand scope, fail-closed blockers, and no-Browser invariants.
 - [x] T6 Run targeted Publisher readiness tests, relevant CHG0026/CHG0027 regressions, repository validation, generated-state checks, and diff-scope review.
 - [x] T7 Production-frozen source-only acceptance: component patch clean-applies and deterministic behavior tests pass; no deployment, container restart, real publish, QR, reconnect, Item Sync, messaging, Browser, or account mutation was performed or claimed.
-- [ ] T8 Persist exact evidence, commit with precise staging, push normally, verify remote SHA, open a main-based PR, classify CI truthfully, and merge only after scoped acceptance passes. IN_PROGRESS: implementation commit and closure evidence were prepared, PR #41 was opened, initial CI was classified as CHG0028-specific pass with pre-existing global debt only, and merge remains conditional on latest-head CI/branch-protection outcome.
+- [x] T8 Persist exact evidence, commit with precise staging, push normally, verify remote SHA, open a main-based PR, classify CI truthfully, and merge only after scoped acceptance passes. COMPLETE: PR #41 merged to current main at `4ba50db5c83aa3d3f06345b0f7bcf6192f9cfd89`; CHG0028 runtime activation remains outside this archived source/GitHub Change.
 
 ## Execution gate
 
@@ -43,6 +43,10 @@ T8 is now the single unfinished persistence and merge-closure task. T7 completed
 `REMOTE_BRANCH=feat/CHG-0028-publish-readiness-owner-convergence`
 
 `REMOTE_BRANCH_SHA=95c4675c5dae785fab801affa85cd1975892cd7e`
+
+`MERGE_COMMIT_SHA=4ba50db5c83aa3d3f06345b0f7bcf6192f9cfd89`
+
+`REMOTE_MAIN_SHA=4ba50db5c83aa3d3f06345b0f7bcf6192f9cfd89`
 
 `PR_NUMBER=41`
 

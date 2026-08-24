@@ -1,7 +1,7 @@
 # CHG-0028 Design
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: VERIFYING
+Status: ARCHIVED
 
 ## Design intent
 
@@ -103,6 +103,14 @@ No runtime validation or activation is authorized by the current approval becaus
 ## Rollback
 
 Before any approved runtime change, record the exact preimage, image/container identity, and source hash. Roll back only the affected component to that pinned preimage. Do not roll back CHG0027 or its production-accepted patch.
+
+## Archive transition
+
+`PR_NUMBER=41`
+
+`MERGE_COMMIT_SHA=4ba50db5c83aa3d3f06345b0f7bcf6192f9cfd89`
+
+CHG-0028 is archived after GitHub merge. Runtime deployment and three-capability closure now belong to `CHG-0029-core-capability-closure`.
 
 ## Separate Browser follow-up
 
