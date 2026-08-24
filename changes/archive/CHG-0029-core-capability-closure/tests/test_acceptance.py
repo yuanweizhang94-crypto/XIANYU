@@ -9,7 +9,8 @@ REQUIRED_DOCS = ("proposal.md", "design.md", "tasks.md", "acceptance.md")
 
 
 def test_chg0029_is_archived_with_contract():
-    active_dirs = [path.name for path in (ROOT / "changes/active").iterdir() if path.is_dir()]
+    active_root = ROOT / "changes/active"
+    active_dirs = [path.name for path in active_root.iterdir() if path.is_dir()] if active_root.exists() else []
     assert active_dirs == []
 
     proposal = (CHANGE / "proposal.md").read_text(encoding="utf-8")
