@@ -192,3 +192,98 @@ COMPANY_SOURCE_MUTATION_COUNT=0
 BROWSER_INVOCATION_COUNT=0
 GLOBAL_PERSISTED_PUBLISH_READINESS_WRITER_CREATED=0
 ```
+
+## GitHub persistence and initial CI evidence - 2026-08-24
+
+```text
+LOCAL_START_SHA=02fd7ba8a64ebe56d4366635a478b581a3ae1012
+IMPLEMENTATION_COMMIT_SHA=95c4675c5dae785fab801affa85cd1975892cd7e
+REMOTE_BRANCH=feat/CHG-0028-publish-readiness-owner-convergence
+REMOTE_BRANCH_SHA=95c4675c5dae785fab801affa85cd1975892cd7e
+GITHUB_TRANSPORT_USED=HTTPS push to explicit repository URL; command returned MCP internal error, then GitHub API recovery verified the commit and branch SHA.
+SSH_KEY_CREATED=NO
+SHARED_ORIGIN_URL_CHANGED=NO
+PR_NUMBER=41
+PR_URL=https://github.com/yuanweizhang94-crypto/XIANYU/pull/41
+PR_HEAD_SHA=95c4675c5dae785fab801affa85cd1975892cd7e
+PR_BASE=main
+PR_BASE_SHA=dc83ef23603c1725d3babcd8f89f54db0592f075
+PATCH_SHA256=CED451293701C53475E23F9B87DF205AB97AFDD0B3696D35A4D9C8675BC4E490
+```
+
+Remote verification:
+
+```text
+CHECK=GitHub commit API
+RESULT=PASS
+REMOTE_COMMIT=95c4675c5dae785fab801affa85cd1975892cd7e
+PARENT=02fd7ba8a64ebe56d4366635a478b581a3ae1012
+
+CHECK=GitHub compare 02fd7ba8..feat/CHG-0028-publish-readiness-owner-convergence
+RESULT=PASS
+AHEAD_BY=1
+BEHIND_BY=0
+FILES=10
+```
+
+Current implementation commit scoped files:
+
+```text
+changes/active/CHG-0028-publish-readiness-owner-convergence/acceptance.md
+changes/active/CHG-0028-publish-readiness-owner-convergence/design.md
+changes/active/CHG-0028-publish-readiness-owner-convergence/evidence/20260825-selected-account-on-demand-contract-and-implementation.md
+changes/active/CHG-0028-publish-readiness-owner-convergence/proposal.md
+changes/active/CHG-0028-publish-readiness-owner-convergence/tasks.md
+changes/active/CHG-0028-publish-readiness-owner-convergence/tests/test_acceptance.py
+generated/PROJECT_STATE.json
+tests/unit/test_chg0028_selected_account_on_demand_patch_artifact.py
+vendor/patches/xianyu-auto-reply/README.md
+vendor/patches/xianyu-auto-reply/chg0028-selected-account-on-demand-capability.patch
+```
+
+Main-based PR #41 currently lists 17 files because the feature branch includes earlier CHG-0028 audit/approval history and CHG-0027 archive files that are ancestors of `02fd7ba8a64ebe56d4366635a478b581a3ae1012` but not yet on main. The current implementation commit remains the exact 10-file scoped diff above.
+
+Initial PR CI for head `95c4675c5dae785fab801affa85cd1975892cd7e`:
+
+```text
+security / security = success
+quality / quality = failure
+  PASS: Ruff check
+  PASS: Mypy check
+  FAIL: Repository and change validation
+  FAILURE_CLASSIFICATION=PRE_EXISTING_CHG0020_ARCHIVE_DEBT
+  ERROR=missing archived change files for CHG-0020-zidongzhua-market-search: design.md, tasks.md
+
+tests / tests = failure
+  FAIL: Run pytest
+  SUMMARY=11 failed, 592 passed, 1 warning
+  FAILURE_CLASSIFICATION=UNRELATED_PRE_EXISTING_GOVERNANCE_DEBT
+  FAILURES=CHG-0020 missing archive design/tasks; CHG-0022 active evidence file path assumptions; README/AGENTS governance drift assertion.
+```
+
+CHG-0028-specific CI/log classification:
+
+```text
+CHG0028_SPECIFIC_CI=PASS_BY_LOG_CLASSIFICATION
+CHG0028_BEHAVIOR_FAILURES_IN_CI=0
+GLOBAL_CI_STATUS=FAIL_UNRELATED_PRE_EXISTING_GOVERNANCE_DEBT
+CHG0020_DEBT_ABSORBED=NO
+BROWSER_ACTIONS=0
+PRODUCTION_MUTATIONS=0
+REAL_BUSINESS_ACTIONS=0
+```
+
+Closure-commit local verification after recording PR/CI evidence:
+
+```text
+python -m pytest changes/active/CHG-0028-publish-readiness-owner-convergence/tests/test_acceptance.py tests/unit/test_chg0028_selected_account_on_demand_patch_artifact.py -q = 12 passed in 0.09s
+python -m pytest changes/archive/CHG-0026-qr-dual-mode-and-chat-connectivity-recovery/tests/test_acceptance.py -q = 6 passed in 0.03s
+python -m pytest changes/archive/CHG-0027-session-transient-classification-qr-cooldown-lineage/tests/test_acceptance.py -q = 5 passed in 0.02s
+python -m ruff check . = All checks passed
+python scripts/security_scan.py = security scan passed
+git diff --check = PASS
+python scripts/validate_change.py = PRE_EXISTING_BLOCKED: CHG-0020 archived change missing design.md and tasks.md
+python scripts/verify_repository.py = PRE_EXISTING_BLOCKED: CHG-0020 archived change missing design.md and tasks.md
+```
+
+No CI failure references the selected-account on-demand capability patch, CHG-0028 acceptance tests, Browser exclusion, production freeze, real business actions, or persisted readiness writer creation. The unrelated debt is recorded and not fixed in this Change.

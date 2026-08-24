@@ -101,3 +101,29 @@ T1-T3 proved that the current native producer is point-in-time only and the depl
 `PRODUCTION_FREEZE=true`
 
 The prior stop acceptance remains the historical reason T4 required an owner decision. The current continuation can complete source, tests, GitHub PR, and CI closure without production deployment. It must stop before any production deployment, container restart, real account mutation, Browser action, QR/reconnect, Item Sync, real MTop call, real publish, real product mutation, or message send.
+
+## GitHub and CI acceptance checkpoint
+
+`REMOTE_BRANCH_SHA_VERIFIED=95c4675c5dae785fab801affa85cd1975892cd7e`
+
+`PR_NUMBER=41`
+
+`PR_URL=https://github.com/yuanweizhang94-crypto/XIANYU/pull/41`
+
+`PR_HEAD_SHA=95c4675c5dae785fab801affa85cd1975892cd7e`
+
+`PR_BASE_SHA=dc83ef23603c1725d3babcd8f89f54db0592f075`
+
+`PATCH_SHA256=CED451293701C53475E23F9B87DF205AB97AFDD0B3696D35A4D9C8675BC4E490`
+
+`PR_SCOPE_CURRENT_COMMIT_CLEAN=true`
+
+`PR_TOTAL_SCOPE_NOTE=main-based PR includes earlier branch-history CHG-0027 archive files; current CHG-0028 implementation commit remains the exact 10-file scoped diff from 02fd7ba8 to 95c4675c.`
+
+`CHG0028_SPECIFIC_CI=PASS_BY_LOG_CLASSIFICATION`
+
+`GLOBAL_CI_STATUS=FAIL_UNRELATED_PRE_EXISTING_GOVERNANCE_DEBT`
+
+`CHG0020_DEBT_ABSORBED=false`
+
+Initial PR CI for head `95c4675c5dae785fab801affa85cd1975892cd7e` did not identify a CHG-0028 behavior failure. Security passed. Quality failed only on pre-existing CHG-0020 archive validation debt. The broad tests workflow failed on unrelated existing governance tests for CHG-0020, CHG-0022 active evidence assumptions, and README/AGENTS governance drift. Those debts are outside CHG-0028 and were not modified or absorbed.
