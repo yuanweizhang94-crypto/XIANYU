@@ -1,7 +1,7 @@
 # CHG-0028 Publisher Readiness Owner Convergence
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: DRAFT
+Status: APPROVED
 Created: 2026-08-24
 Predecessor: CHG-0027-session-transient-classification-qr-cooldown-lineage
 
@@ -19,7 +19,7 @@ Make Publisher readiness converge truthfully through the existing upstream/curre
 
 ## Scope
 
-Allowed after explicit project-owner approval:
+Approved scope:
 
 - refresh current upstream, local, and runtime read-only evidence for the existing Publisher readiness producer and consumers;
 - identify the native event or state transition that should produce authoritative readiness;
@@ -47,11 +47,11 @@ The separate follow-up `AUTHORIZED_BROWSER_CANNOT_RENDER_FIXED_LOCAL_XIANYU_FRON
 
 ## Upstream capability audit
 
-DRAFT finding only: the Publisher executor, account-capability routing, and readiness consumers already exist. CHG0027 found no current authoritative `READY` producer. T1 must fresh-fetch and map the pinned upstream, current local source, runtime source/hash, native workflow, producer, consumers, and ownership before any implementation proposal is executable.
+Approval-stage finding: the Publisher executor, account-capability routing, and readiness consumers already exist. CHG0027 found no current authoritative `READY` producer. T1 must fresh-fetch and map the pinned upstream, current local source, runtime source/hash, native workflow, producer, consumers, and ownership before any implementation proposal is executable.
 
 ## Pinned upstream evidence
 
-The inherited CHG0027 comparison evidence pins the production-source upstream checkout at `bda1a859df63fa5f24e51398fa80a23490bb6dfc` and records then-current upstream main `29dc831d4498f3174f0502c989a352ef59815553` for comparison only. These are historical input, not permission to implement. T1 must record a fresh upstream fetch SHA and runtime/source comparison before this Change can leave DRAFT.
+The inherited CHG0027 comparison evidence pins the production-source upstream checkout at `bda1a859df63fa5f24e51398fa80a23490bb6dfc` and records then-current upstream main `29dc831d4498f3174f0502c989a352ef59815553` for comparison only. These are historical input, not permission to implement. T1 must record a fresh upstream fetch SHA and runtime/source comparison before T1 can complete or this Change can move to IMPLEMENTING.
 
 ## Existing local implementation search
 
@@ -61,7 +61,7 @@ CHG0027 already established that readiness consumers can emit lazy `RETRY_LATER`
 
 Decision: PATCH_UPSTREAM
 
-This is the DRAFT planning default: repair only a proven defect in the existing upstream/current owner. If the fresh audit proves configuration or direct adoption is sufficient, the decision must narrow to `CONFIGURE_UPSTREAM` or `ADOPT_UPSTREAM` before approval. If satisfying the requirement needs a new owner, schema, table, writer, or parallel state machine, execution stops and requires a separately approved exception.
+This is the APPROVED audit default: repair only a proven defect in the existing upstream/current owner. If the fresh audit proves configuration or direct adoption is sufficient, the decision must narrow to `CONFIGURE_UPSTREAM` or `ADOPT_UPSTREAM` before approval. If satisfying the requirement needs a new owner, schema, table, writer, or parallel state machine, execution stops and requires a separately approved exception.
 
 ## Duplicate implementation risk
 
@@ -69,7 +69,7 @@ Creating readiness state in COMPANY_LOCAL_EXECUTION_TOOL, Browser automation, or
 
 ## Why upstream cannot satisfy the requirement
 
-The current confirmed evidence shows the existing consumed state remains `LAZY_PENDING` and no authoritative `READY` producer was found. The exact missing native transition is not yet proven. Therefore implementation is prohibited in DRAFT; the upstream/current-owner audit is the first executable investigation only after approval.
+The current confirmed evidence shows the existing consumed state remains `LAZY_PENDING` and no authoritative `READY` producer was found. The exact missing native transition is not yet proven. Owner approval has been received; the upstream/current-owner audit is now the first executable investigation. Implementation remains prohibited until T1-T3 prove the exact native transition and confirm that this reuse decision still applies.
 
 ## Approved exception ADR
 
@@ -95,6 +95,12 @@ Stop without implementation if:
 
 ## Approval gate
 
-`DRAFT_READ_REVIEW_ONLY=true`
+`OWNER_APPROVAL_RECEIVED=true`
 
-No business code, runtime deployment, production operation, or status transition beyond DRAFT is authorized until the project owner explicitly approves this exact Publisher-only scope.
+`OWNER_APPROVAL_DATE=2026-08-24`
+
+`OWNER_APPROVED_SCOPE=PUBLISHER_READINESS_ONLY`
+
+`BROWSER_SCOPE_INCLUDED=false`
+
+T1 read-only audit is authorized. Business implementation, runtime deployment, and production operations remain gated by the evidence and stop conditions in T1-T3.

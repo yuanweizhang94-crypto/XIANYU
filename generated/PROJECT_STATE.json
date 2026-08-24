@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "active_change": {
     "id": "CHG-0028-publish-readiness-owner-convergence",
-    "status": "DRAFT",
+    "status": "APPROVED",
     "path": "changes/active/CHG-0028-publish-readiness-owner-convergence"
   },
   "tasks": {
     "total": 8,
     "completed": 0,
-    "next_task": null,
+    "next_task": "T1 After explicit approval, fresh-fetch upstream and record current GitHub, local, runtime, and upstream SHAs plus the existing Publisher readiness producer/consumer ownership map.",
     "items": [
       {
         "text": "T1 After explicit approval, fresh-fetch upstream and record current GitHub, local, runtime, and upstream SHAs plus the existing Publisher readiness producer/consumer ownership map.",

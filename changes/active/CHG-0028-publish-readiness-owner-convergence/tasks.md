@@ -1,7 +1,7 @@
 # CHG-0028 Tasks
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: DRAFT
+Status: APPROVED
 
 - [ ] T1 After explicit approval, fresh-fetch upstream and record current GitHub, local, runtime, and upstream SHAs plus the existing Publisher readiness producer/consumer ownership map.
 - [ ] T2 Reproduce the lazy-pending state with deterministic or read-only evidence and prove the exact missing native transition without real publish or production mutation.
@@ -14,4 +14,6 @@ Status: DRAFT
 
 ## Execution gate
 
-DRAFT permits reading and review only. No task above is executable until the project owner explicitly approves this exact Publisher-only Change.
+`OWNER_APPROVAL_RECEIVED=true`
+
+T1-T3 are authorized within the Publisher-only, read-only-first boundary. Browser work and every production mutation remain prohibited.

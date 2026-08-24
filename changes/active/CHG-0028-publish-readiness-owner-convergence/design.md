@@ -1,7 +1,7 @@
 # CHG-0028 Design
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: DRAFT
+Status: APPROVED
 
 ## Design intent
 
@@ -40,7 +40,7 @@ Only one of these outcomes may follow the audit:
 - `PATCH_UPSTREAM`: minimally repair the existing producer/consumer transition in its current owner;
 - stop: if the result requires `WRAP_FOR_OPERATIONS`, `BUILD_LOCAL_EXCEPTION`, a new writer, or another owner, return for a separate approval decision.
 
-The DRAFT default is `PATCH_UPSTREAM`; it is not implementation authorization.
+The APPROVED audit default is `PATCH_UPSTREAM`; it is not implementation authorization before T1-T3 prove the existing-owner defect.
 
 ## Readiness truth model
 

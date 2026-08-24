@@ -1,11 +1,13 @@
 # CHG-0028 Acceptance
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: DRAFT
+Status: APPROVED
 
 ## Entry gate
 
-- the project owner explicitly approves `CHG-0028-publish-readiness-owner-convergence`;
+`OWNER_APPROVAL_RECEIVED=true`
+
+- the project owner explicitly approved `CHG-0028-publish-readiness-owner-convergence` on 2026-08-24;
 - the scope remains Publisher readiness only;
 - CHG0027 remains archived and production-frozen;
 - the Browser fixed-target access follow-up remains separate.
