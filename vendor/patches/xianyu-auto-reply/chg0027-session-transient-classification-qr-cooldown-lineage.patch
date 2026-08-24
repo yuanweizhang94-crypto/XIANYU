@@ -1,0 +1,208 @@
+diff --git a/backend/backend-web/app/api/routes/chat_new.py b/backend/backend-web/app/api/routes/chat_new.py
+index d9ece01ce3cd77efe3d244dda98c04b5007825de..ebebf46ccdc89554f9d8897aea6f96b31cbd3eee 100644
+GIT binary patch
+delta 345
+zcmcb;is|SYrVY6)ddd0u*_o;FMX6~;sl^!znYjh|MI{Q!If=!^nQ4{r#i>9#KQBHl
+zF*B#MD0T9B7MabtEbI96!Q6PTIt5#t>f=+(GE-9Xl2a!u3X9k4a4A3m%-EvT#Nzxs
+zgm_7Qc4}UHaY<rHDnw8dtOce#EwLmq2WTCFkKznl1*Kru;9yUGzj)V(0M8&-7bRrv
+zmhmM;iFw7Dsd*)M%?NSz4e$?g42q0*bM*8H4RTf5EGV**i5srlifeM9q{`$UV#3^M
+MN^sH5^<sDG06&#@8UO$Q
+
+delta 222
+zcmX@QhUxYyrVY6)o42#9<D2|Wm~HYJA&JQwM0o3iT>V_b<J}xReOz6XbQF|=U4w%?
+z{r%!yBLX~wfI_ug3Q&+=1eA4jbB*^6@ehbcSErDfr%;?)T%4Jo7hjZ`Se&1Sq7h_4
+zd~jqix;|kgOpTNIge4ShZ55Q#5;JpBQ{rL9rdAYW7Nw>rfeqH&oGh}FY4aBGiFE*g
+CBSudE
+
+diff --git a/backend/backend-web/app/api/routes/cookies.py b/backend/backend-web/app/api/routes/cookies.py
+index fb84d91cf1a475b9647436fd1b54ccf81a87dcd6..034efa93831d04b6c67fca3ff70a396ee5d2a56c 100644
+GIT binary patch
+delta 587
+zcmaEPlcoP9%Z6&U$(q~6#d8vii!;+I<BL;)bbelZT4H8SX;JFry=*d@tJ%c00>Iq(
+zWRN-qTLmzUMSXl~S!POVUUI4imjV>POe`)*EJ@XY3r{xm5UWRU%ZuYn^0QO(;z7zv
+ziy;!4VAU`K(h^G&bAWau_$Y3&RZt3c4G#A7_ltLp2=EMYbx}gmUQ(2pSDcxeSAsA?
+z73NKtzkp_hxcUb82RQ~s#=ALs`h*6#Doy4ylH6Qp_?4X#Zp35*Q-{g_JUJ(u_=`;r
+zvQp<xQ$omnFt?h#NK0&TfSbtV4OUH)XL;95KH$PJIopeObAzRj0Fp6<zHXEMdvXAc
+zk(uo4B{Vt3N|acmCO25BOs@8|+5F#gmN3YCR&e-Cc8Kv1L=Oj@$xF@kCO<WIg}duP
+ys`=y(W=cp-0qUEalPWqn&`JZR6CR|xPHsqH0s2U3vO~P{WNshs%`;;I&I14>!_t!g
+
+delta 205
+zcmeBw$@20h%Z6&U%}3e9wfIXCa};b9G`JKXU^1t%qI<lXqo<Fni;|9lQm|`qu&2LY
+zylX^&XAn@R7N$@kzX&Mn=;j*l8{!`jkFHK3Gf!di1}iZw6!jo;<AWoEaVnqOX(Ye-
+qzu{N*$(`0bllL3(Y!<L#7l3gl3)o0b*79-LJlk)Q@Minefb#%nvptRg
+
+diff --git a/backend/backend-web/app/services/chat_new/im_session_manager.py b/backend/backend-web/app/services/chat_new/im_session_manager.py
+index 344986db5f99d59ace569b33d9a962d4610d27fd..f1726b6c82fd23911529d819f581f88cd3913253 100644
+GIT binary patch
+delta 302
+zcmaDggRx^a;|6Ue&$OcaT!rNP+}!*;z0#7*oMOG?{QT_9)cB&*w4&7F428_xg8ZTq
+zh2)&X;^NG-%J||`Af2BVpO%=JQ(BZ7pIVlglA4#Cx><{9BID-k%vX8xVNzf{3busx
+zY800wmZa(^6s0B>=jUm1DL_GHngW_xwhBtYuED{c{(kYU5doe-t}aSelM6*eCMO87
+wPnHl=k;JOS$KTy^@<Ty&O(hV^FFwdMFchp8r%jVj2s%tYBdD<1SkT-W01csO5C8xG
+
+delta 136
+zcmeB}&G>2t;|6V}&818e7{wKUKq=TYIM~zQFFwfC&ow;W&C%0m6U!~0fXp<Yl%tz#
+zyl;qqKs-#5Yeax&kgJQ5LS~*qQEFmwex5>pk%AIPSA1|}FdlW2FYw7uP8C$%93`Y@
+F4FFJ`Dw+TQ
+
+diff --git a/backend/common/utils/cookie_refresh.py b/backend/common/utils/cookie_refresh.py
+index 82b3539109bfd8f0f153f9cb88533ac1a2383b1a..a2c560aa94fa7c612c8edd8b503701f9c0c54c92 100644
+GIT binary patch
+delta 1521
+zcma)6&2G~`5LN|TT!fI25I<72>?u~OR9qwF;5ysZs<TelYf4WmlWeHf)~;-aQkBX#
+z?p2<FGYB4lC*YkJd%aH51kqgL-T7v|nQv$2&(F1Qzt?`eY3~c4_`c&&v1@V56^vLu
+z9QqbJAk0Ty)G`qKuy5@W(dXWv!ISp`hmjuMQh?jr7n}MUOs-=)T)5tzLm}p2Fb^$n
+zr*9uUE5Myl?f|Vr-&wBH1gnq2ZV)>3>_*HIFpVZF&MfLX5cM9F6qN8Ij~xiYn8!2&
+zclyK&xIWq*rNri?LJP3fz9sv>V|)?INgpmPb_^mrZor5NULZWP1OuOg_<haG2xrIE
+zj$2|)!!Sm2jD}}nmPO+$kxBSZVlfV*vq>t2{1lC3Je2COv^C4aTy{{Fr|1i!Ni5Y<
+zX{U6$y}q%YC#NzN6?EEu{Hg$SN4+S<cFl+6=P1jg_#^TaG17$SGRjYqNsfl83@b#4
+zGC54*5eg^y2}&+wnYJ;;Rmh43dI~sN3rV6RMHrjyEHBdNqGh%x7Z);ZnUxnr&XTxx
+zYm!%&jo-3cRaoscSLBRp*=3lV7ayWnj=*h<ud8%#I@c-z_^86%V53Sa8bci*Fp6Sy
+zjrW7TMa3bTYj%Y1wEv9~ww$L_=94sDLKx^N7@Nr5F2d9A51zknCTKZAX@^0oCu}jZ
+z(qE6ao|dxyS{ksH{YZMv^k~pB&D}7XD2%UK=S7&F%Cr;$6jTC^f#$rqZU|N_8T0;Z
+zbArRHxMGKSM?PWGuMeNVFj)cL7xf-N7y!LvyfssR5lW7PAJ{f*JiOvDs7Hxv)P)z&
+wr7M4>7+%V`n44ui<qIM;V*F2|f32_;I?dL{?#p_!RGhlKs)~MXw6{0^0$mWcW&i*H
+
+delta 14
+VcmZ3wpYiM_#tn*kn=4Ipv;i=j1)Kl?
+
+diff --git a/scheduler/common/services/item_delete_service.py b/scheduler/common/services/item_delete_service.py
+index 93ffff565c0b2ffdb349d5103b3723a62eba717f..771610c68e8dcd1c4b984f3069931ee1fb323f75 100644
+GIT binary patch
+delta 41
+wcmbQ&%(%6gaRa-Wn2thnX;D#XUP*j%etvdlYOz9ok%H3X09o<PvTBXe04}o))&Kwi
+
+delta 18
+Zcmdnm%s8)^aRa;B<Y+aq%_eG%(f~hz1`GfI
+
+diff --git a/scheduler/common/services/order_service.py b/scheduler/common/services/order_service.py
+index fae8c0f71144b20fda71a8ae7217416a4a2d0ae9..19ffbdeaf7e0cd9de875e293bda3bf21eca609c3 100644
+GIT binary patch
+delta 124
+zcmZ3opY73pwhd=C2<a#!=jUf<rWVH+mlP@F7bz%BzbL~fJzYSQk!|yv4c%6FRZM=f
+kL4EVS*XjM@Its<9Ica)W4V$bG%Q5-Y2HEW?)r<}*0G8t}YXATM
+
+delta 72
+zcmaE~pKZy0whd=CO!f-lo8A!0$TL|XjAirR4ZT(<B9s4a(A@mwb$UNSbiyhQps4Kj
+JMb(TBDgc1s9`XPH
+
+diff --git a/scheduler/common/services/rate_service.py b/scheduler/common/services/rate_service.py
+index 32229ee56798cb970fb0a5c4ba9c3db15c3940cd..972dd7ff29dc8f636a5a83947fcc0e7bc9c37d60 100644
+GIT binary patch
+delta 89
+zcmbQUgz?N0#trKvrF0aEQ*+YvlJoPkGgIS>ONuh{(iQTH6qJ-EE9y&4p1{vCIl)AB
+e^GnG{DKQ;|<kF&|)Vz{-h;meQn-fg-$N~VJ(;m_Q
+
+delta 47
+ucmX@JgmKOi#trKvCrkSAO;(WNn4BQUF?oWC>}F=ENGW8&%@a)a$N~U>Y7YYd
+
+diff --git a/scheduler/common/services/xianyu_mtop.py b/scheduler/common/services/xianyu_mtop.py
+index 3080d495292d4dd7e611a6360d67d7a12e74ec7b..96ee0230da6addffe0f02f448fad8217e5c6fd3f 100644
+GIT binary patch
+delta 36
+rcmZ3Mu{UGGX=QO8h2+wrqSU;S_~iWj?99|+h5RA~C8f=$m7@g!77`8h
+
+delta 16
+Ycmdm+u`FZ5Y30e{DtwziDEkTk075VZ(EtDd
+
+diff --git a/scheduler/common/utils/cookie_refresh.py b/scheduler/common/utils/cookie_refresh.py
+index b6647f64d52420f6831b2c5518f33e373fcdccca..449498473fc7c3f248712c42817435218b601985 100644
+GIT binary patch
+delta 880
+zcmaJ=?MqWp7{?Dyz3F6(!JH+>+dfPjvO-8?gJQOs8xaaYNQ~><*}ClI%JD3S-rtti
+zM#Y28Y!QW21g({kg@#36`qJnAfIOSuMt?z_d+(U`V)xtO`906?<$3Pcm8L77n#!iY
+z<oAo0g+0hW67+cX?MJMfW!Ytxe^Xt#!%7Qmrp!J-rSP`8a1}`zdQv3{m8fzG>o1g4
+z(pZY)+UouFclq_T2kgZ>@~dh>!H8wAvC?~OI&_3P0R`I3!-`BNrYUiwgXz;JU~hml
+zx#5w+3gwm^@GM|G!nxRN{y#)W(=m>xrxi7g*z)U*wd<AQLrx-!qJa3Pq^49t5mi!H
+z03qBBv*R7XGkQrYiz$gDa5N%OaYzUCYe-kGdlR9#jMRNaVoExW$rMr2yaB!leUNW!
+zZZXj31o$yvg_~ooa5m_)8rnBXiyJR5)!X4okiySF2lS0}LeXJwMm{8pZUKfzyw2Kc
+zj@{1jXnAbaxqFqu<4SQB9X&RNCX=e1z=XSk1Bbu0>(U68RT4!$Fo(O$aZFv3EUTF`
+zjVMw0=(L-RI(VDAFX;G&Pfi(2suFb>h<>eiOA5V6CCJmeg@dP4m(N@IvVLpaHXMD9
+zDDpuLZ3{89DZuMPo*|t8c7_MR=CRoI7Y7-dHW^{Yw#y=C2*KQ0LxrAu&1M?VHpsjF
+z1oZg+8f5Tkc%9P~>VZQcyMOx&=C{Od&9mHHzLrYiY5l~E^D=%2w)m<tHzUHt@h<4}
+aw8M?j-K`Ciur&JopBEs9&Myh!&z4^h^;wPp
+
+delta 498
+zcmZoZ$ar=);|4Z2My|;{?vj&N`b$n;?3Ok8Mu3psvjy!h)@^vPW!cmI?ZK(V#hLke
+zPq%M+vA_M<ocZtf^t{+V`)TXar)}Gx_HF@+OrB^cG5JEE;pC%!l9QLZ^YfHs=BDa_
+z2n|iH$sbLGCwqA4vO!Fn+~HB8m6)8IUz%4EpP6E%P+U@^qmY|gl9-ZMk{F*=oS$c<
+z;FwpbV5{JlpO-q>&(o&<aYGXqmjVzxo4)AD{<+Vm&V1T8Ujgba1&FI4jsd#uX@AGl
+zCB4t5ta#qH;n|!{h^=r76rSu@`+Qc5f@5h(zCuuHK~5#u;HNt`KkeV}a#hcZ^^MQh
+zc0S$L3JC$A%`f&l&V06DyFzesMrulFPHK_D(+Mq4cJF@LweZ>W1uy3`JZ<ZJx_j62
+zHEW*i>Up|!`m<S0PaEev@7ngPp%LV8kh>?Z^SmwqVx(3SWEQ2S#Dl_S@&qsK$qhj~
+zg2;jjHns`|lOK4Avw-!*`^xelOHXd~T?GqBC%-yPkRq@R$_nt<fJ789B%bYPeK~Up
+PFdm=oox1se-(f)j0Tudv
+
+diff --git a/scheduler/scheduler/app/services/scheduler/fetch_items_task.py b/scheduler/scheduler/app/services/scheduler/fetch_items_task.py
+index ccd3429460980d1260a925b60d2552f572036b2a..6c917b5e4735f169c28b1c2c1e3916e60e92c080 100644
+GIT binary patch
+delta 52
+zcmbPWwajY6J01xgg~a6K{L;J<z2yA-?95b!{2~P<B~7czio&v!M8zjR;NzGaCmguB
+ImUl8g0O%SKbpQYW
+
+delta 31
+ncmZ2xHNk4bJ02!YtH}@f#3naz@JyByked9T&wuko-l_Zmx}gg=
+
+diff --git a/scheduler/scheduler/app/services/scheduler/fetch_orders_task.py b/scheduler/scheduler/app/services/scheduler/fetch_orders_task.py
+index 6d35a181f04d4e00bdc92613e1f5cd94617af9dd..d070732122f8d62d0a0132cc47c303ee173fe9d2 100644
+GIT binary patch
+delta 139
+zcmbQ{_rY(&V@`b?g~a6K{L;J<z1-B2#FWI6#Q3b@{5*tka(;exW~xGdk%E$vrqyIa
+eewj&vVv{fMaBP<6N)w_$|73YClg(dc6uAJJFfU>N
+
+delta 21
+dcmez1H_dOuW6sS2T#JMz3vd-|_Lo)U0sv)=2d4l4
+
+diff --git a/scheduler/scheduler/app/services/scheduler/login_renew_task.py b/scheduler/scheduler/app/services/scheduler/login_renew_task.py
+index 4412a2bee428b9aa5161a5bf01d23cac6cee63c9..b3f2486356a734a35afc470ca152abb0064418e0 100644
+GIT binary patch
+delta 89
+zcmZpk$hdDJ<Axtx;yMb6$;tVpc_n(u`T5zIsS5c;3Q9_vlNEWSCQmTp*(}d}SV9$>
+UB8c+h_~Mcxh@Q=llozT10Cc<`KL7v#
+
+delta 46
+zcmV+}0MY-xkpY8|0kHTA0x3F^kq{Y^@E0MIAPWeSL=za3?=lawc?*9SlU5`Wvo9o%
+EB!%Y>wg3PC
+
+diff --git a/scheduler/scheduler/app/services/scheduler/polish_task.py b/scheduler/scheduler/app/services/scheduler/polish_task.py
+index 7c330087841282f0537871fecf69046a4755a1ec..9ff16a5b58a8475d69d02593f2aef61969806e49 100644
+GIT binary patch
+delta 118
+zcmdnLnz3;W<A#1tF&%}(<mCL)yb`_S{QT_9RE7K^1tq1)3cli#6S!C=@8?kj(j1c?
+x@JLM7*OJ-H&J`@JjZIH-X;D#XUP(N}l=$M3BCtu51$m?=8*sC3u2gk1002QKClmkx
+
+delta 30
+mcmZo%!?=Gn<A#1tCQYl!hTM{y4{&afp8Qf(Zu2fxcLM;hOA9^#
+
+diff --git a/scheduler/scheduler/app/services/scheduler/rate_task.py b/scheduler/scheduler/app/services/scheduler/rate_task.py
+index 26b58a346d1721f6046608092e22fc94a4e1f876..fe09a7fae23905b71bc549180b4bbcc7e8acc6bd 100644
+GIT binary patch
+delta 46
+zcmZpkz&LXP<A(E6;yMb6$;tVpc_n(u`T5zIsS5c;3Q9_vlNaiXO)fCk-7GBqK?eYb
+CZxA~G
+
+delta 21
+dcmbO^fw6f4<A(E6Oqy1c3(cK2Yf6960RUJY2h9Kg
+
+diff --git a/scheduler/scheduler/app/services/scheduler/red_flower_task.py b/scheduler/scheduler/app/services/scheduler/red_flower_task.py
+index b4a75c8183d558675ff53bc50ce7a3b759b8bea7..62f62aeb5b694cb80b96e7105dfd16af2a87c682 100644
+GIT binary patch
+delta 152
+zcmeykh;i>?#tou!5;_Wr$;tVpc_n(u`T5zIsS5c;3Q9_vR+9t0MJDIUYi$md(^nMK
+zQGm$C7nc-)RZJGt7M|>2$1}OX&2@4>Ap7JCZYGmstt2*EIjFE<SH8KxEsP1f)Z_zd
+L9Gf3_OymFn_?9u+
+
+delta 79
+zcmdnHnDOHx#tou!jGB}4<n1?S%jqjl4)&CqJb{m8vW}<Y<O>#Tlk+|KHp@Gtvw<ZX
+Z)HuKrAe!I7db6GTAx4nIW*yIo8~`sA8RP%}
+
+diff --git a/scheduler/scheduler/app/services/scheduler/redelivery_task.py b/scheduler/scheduler/app/services/scheduler/redelivery_task.py
+index 06cd31e06072b6c896398c7516679e80d1fbe95b..c004bc7ffeace711a196b4031d89de0f1fe5312e 100644
+GIT binary patch
+delta 68
+zcmZ2`nd#<brVT2J5;_Wr$;tVpc_n(u`T5zIsS5c;3Q9_vR+A0-q&7P!zTuwCtH{NT
+PBsckBjm&0u-Lx72O3@eP
+
+delta 32
+ocmcb4nQ851rVT2JESgrlT$AnHbT?-!Ugw@XOILbxv2I!o0L8cqv;Y7A
+

@@ -1,6 +1,6 @@
 # CHG-0026 Tasks
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0026-qr-dual-mode-and-chat-connectivity-recovery
 
@@ -11,7 +11,7 @@ Change ID: CHG-0026-qr-dual-mode-and-chat-connectivity-recovery
 - [x] T5 Build Backend/Frontend candidates only; keep WebSocket/Scheduler unchanged unless new evidence proves necessary.
 - [x] T6 Deploy minimal components and run production acceptance with zero new executor QR create/scan and zero other-account auth writes.
 - [x] T7 Persist exact vendor patch/evidence/state and validate repository with only pre-existing debt classified separately.
-- [ ] T8 Commit/push unique branch, create one PR, classify CI, merge with merge commit when CHG0026-specific gates are clean, and fresh-read main.
+- [x] T8 Commit/push unique branch, create one PR, classify CI, merge with merge commit when CHG0026-specific gates are clean, and fresh-read main.
 
 T1_COMPLETE=true
 T2_COMPLETE=true
@@ -20,7 +20,7 @@ T4_COMPLETE=true
 T5_COMPLETE=true
 T6_COMPLETE=true
 T7_COMPLETE=true
-T8_COMPLETE=false
+T8_COMPLETE=true
 
 NEW_AUTOMATED_QR_CREATE_COUNT=0_REQUIRED
 NEW_EXECUTOR_QR_SCAN_COUNT=0_REQUIRED

@@ -1,6 +1,6 @@
 # CHG-0026 Proposal
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0026-qr-dual-mode-and-chat-connectivity-recovery
 
