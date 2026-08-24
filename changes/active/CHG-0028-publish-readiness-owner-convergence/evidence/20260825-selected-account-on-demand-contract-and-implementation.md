@@ -241,7 +241,7 @@ vendor/patches/xianyu-auto-reply/README.md
 vendor/patches/xianyu-auto-reply/chg0028-selected-account-on-demand-capability.patch
 ```
 
-Main-based PR #41 currently lists 17 files because the feature branch includes earlier CHG-0028 audit/approval history and CHG-0027 archive files that are ancestors of `02fd7ba8a64ebe56d4366635a478b581a3ae1012` but not yet on main. The current implementation commit remains the exact 10-file scoped diff above.
+Main-based PR #41 currently lists 17 files because the feature branch includes earlier CHG-0028 audit/approval history and six CHG-0027 archive rename files from trusted baseline governance transition `42d0aa8` (`docs: archive CHG0027 and draft CHG0028`). Those paths are ancestors of `02fd7ba8a64ebe56d4366635a478b581a3ae1012`, are not this run's implementation change, and are not a CHG0027 business reopen. The current implementation commit remains the exact 10-file scoped diff above.
 
 Initial PR CI for head `95c4675c5dae785fab801affa85cd1975892cd7e`:
 

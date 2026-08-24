@@ -88,7 +88,7 @@ Stopping is the correct outcome if current evidence proves that convergence need
 
 `IMPLEMENTATION_AUTHORIZED=false`
 
-T1-T3 proved that the current native producer is point-in-time only and the deployed Accounts consumer requires an unwritten persisted record. Enabling the newer upstream route alone is insufficient; polling it from account status can invoke the existing Cookie update path. T4-T8 therefore remain blocked pending a separate project-owner contract decision.
+T1-T3 proved that the current native producer is point-in-time only and the deployed Accounts consumer requires an unwritten persisted record. Enabling the newer upstream route alone is insufficient; polling it from account status can invoke the existing Cookie update path. This was the historical stop reason before the 2026-08-25 project-owner decision selected the on-demand contract. T4-T7 are now complete under the production freeze, and T8 remains limited to GitHub persistence, CI classification, and merge closure.
 
 ## Continuation acceptance
 
@@ -116,9 +116,15 @@ The prior stop acceptance remains the historical reason T4 required an owner dec
 
 `PATCH_SHA256=CED451293701C53475E23F9B87DF205AB97AFDD0B3696D35A4D9C8675BC4E490`
 
+`TRUSTED_BASELINE_GOVERNANCE_TRANSITION=42d0aa8_docs_archive_CHG0027_and_draft_CHG0028`
+
 `PR_SCOPE_CURRENT_COMMIT_CLEAN=true`
 
-`PR_TOTAL_SCOPE_NOTE=main-based PR includes earlier branch-history CHG-0027 archive files; current CHG-0028 implementation commit remains the exact 10-file scoped diff from 02fd7ba8 to 95c4675c.`
+`PR_SCOPE_CLEAN=true`
+
+`PR_TOTAL_SCOPE_CLASSIFICATION=PASS__CHG0028_IMPLEMENTATION_PLUS_TRUSTED_BASELINE_GOVERNANCE_TRANSITION_ONLY`
+
+`PR_TOTAL_SCOPE_NOTE=main-based PR includes earlier branch-history CHG-0027 archive rename files from trusted baseline governance transition 42d0aa8; current CHG-0028 implementation commit remains the exact 10-file scoped diff from 02fd7ba8 to 95c4675c.`
 
 `CHG0028_SPECIFIC_CI=PASS_BY_LOG_CLASSIFICATION`
 

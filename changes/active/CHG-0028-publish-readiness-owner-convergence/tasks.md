@@ -10,7 +10,7 @@ Status: VERIFYING
 - [x] T5 Implement only the proven existing-owner adoption, configuration, or patch while preserving Publisher routing, selected-account on-demand scope, fail-closed blockers, and no-Browser invariants.
 - [x] T6 Run targeted Publisher readiness tests, relevant CHG0026/CHG0027 regressions, repository validation, generated-state checks, and diff-scope review.
 - [x] T7 Production-frozen source-only acceptance: component patch clean-applies and deterministic behavior tests pass; no deployment, container restart, real publish, QR, reconnect, Item Sync, messaging, Browser, or account mutation was performed or claimed.
-- [x] T8 COMPLETE: implementation commit and closure evidence were pushed, remote SHA verified, PR #41 opened/reused, CI classified as CHG28-specific pass with pre-existing global debt only, and merge remained conditional on latest-head CI/branch-protection outcome.
+- [ ] T8 Persist exact evidence, commit with precise staging, push normally, verify remote SHA, open a main-based PR, classify CI truthfully, and merge only after scoped acceptance passes. IN_PROGRESS: implementation commit and closure evidence were prepared, PR #41 was opened, initial CI was classified as CHG0028-specific pass with pre-existing global debt only, and merge remains conditional on latest-head CI/branch-protection outcome.
 
 ## Execution gate
 
@@ -22,7 +22,7 @@ Status: VERIFYING
 
 `IMPLEMENTATION_AUTHORIZED=false`
 
-T1-T3 are complete within the Publisher-only boundary. T4-T8 remain blocked. Browser work and every production mutation remain prohibited.
+T1-T3 are complete within the Publisher-only boundary and recorded the historical stop reason. The 2026-08-25 owner decision unblocked T4-T7 for the selected-account on-demand contract. T8 remains the only unfinished GitHub persistence and merge-closure task. Browser work and every production mutation remain prohibited.
 
 ## 2026-08-25 execution update
 
@@ -34,7 +34,7 @@ T1-T3 are complete within the Publisher-only boundary. T4-T8 remain blocked. Bro
 
 `LINEAGE_AWARE_READINESS_WRITER=NOT_AUTHORIZED`
 
-T8 is now the single unfinished persistence task. T7 completed as production-frozen source-only acceptance; no production mutation is authorized by this task.
+T8 is now the single unfinished persistence and merge-closure task. T7 completed as production-frozen source-only acceptance; no production mutation is authorized by this task.
 
 ## 2026-08-25 GitHub persistence checkpoint
 

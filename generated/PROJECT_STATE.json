@@ -9,7 +9,7 @@
   "tasks": {
     "total": 8,
     "completed": 7,
-    "next_task": "T8 Persist exact evidence, commit with precise staging, push normally, verify remote SHA, open a main-based PR, classify CI truthfully, and merge only after scoped acceptance passes.",
+    "next_task": "T8 Persist exact evidence, commit with precise staging, push normally, verify remote SHA, open a main-based PR, classify CI truthfully, and merge only after scoped acceptance passes. IN_PROGRESS: implementation commit and closure evidence were prepared, PR #41 was opened, initial CI was classified as CHG0028-specific pass with pre-existing global debt only, and merge remains conditional on latest-head CI/branch-protection outcome.",
     "items": [
       {
         "text": "T1 Fresh-fetched upstream and recorded current GitHub, local, runtime, and upstream SHAs plus the exact Publisher capability producer / Accounts readiness consumer ownership map.",
@@ -40,7 +40,7 @@
         "completed": true
       },
       {
-        "text": "T8 Persist exact evidence, commit with precise staging, push normally, verify remote SHA, open a main-based PR, classify CI truthfully, and merge only after scoped acceptance passes.",
+        "text": "T8 Persist exact evidence, commit with precise staging, push normally, verify remote SHA, open a main-based PR, classify CI truthfully, and merge only after scoped acceptance passes. IN_PROGRESS: implementation commit and closure evidence were prepared, PR #41 was opened, initial CI was classified as CHG0028-specific pass with pre-existing global debt only, and merge remains conditional on latest-head CI/branch-protection outcome.",
         "completed": false
       }
     ]
