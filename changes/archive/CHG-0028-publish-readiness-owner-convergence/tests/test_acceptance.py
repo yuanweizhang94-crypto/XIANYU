@@ -90,13 +90,9 @@ def test_implementation_is_unblocked_by_selected_account_contract():
 
 def test_generated_state_reports_implementing_next_task():
     state = json.loads((ROOT / "generated/PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["active_change"] == {
-        "id": "CHG-0029-core-capability-closure",
-        "status": "IMPLEMENTING",
-        "path": "changes/active/CHG-0029-core-capability-closure",
-    }
-    assert state["tasks"]["total"] >= 6
-    assert state["tasks"]["next_task"].startswith("T5")
+    assert state["active_change"] is None
+    assert state["tasks"]["total"] == 0
+    assert state["tasks"]["next_task"] is None
 
 
 def test_github_merge_closure_is_recorded():

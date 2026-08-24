@@ -1,7 +1,7 @@
 # CHG-0029 Design
 
 Change ID: CHG-0029-core-capability-closure
-Status: IMPLEMENTING
+Status: ARCHIVED
 
 ## Design Intent
 
