@@ -2,53 +2,45 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0025-web-self-service-qr-account-recovery",
-    "status": "APPROVED",
-    "path": "changes/active/CHG-0025-web-self-service-qr-account-recovery"
+    "id": "CHG-0026-qr-dual-mode-and-chat-connectivity-recovery",
+    "status": "VERIFYING",
+    "path": "changes/active/CHG-0026-qr-dual-mode-and-chat-connectivity-recovery"
   },
   "tasks": {
-    "total": 10,
-    "completed": 9,
-    "next_task": "T10 Push unique CHG0025 branch, create/reuse one PR, classify CI, merge with merge commit when CHG0025-specific checks are clean, and fresh-read main.",
+    "total": 8,
+    "completed": 7,
+    "next_task": "T8 Commit/push unique branch, create one PR, classify CI, merge with merge commit when CHG0026-specific gates are clean, and fresh-read main.",
     "items": [
       {
-        "text": "T1 Recover exact current source authority for Backend QR route and current production Frontend Accounts source without real QR creation/scan.",
+        "text": "T1 Fresh-resolve Wang/Zhou identity, read-only production states, causal windows, upstream QR semantics, and other-account baseline.",
         "completed": true
       },
       {
-        "text": "T2 Archive merged/runtime-accepted CHG0024 governance-only; do not alter its runtime patch or repeat Item Sync.",
+        "text": "T2 Archive completed CHG0025 governance and create CHG0026 precheck without reopening or changing CHG0025 runtime behavior.",
         "completed": true
       },
       {
-        "text": "T3 Create CHG0025 scope/design/acceptance and lock account-scoped + no-false-green contracts.",
+        "text": "T3 Lock exact current production/source preimages and implement minimal existing-owner QR dual-mode + readiness/status patch.",
         "completed": true
       },
       {
-        "text": "T4 Implement the minimal existing-owner Backend + Frontend delta over proven preimages.",
+        "text": "T4 Run at least 21 deterministic QR/Chat/WS cases plus targeted regression/security checks.",
         "completed": true
       },
       {
-        "text": "T5 Run deterministic behavior tests, exact patch replay, secret scan, and targeted regressions.",
+        "text": "T5 Build Backend/Frontend candidates only; keep WebSocket/Scheduler unchanged unless new evidence proves necessary.",
         "completed": true
       },
       {
-        "text": "T6 Build Backend and Frontend candidates from accepted production lineages; WebSocket/Scheduler unchanged.",
+        "text": "T6 Deploy minimal components and run production acceptance with zero new executor QR create/scan and zero other-account auth writes.",
         "completed": true
       },
       {
-        "text": "T7 Deploy only required components through existing authoritative lifecycle and recover UNKNOWN read-only if needed.",
+        "text": "T7 Persist exact vendor patch/evidence/state and validate repository with only pre-existing debt classified separately.",
         "completed": true
       },
       {
-        "text": "T8 Run production non-QR acceptance plus fresh other-account read-only regression comparison; preserve both HUMAN_QR controls.",
-        "completed": true
-      },
-      {
-        "text": "T9 Persist exact CHG0025 vendor patch/evidence/state; targeted tests + repository verification + exact staging.",
-        "completed": true
-      },
-      {
-        "text": "T10 Push unique CHG0025 branch, create/reuse one PR, classify CI, merge with merge commit when CHG0025-specific checks are clean, and fresh-read main.",
+        "text": "T8 Commit/push unique branch, create one PR, classify CI, merge with merge commit when CHG0026-specific gates are clean, and fresh-read main.",
         "completed": false
       }
     ]
