@@ -2,46 +2,46 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0027-session-transient-classification-qr-cooldown-lineage",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0027-session-transient-classification-qr-cooldown-lineage"
+    "id": "CHG-0028-publish-readiness-owner-convergence",
+    "status": "DRAFT",
+    "path": "changes/active/CHG-0028-publish-readiness-owner-convergence"
   },
   "tasks": {
     "total": 8,
-    "completed": 8,
+    "completed": 0,
     "next_task": null,
     "items": [
       {
-        "text": "T1 Fresh-lock main/runtime/source authority, three-repo bootstrap, upstream/current-owner evidence, and archive merged CHG0026 governance.",
-        "completed": true
+        "text": "T1 After explicit approval, fresh-fetch upstream and record current GitHub, local, runtime, and upstream SHAs plus the existing Publisher readiness producer/consumer ownership map.",
+        "completed": false
       },
       {
-        "text": "T2 Implement Defect A: evidence-based transient/fatal Session classification in existing consumers.",
-        "completed": true
+        "text": "T2 Reproduce the lazy-pending state with deterministic or read-only evidence and prove the exact missing native transition without real publish or production mutation.",
+        "completed": false
       },
       {
-        "text": "T3 Implement Defect B: Session-expired cooldown bound to existing authoritative Cookie fingerprint lineage.",
-        "completed": true
+        "text": "T3 Finalize the upstream-first reuse decision; stop and return for separate approval if any new owner, writer, schema, table, Browser dependency, or local exception is required.",
+        "completed": false
       },
       {
-        "text": "T4 Add deterministic CHG0027 tests and run CHG0026 relevant regressions plus scope/diff gates.",
-        "completed": true
+        "text": "T4 Move the Change to IMPLEMENTING only with the exact approved scope, then add failing deterministic acceptance tests before a minimal existing-owner patch.",
+        "completed": false
       },
       {
-        "text": "T5 Build only required Backend/Scheduler candidates and serially activate with rollback/source-image/health gates.",
-        "completed": true
+        "text": "T5 Implement only the proven existing-owner adoption, configuration, or patch while preserving Publisher routing, selected-account scope, fail-closed blockers, and no-Browser invariants.",
+        "completed": false
       },
       {
-        "text": "T6 Run Zhou post-fix acceptance and full enabled-account Session/Auto Reply/Chat/Publisher audit with zero real message/publish/Item Sync actions.",
-        "completed": true
+        "text": "T6 Run targeted Publisher readiness tests, relevant CHG0026/CHG0027 regressions, repository validation, generated-state checks, and diff-scope review.",
+        "completed": false
       },
       {
-        "text": "T7 Validate Frontend bundle/runtime wiring and classify authorized real-browser rendering as a separate infrastructure prerequisite.",
-        "completed": true
+        "text": "T7 If source changed, perform component-specific deployment and sanitized production-safe acceptance without real publish, QR, reconnect, Item Sync, messaging, or account mutation.",
+        "completed": false
       },
       {
-        "text": "T8 Freeze accepted production and persist the exact formal patch, evidence, state, and follow-up split for formal Git closure.",
-        "completed": true
+        "text": "T8 Persist exact evidence, commit with precise staging, push normally, verify remote SHA, open a main-based PR, classify CI truthfully, and merge only after scoped acceptance passes.",
+        "completed": false
       }
     ]
   },

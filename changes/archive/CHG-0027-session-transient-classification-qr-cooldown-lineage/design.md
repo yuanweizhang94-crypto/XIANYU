@@ -1,6 +1,6 @@
 # CHG-0027 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0027-session-transient-classification-qr-cooldown-lineage
 
