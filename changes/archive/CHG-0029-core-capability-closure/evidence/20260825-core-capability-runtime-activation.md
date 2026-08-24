@@ -1,6 +1,6 @@
 # CHG-0029 core capability runtime activation evidence - 2026-08-25
 
-Status: IMPLEMENTING
+Status: ARCHIVED
 
 Change ID: CHG-0029-core-capability-closure
 
@@ -272,3 +272,18 @@ GLOBAL_CI_DEBT_ABSORBED=NO
 ```
 
 The CHG0022 unit failure and CHG0020 archive validation failure are the same pre-existing governance debts already classified in CHG-0028 evidence; CHG-0029 did not modify or absorb them.
+
+## GitHub closure
+
+```text
+PR_NUMBER=42
+PR_MERGED=true
+LOCAL_COMMIT_SHA=a90c508f010d7e46a91b7986154117f50f1fbaed
+REMOTE_BRANCH_SHA=a90c508f010d7e46a91b7986154117f50f1fbaed
+MERGE_COMMIT_SHA=fe1b184c9d32c9d94721320702b5d6b0c55fe169
+REMOTE_MAIN_SHA=fe1b184c9d32c9d94721320702b5d6b0c55fe169
+SCOPED_CI_SECURITY=PASS
+SCOPED_CI_QUALITY=FAIL_SAME_AS_MAIN_GLOBAL_CHG0020_DEBT
+SCOPED_CI_TESTS=FAIL_SAME_AS_MAIN_GLOBAL_GOVERNANCE_AND_CHG0022_DEBT
+GLOBAL_CI_DEBT_ABSORBED=NO
+```

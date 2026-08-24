@@ -1,7 +1,7 @@
 # CHG-0029 Core Capability Closure
 
 Change ID: CHG-0029-core-capability-closure
-Status: IMPLEMENTING
+Status: ARCHIVED
 Created: 2026-08-25
 Predecessor: CHG-0028-publish-readiness-owner-convergence
 

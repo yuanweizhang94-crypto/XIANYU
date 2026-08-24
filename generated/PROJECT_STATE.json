@@ -1,41 +1,12 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": {
-    "id": "CHG-0029-core-capability-closure",
-    "status": "IMPLEMENTING",
-    "path": "changes/active/CHG-0029-core-capability-closure"
-  },
+  "active_change": null,
   "tasks": {
-    "total": 6,
-    "completed": 4,
-    "next_task": "T5 Persist evidence, generated state, exact dirty/change-path classification, scoped commit, normal HTTPS push, remote SHA verification, PR/CI classification, and normal merge if allowed. IN_PROGRESS: evidence and generated state are being prepared after runtime activation.",
-    "items": [
-      {
-        "text": "T1 Complete safe bootstrap: CHG0028 archive transition, CHG0029 active contract, AGENTS/project_context, current main/worktree facts, and runtime preimage inventory.",
-        "completed": true
-      },
-      {
-        "text": "T2 Classify source/runtime/account cohorts for automatic reply, online chat, and product publish with sanitized read-only probes.",
-        "completed": true
-      },
-      {
-        "text": "T3 If runtime is stale, build or commit only affected official service image(s), deploy serially with rollback preimage, and verify health/source hashes.",
-        "completed": true
-      },
-      {
-        "text": "T4 Run deterministic source/patch tests, relevant CHG0022/23/26/27/28 regressions, runtime health checks, and sanitized capability acceptance probes.",
-        "completed": true
-      },
-      {
-        "text": "T5 Persist evidence, generated state, exact dirty/change-path classification, scoped commit, normal HTTPS push, remote SHA verification, PR/CI classification, and normal merge if allowed. IN_PROGRESS: evidence and generated state are being prepared after runtime activation.",
-        "completed": false
-      },
-      {
-        "text": "T6 Final acceptance: three capability statuses, real-E2E/canary authorization state, human-only blockers, safety counters, final runtime image IDs, and no CHG0018 dirty worktree mutation.",
-        "completed": false
-      }
-    ]
+    "total": 0,
+    "completed": 0,
+    "next_task": null,
+    "items": []
   },
   "capabilities": {
     "total": 10,

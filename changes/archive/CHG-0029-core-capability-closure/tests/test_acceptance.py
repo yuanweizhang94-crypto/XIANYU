@@ -8,9 +8,9 @@ ARCHIVED_CHG0028 = ROOT / "changes/archive/CHG-0028-publish-readiness-owner-conv
 REQUIRED_DOCS = ("proposal.md", "design.md", "tasks.md", "acceptance.md")
 
 
-def test_chg0029_is_single_active_change_with_contract():
+def test_chg0029_is_archived_with_contract():
     active_dirs = [path.name for path in (ROOT / "changes/active").iterdir() if path.is_dir()]
-    assert active_dirs == ["CHG-0029-core-capability-closure"]
+    assert active_dirs == []
 
     proposal = (CHANGE / "proposal.md").read_text(encoding="utf-8")
     assert "User outcome: automatic reply, online chat, and product publish" in proposal
@@ -23,7 +23,7 @@ def test_required_docs_have_consistent_identity_and_status():
     for name in REQUIRED_DOCS:
         text = (CHANGE / name).read_text(encoding="utf-8")
         assert expected in text
-        assert "Status: IMPLEMENTING" in text
+        assert "Status: ARCHIVED" in text
 
 
 def test_chg0028_is_archived_after_pr41_merge():
@@ -60,14 +60,25 @@ def test_chg0028_patch_hash_boundary_is_locked():
 
 def test_project_state_points_to_chg0029():
     state = json.loads((ROOT / "generated/PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["active_change"] == {
-        "id": "CHG-0029-core-capability-closure",
-        "status": "IMPLEMENTING",
-        "path": "changes/active/CHG-0029-core-capability-closure",
-    }
-    assert state["tasks"]["total"] == 6
-    assert state["tasks"]["completed"] == 4
-    assert state["tasks"]["next_task"].startswith("T5 Persist evidence")
+    assert state["active_change"] is None
+    assert state["tasks"]["total"] == 0
+    assert state["tasks"]["completed"] == 0
+    assert state["tasks"]["next_task"] is None
+
+
+def test_github_merge_closure_is_recorded():
+    acceptance = (CHANGE / "acceptance.md").read_text(encoding="utf-8")
+    evidence = (CHANGE / "evidence/20260825-core-capability-runtime-activation.md").read_text(
+        encoding="utf-8"
+    )
+    for marker in (
+        "`PR_NUMBER=42`",
+        "`PR_MERGED=true`",
+        "`MERGE_COMMIT_SHA=fe1b184c9d32c9d94721320702b5d6b0c55fe169`",
+        "SCOPED_CI_SECURITY=PASS",
+        "GLOBAL_CI_DEBT_ABSORBED=NO",
+    ):
+        assert marker in acceptance or marker in evidence
 
 
 def test_runtime_acceptance_evidence_includes_connected_chat_read_and_queue():

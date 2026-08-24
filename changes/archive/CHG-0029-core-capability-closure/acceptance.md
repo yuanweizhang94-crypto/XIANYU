@@ -1,7 +1,7 @@
 # CHG-0029 Acceptance
 
 Change ID: CHG-0029-core-capability-closure
-Status: IMPLEMENTING
+Status: ARCHIVED
 
 ## Required Acceptance
 
@@ -14,6 +14,24 @@ Status: IMPLEMENTING
 - Deterministic tests and relevant regressions pass or are truthfully classified as pre-existing global debt outside CHG-0029.
 - Scoped runtime deploy touches only affected XIANYU services and records rollback preimages.
 - GitHub persistence verifies local commit SHA equals remote branch SHA, and merge verifies remote main SHA when merge is performed.
+
+## GitHub Closure
+
+`PR_NUMBER=42`
+
+`PR_MERGED=true`
+
+`LOCAL_COMMIT_SHA=a90c508f010d7e46a91b7986154117f50f1fbaed`
+
+`REMOTE_BRANCH_SHA=a90c508f010d7e46a91b7986154117f50f1fbaed`
+
+`MERGE_COMMIT_SHA=fe1b184c9d32c9d94721320702b5d6b0c55fe169`
+
+`REMOTE_MAIN_SHA=fe1b184c9d32c9d94721320702b5d6b0c55fe169`
+
+`SCOPED_CI=SECURITY_PASS__QUALITY_TESTS_FAIL_SAME_AS_MAIN_GLOBAL_DEBT`
+
+`GLOBAL_CI_DEBT_ABSORBED=NO`
 
 ## Safety Counters
 
