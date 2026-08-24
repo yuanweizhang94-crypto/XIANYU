@@ -50,7 +50,8 @@ def test_production_acceptance_truth_is_locked():
         "YILONG_ACCEPTANCE=PASS",
         "WANZI_ACCEPTANCE=PASS",
         "ZHOUZHOU_FALSE_ONLINE=false",
-    ): assert marker in text
+    ):
+        assert marker in text
 
 def test_deterministic_and_replay_gates_are_locked():
     text = EVIDENCE.read_text(encoding="utf-8")
@@ -63,7 +64,8 @@ def test_deterministic_and_replay_gates_are_locked():
         "PATCH_CLEAN_APPLY=PASS",
         "PATCH_REPLAY_POSTIMAGE_MATCH=true",
         "NON_CHG0026_HUNKS=0",
-    ): assert marker in text
+    ):
+        assert marker in text
 
 def test_execution_deviations_are_not_hidden():
     text = EVIDENCE.read_text(encoding="utf-8")
