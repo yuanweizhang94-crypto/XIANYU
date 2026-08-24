@@ -47,21 +47,27 @@ The separate follow-up `AUTHORIZED_BROWSER_CANNOT_RENDER_FIXED_LOCAL_XIANYU_FRON
 
 ## Upstream capability audit
 
-Approval-stage finding: the Publisher executor, account-capability routing, and readiness consumers already exist. CHG0027 found no current authoritative `READY` producer. T1 must fresh-fetch and map the pinned upstream, current local source, runtime source/hash, native workflow, producer, consumers, and ownership before any implementation proposal is executable.
+T1-T3 are complete. Fresh upstream main contains a selected-account capability route and UI workflow backed by `PublishAccountCapabilityService.detect -> mtop.idle.pc.idleitem.preget`. The result is point-in-time capability evidence held by the native Product Publish page; it is not persisted into the separate Accounts readiness contract. Production Runtime contains the same capability service and normal Direct/Personal routing, but not the newer capability route. The deployed Accounts consumer still requires `session_maintenance.consumers.publish.state=READY`, and no Backend, WebSocket, or Scheduler path writes that record.
+
+Evidence: `evidence/20260824-t1-t3-read-only-owner-audit-and-stop-decision.md`.
 
 ## Pinned upstream evidence
 
-The inherited CHG0027 comparison evidence pins the production-source upstream checkout at `bda1a859df63fa5f24e51398fa80a23490bb6dfc` and records then-current upstream main `29dc831d4498f3174f0502c989a352ef59815553` for comparison only. These are historical input, not permission to implement. T1 must record a fresh upstream fetch SHA and runtime/source comparison before T1 can complete or this Change can move to IMPLEMENTING.
+The production-source upstream checkout remains pinned at `bda1a859df63fa5f24e51398fa80a23490bb6dfc`. T1 fresh-fetched upstream main at `29dc831d4498f3174f0502c989a352ef59815553`. The selected-account capability service/route/UI was introduced by upstream commit `5984b483b5bfd6c852ef00c22291b1bf163022ee`; those paths are absent from the pinned commit. Runtime contains the service but not the newer route registration. These separately identified revisions are comparison evidence, not permission to implement.
 
 ## Existing local implementation search
 
-CHG0027 already established that readiness consumers can emit lazy `RETRY_LATER` / `LAZY_PENDING` and that normal Publisher execution remains in the existing upstream/current Publisher owners. CHG0028 must search those owners and their existing status composition, events, persistence, and tests. It must not infer that absence of a discovered producer authorizes a new one.
+The completed bounded search covered the deployed Backend, WebSocket, Scheduler, COMPANY thin adapter, current upstream Publisher route/service/frontend workflow, CHG0027 evidence, and prior Publisher recovery history. The only `consumers.publish` handling is the Backend Accounts reader plus an explicit QR comment that Publisher consumers remain lazy. `set_session_maintenance_state` replaces the Session record without creating Publisher readiness. COMPANY reads sanitized account details and owns no Publisher state. No existing readiness writer, configuration switch, table, schema, cache, or event projection was found.
 
 ## Reuse decision
 
 Decision: PATCH_UPSTREAM
 
-This is the APPROVED audit default: repair only a proven defect in the existing upstream/current owner. If the fresh audit proves configuration or direct adoption is sufficient, the decision must narrow to `CONFIGURE_UPSTREAM` or `ADOPT_UPSTREAM` before approval. If satisfying the requirement needs a new owner, schema, table, writer, or parallel state machine, execution stops and requires a separately approved exception.
+Execution decision: STOP
+
+`ADOPT_UPSTREAM` alone is insufficient because the fresh upstream route produces only ephemeral selected-account capability and does not feed the deployed Accounts consumer. No configuration connects the two contracts. Calling the MTOP probe from the four-second Accounts polling path is not the native workflow and can invoke the existing Cookie update path after token refresh. Persisted convergence requires a new lineage-aware readiness writer, while non-persisted convergence requires an explicit replacement of the current Accounts readiness contract. Either choice crosses the approved stop boundary and requires a separate project-owner decision.
+
+`PATCH_UPSTREAM` is the only remaining upstream-first category, but it remains unavailable under the current approval. No code implementation, runtime activation, or production operation is authorized.
 
 ## Duplicate implementation risk
 
@@ -69,7 +75,7 @@ Creating readiness state in COMPANY_LOCAL_EXECUTION_TOOL, Browser automation, or
 
 ## Why upstream cannot satisfy the requirement
 
-The current confirmed evidence shows the existing consumed state remains `LAZY_PENDING` and no authoritative `READY` producer was found. The exact missing native transition is not yet proven. Owner approval has been received; the upstream/current-owner audit is now the first executable investigation. Implementation remains prohibited until T1-T3 prove the exact native transition and confirm that this reuse decision still applies.
+The exact gap is now proven: `detect_publish_account_capability` can return authoritative point-in-time success, but no transition projects that success into `session_maintenance.consumers.publish.state=READY`. Fresh upstream keeps its result only in the selected Product Publish page's component state. Enabling the route does not update the Accounts consumer. A new readiness writer or an explicit consumer-contract replacement is therefore required, and both are outside this approval.
 
 ## Approved exception ADR
 
@@ -77,7 +83,7 @@ Not applicable. This Change does not authorize `BUILD_LOCAL_EXCEPTION`. Any find
 
 ## Component owner
 
-The existing XIANYU Backend capability-composition and upstream Publisher path remain the only candidate execution owners. T1 must name the exact existing producer and consumers before code changes. COMPANY_LOCAL_EXECUTION_TOOL remains a thin consumer/bridge and Browser infrastructure is out of scope.
+The existing XIANYU Backend remains the only candidate owner: `PublishAccountCapabilityService.detect` produces point-in-time native capability and `cookies.py::_build_business_capabilities` consumes the separate Accounts readiness contract. COMPANY_LOCAL_EXECUTION_TOOL remains a thin consumer/bridge. Browser infrastructure remains out of scope. No second owner is proposed or authorized.
 
 ## Retirement plan for overlapping local code
 
@@ -103,4 +109,10 @@ Stop without implementation if:
 
 `BROWSER_SCOPE_INCLUDED=false`
 
-T1 read-only audit is authorized. Business implementation, runtime deployment, and production operations remain gated by the evidence and stop conditions in T1-T3.
+`T1_T3_AUDIT_COMPLETE=true`
+
+`STOP_CONDITION_TRIGGERED=NEW_READINESS_WRITER_OR_CONSUMER_CONTRACT_CHANGE_REQUIRED`
+
+`IMPLEMENTATION_AUTHORIZED=false`
+
+The approved read-only investigation is complete. T4 and every code/runtime/production action are blocked pending a separate project-owner decision.

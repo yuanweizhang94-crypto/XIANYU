@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[4]
 CHANGE = Path(__file__).resolve().parents[1]
 ARCHIVED_CHG0027 = ROOT / "changes/archive/CHG-0027-session-transient-classification-qr-cooldown-lineage"
+EVIDENCE = CHANGE / "evidence/20260824-t1-t3-read-only-owner-audit-and-stop-decision.md"
 REQUIRED_DOCS = ("proposal.md", "design.md", "tasks.md", "acceptance.md")
 
 
@@ -52,7 +53,38 @@ def test_chg0027_is_archived_without_changing_its_evidence():
     assert "FOLLOWUP_DEFECT_1=PUBLISH_READINESS_LAZY_PENDING_NO_READY_PRODUCER" in evidence
 
 
-def test_generated_state_reports_approved_next_task():
+def test_t1_t3_evidence_proves_missing_transition_and_stop_boundary():
+    evidence = EVIDENCE.read_text(encoding="utf-8")
+    required = (
+        "T1_READ_ONLY_OWNER_AUDIT=PASS",
+        "T2_DETERMINISTIC_LAZY_PENDING_REPRODUCTION=PASS",
+        "T3_REUSE_DECISION=PATCH_UPSTREAM",
+        "T3_EXECUTION_DECISION=STOP",
+        "detect_publish_account_capability success",
+        "session_maintenance.consumers.publish.state=READY",
+        "ADOPT_UPSTREAM_AS_IS=INSUFFICIENT",
+        "NEW_READINESS_WRITER_OR_CONTRACT_DECISION_REQUIRED=true",
+        "REAL_PRODUCTS_PUBLISHED=0",
+        "PRODUCTION_ACCOUNT_MUTATION_COUNT=0",
+        "BROWSER_INVOCATION_COUNT=0",
+    )
+    for marker in required:
+        assert marker in evidence
+
+
+def test_implementation_remains_blocked_after_stop_decision():
+    proposal = (CHANGE / "proposal.md").read_text(encoding="utf-8")
+    tasks = (CHANGE / "tasks.md").read_text(encoding="utf-8")
+    acceptance = (CHANGE / "acceptance.md").read_text(encoding="utf-8")
+    assert "Decision: PATCH_UPSTREAM" in proposal
+    assert "Execution decision: STOP" in proposal
+    assert "IMPLEMENTATION_AUTHORIZED=false" in proposal
+    assert "- [x] T3 Finalized `REUSE_DECISION=PATCH_UPSTREAM` with `EXECUTION_DECISION=STOP`" in tasks
+    assert "- [ ] T4 BLOCKED" in tasks
+    assert "STOP_ACCEPTANCE=PASS" in acceptance
+
+
+def test_generated_state_reports_approved_blocked_next_task():
     state = json.loads((ROOT / "generated/PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
         "id": "CHG-0028-publish-readiness-owner-convergence",
@@ -60,5 +92,5 @@ def test_generated_state_reports_approved_next_task():
         "path": "changes/active/CHG-0028-publish-readiness-owner-convergence",
     }
     assert state["tasks"]["total"] == 8
-    assert state["tasks"]["completed"] == 0
-    assert state["tasks"]["next_task"].startswith("T1 ")
+    assert state["tasks"]["completed"] == 3
+    assert state["tasks"]["next_task"].startswith("T4 BLOCKED")

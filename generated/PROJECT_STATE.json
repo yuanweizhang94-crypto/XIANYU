@@ -8,23 +8,23 @@
   },
   "tasks": {
     "total": 8,
-    "completed": 0,
-    "next_task": "T1 After explicit approval, fresh-fetch upstream and record current GitHub, local, runtime, and upstream SHAs plus the existing Publisher readiness producer/consumer ownership map.",
+    "completed": 3,
+    "next_task": "T4 BLOCKED — do not move to IMPLEMENTING, add source tests, or patch runtime until the project owner separately chooses and approves the Backend readiness contract.",
     "items": [
       {
-        "text": "T1 After explicit approval, fresh-fetch upstream and record current GitHub, local, runtime, and upstream SHAs plus the existing Publisher readiness producer/consumer ownership map.",
-        "completed": false
+        "text": "T1 Fresh-fetched upstream and recorded current GitHub, local, runtime, and upstream SHAs plus the exact Publisher capability producer / Accounts readiness consumer ownership map.",
+        "completed": true
       },
       {
-        "text": "T2 Reproduce the lazy-pending state with deterministic or read-only evidence and prove the exact missing native transition without real publish or production mutation.",
-        "completed": false
+        "text": "T2 Reproduced lazy pending deterministically and proved the missing native transition without real publish, external MTOP, Browser, or production mutation.",
+        "completed": true
       },
       {
-        "text": "T3 Finalize the upstream-first reuse decision; stop and return for separate approval if any new owner, writer, schema, table, Browser dependency, or local exception is required.",
-        "completed": false
+        "text": "T3 Finalized `REUSE_DECISION=PATCH_UPSTREAM` with `EXECUTION_DECISION=STOP`: a new readiness writer or explicit Accounts consumer-contract replacement requires a separate project-owner decision.",
+        "completed": true
       },
       {
-        "text": "T4 Move the Change to IMPLEMENTING only with the exact approved scope, then add failing deterministic acceptance tests before a minimal existing-owner patch.",
+        "text": "T4 BLOCKED — do not move to IMPLEMENTING, add source tests, or patch runtime until the project owner separately chooses and approves the Backend readiness contract.",
         "completed": false
       },
       {

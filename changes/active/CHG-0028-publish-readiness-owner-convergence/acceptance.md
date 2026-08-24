@@ -14,16 +14,15 @@ Status: APPROVED
 
 ## Required evidence
 
-Before implementation:
+The complete pre-implementation record is persisted at `evidence/20260824-t1-t3-read-only-owner-audit-and-stop-decision.md` and includes:
 
-- freshly fetched upstream SHA;
-- current XIANYU main/local SHA;
-- deployed runtime source/hash for every candidate owning component;
-- exact readiness producer, consumers, native trigger, state contract, and account/lineage scope;
-- an upstream-first decision supported by current evidence;
-- a recorded stop decision if no existing owner can satisfy the requirement.
+- freshly fetched upstream SHA and current XIANYU main/local/remote SHAs;
+- deployed Backend, WebSocket, and Scheduler image identities plus candidate-owner source hashes;
+- the native point-in-time capability producer, Accounts readiness consumer, selected-account trigger, and exact missing transition;
+- deterministic lazy-pending, positive-control `READY`, fatal-blocker, and mocked-producer results;
+- upstream-first category `PATCH_UPSTREAM` with `EXECUTION_DECISION=STOP`, because no existing transition satisfies the consumer without a new writer or contract replacement.
 
-After an approved implementation:
+After a separately approved implementation:
 
 - exact changed-file list and preimage/postimage hashes;
 - deterministic tests for READY, lazy pending, fail-closed blockers, and transient/unknown handling;
@@ -75,3 +74,11 @@ The following do not count as CHG0028 failure or success:
 ## Stop acceptance
 
 Stopping is the correct outcome if current evidence proves that convergence needs a new owner, persistence model, writer, schema, Browser dependency, or real production publish. Such a result must be returned to the project owner instead of expanding this Change.
+
+`STOP_ACCEPTANCE=PASS`
+
+`STOP_REASON=NEW_READINESS_WRITER_OR_CONSUMER_CONTRACT_CHANGE_REQUIRED`
+
+`IMPLEMENTATION_AUTHORIZED=false`
+
+T1-T3 proved that the current native producer is point-in-time only and the deployed Accounts consumer requires an unwritten persisted record. Enabling the newer upstream route alone is insufficient; polling it from account status can invoke the existing Cookie update path. T4-T8 therefore remain blocked pending a separate project-owner contract decision.

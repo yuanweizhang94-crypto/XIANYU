@@ -19,28 +19,30 @@ Use the following order for every finding:
 
 Repository HEAD, runtime deployment, and upstream SHA must remain separately identified.
 
-## Planned investigation boundary
+## Completed investigation boundary
 
-After explicit approval, the first phase is read-only:
+T1-T3 completed the approved read-only phase:
 
-1. identify every current Publisher readiness consumer and the status vocabulary it accepts;
-2. identify any existing producer, native trigger, persisted field, event, or derived signal;
-3. trace the native Direct/Personal Publisher workflow without invoking a real publish;
-4. compare pinned upstream, current upstream, local patch, and deployed runtime;
-5. prove whether the gap is adoption, configuration, wiring, or an existing-owner defect.
+1. the deployed Accounts consumer accepts `session_maintenance.consumers.publish.state=READY` as its only positive readiness record;
+2. the existing native producer is `PublishAccountCapabilityService.detect -> mtop.idle.pc.idleitem.preget`;
+3. the current upstream Product Publish page invokes that producer after selected-account change and holds the result only in component state;
+4. the pinned upstream, fresh upstream, current XIANYU branch, runtime images/source hashes, Session writers, and COMPANY thin adapter were compared separately;
+5. deterministic evidence proved the exact missing transition between point-in-time producer success and the persisted record consumed by Accounts.
 
-No implementation phase begins until this evidence is recorded and the reuse decision remains valid.
+Evidence: `evidence/20260824-t1-t3-read-only-owner-audit-and-stop-decision.md`.
 
-## Conditional minimal design
+## T3 design decision
 
-Only one of these outcomes may follow the audit:
+`REUSE_DECISION=PATCH_UPSTREAM`
 
-- `ADOPT_UPSTREAM`: use an already-present producer without a local rewrite;
-- `CONFIGURE_UPSTREAM`: enable or connect an already-present native producer;
-- `PATCH_UPSTREAM`: minimally repair the existing producer/consumer transition in its current owner;
-- stop: if the result requires `WRAP_FOR_OPERATIONS`, `BUILD_LOCAL_EXCEPTION`, a new writer, or another owner, return for a separate approval decision.
+`EXECUTION_DECISION=STOP`
 
-The APPROVED audit default is `PATCH_UPSTREAM`; it is not implementation authorization before T1-T3 prove the existing-owner defect.
+- `ADOPT_UPSTREAM` is insufficient: the newer route/UI yields ephemeral selected-account capability but does not update the deployed Accounts contract.
+- `CONFIGURE_UPSTREAM` is unavailable: no existing configuration connects the producer result to `consumers.publish`.
+- `PATCH_UPSTREAM` cannot proceed under this approval: persisted convergence requires a new lineage-aware readiness writer, while avoiding persistence requires an explicit retirement/replacement of the current Accounts contract.
+- invoking the native MTOP probe from the Accounts polling path is rejected because it is not the upstream-native trigger, fans out calls, and can enter the established Cookie update path after token refresh.
+
+The design therefore stops before IMPLEMENTING. A separate project-owner decision must choose the readiness contract before any failing code test or source patch is added.
 
 ## Readiness truth model
 
@@ -64,7 +66,9 @@ The exact field names and transition owner must be filled from T1 evidence rathe
 
 ## Test design
 
-An approved implementation must first add deterministic tests that prove:
+The completed read-only reproduction proves missing record -> `RETRY_LATER`, synthetic existing-contract `READY` record -> `READY`, and fatal Session evidence -> fail closed. It also proves a mocked native capability success does not produce the consumed record.
+
+If a separately approved implementation follows, it must first add deterministic tests that prove:
 
 - an existing native authoritative signal produces `READY`;
 - absence of that signal remains lazy/pending and never becomes false `READY`;
@@ -78,7 +82,7 @@ Regression selection must be component-specific and include the relevant CHG0026
 
 ## Runtime validation design
 
-If an approved source patch is required, build and replace only the owning component, then verify health, runtime source/hash, and sanitized read-only readiness output. A synthetic or existing passive native transition is preferred. Real publish, real item mutation, QR login, manual reconnect, message send, and account-state writes are prohibited.
+No runtime validation or activation is authorized by the current approval because T3 stopped. If a later separately approved source patch is required, build and replace only the owning component, then verify health, runtime source/hash, and sanitized synthetic readiness output. Real publish, real item mutation, QR login, manual reconnect, message send, and production account-state writes remain prohibited.
 
 ## Rollback
 
