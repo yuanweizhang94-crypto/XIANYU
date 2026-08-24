@@ -2,46 +2,46 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0026-qr-dual-mode-and-chat-connectivity-recovery",
+    "id": "CHG-0027-session-transient-classification-qr-cooldown-lineage",
     "status": "VERIFYING",
-    "path": "changes/active/CHG-0026-qr-dual-mode-and-chat-connectivity-recovery"
+    "path": "changes/active/CHG-0027-session-transient-classification-qr-cooldown-lineage"
   },
   "tasks": {
     "total": 8,
-    "completed": 7,
-    "next_task": "T8 Commit/push unique branch, create one PR, classify CI, merge with merge commit when CHG0026-specific gates are clean, and fresh-read main.",
+    "completed": 8,
+    "next_task": null,
     "items": [
       {
-        "text": "T1 Fresh-resolve Wang/Zhou identity, read-only production states, causal windows, upstream QR semantics, and other-account baseline.",
+        "text": "T1 Fresh-lock main/runtime/source authority, three-repo bootstrap, upstream/current-owner evidence, and archive merged CHG0026 governance.",
         "completed": true
       },
       {
-        "text": "T2 Archive completed CHG0025 governance and create CHG0026 precheck without reopening or changing CHG0025 runtime behavior.",
+        "text": "T2 Implement Defect A: evidence-based transient/fatal Session classification in existing consumers.",
         "completed": true
       },
       {
-        "text": "T3 Lock exact current production/source preimages and implement minimal existing-owner QR dual-mode + readiness/status patch.",
+        "text": "T3 Implement Defect B: Session-expired cooldown bound to existing authoritative Cookie fingerprint lineage.",
         "completed": true
       },
       {
-        "text": "T4 Run at least 21 deterministic QR/Chat/WS cases plus targeted regression/security checks.",
+        "text": "T4 Add deterministic CHG0027 tests and run CHG0026 relevant regressions plus scope/diff gates.",
         "completed": true
       },
       {
-        "text": "T5 Build Backend/Frontend candidates only; keep WebSocket/Scheduler unchanged unless new evidence proves necessary.",
+        "text": "T5 Build only required Backend/Scheduler candidates and serially activate with rollback/source-image/health gates.",
         "completed": true
       },
       {
-        "text": "T6 Deploy minimal components and run production acceptance with zero new executor QR create/scan and zero other-account auth writes.",
+        "text": "T6 Run Zhou post-fix acceptance and full enabled-account Session/Auto Reply/Chat/Publisher audit with zero real message/publish/Item Sync actions.",
         "completed": true
       },
       {
-        "text": "T7 Persist exact vendor patch/evidence/state and validate repository with only pre-existing debt classified separately.",
+        "text": "T7 Validate Frontend bundle/runtime wiring and classify authorized real-browser rendering as a separate infrastructure prerequisite.",
         "completed": true
       },
       {
-        "text": "T8 Commit/push unique branch, create one PR, classify CI, merge with merge commit when CHG0026-specific gates are clean, and fresh-read main.",
-        "completed": false
+        "text": "T8 Freeze accepted production and persist the exact formal patch, evidence, state, and follow-up split for formal Git closure.",
+        "completed": true
       }
     ]
   },

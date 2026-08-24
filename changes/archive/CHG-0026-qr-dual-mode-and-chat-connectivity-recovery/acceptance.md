@@ -1,6 +1,6 @@
 # CHG-0026 Acceptance
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0026-qr-dual-mode-and-chat-connectivity-recovery
 
@@ -27,8 +27,8 @@ Change ID: CHG-0026-qr-dual-mode-and-chat-connectivity-recovery
 - [x] `NEW_AUTOMATED_QR_CREATE_COUNT=0` and `NEW_EXECUTOR_QR_SCAN_COUNT=0`.
 - [x] Deterministic source tests are `45/45_PASS`; CHG0023/24/25 regressions are `5/5`, `8/8`, `8/8` PASS.
 - [x] Exact cumulative vendor patch applies cleanly, replays exact postimages, and contains exactly 12 approved runtime files.
-- [ ] CHG0026-specific CI is clean before merge.
-- [ ] PR merges with merge commit and fresh main readback contains exact persisted patch.
+- [x] CHG0026-specific CI is clean before merge.
+- [x] PR merges with merge commit and fresh main readback contains exact persisted patch.
 
 PRODUCTION_ACCEPTANCE_FINAL=PASS
 CHAT_RUNTIME_PERSISTED=false

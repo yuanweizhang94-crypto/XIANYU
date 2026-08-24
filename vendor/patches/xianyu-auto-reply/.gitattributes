@@ -3,3 +3,4 @@
 chg0024-item-sync-no-auth-recovery-safety.patch binary
 chg0025-web-self-service-qr-account-recovery.patch binary
 chg0026-qr-dual-mode-and-chat-connectivity-recovery.patch binary
+chg0027-session-transient-classification-qr-cooldown-lineage.patch binary
