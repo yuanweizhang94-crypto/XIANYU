@@ -1,6 +1,6 @@
 # CHG-0025 Tasks
 
-Status: APPROVED
+Status: ARCHIVED
 
 Change ID: CHG-0025-web-self-service-qr-account-recovery
 
@@ -13,7 +13,7 @@ Change ID: CHG-0025-web-self-service-qr-account-recovery
 - [x] T7 Deploy only required components through existing authoritative lifecycle and recover UNKNOWN read-only if needed.
 - [x] T8 Run production non-QR acceptance plus fresh other-account read-only regression comparison; preserve both HUMAN_QR controls.
 - [x] T9 Persist exact CHG0025 vendor patch/evidence/state; targeted tests + repository verification + exact staging.
-- [ ] T10 Push unique CHG0025 branch, create/reuse one PR, classify CI, merge with merge commit when CHG0025-specific checks are clean, and fresh-read main.
+- [x] T10 Push unique CHG0025 branch, create/reuse one PR, classify CI, merge with merge commit when CHG0025-specific checks are clean, and fresh-read main.
 
 T1_COMPLETE=true
 T2_COMPLETE=true
@@ -24,7 +24,7 @@ T6_COMPLETE=true
 T7_COMPLETE=true
 T8_COMPLETE=true
 T9_COMPLETE=true
-T10_COMPLETE=false
+T10_COMPLETE=true
 
 REAL_QR_CREATE_COUNT=0_REQUIRED
 REAL_QR_SCAN_COUNT=0_REQUIRED

@@ -1,6 +1,6 @@
 # CHG-0025 Design
 
-Status: APPROVED
+Status: ARCHIVED
 
 Change ID: CHG-0025-web-self-service-qr-account-recovery
 
