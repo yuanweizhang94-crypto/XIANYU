@@ -1,7 +1,7 @@
 # CHG-0028 Publisher Readiness Owner Convergence
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: VERIFYING
+Status: ARCHIVED
 Created: 2026-08-24
 Predecessor: CHG-0027-session-transient-classification-qr-cooldown-lineage
 
@@ -150,3 +150,15 @@ The upstream native path already exists in fresh upstream: `GET /product-publish
 Duplicate-development risk: low only if the patch stays inside the existing Backend route/consumer and uses `PublishAccountCapabilityService.detect`; high if COMPANY, Browser, Scheduler, Session maintenance, or a new persisted readiness owner produces Publisher truth.
 
 Rollback: remove the CHG-0028 upstream patch layer and return to the previous CHG0027 behavior. No database cleanup, Profile cleanup, Cookie mutation, production account mutation, or persisted readiness data migration is required because this option does not write readiness.
+
+## 2026-08-25 GitHub closure
+
+`PR_NUMBER=41`
+
+`MERGE_COMMIT_SHA=4ba50db5c83aa3d3f06345b0f7bcf6192f9cfd89`
+
+`REMOTE_MAIN_SHA=4ba50db5c83aa3d3f06345b0f7bcf6192f9cfd89`
+
+`ARCHIVE_TRANSITION_ONLY=true`
+
+CHG-0028 source, tests, GitHub PR, and merge closure are complete on current `main`. The production runtime activation authorized after this merge is a separate CHG-0029 operational execution and does not reopen CHG-0028 business scope.

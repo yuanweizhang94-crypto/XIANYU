@@ -1,7 +1,7 @@
 # CHG-0028 Acceptance
 
 Change ID: CHG-0028-publish-readiness-owner-convergence
-Status: VERIFYING
+Status: ARCHIVED
 
 ## Entry gate
 
@@ -132,4 +132,14 @@ The prior stop acceptance remains the historical reason T4 required an owner dec
 
 `CHG0020_DEBT_ABSORBED=false`
 
+`PR_MERGED=true`
+
+`MERGE_COMMIT_SHA=4ba50db5c83aa3d3f06345b0f7bcf6192f9cfd89`
+
+`REMOTE_MAIN_SHA=4ba50db5c83aa3d3f06345b0f7bcf6192f9cfd89`
+
+`ARCHIVED_AFTER_MERGE=true`
+
 Initial PR CI for head `95c4675c5dae785fab801affa85cd1975892cd7e` did not identify a CHG-0028 behavior failure. Security passed. Quality failed only on pre-existing CHG-0020 archive validation debt. The broad tests workflow failed on unrelated existing governance tests for CHG-0020, CHG-0022 active evidence assumptions, and README/AGENTS governance drift. Those debts are outside CHG-0028 and were not modified or absorbed.
+
+Runtime activation is intentionally not accepted here. The current runtime activation and three-capability closure are tracked by `CHG-0029-core-capability-closure`.

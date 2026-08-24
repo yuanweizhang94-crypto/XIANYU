@@ -9,12 +9,12 @@ EVIDENCE = CHANGE / "evidence/20260824-t1-t3-read-only-owner-audit-and-stop-deci
 REQUIRED_DOCS = ("proposal.md", "design.md", "tasks.md", "acceptance.md")
 
 
-def test_change_is_approved_and_has_consistent_identity():
+def test_change_is_archived_and_has_consistent_identity():
     expected_id = "Change ID: CHG-0028-publish-readiness-owner-convergence"
     for name in REQUIRED_DOCS:
         text = (CHANGE / name).read_text(encoding="utf-8")
         assert expected_id in text
-        assert "Status: VERIFYING" in text
+        assert "Status: ARCHIVED" in text
 
 
 def test_scope_locks_publisher_readiness_and_excludes_browser_followup():
@@ -91,10 +91,17 @@ def test_implementation_is_unblocked_by_selected_account_contract():
 def test_generated_state_reports_implementing_next_task():
     state = json.loads((ROOT / "generated/PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"] == {
-        "id": "CHG-0028-publish-readiness-owner-convergence",
-        "status": "VERIFYING",
-        "path": "changes/active/CHG-0028-publish-readiness-owner-convergence",
+        "id": "CHG-0029-core-capability-closure",
+        "status": "IMPLEMENTING",
+        "path": "changes/active/CHG-0029-core-capability-closure",
     }
-    assert state["tasks"]["total"] == 8
-    assert state["tasks"]["completed"] == 7
-    assert state["tasks"]["next_task"].startswith("T8 Persist")
+    assert state["tasks"]["total"] >= 6
+    assert state["tasks"]["next_task"].startswith("T5")
+
+
+def test_github_merge_closure_is_recorded():
+    acceptance = (CHANGE / "acceptance.md").read_text(encoding="utf-8")
+    tasks = (CHANGE / "tasks.md").read_text(encoding="utf-8")
+    assert "`PR_MERGED=true`" in acceptance
+    assert "`MERGE_COMMIT_SHA=4ba50db5c83aa3d3f06345b0f7bcf6192f9cfd89`" in acceptance
+    assert "- [x] T8 Persist exact evidence" in tasks
