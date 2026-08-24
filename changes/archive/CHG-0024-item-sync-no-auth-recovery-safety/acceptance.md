@@ -1,10 +1,10 @@
 # CHG-0024 Acceptance
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0024-item-sync-no-auth-recovery-safety
 
-This acceptance file records the approved narrow scope plus completed T1-T8 runtime acceptance. PR/main integration and QR restoration remain pending.
+This archived acceptance file records completed T1-T8 runtime acceptance and PR #37/main integration. QR restoration was intentionally not performed; the follow-up is CHG-0025 web self-service QR account recovery.
 
 - [x] CHG0024_SCOPE_APPROVED=true and commander authorization are recorded.
 - [x] EXISTING_OWNER_ONLY=true; the sole full-account owner remains `ItemService.fetch_all_items_from_account`.
@@ -25,12 +25,19 @@ This acceptance file records the approved narrow scope plus completed T1-T8 runt
 
 ## Bootstrap invariants
 
-CHG0024_STATUS=VERIFYING
+CHG0024_STATUS=ARCHIVED
+GIT_MAIN_INTEGRATION=PASS
+RUNTIME_ACCEPTANCE=PASS
+PR_37_MERGED=true
+FINAL_MAIN_SHA=0b752a7fb08456b88c5f8465f98cd8d9bc338ba1
+QR_RESTORATION_NOT_PERFORMED=true
+QR_RESTORATION_FOLLOWUP=CHG-0025-web-self-service-qr-account-recovery
+FINAL_STATUS=ARCHIVED
 CHG0024_SCOPE_APPROVED=true
 COMMANDER_AUTHORIZATION_RECORDED=true
 ITEM_SYNC_EXECUTION_APPROVED=true_CONDITIONAL_AFTER_T6_GATES
 PRODUCTION_ACTIVATION_APPROVED=true
-QR_RESTORATION_APPROVED=false_PENDING_PR_MAIN_GATE
+QR_RESTORATION_APPROVED=false_SUPERSEDED_BY_CHG0025
 PRODUCTION_RUNTIME_SOURCE_CHANGED=true_VERIFIED_CHG0024_CANDIDATE
 COMPANY_RUNTIME_SOURCE_CHANGED=true_VERIFIED_T5_MAPPING
 

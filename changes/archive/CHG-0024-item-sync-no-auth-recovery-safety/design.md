@@ -1,8 +1,13 @@
 # CHG-0024 Design
 
-Status: VERIFYING
+Status: ARCHIVED
 
 Change ID: CHG-0024-item-sync-no-auth-recovery-safety
+
+GIT_MAIN_INTEGRATION=PASS
+RUNTIME_ACCEPTANCE=PASS
+PR_37_MERGED=true
+FINAL_STATUS=ARCHIVED
 
 ## Design intent
 

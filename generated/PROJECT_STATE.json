@@ -2,46 +2,54 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0024-item-sync-no-auth-recovery-safety",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0024-item-sync-no-auth-recovery-safety"
+    "id": "CHG-0025-web-self-service-qr-account-recovery",
+    "status": "APPROVED",
+    "path": "changes/active/CHG-0025-web-self-service-qr-account-recovery"
   },
   "tasks": {
-    "total": 8,
-    "completed": 8,
-    "next_task": null,
+    "total": 10,
+    "completed": 9,
+    "next_task": "T10 Push unique CHG0025 branch, create/reuse one PR, classify CI, merge with merge commit when CHG0025-specific checks are clean, and fresh-read main.",
     "items": [
       {
-        "text": "T1 Capability audit and formal scope lock: persist the existing owner chain, two authentication-recovery callsites, reuse decision, safety invariants, failed-closed prior attempt, and commander authorization without runtime implementation or production execution.",
+        "text": "T1 Recover exact current source authority for Backend QR route and current production Frontend Accounts source without real QR creation/scan.",
         "completed": true
       },
       {
-        "text": "T2 Exact implementation diff design against current accepted-image source; reconcile stale audit hashes and lock the `no_auth_recovery` propagation/persistence design.",
+        "text": "T2 Archive merged/runtime-accepted CHG0024 governance-only; do not alter its runtime patch or repeat Item Sync.",
         "completed": true
       },
       {
-        "text": "T3 Implement Item-specific `no_auth_recovery` safe mode as the exact two-owner vendor patch without changing Session/Cookie/Token owners.",
+        "text": "T3 Create CHG0025 scope/design/acceptance and lock account-scoped + no-false-green contracts.",
         "completed": true
       },
       {
-        "text": "T4 Run deterministic postimage behavior/mock-spy tests for both auth-recovery callsites plus exact patch replay.",
+        "text": "T4 Implement the minimal existing-owner Backend + Frontend delta over proven preimages.",
         "completed": true
       },
       {
-        "text": "T5 Activate the proven existing COMPANY `xianyu_item_sync` trusted safe-mode mapping; public schema unchanged.",
+        "text": "T5 Run deterministic behavior tests, exact patch replay, secret scan, and targeted regressions.",
         "completed": true
       },
       {
-        "text": "T6 Activate and verify the exact Backend candidate through the existing COMPANY replacement transaction owner.",
+        "text": "T6 Build Backend and Frontend candidates from accepted production lineages; WebSocket/Scheduler unchanged.",
         "completed": true
       },
       {
-        "text": "T7 Execute exactly one controlled fresh Item Sync for `2804730247`; result SUCCESS.",
+        "text": "T7 Deploy only required components through existing authoritative lifecycle and recover UNKNOWN read-only if needed.",
         "completed": true
       },
       {
-        "text": "T8 Negative-control/runtime acceptance post-check PASS; formal persistence is this commit preparation phase.",
+        "text": "T8 Run production non-QR acceptance plus fresh other-account read-only regression comparison; preserve both HUMAN_QR controls.",
         "completed": true
+      },
+      {
+        "text": "T9 Persist exact CHG0025 vendor patch/evidence/state; targeted tests + repository verification + exact staging.",
+        "completed": true
+      },
+      {
+        "text": "T10 Push unique CHG0025 branch, create/reuse one PR, classify CI, merge with merge commit when CHG0025-specific checks are clean, and fresh-read main.",
+        "completed": false
       }
     ]
   },
