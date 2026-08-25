@@ -17,13 +17,13 @@ Status: IMPLEMENTING
 
 ## Gate State
 
-`SELECTED_ACCOUNT_ITEM_SYNC_ELIGIBILITY=PASS_POST_DEPLOY_PREFLIGHT_R1_RECHECK_REQUIRED_AFTER_R2`
+`SELECTED_ACCOUNT_ITEM_SYNC_ELIGIBILITY=PASS_POST_DEPLOY_PREFLIGHT_R2`
 
-`TRACE_IDENTITY_AVAILABLE=PASS_BACKEND_LOG_CONTRACT_DEPLOYED_R1_RECHECK_REQUIRED_AFTER_R2`
+`TRACE_IDENTITY_AVAILABLE=PASS_BACKEND_LOG_CONTRACT_DEPLOYED_R2`
 
-`SKIPPED_LOCK_SUCCESS_GUARD=PATCH_READY_NOT_DEPLOYED`
+`SKIPPED_LOCK_SUCCESS_GUARD=DEPLOYED_R2`
 
-`FULL_ACTIVE_LIST_SUCCESS_GUARD=PATCH_READY_NOT_DEPLOYED`
+`FULL_ACTIVE_LIST_SUCCESS_GUARD=DEPLOYED_R2`
 
 `PRODUCTION_ITEM_SYNC_CANARY_GO=false`
 
@@ -37,13 +37,15 @@ Status: IMPLEMENTING
 
 `PATCH_CLEAN_APPLY_RUNTIME_STACK=true`
 
-`BACKEND_PATCH_DEPLOYED=R1_DEPLOYED_R2_PENDING`
+`BACKEND_PATCH_DEPLOYED=R2_DEPLOYED`
 
 `SELECTED_ACCOUNT_PREFLIGHT_MASKED=22*********60`
 
 `SELECTED_ACCOUNT_PREFLIGHT_ITEM_SYNC_ELIGIBLE=true`
 
 `SELECTED_ACCOUNT_PREFLIGHT_FAIL_CLOSED=false`
+
+`SELECTED_ACCOUNT_PREFLIGHT_PLATFORM_VERIFICATION_EVIDENCE_TYPE=NONE`
 
 ## Safety Counters
 
@@ -89,7 +91,7 @@ Stopping before production canary is accepted while:
 
 - no later explicit commander GO has been received.
 
-The selected-account eligibility and Backend log identity gates were technically satisfied after the r1 deployment, but the r1 skipped-lock false-success defect blocks canary authorization until the separate Phase 4b follow-up patch is deployed and read-only preflight is repeated.
+The selected-account eligibility, Backend log identity, skipped-lock success guard, and full-active-list success guard are technically satisfied after the r2 deployment and read-only preflight. The Item Sync canary itself remains not authorized until a later explicit commander GO.
 
 ## Future Canary Acceptance
 

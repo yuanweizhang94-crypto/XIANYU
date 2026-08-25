@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 23,
-    "completed": 18,
-    "next_task": "T19 Commit and push the Phase 4b correction, update PR #45, and classify scoped/current-commit CI before any deployment.",
+    "completed": 21,
+    "next_task": "T22 After later commander GO, perform exactly one Fresh Item Sync canary invocation and capture operation identity, terminal result, real durable readback, measured duplicate count, and safety counters.",
     "items": [
       {
         "text": "T1 Read root `AGENTS.md`, fetch remote main without changing `origin`, verify `origin/main=8d1d1d0fb272cd2715135d077be98ce0b575cb79`, verify ancestry, path absence, branch absence, and create the isolated worktree from `origin/main`.",
@@ -85,15 +85,15 @@
       },
       {
         "text": "T19 Commit and push the Phase 4b correction, update PR #45, and classify scoped/current-commit CI before any deployment.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T20 Build and deploy Backend r2 from the exact two-patch stack only, preserving r1 and CHG-0029 rollback images and leaving WebSocket/Scheduler/Frontend unchanged.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T21 Repeat full read-only post-deploy preflight, including selected-account explicit Item Sync eligibility with authoritative platform-verification evidence type, item/duplicate baseline, safety counters, and service restarts.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T22 After later commander GO, perform exactly one Fresh Item Sync canary invocation and capture operation identity, terminal result, real durable readback, measured duplicate count, and safety counters.",

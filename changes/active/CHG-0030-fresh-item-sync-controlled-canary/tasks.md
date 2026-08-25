@@ -21,9 +21,9 @@ Status: IMPLEMENTING
 - [x] T16 After deployment, run selected-account post-deploy preflight and prove explicit Item Sync eligibility PASS before any canary invocation.
 - [x] T17 Phase 4b reproduce the skipped-lock false-success defect with an executable runtime-stack RED test and add a separate immutable follow-up patch artifact without editing the locked r1 artifact.
 - [x] T18 Validate the exact r1 patch plus Phase 4b follow-up patch stack in a clean replay runtime source, including skipped-lock and full-active-list completeness cases.
-- [ ] T19 Commit and push the Phase 4b correction, update PR #45, and classify scoped/current-commit CI before any deployment.
-- [ ] T20 Build and deploy Backend r2 from the exact two-patch stack only, preserving r1 and CHG-0029 rollback images and leaving WebSocket/Scheduler/Frontend unchanged.
-- [ ] T21 Repeat full read-only post-deploy preflight, including selected-account explicit Item Sync eligibility with authoritative platform-verification evidence type, item/duplicate baseline, safety counters, and service restarts.
+- [x] T19 Commit and push the Phase 4b correction, update PR #45, and classify scoped/current-commit CI before any deployment.
+- [x] T20 Build and deploy Backend r2 from the exact two-patch stack only, preserving r1 and CHG-0029 rollback images and leaving WebSocket/Scheduler/Frontend unchanged.
+- [x] T21 Repeat full read-only post-deploy preflight, including selected-account explicit Item Sync eligibility with authoritative platform-verification evidence type, item/duplicate baseline, safety counters, and service restarts.
 - [ ] T22 After later commander GO, perform exactly one Fresh Item Sync canary invocation and capture operation identity, terminal result, real durable readback, measured duplicate count, and safety counters.
 - [ ] T23 Complete closure commit/merge only after canary evidence and GitHub closure acceptance are satisfied.
 
