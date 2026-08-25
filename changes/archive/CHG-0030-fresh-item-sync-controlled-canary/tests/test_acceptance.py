@@ -8,6 +8,7 @@ EVIDENCE = CHANGE / "evidence/20260825-phase1-read-only-gates.md"
 PHASE2B_EVIDENCE = CHANGE / "evidence/20260825-phase2b-acceptance-grade-repair.md"
 PHASE3_EVIDENCE = CHANGE / "evidence/20260825-phase3-pre-pr-implementation-closure.md"
 PHASE5_EVIDENCE = CHANGE / "evidence/20260825-phase5-controlled-production-canary.md"
+PHASE6_EVIDENCE = CHANGE / "evidence/20260825-phase6-final-github-closure.md"
 REQUIRED_DOCS = ("proposal.md", "design.md", "tasks.md", "acceptance.md")
 
 
@@ -20,7 +21,7 @@ def test_required_docs_have_consistent_identity_and_status():
     for name in REQUIRED_DOCS:
         text = _text(CHANGE / name)
         assert expected in text
-        assert "Status: IMPLEMENTING" in text
+        assert "Status: ARCHIVED" in text
 
 
 def test_execution_contract_and_single_canary_completion_are_locked():
@@ -162,6 +163,34 @@ def test_phase5_canary_terminal_durable_truth_is_recorded():
         assert marker in phase5
 
 
+def test_phase6_final_github_closure_evidence_is_recorded():
+    acceptance = _text(CHANGE / "acceptance.md")
+    tasks = _text(CHANGE / "tasks.md")
+    phase6 = _text(PHASE6_EVIDENCE)
+    for marker in (
+        "PR_NUMBER=45",
+        "REMOTE_MAIN_REQUIRED_BEFORE_MERGE=8d1d1d0fb272cd2715135d077be98ce0b575cb79",
+        "ITEM_SYNC_INVOCATION_COUNT=1",
+        "OPERATION_ID=item_sync_e7ca45174a64408e80b8d72a95d2f37f",
+        "SYNC_STATUS=SUCCESS",
+        "DURABLE_READBACK=PASS",
+        "XY_CATALOG_ITEMS_ROWS_BEFORE=20",
+        "XY_CATALOG_ITEMS_ROWS_AFTER=20",
+        "DUPLICATE_COUNT=0",
+        "DUPLICATE_ROW_COUNT=0",
+        "BACKEND_R2_IMAGE_ID=sha256:f877b7273b2f4e23ff5f0dd5e599dbf860c1e83bc801fca8a26bea815cae4573",
+        "PATCH_R1_SHA256=595AA68FA73505869274642E4D6FD2B12FA38BCBD5106E3B0C4D11962E6A8201",
+        "PATCH_R2_FOLLOWUP_SHA256=1FC5597EEC8FB0060EBA6551D4F98407649EB0FA0675BDC4CA5574D0362B9DC6",
+        "NO_FURTHER_ITEM_SYNC_INVOCATION_AUTHORIZED=true",
+        "GIT_MV_ACTIVE_TO_ARCHIVE=true",
+        "PR_MERGE_METHOD_REQUIRED=NORMAL_MERGE_COMMIT_ONLY",
+    ):
+        assert marker in phase6
+    assert "Status: ARCHIVED" in acceptance
+    assert "TASKS_COMPLETED=23/23" in phase6
+    assert "- [x] T23 Complete closure commit/merge" in tasks
+
+
 def test_forbidden_excluded_side_effect_counters_remain_zero():
     acceptance = _text(CHANGE / "acceptance.md")
     for marker in (
@@ -187,10 +216,9 @@ def test_forbidden_excluded_side_effect_counters_remain_zero():
         assert marker in acceptance
 
 
-def test_generated_project_state_reports_active_chg0030():
+def test_generated_project_state_has_no_active_change_after_archive():
     state = json.loads((ROOT / "generated/PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["active_change"]["id"] == "CHG-0030-fresh-item-sync-controlled-canary"
-    assert state["active_change"]["status"] == "IMPLEMENTING"
-    assert state["tasks"]["total"] == 23
-    assert state["tasks"]["completed"] < state["tasks"]["total"]
-    assert state["tasks"]["next_task"]
+    assert state["active_change"] is None
+    assert state["tasks"]["total"] == 0
+    assert state["tasks"]["completed"] == 0
+    assert state["tasks"]["next_task"] is None

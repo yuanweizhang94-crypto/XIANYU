@@ -1,7 +1,7 @@
 # CHG-0030 Tasks
 
 Change ID: CHG-0030-fresh-item-sync-controlled-canary
-Status: IMPLEMENTING
+Status: ARCHIVED
 
 - [x] T1 Read root `AGENTS.md`, fetch remote main without changing `origin`, verify `origin/main=8d1d1d0fb272cd2715135d077be98ce0b575cb79`, verify ancestry, path absence, branch absence, and create the isolated worktree from `origin/main`.
 - [x] T2 Run `python scripts/project_context.py` before development and create the active CHG-0030 execution record with the required three-line contract.
@@ -25,7 +25,7 @@ Status: IMPLEMENTING
 - [x] T20 Build and deploy Backend r2 from the exact two-patch stack only, preserving r1 and CHG-0029 rollback images and leaving WebSocket/Scheduler/Frontend unchanged.
 - [x] T21 Repeat full read-only post-deploy preflight, including selected-account explicit Item Sync eligibility with authoritative platform-verification evidence type, item/duplicate baseline, safety counters, and service restarts.
 - [x] T22 After later commander GO, perform exactly one Fresh Item Sync canary invocation and capture operation identity, terminal result, real durable readback, measured duplicate count, and safety counters.
-- [ ] T23 Complete closure commit/merge only after canary evidence and GitHub closure acceptance are satisfied.
+- [x] T23 Complete closure commit/merge only after canary evidence and GitHub closure acceptance are satisfied. Closure commit prepared after Phase 5 canary acceptance; GitHub merge commit must be recorded from GitHub after normal merge, not guessed in this source commit.
 
 ## Upstream capability audit
 

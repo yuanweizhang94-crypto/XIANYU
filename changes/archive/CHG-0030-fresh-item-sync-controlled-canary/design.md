@@ -1,7 +1,7 @@
 # CHG-0030 Design
 
 Change ID: CHG-0030-fresh-item-sync-controlled-canary
-Status: IMPLEMENTING
+Status: ARCHIVED
 
 ## Design Intent
 

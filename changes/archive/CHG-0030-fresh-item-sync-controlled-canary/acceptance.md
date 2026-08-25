@@ -1,19 +1,47 @@
 # CHG-0030 Acceptance
 
 Change ID: CHG-0030-fresh-item-sync-controlled-canary
-Status: IMPLEMENTING
+Status: ARCHIVED
 
 ## Required Acceptance
 
-- CHG-0030 is the only active Change in the isolated worktree.
-- The active Change records the three-line execution contract:
+- CHG-0030 was the only active Change in the isolated worktree before closure and is archived by this closure.
+- The Change records the three-line execution contract:
   - User outcome: one controlled Fresh Item Sync canary with terminal and durable-truth proof, then GitHub closure.
   - Confirmed blocker: selected capability and trace identity are not yet explicit.
   - Smallest success test: one selected eligible account, exactly one owner invocation, terminal SUCCESS plus durable xy_catalog_items readback, duplicate 0 and all excluded safety counters 0.
 - Existing owner remains `ItemService.fetch_all_items_from_account`.
 - Reuse decision is `PATCH_UPSTREAM`.
-- No production Item Sync invocation is accepted until both unresolved gates are PASS and a later explicit commander GO is received.
+- Exactly one commander-authorized production Item Sync canary was performed and no further Item Sync invocation is authorized.
 - Deterministic CHG-0030 tests pass.
+
+## GitHub Closure
+
+`PR_NUMBER=45`
+
+`PR_URL=https://github.com/yuanweizhang94-crypto/XIANYU/pull/45`
+
+`PR_MERGED=PENDING_NORMAL_MERGE_AFTER_CLOSURE_COMMIT`
+
+`PRE_CLOSURE_HEAD_SHA=9a5005214ef2d72553e4a962a54a045bebe0d18b`
+
+`CLOSURE_COMMIT_SHA=PENDING_THIS_COMMIT_REPORTED_AFTER_COMMIT`
+
+`REMOTE_BRANCH_SHA=PENDING_PUSH_VERIFICATION`
+
+`MERGE_COMMIT_SHA=PENDING_GITHUB_NORMAL_MERGE`
+
+`REMOTE_MAIN_SHA_BEFORE_MERGE_REQUIRED=8d1d1d0fb272cd2715135d077be98ce0b575cb79`
+
+`REMOTE_MAIN_SHA_AFTER_MERGE=PENDING_GITHUB_NORMAL_MERGE`
+
+`SCOPED_CI=PASS`
+
+`LOCAL_ACCEPTANCE=PASS`
+
+`GLOBAL_CI=FAIL_PRE_EXISTING_DEBT`
+
+`GLOBAL_CI_DEBT_ABSORBED=NO`
 
 ## Gate State
 

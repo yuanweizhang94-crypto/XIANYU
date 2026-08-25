@@ -1,7 +1,7 @@
 # CHG-0030 Fresh Item Sync Controlled Canary And Closure
 
 Change ID: CHG-0030-fresh-item-sync-controlled-canary
-Status: IMPLEMENTING
+Status: ARCHIVED
 Created: 2026-08-25
 Owner task: chg0030_single_writer
 
