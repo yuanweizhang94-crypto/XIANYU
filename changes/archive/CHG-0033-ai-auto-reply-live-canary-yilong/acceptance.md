@@ -1,0 +1,351 @@
+# CHG-0033 Acceptance
+
+Change ID: CHG-0033-ai-auto-reply-live-canary-yilong
+Status: ARCHIVED
+
+## Required Phase 3 Acceptance
+
+- CHG-0033 is the only active Change in the isolated worktree.
+- The Change records the three-line execution contract:
+  - User outcome: safely enable AI auto-reply only for the approved 艺龙 account and prove exactly one safe reply to one owner-controlled inbound canary, keeping AI enabled only after PASS.
+  - Confirmed blocker: CHG-0032 proved no current counterpart is durably owner-controlled; AI enablement must also prove no historical/unread real-customer backlog, unique native owner, provider readiness, policies and dedupe.
+  - Smallest success test: exactly one controlled inbound and one AI reply with durable/visible readback, zero duplicate or unrelated replies; otherwise zero enablement/send.
+- `AI_ENABLEMENT_ALLOWED=false` until the commander later sends an exact GO.
+- No Cookie/Token/JWT/Authorization/password/API key/private key/Profile secret/customer content/full account ID/screenshot copy/screenshot hash is printed or committed.
+- No AI enablement, inbound canary, AI reply send, message send, deploy, Browser, publish/sync, QR/reconnect, account mutation, credential use, commit, or push occurs before commander GO.
+
+## Current Gate State
+
+`COMMANDER_GO_FOR_AI_LIVE_CANARY=false`
+
+`AI_ENABLEMENT_ALLOWED=false`
+
+`AI_REPLY_SEND_ALLOWED=false`
+
+`APPROVED_ACCOUNT_MASKED=280***247`
+
+`APPROVED_ACCOUNT_IDENTITY_BINDING=PROJECT_OWNER_SCREENSHOT_ASSERTION_EXTERNAL_NOT_PERSISTED`
+
+`PARENT_AI_CREDENTIAL_PROVIDED_EXTERNALLY=true`
+
+`PARENT_AI_CREDENTIAL_USED=false`
+
+`PARENT_AI_CREDENTIAL_PRINTED=false`
+
+`PARENT_AI_CREDENTIAL_PERSISTED=false`
+
+`AI_ENABLEMENT_INVOCATIONS=0`
+
+`AI_PROVIDER_INVOCATIONS=1`
+
+`AI_REPLY_SEND_INVOCATIONS=0`
+
+`PLATFORM_SEND_INVOCATIONS=0`
+
+`BROWSER_INVOCATIONS=0`
+
+`QR_INVOCATIONS=0`
+
+`RECONNECT_INVOCATIONS=0`
+
+`PUBLISH_INVOCATIONS=0`
+
+`SYNC_INVOCATIONS=0`
+
+`ACCOUNT_MUTATION_COUNT=0`
+
+`DEPLOY_INVOCATIONS=0`
+
+`COMMIT_INVOCATIONS=0`
+
+`PUSH_INVOCATIONS=0`
+
+`PRODUCTION_MUTATION_COUNT=0`
+
+`OWNER_DECISION=NO-GO`
+
+## Read-Only Preflight Result
+
+`REMOTE_MAIN_VERIFIED=680363c21ca5678f7ceae831294cbb05695d4390`
+
+`WORKTREE_HEAD=680363c21ca5678f7ceae831294cbb05695d4390`
+
+`PROJECT_CONTEXT_ACTIVE_CHANGE=CHG-0033-ai-auto-reply-live-canary-yilong`
+
+`PINNED_UPSTREAM_SHA=bda1a859df63fa5f24e51398fa80a23490bb6dfc`
+
+`NATIVE_AI_AUTOREPLY_OWNER=websocket/app/services/xianyu/auto_reply_service.py::AutoReplyService`
+
+`NATIVE_INBOUND_CHAIN=websocket/app/services/xianyu/message_handler.py::MessageHandler.handle_message -> _process_single_message -> xianyu_async.py::on_chat_message -> AutoReplyService.handle_chat_message`
+
+`NATIVE_REPLY_SELECTION_ORDER=keyword -> ai -> default`
+
+`NATIVE_AI_GENERATION_CHAIN=AutoReplyService.get_ai_reply -> websocket/app/services/xianyu/ai_reply_engine.py::AIReplyEngine.generate_reply`
+
+`DEPRECATED_LOCAL_WORKER_DEFAULT_ENABLED=false`
+
+`DEPRECATED_LOCAL_WORKER_LIVE_WRITE_GATED=true`
+
+`SECOND_AI_SENDER_CREATED=false`
+
+`PROVIDER_CONFIG_SOURCE=xy_accounts.metadata.ai_reply_settings`
+
+`PROVIDER_CONFIG_KEYS=ai_enabled,enabled,provider_type,base_url,model_name,api_key,max_discount_percent,max_discount_amount,max_bargain_rounds,custom_prompts,ai_time_range_start,ai_time_range_end`
+
+`PROVIDER_SUPPORTED_TYPES=openai_compatible,anthropic,gemini,dashscope_app`
+
+`PROVIDER_DEFAULT_TYPE=openai_compatible`
+
+`PROVIDER_DEFAULT_MODEL=qwen-plus`
+
+`PROVIDER_CREDENTIAL_KEY=api_key`
+
+`PROVIDER_ENV_OPENAI_API_KEY_PRESENT=false`
+
+`PROVIDER_ENV_DASHSCOPE_API_KEY_PRESENT=false`
+
+`PROVIDER_ENV_GEMINI_API_KEY_PRESENT=false`
+
+`PROVIDER_ENV_GOOGLE_API_KEY_PRESENT=false`
+
+`PROVIDER_ENV_ANTHROPIC_API_KEY_PRESENT=false`
+
+`PROVIDER_ENV_AI_API_KEY_PRESENT=false`
+
+`PROVIDER_ENV_AI_PROVIDER_TYPE_PRESENT=false`
+
+`PROVIDER_ENV_AI_MODEL_NAME_PRESENT=false`
+
+`PROVIDER_ENV_AI_BASE_URL_PRESENT=false`
+
+`ACCOUNT_PROVIDER_TYPE=openai_compatible`
+
+`ACCOUNT_PROVIDER_MODEL_NAME=qwen-plus`
+
+`ACCOUNT_PROVIDER_API_KEY_PRESENT=false`
+
+`ACCOUNT_PROVIDER_BASE_URL_STORED_PRESENT=false`
+
+`ACCOUNT_PROVIDER_BASE_URL_DEFAULT_PRESENT=true`
+
+`ACCOUNT_PROVIDER_REQUIRED_FIELDS_COMPLETE=false`
+
+`ACCOUNT_PROVIDER_MISSING_FIELDS=API地址,API Key`
+
+`PROVIDER_CREDENTIAL_VALUE_PRINTED=false`
+
+`PROVIDER_CREDENTIAL_USED=false`
+
+`SAFE_SENDER_FREE_PROVIDER_VALIDATION_PATH=common/services/ai_provider_service.py::test_ai_connection`
+
+`SAFE_PROVIDER_VALIDATION_PLATFORM_SENDER_FREE=true`
+
+`PARENT_CREDENTIAL_EPHEMERAL_INJECTION_POSSIBLE=true`
+
+`PROVIDER_CONNECTION_TEST_INVOCATIONS=1`
+
+`PROVIDER_CONNECTION_TEST_SUCCESS=false`
+
+`PROVIDER_CONNECTION_TEST_HTTP_STATUS_CLASS=HTTP_4XX`
+
+`PROVIDER_CONNECTION_TEST_ERROR_CLASS=RuntimeError`
+
+`PROVIDER_CONNECTION_TEST_ELAPSED_MS=261`
+
+`PROVIDER_CONNECTION_TEST_ROW_COUNTS_UNCHANGED=true`
+
+`PROVIDER_CONNECTION_TEST_AUTOREPLY_ENGINE_GENERATE_REPLY_CALLED=false`
+
+`PROVIDER_CONNECTION_TEST_PLATFORM_SENDER_CALLED=false`
+
+`PROVIDER_CONNECTION_TEST_CREDENTIAL_PERSISTED=false`
+
+`POLICY_REPLY_SELECTION_ORDER=keyword_then_ai_then_default`
+
+`POLICY_MESSAGE_EXPIRE_DEFAULT_SECONDS=3600`
+
+`POLICY_INBOUND_MESSAGE_ID_DEDUPE=true`
+
+`POLICY_AUTOREPLY_DEDUPE_KEY=chat_id_plus_send_message`
+
+`POLICY_AI_ORDERED_USER_BLOCK_FIELD=xy_accounts.ai_reply_block_ordered_users`
+
+`POLICY_AI_HISTORY_CONTEXT_LIMIT=20`
+
+`POLICY_AI_RECENT_MESSAGE_CUTOFF_SECONDS=6_when_skip_wait_else_25`
+
+`POLICY_AI_SENSITIVE_OUTPUT_FILTER_NOT_PROVEN=true`
+
+`ACCOUNT_CURRENT_AI_ENABLED_FLAG=false`
+
+`ACCOUNT_ENABLED=true`
+
+`ACCOUNT_STATUS_ACTIVE=true`
+
+`ACCOUNT_COOKIE_PRESENT=true`
+
+`ACCOUNT_COOKIE_PARSE_SUCCESS=true`
+
+`ACCOUNT_COOKIE_UNB_PRESENT=true`
+
+`ACCOUNT_LAST_LOGIN_AT_PRESENT=true`
+
+`ACCOUNT_LAST_REFRESH_AT_PRESENT=true`
+
+`ACCOUNT_WEBSOCKET_STATUS_HTTP_2XX=true`
+
+`ACCOUNT_WEBSOCKET_STATUS_SUCCESS=true`
+
+`ACCOUNT_WEBSOCKET_CONNECTED=true`
+
+`ACCOUNT_TOKEN_VALUE_PRINTED=false`
+
+`ACCOUNT_COOKIE_VALUE_PRINTED=false`
+
+`ACCOUNT_PLATFORM_VERIFICATION_STATE=NOT_REPORTED_BY_SANITIZED_STATUS_ENDPOINT`
+
+`DEFAULT_REPLY_ENABLED_TOTAL=11`
+
+`DEFAULT_REPLY_ACCOUNT_ENABLED=0`
+
+`DEFAULT_REPLY_ITEM_ENABLED=11`
+
+`DEFAULT_REPLY_API_ENABLED=0`
+
+`DEFAULT_REPLY_ONCE_ENABLED=0`
+
+`KEYWORD_ACTIVE_TOTAL=0`
+
+`SKIP_REPLY_FILTER_ENABLED=0`
+
+`SKIP_NOTIFY_FILTER_ENABLED=0`
+
+`ORDERED_USER_ORDER_ROWS=0`
+
+`AUTO_REPLY_LOGS_TOTAL=4`
+
+`AUTO_REPLY_LOGS_24H=0`
+
+`AUTO_REPLY_SUCCESS_TOTAL=2`
+
+`AUTO_REPLY_FAILED_TOTAL=0`
+
+`AUTO_REPLY_SKIPPED_TOTAL=2`
+
+`AUTO_REPLY_AI_STRATEGY_TOTAL=0`
+
+`AUTO_REPLY_AI_STRATEGY_24H=0`
+
+`AI_CHAT_MESSAGES_TOTAL=0`
+
+`UNREAD_BACKLOG_CURRENT=NOT_AVAILABLE_FROM_DB_OR_STATUS_WITHOUT_CONVERSATION_READ`
+
+`ENABLING_HISTORICAL_UNREAD_PROCESSING_RISK=UNPROVEN_CURRENT_RUNTIME_DB_PREFLIGHT_NOT_COMPLETED`
+
+`CHG0032_CONTROLLED_COUNTERPART=false`
+
+`OWNER_CONTROLLED_COUNTERPART_PROVEN=false`
+
+`GO_RECOMMENDED=false`
+
+`TECHNICAL_READINESS=NO_GO_SOURCE_CHAIN_READY_ACCOUNT_CONNECTED_PROVIDER_CONFIG_INCOMPLETE_UNREAD_ZERO_NOT_PROVEN`
+
+`CODE_DEFECT_REPAIR_NEEDED=false`
+
+`CONFIG_ACTION_REQUIRED_BEFORE_LIVE=true`
+
+`CONFIG_ACTION_REASON=ACCOUNT_AI_PROVIDER_API_KEY_AND_BASE_URL_NOT_CURRENTLY_COMPLETE`
+
+`OWNER_DECISION=NO-GO`
+
+`NO_GO_BLOCKER=HUMAN_BLOCKED_NO_CONTROLLED_COUNTERPART`
+
+`ADDITIONAL_BLOCKER=ACCOUNT_PROVIDER_CONFIG_INCOMPLETE_AND_UNREAD_ZERO_NOT_PROVEN_WITHOUT_CONVERSATION_READ`
+
+`FINAL_CHECKPOINT=HUMAN_BLOCKED_NO_CONTROLLED_COUNTERPART`
+
+## Commander Phase 3 Closure
+
+Commander final decision: `NO-GO`.
+
+`AI_AUTO_REPLY_LIVE_ACCEPTANCE=BLOCKED_NO_CONTROLLED_COUNTERPART_AND_PROVIDER_READINESS`
+
+`PRIMARY_BLOCKER=HUMAN_BLOCKED_NO_CONTROLLED_COUNTERPART`
+
+`ADDITIONAL_BLOCKER_PROVIDER=PROVIDER_CREDENTIAL_HTTP_4XX`
+
+`ADDITIONAL_BLOCKER_BACKLOG=UNREAD_ZERO_NOT_PROVEN`
+
+`LIVE_CANARY_ENABLEMENT=GATED_NOT_RUN`
+
+`LIVE_CANARY_INBOUND=GATED_NOT_RUN`
+
+`LIVE_CANARY_AI_REPLY=GATED_NOT_RUN`
+
+`LIVE_CANARY_DURABLE_VISIBLE_READBACK=GATED_NOT_RUN`
+
+`AI_REMAINED_DISABLED=true`
+
+`AI_ENABLEMENT_INVOCATIONS=0`
+
+`AI_PROVIDER_INVOCATIONS=1`
+
+`SENDER_FREE_PROVIDER_INVOCATIONS=1`
+
+`AI_PROVIDER_INVOCATION_MODE=SENDER_FREE_CONNECTION_TEST_ONLY`
+
+`AI_REPLY_SEND_INVOCATIONS=0`
+
+`PLATFORM_SEND_INVOCATIONS=0`
+
+`INBOUND_CANARY_MESSAGES=0`
+
+`UNRELATED_CONVERSATIONS_ENUMERATED=0`
+
+`CONFIG_PERSISTENCE_COUNT=0`
+
+`PRODUCTION_MUTATION_COUNT=0`
+
+`CREDENTIAL_VALUE_RECORDED=false`
+
+`CREDENTIAL_HASH_RECORDED=false`
+
+## GO/NO-GO Rule
+
+If no owner-controlled counterpart is proven, the outcome is `HUMAN_BLOCKED_NO_CONTROLLED_COUNTERPART` regardless of provider readiness or other technical readiness.
+
+## Upstream Capability Audit
+
+Same as proposal.
+
+## Pinned Upstream Evidence
+
+Same as proposal.
+
+## Existing Local Implementation Search
+
+Same as proposal.
+
+## Reuse Decision
+
+Decision: ADOPT_UPSTREAM
+
+## Duplicate Implementation Risk
+
+No duplicate AI auto-reply path is accepted.
+
+## Why Upstream Cannot Satisfy The Requirement
+
+Upstream supplies auto-reply execution but not this pre-enable commander checkpoint.
+
+## Approved Exception ADR
+
+Not applicable.
+
+## Component Owner
+
+Existing upstream-native AI auto-reply owner.
+
+## Retirement Plan For Overlapping Local Code
+
+No overlapping local code is introduced.
