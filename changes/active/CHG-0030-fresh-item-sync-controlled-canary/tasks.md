@@ -24,7 +24,7 @@ Status: IMPLEMENTING
 - [x] T19 Commit and push the Phase 4b correction, update PR #45, and classify scoped/current-commit CI before any deployment.
 - [x] T20 Build and deploy Backend r2 from the exact two-patch stack only, preserving r1 and CHG-0029 rollback images and leaving WebSocket/Scheduler/Frontend unchanged.
 - [x] T21 Repeat full read-only post-deploy preflight, including selected-account explicit Item Sync eligibility with authoritative platform-verification evidence type, item/duplicate baseline, safety counters, and service restarts.
-- [ ] T22 After later commander GO, perform exactly one Fresh Item Sync canary invocation and capture operation identity, terminal result, real durable readback, measured duplicate count, and safety counters.
+- [x] T22 After later commander GO, perform exactly one Fresh Item Sync canary invocation and capture operation identity, terminal result, real durable readback, measured duplicate count, and safety counters.
 - [ ] T23 Complete closure commit/merge only after canary evidence and GitHub closure acceptance are satisfied.
 
 ## Upstream capability audit

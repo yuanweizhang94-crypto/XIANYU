@@ -7,6 +7,7 @@ CHANGE = Path(__file__).resolve().parents[1]
 EVIDENCE = CHANGE / "evidence/20260825-phase1-read-only-gates.md"
 PHASE2B_EVIDENCE = CHANGE / "evidence/20260825-phase2b-acceptance-grade-repair.md"
 PHASE3_EVIDENCE = CHANGE / "evidence/20260825-phase3-pre-pr-implementation-closure.md"
+PHASE5_EVIDENCE = CHANGE / "evidence/20260825-phase5-controlled-production-canary.md"
 REQUIRED_DOCS = ("proposal.md", "design.md", "tasks.md", "acceptance.md")
 
 
@@ -22,7 +23,7 @@ def test_required_docs_have_consistent_identity_and_status():
         assert "Status: IMPLEMENTING" in text
 
 
-def test_execution_contract_and_no_go_decision_are_locked():
+def test_execution_contract_and_single_canary_completion_are_locked():
     proposal = _text(CHANGE / "proposal.md")
     acceptance = _text(CHANGE / "acceptance.md")
     evidence = _text(EVIDENCE)
@@ -30,7 +31,8 @@ def test_execution_contract_and_no_go_decision_are_locked():
         "User outcome: one controlled Fresh Item Sync canary",
         "Confirmed blocker: selected capability and trace identity are not yet explicit",
         "Smallest success test: one selected eligible account",
-        "PRODUCTION_ITEM_SYNC_CANARY_GO=false",
+        "PRODUCTION_ITEM_SYNC_CANARY_GO=USED_COMPLETE_NO_FURTHER_INVOCATION_ALLOWED",
+        "ONE_CONTROLLED_FRESH_ITEM_SYNC_CANARY=PASS",
         "ITEM_SYNC_INVOCATION_ALLOWED=false",
     ):
         assert marker in proposal or marker in acceptance or marker in evidence
@@ -130,12 +132,42 @@ def test_phase3_governance_and_patch_lock_are_recorded():
     assert "SHA256: `595AA68FA73505869274642E4D6FD2B12FA38BCBD5106E3B0C4D11962E6A8201`" in readme
 
 
-def test_forbidden_side_effect_counters_remain_zero():
+def test_phase5_canary_terminal_durable_truth_is_recorded():
+    acceptance = _text(CHANGE / "acceptance.md")
+    phase5 = _text(PHASE5_EVIDENCE)
+    for marker in (
+        "ITEM_SYNC_INVOCATION_COUNT=1",
+        "ITEM_SYNC_SYNC_STATUS=SUCCESS",
+        "ITEM_SYNC_SKIPPED=false",
+        "ITEM_SYNC_FULL_ACTIVE_LIST_CONFIRMED=true",
+        "ITEM_SYNC_DURABLE_READBACK_SOURCE=xy_catalog_items",
+        "ITEM_SYNC_DURABLE_READBACK_QUERY_SUCCESS=true",
+        "ITEM_SYNC_DURABLE_READBACK_CHECKED=true",
+        "ITEM_SYNC_DURABLE_READBACK_RECONCILED=true",
+        "ITEM_SYNC_DURABLE_READBACK_DUPLICATE_COUNT=0",
+    ):
+        assert marker in acceptance
+    for marker in (
+        "FINAL_PRE_INVOCATION_GATE=PASS",
+        "MCP_INVOCATION_COUNT=1",
+        "MAX_PAGES_SUPPLIED=OMITTED",
+        "CHG0030_ITEM_SYNC_OPERATION_ACCEPTED_COUNT=1",
+        "CHG0030_ITEM_SYNC_TERMINAL_READBACK_COUNT=1",
+        "TERMINAL_STATE=SUCCESS",
+        "SKIPPED=false",
+        "FULL_ACTIVE_LIST_CONFIRMED=true",
+        "DUPLICATE_COUNT=0",
+        "EXCLUDED_SIDE_EFFECT_COUNTERS_ZERO=true",
+    ):
+        assert marker in phase5
+
+
+def test_forbidden_excluded_side_effect_counters_remain_zero():
     acceptance = _text(CHANGE / "acceptance.md")
     for marker in (
-        "ITEM_SYNC_INVOCATION_COUNT=0",
-        "REMOTE_ITEM_READ_COUNT=0",
-        "LOCAL_ITEM_WRITE_COUNT=0",
+        "ITEM_SYNC_INVOCATION_COUNT=1",
+        "REMOTE_ITEM_READ_COUNT=1_AUTHORIZED_CANARY",
+        "LOCAL_ITEM_WRITE_COUNT=20_OWNER_REPORTED_UPSERT_ATTEMPTS",
         "REMOTE_LISTING_CREATE_COUNT=0",
         "REMOTE_LISTING_EDIT_COUNT=0",
         "REMOTE_LISTING_OFFLINE_COUNT=0",

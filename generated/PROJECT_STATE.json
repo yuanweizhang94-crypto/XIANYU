@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 23,
-    "completed": 21,
-    "next_task": "T22 After later commander GO, perform exactly one Fresh Item Sync canary invocation and capture operation identity, terminal result, real durable readback, measured duplicate count, and safety counters.",
+    "completed": 22,
+    "next_task": "T23 Complete closure commit/merge only after canary evidence and GitHub closure acceptance are satisfied.",
     "items": [
       {
         "text": "T1 Read root `AGENTS.md`, fetch remote main without changing `origin`, verify `origin/main=8d1d1d0fb272cd2715135d077be98ce0b575cb79`, verify ancestry, path absence, branch absence, and create the isolated worktree from `origin/main`.",
@@ -97,7 +97,7 @@
       },
       {
         "text": "T22 After later commander GO, perform exactly one Fresh Item Sync canary invocation and capture operation identity, terminal result, real durable readback, measured duplicate count, and safety counters.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T23 Complete closure commit/merge only after canary evidence and GitHub closure acceptance are satisfied.",

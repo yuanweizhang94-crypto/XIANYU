@@ -25,9 +25,9 @@ Status: IMPLEMENTING
 
 `FULL_ACTIVE_LIST_SUCCESS_GUARD=DEPLOYED_R2`
 
-`PRODUCTION_ITEM_SYNC_CANARY_GO=false`
+`PRODUCTION_ITEM_SYNC_CANARY_GO=USED_COMPLETE_NO_FURTHER_INVOCATION_ALLOWED`
 
-`COMMANDER_GO_RECEIVED=false`
+`COMMANDER_GO_RECEIVED=true`
 
 `ITEM_SYNC_INVOCATION_ALLOWED=false`
 
@@ -47,13 +47,39 @@ Status: IMPLEMENTING
 
 `SELECTED_ACCOUNT_PREFLIGHT_PLATFORM_VERIFICATION_EVIDENCE_TYPE=NONE`
 
+`ONE_CONTROLLED_FRESH_ITEM_SYNC_CANARY=PASS`
+
+`ITEM_SYNC_OPERATION_ID=item_sync_e7ca45174a64408e80b8d72a95d2f37f`
+
+`ITEM_SYNC_SYNC_STATUS=SUCCESS`
+
+`ITEM_SYNC_TERMINAL=true`
+
+`ITEM_SYNC_SKIPPED=false`
+
+`ITEM_SYNC_FULL_ACTIVE_LIST_CONFIRMED=true`
+
+`ITEM_SYNC_DURABLE_READBACK_SOURCE=xy_catalog_items`
+
+`ITEM_SYNC_DURABLE_READBACK_QUERY_SUCCESS=true`
+
+`ITEM_SYNC_DURABLE_READBACK_CHECKED=true`
+
+`ITEM_SYNC_DURABLE_READBACK_RECONCILED=true`
+
+`ITEM_SYNC_DURABLE_READBACK_MATCHED_RESPONSE_ITEM_COUNT=20`
+
+`ITEM_SYNC_DURABLE_READBACK_DUPLICATE_COUNT=0`
+
+`ITEM_SYNC_DURABLE_READBACK_DUPLICATE_ROW_COUNT=0`
+
 ## Safety Counters
 
-`ITEM_SYNC_INVOCATION_COUNT=0`
+`ITEM_SYNC_INVOCATION_COUNT=1`
 
-`REMOTE_ITEM_READ_COUNT=0`
+`REMOTE_ITEM_READ_COUNT=1_AUTHORIZED_CANARY`
 
-`LOCAL_ITEM_WRITE_COUNT=0`
+`LOCAL_ITEM_WRITE_COUNT=20_OWNER_REPORTED_UPSERT_ATTEMPTS`
 
 `REMOTE_LISTING_CREATE_COUNT=0`
 
@@ -87,11 +113,11 @@ Status: IMPLEMENTING
 
 ## Stop Acceptance
 
-Stopping before production canary is accepted while:
+Stopping after one production canary is accepted while:
 
-- no later explicit commander GO has been received.
+- no second Item Sync invocation is authorized.
 
-The selected-account eligibility, Backend log identity, skipped-lock success guard, and full-active-list success guard are technically satisfied after the r2 deployment and read-only preflight. The Item Sync canary itself remains not authorized until a later explicit commander GO.
+The selected-account eligibility, Backend log identity, skipped-lock success guard, full-active-list success guard, one controlled Item Sync invocation, terminal `SUCCESS`, and durable-truth readback are satisfied after the Phase 5 controlled production canary. No further invocation is authorized without a separate later commander decision.
 
 ## Future Canary Acceptance
 
