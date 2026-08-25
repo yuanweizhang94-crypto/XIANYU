@@ -113,19 +113,26 @@ Status: ARCHIVED
 
 `GO_RECOMMENDED=false`
 
-`NO_GO_BLOCKER=APPROVED_LABEL_NOT_BOUND_IN_PRODUCTION_DURABLE_TRUTH`
+`NO_GO_BLOCKER=HUMAN_BLOCKED_MATERIAL_DATA`
 
-`REAL_PUBLISH_ACCEPTANCE=BLOCKED_NO_IDENTITY_BINDING`
+`REAL_PUBLISH_ACCEPTANCE=BLOCKED_HUMAN_MATERIAL_DATA`
 
-`COMMANDER_DECISION=NO-GO_FOR_REAL_PUBLISH`
+`USER_PROVIDED_IDENTITY_BINDING=PASS`
 
-## Preflight Decision
+`COMMANDER_DECISION=RESUME_NARROW_PREFLIGHT_NO_PUBLISH`
 
-NO-GO. The approved account label gate fails closed because the exact durable-truth count for `艺龙` is `0`, while acceptance requires `1`. The masked account row `280***247` exists and looks session-ready in durable account fields, and candidate material `23` is complete and non-duplicate against the masked account, but real publish must not proceed until the approved label is durably bound to the selected account or another approved durable label source is identified.
+## Prior Durable-Label Discrepancy
 
-## Final No-Go Closure
+The prior durable-table exact-label query found `exact_label_count=0` for the
+approved label in `xy_accounts` fields and approved metadata keys. The commander
+has now supplied direct project-owner authorization and an external sensitive
+screenshot binding masked account `280***247` to the authorized account label
+for this run. That external evidence supersedes the prior no-go identity
+blocker for the purpose of resuming read-only preflight only.
 
-`IDENTITY_UNIQUE=FAIL`
+## Commander Override State
+
+`IDENTITY_UNIQUE=PASS_BY_PROJECT_OWNER_EXTERNAL_SCREENSHOT_ASSERTION_FOR_THIS_RUN`
 
 `PUBLISH_INVOCATIONS=0`
 
@@ -143,8 +150,173 @@ NO-GO. The approved account label gate fails closed because the exact durable-tr
 
 `PRODUCTION_MUTATION_COUNT=0`
 
-Publish and terminal durable readback were not executed and are not passed. The
-only accepted Phase 1 outcome is the archived blocked/no-go evidence record.
+Publish and terminal durable readback remain not executed and are not passed.
+
+## Resumed Narrow Preflight Decision
+
+Identity binding for this run is accepted from direct project-owner assertion
+plus external sensitive screenshot metadata, with only masked account
+`280***247` recorded. The selected production account row exists exactly once
+by masked binding, is `active`, has owner scope, cookie/session timestamps, no
+disable reason, and read-only publish capability result `success=true` with
+`account_invalid=false`.
+
+Material `23` exists and is not already represented on the selected account:
+
+```text
+catalog_rows=0
+catalog_distinct_items=0
+duplicate_normalized_title_groups=0
+duplicate_item_id_groups=0
+publish_log_rows=37
+publish_log_success_rows=9
+publish_log_nonterminal_rows=0
+normalized_duplicate_on_masked_account=0
+publish_logs_for_material_on_masked_account=0
+```
+
+Material readiness fails closed:
+
+```text
+candidate_material_id=23
+candidate_exists=true
+title_non_placeholder=true
+description_non_empty=true
+description_chars=83
+price_positive=true
+price=2.90
+stock_positive=true
+stock=1
+image_count=1
+images_non_empty=true
+category_present=true
+sku_rows_present=false
+specifications_present=false
+delivery_method_present=true
+delivery_method=express
+shipping_method_present=true
+shipping_method=free
+address_present=false
+obvious_risk_language=false
+```
+
+Final resumed checkpoint: `NO-GO`. Publish remains forbidden because the
+selected material lacks required SKU rows and specifications. The earlier
+address-specific failure was too strict: existing native batch publish hydrates
+address through the existing publish-address owner.
+
+## Replacement Candidate Selection
+
+A narrow read-only candidate-selection pass queried the existing material
+owner/source-of-truth only. Material `23` was excluded. The approved account was
+used internally and is recorded only as masked `280***247`.
+
+Selected-account readiness:
+
+```text
+sanitized_account_status_ok=true
+account_status=FOUND
+login_ready=true
+account_enabled=true
+account_online=true
+platform_certification_required=false
+profile_ready=null
+publish_capability=true
+```
+
+Candidate-selection result:
+
+```text
+material_rows_examined=42
+qualified_candidate_count=0
+selected_candidate=NONE
+catalog_rows=0
+catalog_distinct_items=0
+duplicate_normalized_title_groups=0
+duplicate_item_id_groups=0
+publish_log_rows=37
+publish_log_success_rows=9
+publish_log_nonterminal_rows=0
+```
+
+No existing material other than `23` already satisfied all required gates:
+active/usable real material, non-placeholder title, nonempty description,
+positive price and stock, at least one valid image, category, SKU rows,
+specifications, supply-chain/address facts, no exact/normalized duplicate or
+already represented item for the approved account, and no obvious
+prohibited/infringing language. Final candidate-selection checkpoint:
+`NO-GO`.
+
+## Root Cause For No Qualifying Material
+
+Upstream-first source inspection showed:
+
+- pinned upstream `ProductMaterial` canonical model requires title,
+  description, price, images, optional category/address fields, and does not
+  define SKU/specification fields;
+- deployed runtime extends the existing material owner with canonical
+  `specifications` and `sku_rows` JSON fields;
+- native batch publish resolves supply-chain/address evidence through
+  `PublishAddressService.resolve_publish_address`, not only from material
+  `address` or `address_expected_text`;
+- direct publish payload treats SKU/specifications as optional platform inputs
+  when both are absent, but if one is present the pair must be complete and
+  coherent.
+
+The user requirement for explicit SKU, specifications, and supply-chain/address
+evidence remains stricter than platform minimums. The address requirement is
+satisfied by existing owner data, but the SKU/specification requirement is not:
+
+```text
+material_23_spec_count=0
+material_23_sku_count=0
+material_23_sku_spec_coherent=false
+material_23_successful_publish_logs=1
+material_23_success_logs_with_resolved_address_id=1
+material_23_success_logs_with_resolved_address_text=1
+selected_owner_personal_publish_address_count=1
+global_publish_address_count=155
+material_rows_examined_excluding_23=42
+sku_spec_valid_material_count_excluding_23=0
+qualified_candidate_count_with_owner_address=0
+```
+
+Final root-cause result: `HUMAN_BLOCKED_MATERIAL_DATA`. The exact missing facts
+are real SKU row data and matching specification definitions for at least one
+existing non-duplicate material. No direct/manual database repair and no
+fabricated values are allowed.
+
+## Final Phase 1 Closure
+
+`PRODUCTION_ACCEPTANCE=BLOCKED_HUMAN_MATERIAL_DATA`
+
+`IDENTITY_BLOCKER_SUPERSEDED=true`
+
+`USER_PROVIDED_IDENTITY_BINDING=PASS`
+
+`FINAL_NO_GO_BLOCKER=HUMAN_BLOCKED_MATERIAL_DATA`
+
+`MISSING_REQUIRED_FACTS=sku_rows,specifications`
+
+`ADDRESS_OWNER_WORKS=true`
+
+`PUBLISH_INVOCATIONS=0`
+
+`FRESH_ITEM_SYNC_INVOCATIONS=0`
+
+`MESSAGE_SEND_INVOCATIONS=0`
+
+`AI_INVOCATIONS=0`
+
+`BROWSER_INVOCATIONS=0`
+
+`ACCOUNT_MUTATION_COUNT=0`
+
+`MATERIAL_MUTATION_COUNT=0`
+
+`DEPLOY_INVOCATIONS=0`
+
+`PRODUCTION_MUTATION_COUNT=0`
 
 ## Upstream Capability Audit
 

@@ -6,8 +6,8 @@ from pathlib import Path
 
 CHANGE_ID = "CHG-0031-controlled-real-publish-yilong"
 MASKED_ACCOUNT = "280***247"
-BLOCKER = "APPROVED_LABEL_NOT_BOUND_IN_PRODUCTION_DURABLE_TRUTH"
-BLOCKED_ACCEPTANCE = "REAL_PUBLISH_ACCEPTANCE=BLOCKED_NO_IDENTITY_BINDING"
+BLOCKER = "HUMAN_BLOCKED_MATERIAL_DATA"
+BLOCKED_ACCEPTANCE = "REAL_PUBLISH_ACCEPTANCE=BLOCKED_HUMAN_MATERIAL_DATA"
 
 
 def _repo_root() -> Path:
@@ -30,7 +30,7 @@ def _text(name: str) -> str:
     return (_change_dir() / name).read_text(encoding="utf-8")
 
 
-def test_chg0031_archived_no_go_identity_blocker_is_recorded() -> None:
+def test_chg0031_archived_material_data_blocker_is_recorded() -> None:
     combined = "\n".join(
         _text(name)
         for name in ("proposal.md", "design.md", "tasks.md", "acceptance.md")
@@ -40,10 +40,19 @@ def test_chg0031_archived_no_go_identity_blocker_is_recorded() -> None:
     assert "Status: ARCHIVED" in _text("design.md")
     assert "Status: ARCHIVED" in _text("tasks.md")
     assert "Status: ARCHIVED" in _text("acceptance.md")
+    assert "USER_PROVIDED_IDENTITY_BINDING=PASS" in combined
     assert BLOCKER in combined
     assert BLOCKED_ACCEPTANCE in combined
-    assert "IDENTITY_UNIQUE=FAIL" in combined
-    assert "NO-GO_FOR_REAL_PUBLISH" in combined
+    assert "NO_QUALIFYING_MATERIAL_EXISTS=true" in (_change_dir() / "evidence" / "20260825-active-record-correction.md").read_text(
+        encoding="utf-8"
+    )
+    assert "qualified_candidate_count_with_owner_address=0" in (
+        _change_dir() / "evidence" / "20260825-active-record-correction.md"
+    ).read_text(encoding="utf-8")
+    assert "IDENTITY_UNIQUE=PASS_BY_PROJECT_OWNER_EXTERNAL_SCREENSHOT_ASSERTION_FOR_THIS_RUN" in combined
+    assert "GO_RECOMMENDED=false" in combined
+    assert "PRODUCTION_ACCEPTANCE=BLOCKED_HUMAN_MATERIAL_DATA" in combined
+    assert "IDENTITY_BLOCKER_SUPERSEDED=true" in combined
 
 
 def test_chg0031_zero_action_counters_and_masking_are_preserved() -> None:
@@ -67,9 +76,9 @@ def test_chg0031_zero_action_counters_and_masking_are_preserved() -> None:
 
     assert MASKED_ACCOUNT in combined
     assert not re.search(r"\b280\d+247\b", combined)
-    assert "Publish terminal ACTIVE/readback/item-count +1" in evidence
-    assert "acceptance was not executed and is not claimed" in evidence
-    assert "Publish and terminal durable readback were not executed and are not passed" in acceptance
+    assert "full_account_id_recorded=false" in evidence
+    assert "external_sensitive_evidence_committed=false" in evidence
+    assert "Publish and terminal durable readback remain not executed and are not passed" in acceptance
 
 
 def test_chg0031_publish_tasks_are_not_falsely_marked_as_executed() -> None:

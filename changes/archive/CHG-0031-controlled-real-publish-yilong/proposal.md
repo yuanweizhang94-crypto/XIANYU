@@ -42,12 +42,16 @@ Forbidden scope:
 
 `PRODUCTION_MUTATION_COUNT=0`
 
-`REAL_PUBLISH_ACCEPTANCE=BLOCKED_NO_IDENTITY_BINDING`
+`REAL_PUBLISH_ACCEPTANCE=BLOCKED_HUMAN_MATERIAL_DATA`
 
-`NO_GO_BLOCKER=APPROVED_LABEL_NOT_BOUND_IN_PRODUCTION_DURABLE_TRUTH`
+`USER_PROVIDED_IDENTITY_BINDING=PASS`
 
-Commander decision: `NO-GO_FOR_REAL_PUBLISH`. CHG-0031 is closed as a
-blocked/no-go evidence Change with `PUBLISH_INVOCATIONS=0`.
+`NO_GO_BLOCKER=HUMAN_BLOCKED_MATERIAL_DATA`
+
+Commander override: the project owner provided direct identity authorization
+and an external screenshot showing masked account `280***247` as the authorized
+account label. The screenshot is external sensitive evidence and is not copied,
+hashed, or committed.
 
 ## Upstream Capability Audit
 

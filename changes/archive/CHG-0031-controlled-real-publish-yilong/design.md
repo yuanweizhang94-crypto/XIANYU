@@ -21,8 +21,9 @@ REAL_PUBLISH_ALLOWED=false
 COMMANDER_GO_FOR_REAL_PUBLISH=false
 FRESH_ITEM_SYNC_INVOCATIONS=0
 PRODUCTION_MUTATION_COUNT=0
-REAL_PUBLISH_ACCEPTANCE=BLOCKED_NO_IDENTITY_BINDING
-NO_GO_BLOCKER=APPROVED_LABEL_NOT_BOUND_IN_PRODUCTION_DURABLE_TRUTH
+REAL_PUBLISH_ACCEPTANCE=BLOCKED_HUMAN_MATERIAL_DATA
+USER_PROVIDED_IDENTITY_BINDING=PASS
+NO_GO_BLOCKER=HUMAN_BLOCKED_MATERIAL_DATA
 ```
 
 ## Expected Publish Owner
@@ -41,13 +42,15 @@ COMPANY xianyu_publish_single
 -> authoritative item sync/readback
 ```
 
-## Blocked No-Go Closure
+## Commander Override Identity Binding
 
-The real publish phase is not executed. The hard identity gate failed because
-the approved exact label is not durably bound to the masked account row in the
-authoritative production account table or inspected approved metadata label
-keys. Terminal platform readback and item-count +1 acceptance are therefore
-not claimed.
+The project owner supplied direct identity authorization plus an external
+sensitive screenshot for masked account `280***247`. For this run, that
+evidence is authoritative identity binding. The screenshot itself, its hash,
+and the full account id must not be copied or committed. Publish remains
+forbidden until resumed narrow preflight proves status, session lineage,
+verification state, publish capability, owner scope, material readiness,
+baseline counts, duplicate state, and idempotent durable readback plan.
 
 ## Rollback
 
@@ -88,3 +91,10 @@ XIANYU native publish owner via Backend and `detect_publish_account_capability`;
 ## Retirement Plan For Overlapping Local Code
 
 No overlapping production code is planned.
+
+## Final Phase 1 Closure
+
+Final decision is no-go: `HUMAN_BLOCKED_MATERIAL_DATA`. The exact missing facts
+are `sku_rows` and `specifications` for at least one existing non-duplicate
+material. The existing publish-address owner works and must remain the
+supply-chain/address owner.

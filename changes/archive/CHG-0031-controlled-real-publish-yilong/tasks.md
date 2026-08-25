@@ -14,7 +14,11 @@ Status: ARCHIVED
 - [x] T9 Do not perform publish; record that `xianyu_publish_single` was not invoked because the identity gate failed.
 - [x] T10 Do not claim terminal platform ACTIVE/readback/item-count +1 acceptance; record `REAL_PUBLISH_ACCEPTANCE=BLOCKED_NO_IDENTITY_BINDING`.
 - [x] T11 Add and run focused archived-evidence/zero-action invariant tests plus requested repository checks; classify only proven pre-existing debt without absorbing it.
-- [x] T12 Archive CHG-0031, regenerate project state, review scoped diff, commit, push, open PR, classify CI, merge if permitted, and verify main closure.
+- [x] T12 Archive CHG-0031, regenerate project state, review scoped diff, commit, push, open PR, and classify CI before commander override stopped merge.
+- [x] T13 Stop blocked/no-go closure after commander override, preserve history, confirm PR remains open, move CHG-0031 back to active, and record external sensitive identity evidence metadata without copying image/hash/full id.
+- [x] T14 Resume narrow read-only selected-account/material pre-publish checks after project-owner identity binding; no publish, deploy, commit, push, Fresh Item Sync, message, AI, Browser, account mutation, edit/offline/delete, QR, or reconnect.
+- [x] T15 Return fresh GO/NO-GO checkpoint and wait for explicit `GO_FOR_REAL_PUBLISH` before any production publish.
+- [x] T16 Diagnose `NO_QUALIFYING_EXISTING_MATERIAL`; confirm address evidence is hydrated by the existing publish-address owner, but SKU/specification facts are genuinely absent for material 23 and all inspected replacement candidates.
 
 ## Upstream Capability Audit
 
