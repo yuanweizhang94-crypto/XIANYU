@@ -1,0 +1,124 @@
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+index fbe2e8d0b37e212616e30c682ed4dbb45edc9dbb..24110b1700625d9f3bf6d1ded652304a09e27694 100644
+--- a/backend-web/app/api/routes/cookies.py
++++ b/backend-web/app/api/routes/cookies.py
+@@ -288,0 +289 @@ def _build_item_sync_preflight_capability(
++            "platform_verification_evidence_type": str(platform_verification.get("evidence_type") or "unknown"),
+@@ -301,0 +303 @@ def _build_item_sync_preflight_capability(
++            "platform_verification_evidence_type": str(platform_verification.get("evidence_type") or "unknown"),
+diff --git a/backend-web/app/api/routes/items.py b/backend-web/app/api/routes/items.py
+index b9255f47c0bfaf6707b8288f403b10031b291143..9031decb4d7f0e034b9c44617c303301044d83f5 100644
+--- a/backend-web/app/api/routes/items.py
++++ b/backend-web/app/api/routes/items.py
+@@ -112,0 +113,7 @@ async def _read_item_sync_durable_state(
++    owner_lock_skipped = bool(result.get("skipped"))
++    full_active_list_confirmed = bool(result.get("full_active_list_confirmed"))
++    failure_reason = None
++    if owner_lock_skipped:
++        failure_reason = "OWNER_LOCK_OCCUPIED_SKIPPED"
++    elif result_success and not full_active_list_confirmed:
++        failure_reason = "FULL_ACTIVE_LIST_NOT_CONFIRMED"
+@@ -114,0 +122,2 @@ async def _read_item_sync_durable_state(
++        and not owner_lock_skipped
++        and full_active_list_confirmed
+@@ -121 +130 @@ async def _read_item_sync_durable_state(
+-    return {
++    durable_state = {
+@@ -125,0 +135 @@ async def _read_item_sync_durable_state(
++        "failure_reason": failure_reason,
+@@ -133,0 +144,2 @@ async def _read_item_sync_durable_state(
++        "skipped": owner_lock_skipped,
++        "full_active_list_confirmed": full_active_list_confirmed,
+@@ -134,0 +147 @@ async def _read_item_sync_durable_state(
++    return durable_state
+@@ -161,0 +175,4 @@ async def _attach_item_sync_canary_contract(
++        if sync_status == "UNKNOWN" and bool(response.get("success")):
++            response["success"] = False
++            reason = str(durable_readback.get("failure_reason") or "ITEM_SYNC_TERMINAL_UNKNOWN")
++            response["message"] = f"Item Sync terminal status failed closed: {reason}"
+@@ -201,0 +219,3 @@ async def _attach_item_sync_canary_contract(
++            "failure_reason": durable_readback.get("failure_reason"),
++            "skipped": bool(response.get("skipped")) or bool(durable_readback.get("skipped")),
++            "full_active_list_confirmed": durable_readback.get("full_active_list_confirmed"),
+diff --git a/tests/test_chg0030_fresh_item_sync_controlled_canary.py b/tests/test_chg0030_fresh_item_sync_controlled_canary.py
+index f24babdf3c5773779750a7a88b9c89d434177ebb..7bd21373e693ca573422da4d1d879b09c49e373b 100644
+--- a/tests/test_chg0030_fresh_item_sync_controlled_canary.py
++++ b/tests/test_chg0030_fresh_item_sync_controlled_canary.py
+@@ -148,0 +149 @@ def test_get_all_from_account_durable_readback_measures_db_counts(monkeypatch) -
++                "full_active_list_confirmed": True,
+@@ -167,0 +169 @@ def test_get_all_from_account_durable_readback_measures_db_counts(monkeypatch) -
++    assert result["durable_readback"]["full_active_list_confirmed"] is True
+@@ -194,0 +197,71 @@ def test_get_all_from_account_query_failure_is_terminal_unknown(monkeypatch) ->
++def test_skipped_lock_result_is_terminal_unknown_not_success(monkeypatch) -> None:
++    module = _load_module(monkeypatch, ITEMS_ROUTE, "chg0030_items_route_skipped")
++    session = _ReadbackSession([0, []])
++    account = SimpleNamespace(id=7, account_id="221234567890")
++
++    result = asyncio.run(
++        module._attach_item_sync_canary_contract(
++            {
++                "success": True,
++                "skipped": True,
++                "message": "Item sync already running",
++                "total_count": 0,
++                "total_pages": 0,
++                "page_size": 20,
++                "saved_count": 0,
++                "items": [],
++            },
++            session=session,
++            account=account,
++            operation_id="op-skipped",
++            request_id="req-skipped",
++            page_size=20,
++            max_pages=None,
++        )
++    )
++
++    assert result["success"] is False
++    assert result["sync_status"] == "UNKNOWN"
++    assert result["terminal"] is True
++    assert result["retry_allowed"] is False
++    assert result["durable_readback"]["checked"] is False
++    assert result["durable_readback"]["reconciled"] is False
++    assert result["durable_readback"]["failure_reason"] == "OWNER_LOCK_OCCUPIED_SKIPPED"
++    assert result["durable_readback"]["skipped"] is True
++
++
++def test_success_requires_full_active_list_confirmed(monkeypatch) -> None:
++    module = _load_module(monkeypatch, ITEMS_ROUTE, "chg0030_items_route_incomplete")
++    session = _ReadbackSession([1, [], 1])
++    account = SimpleNamespace(id=7, account_id="221234567890")
++
++    result = asyncio.run(
++        module._attach_item_sync_canary_contract(
++            {
++                "success": True,
++                "message": "ok",
++                "total_count": 1,
++                "saved_count": 1,
++                "full_active_list_confirmed": False,
++                "sync_stop_reason": "max_pages_limit",
++                "items": [{"item_id": "item-a"}],
++            },
++            session=session,
++            account=account,
++            operation_id="op-incomplete",
++            request_id="req-incomplete",
++            page_size=20,
++            max_pages=1,
++        )
++    )
++
++    assert session.statement_count == 3
++    assert result["success"] is False
++    assert result["sync_status"] == "UNKNOWN"
++    assert result["retry_allowed"] is False
++    assert result["durable_readback"]["checked"] is False
++    assert result["durable_readback"]["reconciled"] is False
++    assert result["durable_readback"]["failure_reason"] == "FULL_ACTIVE_LIST_NOT_CONFIRMED"
++    assert result["durable_readback"]["full_active_list_confirmed"] is False
++
++
+@@ -215,0 +289 @@ def test_item_sync_preflight_pass_requires_authoritative_facts(monkeypatch) -> N
++    assert capability["facts"]["platform_verification_evidence_type"] == "NONE"

@@ -1,0 +1,573 @@
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+index f0d99f5cc01c5dd20e5d3190f0003ea749144fe9..fbe2e8d0b37e212616e30c682ed4dbb45edc9dbb 100644
+--- a/backend-web/app/api/routes/cookies.py
++++ b/backend-web/app/api/routes/cookies.py
+@@ -13,0 +14 @@ import asyncio
++import logging
+@@ -52 +53 @@ from common.utils.auth_scope import resolve_owner_scope
+-from common.utils.cookie_refresh import classify_session_failure_evidence
++from common.utils.cookie_refresh import classify_session_failure_evidence, cookie_fingerprint
+@@ -59,0 +61 @@ router = APIRouter(tags=["cookies"])
++logger = logging.getLogger(__name__)
+@@ -208,0 +211,96 @@ def _build_on_demand_publish_capability(checked_at: str) -> dict[str, Any]:
++def _mask_account_id_for_log(account_id: str | None) -> str:
++    text = str(account_id or "").strip()
++    if len(text) <= 4:
++        return "*" * len(text)
++    return f"{text[:2]}*********{text[-2:]}"
++
++
++def _build_item_sync_preflight_capability(
++    *,
++    account: XYAccount,
++    ws_status: dict[str, Any],
++    session_maintenance: dict[str, Any],
++    platform_verification: dict[str, Any],
++    checked_at: str,
++) -> dict[str, Any]:
++    enabled = _status_to_enabled(account.status)
++    has_cookie = bool((account.cookie or "").strip())
++    session_state = str(session_maintenance.get("state") or "")
++    stored_cookie_fingerprint = str(session_maintenance.get("cookie_fingerprint") or "")
++    current_cookie_fingerprint = cookie_fingerprint(account.cookie or "") if has_cookie else ""
++    session_cookie_lineage_matches = bool(
++        stored_cookie_fingerprint
++        and current_cookie_fingerprint
++        and stored_cookie_fingerprint == current_cookie_fingerprint
++    )
++    session_check_active, session_check_expired = _bounded_operation_active(
++        session_maintenance,
++        active_key="check_active",
++        deadline_key="check_deadline_at",
++    )
++    checking_state_known = bool(session_state)
++    checking_clear = (
++        checking_state_known
++        and not session_check_active
++        and session_state in {"REAL_BROWSER_LOGIN_READY", "SESSION_RENEW_SUCCESS", "AUTH_VALID", "READY"}
++    )
++    platform_verification_known = "required" in platform_verification and "evidence_type" in platform_verification
++    platform_verification_required = bool(platform_verification.get("required"))
++    token_ready_known = "token_ready" in ws_status
++    token_ready = bool(ws_status.get("token_ready"))
++
++    failure_reasons: list[str] = []
++    if not enabled:
++        failure_reasons.append("ACCOUNT_DISABLED")
++    if not has_cookie:
++        failure_reasons.append("COOKIE_MISSING")
++    if not checking_state_known:
++        failure_reasons.append("CHECKING_STATE_UNKNOWN")
++    elif not checking_clear:
++        failure_reasons.append("CHECKING_NOT_CLEAR" if not session_check_expired else "CHECKING_EXPIRED_UNKNOWN")
++    if not platform_verification_known:
++        failure_reasons.append("PLATFORM_VERIFICATION_UNKNOWN")
++    elif platform_verification_required:
++        failure_reasons.append("PLATFORM_VERIFICATION_REQUIRED")
++    if not session_cookie_lineage_matches:
++        failure_reasons.append("SESSION_COOKIE_LINEAGE_UNKNOWN")
++    if not token_ready_known:
++        failure_reasons.append("TOKEN_NOT_READY_OR_UNKNOWN")
++    elif not token_ready:
++        failure_reasons.append("TOKEN_NOT_READY_OR_UNKNOWN")
++
++    item_sync_eligible = not failure_reasons
++    capability = {
++        "state": "READY" if item_sync_eligible else "UNKNOWN",
++        "mode": "SELECTED_ACCOUNT_PREFLIGHT",
++        "checked": True,
++        "item_sync_eligible": item_sync_eligible,
++        "fail_closed": not item_sync_eligible,
++        "failure_reason": None if item_sync_eligible else failure_reasons[0],
++        "failure_reasons": failure_reasons,
++        "source": "account_status_sanitized_preflight",
++        "last_checked_at": checked_at,
++        "auto_recoverable": False,
++        "facts": {
++            "disabled": not enabled,
++            "checking_state": session_state or "UNKNOWN",
++            "checking_active": bool(session_check_active),
++            "platform_verification_source": str(platform_verification.get("source") or "unknown"),
++            "platform_verification_required": platform_verification_required,
++            "session_cookie_lineage": "MATCH" if session_cookie_lineage_matches else "UNKNOWN",
++            "token_ready": token_ready if token_ready_known else None,
++        },
++    }
++    logger.info(
++        "CHG0030_ITEM_SYNC_PREFLIGHT_STATUS %s",
++        {
++            "masked_account_id": _mask_account_id_for_log(account.account_id),
++            "state": capability["state"],
++            "item_sync_eligible": item_sync_eligible,
++            "failure_reasons": failure_reasons,
++            "checked": True,
++        },
++    )
++    return capability
++
++
+@@ -304 +402,8 @@ def _build_business_capabilities(
+-        return {"auto_reply": dict(disabled), "chat": dict(disabled), "publish": dict(disabled)}
++        item_sync_disabled = _build_item_sync_preflight_capability(
++            account=account,
++            ws_status=ws_status,
++            session_maintenance=session_maintenance,
++            platform_verification={"required": False, "source": "account_status"},
++            checked_at=checked_at,
++        )
++        return {"auto_reply": dict(disabled), "chat": dict(disabled), "publish": dict(disabled), "item_sync": item_sync_disabled}
+@@ -657,0 +763,7 @@ def _build_business_capabilities(
++        "item_sync": _build_item_sync_preflight_capability(
++            account=account,
++            ws_status=ws_status,
++            session_maintenance=session_maintenance,
++            platform_verification=platform_verification,
++            checked_at=checked_at,
++        ),
+diff --git a/backend-web/app/api/routes/items.py b/backend-web/app/api/routes/items.py
+index bc640db49a1e71bbd76bd61e33161b0408e39d49..b9255f47c0bfaf6707b8288f403b10031b291143 100644
+--- a/backend-web/app/api/routes/items.py
++++ b/backend-web/app/api/routes/items.py
+@@ -4,0 +5 @@ from typing import Any, Awaitable, Callable, Dict, List
++from uuid import uuid4
+@@ -6,0 +8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
++from sqlalchemy import func, select
+@@ -9,0 +12 @@ from app.api import deps
++from common.models.xy_catalog_item import XYCatalogItem
+@@ -42,0 +46,162 @@ def _account_disabled_fetch_response() -> ApiResponse:
++def _mask_account_id(account_id: str | None) -> str:
++    text = str(account_id or "").strip()
++    if len(text) <= 4:
++        return "*" * len(text)
++    return f"{text[:2]}*********{text[-2:]}"
++
++
++def _build_item_sync_operation_id(request_id: str | None) -> str:
++    normalized = str(request_id or "").strip()
++    if normalized:
++        return normalized
++    return f"item_sync_{uuid4().hex}"
++
++
++def _extract_item_sync_result_item_ids(result: dict[str, Any]) -> list[str]:
++    raw_items = result.get("items")
++    if not isinstance(raw_items, list):
++        return []
++    item_ids: list[str] = []
++    seen: set[str] = set()
++    for item in raw_items:
++        if not isinstance(item, dict):
++            continue
++        item_id = str(item.get("item_id") or item.get("id") or "").strip()
++        if item_id and item_id not in seen:
++            seen.add(item_id)
++            item_ids.append(item_id)
++    return item_ids
++
++
++async def _read_item_sync_durable_state(
++    session: AsyncSession,
++    *,
++    account: Any,
++    result: dict[str, Any],
++) -> dict[str, Any]:
++    """Read back xy_catalog_items after ItemService writes, without remote side effects."""
++    account_pk = getattr(account, "id", None)
++    fetched_item_ids = _extract_item_sync_result_item_ids(result)
++
++    account_row_count_stmt = select(func.count(XYCatalogItem.id)).where(
++        XYCatalogItem.account_pk == account_pk
++    )
++    account_row_count = int((await session.execute(account_row_count_stmt)).scalar() or 0)
++
++    duplicate_stmt = (
++        select(XYCatalogItem.item_id, func.count(XYCatalogItem.id).label("row_count"))
++        .where(XYCatalogItem.account_pk == account_pk)
++        .group_by(XYCatalogItem.item_id)
++        .having(func.count(XYCatalogItem.id) > 1)
++    )
++    duplicate_rows = (await session.execute(duplicate_stmt)).all()
++    duplicate_group_count = len(duplicate_rows)
++    duplicate_row_count = sum(max(0, int(row_count) - 1) for _, row_count in duplicate_rows)
++
++    matched_response_item_count = 0
++    if fetched_item_ids:
++        matched_stmt = select(func.count(func.distinct(XYCatalogItem.item_id))).where(
++            XYCatalogItem.account_pk == account_pk,
++            XYCatalogItem.item_id.in_(fetched_item_ids),
++        )
++        matched_response_item_count = int((await session.execute(matched_stmt)).scalar() or 0)
++
++    response_total_count = int(result.get("total_count") or result.get("total") or 0)
++    saved_count = int(result.get("saved_count") or result.get("saved") or 0)
++    response_item_id_count = len(fetched_item_ids)
++    result_success = bool(result.get("success"))
++    reconciled = (
++        result_success
++        and duplicate_group_count == 0
++        and response_total_count == response_item_id_count
++        and matched_response_item_count == response_item_id_count
++        and saved_count <= account_row_count
++    )
++
++    return {
++        "source": "xy_catalog_items",
++        "query_success": True,
++        "checked": reconciled,
++        "reconciled": reconciled,
++        "account_row_count": account_row_count,
++        "response_total_count": response_total_count,
++        "response_item_id_count": response_item_id_count,
++        "matched_response_item_count": matched_response_item_count,
++        "saved_count": saved_count,
++        "duplicate_count": duplicate_group_count,
++        "duplicate_row_count": duplicate_row_count,
++        "unique_contract": "account_id,item_id",
++    }
++
++
++async def _attach_item_sync_canary_contract(
++    result: dict[str, Any],
++    *,
++    session: AsyncSession,
++    account: Any,
++    operation_id: str,
++    request_id: str | None,
++    page_size: int,
++    max_pages: int | None,
++) -> dict[str, Any]:
++    masked_account_id = _mask_account_id(getattr(account, "account_id", None))
++    response = dict(result)
++    try:
++        durable_readback = await _read_item_sync_durable_state(
++            session,
++            account=account,
++            result=response,
++        )
++        sync_status = (
++            "SUCCESS"
++            if bool(response.get("success")) and bool(durable_readback.get("checked"))
++            else "FAILED"
++            if not bool(response.get("success"))
++            else "UNKNOWN"
++        )
++    except Exception as exc:
++        durable_readback = {
++            "source": "xy_catalog_items",
++            "query_success": False,
++            "checked": False,
++            "reconciled": False,
++            "failure_reason": f"DURABLE_READBACK_QUERY_FAILED:{type(exc).__name__}",
++            "duplicate_count": None,
++            "unique_contract": "account_id,item_id",
++        }
++        sync_status = "UNKNOWN"
++        response["success"] = False
++        response["message"] = f"Item Sync durable readback failed closed: {type(exc).__name__}"
++
++    response.update(
++        {
++            "operation_id": operation_id,
++            "request_id": str(request_id or operation_id),
++            "masked_account_id": masked_account_id,
++            "sync_status": sync_status,
++            "terminal": True,
++            "retry_allowed": False,
++            "owner": "ItemService.fetch_all_items_from_account",
++            "durable_readback": durable_readback,
++            "page_size": page_size,
++            "max_pages": max_pages,
++        }
++    )
++    logger.info(
++        "CHG0030_ITEM_SYNC_TERMINAL_READBACK %s",
++        {
++            "operation_id": operation_id,
++            "request_id": str(request_id or operation_id),
++            "masked_account_id": masked_account_id,
++            "terminal_state": sync_status,
++            "durable_checked": durable_readback.get("checked"),
++            "account_row_count": durable_readback.get("account_row_count"),
++            "response_total_count": durable_readback.get("response_total_count"),
++            "matched_response_item_count": durable_readback.get("matched_response_item_count"),
++            "duplicate_count": durable_readback.get("duplicate_count"),
++            "retry_allowed": False,
++        },
++    )
++    return response
++
++
+@@ -1096 +1261,22 @@ async def fetch_all_items_from_account(
+-        return await item_service.fetch_all_items_from_account(
++        operation_id = _build_item_sync_operation_id(payload.request_id)
++        masked_account_id = _mask_account_id(getattr(account, "account_id", None))
++        logger.info(
++            "CHG0030_ITEM_SYNC_OPERATION_ACCEPTED %s",
++            {
++                "operation_id": operation_id,
++                "request_id": str(payload.request_id or operation_id),
++                "masked_account_id": masked_account_id,
++                "owner": "ItemService.fetch_all_items_from_account",
++                "page_size": page_size,
++                "max_pages": max_pages,
++                "retry_allowed": False,
++            },
++        )
++        result = await item_service.fetch_all_items_from_account(
++            account=account,
++            page_size=page_size,
++            max_pages=max_pages,
++        )
++        return await _attach_item_sync_canary_contract(
++            result,
++            session=item_service.session,
+@@ -1097,0 +1284,2 @@ async def fetch_all_items_from_account(
++            operation_id=operation_id,
++            request_id=payload.request_id,
+diff --git a/common/schemas/item.py b/common/schemas/item.py
+index 0710f59a7e084613b34f360804de0c65212fc33f..3dcf56ae2b280f73e301d1d5b2329039e9808920 100644
+--- a/common/schemas/item.py
++++ b/common/schemas/item.py
+@@ -41,0 +42 @@ class ItemFullFetchRequest(BaseModel):
++    request_id: str | None = Field(default=None, min_length=1, max_length=128)
+diff --git a/tests/test_chg0030_fresh_item_sync_controlled_canary.py b/tests/test_chg0030_fresh_item_sync_controlled_canary.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f24babdf3c5773779750a7a88b9c89d434177ebb
+--- /dev/null
++++ b/tests/test_chg0030_fresh_item_sync_controlled_canary.py
+@@ -0,0 +1,235 @@
++from __future__ import annotations
++
++import asyncio
++import importlib.util
++import sys
++import types
++from pathlib import Path
++from types import SimpleNamespace
++
++
++ROOT = Path(__file__).resolve().parents[1]
++ITEMS_ROUTE = ROOT / "backend-web/app/api/routes/items.py"
++COOKIES_ROUTE = ROOT / "backend-web/app/api/routes/cookies.py"
++
++
++class _ApiResponse:
++    def __init__(self, *, success: bool, message: str, data=None):
++        self.success = success
++        self.message = message
++        self.data = data
++
++
++class _Router:
++    def __init__(self, *args, **kwargs):
++        pass
++
++    def get(self, *args, **kwargs):
++        return lambda func: func
++
++    def post(self, *args, **kwargs):
++        return lambda func: func
++
++    def put(self, *args, **kwargs):
++        return lambda func: func
++
++    def delete(self, *args, **kwargs):
++        return lambda func: func
++
++
++def _ensure_module(monkeypatch, name: str) -> types.ModuleType:
++    module = types.ModuleType(name)
++    monkeypatch.setitem(sys.modules, name, module)
++    return module
++
++
++def _install_route_stubs(monkeypatch) -> None:
++    sys.path[:0] = [str(ROOT), str(ROOT / "backend-web")]
++
++    app = _ensure_module(monkeypatch, "app")
++    app.__path__ = []
++    api = _ensure_module(monkeypatch, "app.api")
++    api.__path__ = []
++    deps = _ensure_module(monkeypatch, "app.api.deps")
++    deps.get_current_active_user = object()
++    deps.get_account_service = object()
++    deps.get_item_service = object()
++    deps.get_default_reply_service = object()
++    deps.get_db_session = object()
++
++    services = _ensure_module(monkeypatch, "app.services")
++    services.__path__ = []
++    core = _ensure_module(monkeypatch, "app.core")
++    core.__path__ = []
++    paths = _ensure_module(monkeypatch, "app.core.paths")
++    paths.STATIC_ROOT = ROOT / "static"
++    account_service = _ensure_module(monkeypatch, "app.services.account_service")
++    account_service.AccountService = object
++    item_service = _ensure_module(monkeypatch, "app.services.item_service")
++    item_service.ItemService = object
++    selectable_item_service = _ensure_module(monkeypatch, "app.services.selectable_item_service")
++    selectable_item_service.SelectableItemService = object
++    auto_reply_stats = _ensure_module(monkeypatch, "app.services.auto_reply_stats_service")
++    auto_reply_stats.AutoReplyStatsService = object
++    dashboard_stats = _ensure_module(monkeypatch, "app.services.dashboard_stats_service")
++    dashboard_stats.DashboardStatsService = object
++
++    common_schemas = _ensure_module(monkeypatch, "common.schemas.common")
++    common_schemas.ApiResponse = _ApiResponse
++    offline = _ensure_module(monkeypatch, "common.services.item_offline_service")
++    offline.batch_offline_items_from_xianyu = object()
++    delete = _ensure_module(monkeypatch, "common.services.item_delete_service")
++    delete.batch_delete_items_from_xianyu = object()
++    ai_provider = _ensure_module(monkeypatch, "common.services.ai_provider_service")
++    ai_provider.read_ai_enabled = lambda *args, **kwargs: False
++    token_cache = _ensure_module(monkeypatch, "common.services.token_renewal_cache_service")
++    token_cache.mark_token_cache_expired = lambda *args, **kwargs: None
++
++    fastapi = _ensure_module(monkeypatch, "fastapi")
++    fastapi.APIRouter = _Router
++    fastapi.Body = lambda default=None, **kwargs: default
++    fastapi.Depends = lambda dependency=None: dependency
++    fastapi.File = lambda default=None, **kwargs: default
++    fastapi.Form = lambda default=None, **kwargs: default
++    fastapi.HTTPException = Exception
++    fastapi.Query = lambda default=None, **kwargs: default
++    fastapi.Request = object
++    fastapi.Response = object
++    fastapi.UploadFile = object
++    fastapi.status = types.SimpleNamespace(HTTP_401_UNAUTHORIZED=401)
++
++
++def _load_module(monkeypatch, path: Path, name: str):
++    _install_route_stubs(monkeypatch)
++    sys.modules.pop(name, None)
++    spec = importlib.util.spec_from_file_location(name, path)
++    assert spec is not None
++    module = importlib.util.module_from_spec(spec)
++    assert spec.loader is not None
++    spec.loader.exec_module(module)
++    return module
++
++
++class _ScalarResult:
++    def __init__(self, value):
++        self.value = value
++
++    def scalar(self):
++        return self.value
++
++    def all(self):
++        return self.value
++
++
++class _ReadbackSession:
++    def __init__(self, values):
++        self.values = list(values)
++        self.statement_count = 0
++
++    async def execute(self, _stmt):
++        self.statement_count += 1
++        value = self.values.pop(0)
++        if isinstance(value, BaseException):
++            raise value
++        return _ScalarResult(value)
++
++
++def test_get_all_from_account_durable_readback_measures_db_counts(monkeypatch) -> None:
++    module = _load_module(monkeypatch, ITEMS_ROUTE, "chg0030_items_route")
++    session = _ReadbackSession([2, [], 2])
++    account = SimpleNamespace(id=7, account_id="221234567890")
++
++    result = asyncio.run(
++        module._attach_item_sync_canary_contract(
++            {
++                "success": True,
++                "message": "ok",
++                "total_count": 2,
++                "saved_count": 2,
++                "items": [{"item_id": "item-a"}, {"item_id": "item-b"}],
++            },
++            session=session,
++            account=account,
++            operation_id="op-1",
++            request_id="req-1",
++            page_size=20,
++            max_pages=1,
++        )
++    )
++
++    assert session.statement_count == 3
++    assert result["sync_status"] == "SUCCESS"
++    assert result["retry_allowed"] is False
++    assert result["masked_account_id"] == "22*********90"
++    assert result["durable_readback"]["checked"] is True
++    assert result["durable_readback"]["account_row_count"] == 2
++    assert result["durable_readback"]["duplicate_count"] == 0
++    assert result["durable_readback"]["matched_response_item_count"] == 2
++
++
++def test_get_all_from_account_query_failure_is_terminal_unknown(monkeypatch) -> None:
++    module = _load_module(monkeypatch, ITEMS_ROUTE, "chg0030_items_route_failure")
++    session = _ReadbackSession([RuntimeError("db unavailable")])
++    account = SimpleNamespace(id=7, account_id="221234567890")
++
++    result = asyncio.run(
++        module._attach_item_sync_canary_contract(
++            {"success": True, "total_count": 1, "saved_count": 1, "items": [{"item_id": "item-a"}]},
++            session=session,
++            account=account,
++            operation_id="op-2",
++            request_id=None,
++            page_size=20,
++            max_pages=None,
++        )
++    )
++
++    assert result["success"] is False
++    assert result["sync_status"] == "UNKNOWN"
++    assert result["terminal"] is True
++    assert result["retry_allowed"] is False
++    assert result["durable_readback"]["query_success"] is False
++    assert result["durable_readback"]["duplicate_count"] is None
++
++
++def test_item_sync_preflight_pass_requires_authoritative_facts(monkeypatch) -> None:
++    module = _load_module(monkeypatch, COOKIES_ROUTE, "chg0030_cookies_route")
++    cookie = "a=1; b=2"
++    account = SimpleNamespace(status="active", cookie=cookie, account_id="221234567890")
++    session_maintenance = {
++        "state": "REAL_BROWSER_LOGIN_READY",
++        "cookie_fingerprint": module.cookie_fingerprint(cookie),
++    }
++
++    capability = module._build_item_sync_preflight_capability(
++        account=account,
++        ws_status={"token_ready": True},
++        session_maintenance=session_maintenance,
++        platform_verification={"required": False, "source": "none", "evidence_type": "NONE"},
++        checked_at="2026-08-25T00:00:00Z",
++    )
++
++    assert capability["item_sync_eligible"] is True
++    assert capability["fail_closed"] is False
++    assert capability["failure_reasons"] == []
++    assert capability["facts"]["session_cookie_lineage"] == "MATCH"
++
++
++def test_item_sync_preflight_fails_closed_on_unknown_lineage_or_token(monkeypatch) -> None:
++    module = _load_module(monkeypatch, COOKIES_ROUTE, "chg0030_cookies_route_unknown")
++    account = SimpleNamespace(status="active", cookie="a=1", account_id="221234567890")
++
++    capability = module._build_item_sync_preflight_capability(
++        account=account,
++        ws_status={},
++        session_maintenance={},
++        platform_verification={},
++        checked_at="2026-08-25T00:00:00Z",
++    )
++
++    assert capability["item_sync_eligible"] is False
++    assert capability["fail_closed"] is True
++    assert "CHECKING_STATE_UNKNOWN" in capability["failure_reasons"]
++    assert "PLATFORM_VERIFICATION_UNKNOWN" in capability["failure_reasons"]
++    assert "SESSION_COOKIE_LINEAGE_UNKNOWN" in capability["failure_reasons"]
++    assert "TOKEN_NOT_READY_OR_UNKNOWN" in capability["failure_reasons"]
