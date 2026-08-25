@@ -237,6 +237,27 @@ The patch-included behavior tests use dependency stubs and `AsyncMock` to assert
 
 The patch does not create a lineage-aware writer, persistent `consumers.publish` producer, readiness table, scheduler/background probe, Browser gate, COMPANY-side truth source, or second Publisher owner. It does not call MTop from account-list polling and does not perform real publish, item mutation, QR/login, reconnect, Browser, Item Sync, message, account-state, container, or production configuration actions.
 
+## CHG-0030 controlled Fresh Item Sync canary patch
+
+- Runtime preimage source: disposable full runtime-source baseline from `D:/xianyu-chg0026-source` with the CHG-0028 runtime patch applied over the current CHG-0024/CHG-0027/CHG-0028/CHG-0029 stack.
+- Clean apply base: `8c2723e552bb9f797c73b6c497858bc314549877`.
+- Patch file: `chg0030-fresh-item-sync-controlled-canary.patch`
+- SHA256: `595AA68FA73505869274642E4D6FD2B12FA38BCBD5106E3B0C4D11962E6A8201`
+- Patch builder: `D:/xianyu-worktrees/_chg0030_full_runtime_base_tmp`; production runtime was not modified.
+- Patch replay: `D:/xianyu-worktrees/_chg0030_patch_replay2_tmp`; strict clean-apply check passed with `git apply --check --whitespace=error-all --unidiff-zero`.
+- Patch-included deterministic tests plus CHG-0028 runtime regression: 15/15 passed with `python -m pytest tests/test_chg0028_selected_account_on_demand_capability.py tests/test_chg0030_fresh_item_sync_controlled_canary.py -q`.
+- Changed upstream/runtime files:
+  - `common/schemas/item.py`
+  - `backend-web/app/api/routes/cookies.py`
+  - `backend-web/app/api/routes/items.py`
+  - `tests/test_chg0030_fresh_item_sync_controlled_canary.py`
+
+This patch keeps `ItemService.fetch_all_items_from_account` as the only Fresh Item Sync business owner. The selected-account route still performs exactly one owner call. After the owner returns, the route performs read-only `xy_catalog_items` queries scoped to the selected account, measures duplicate groups under the runtime `uk_cat_account_item (account_id, item_id)` durable key contract, reconciles response item IDs, and fails closed to terminal `UNKNOWN` with `retry_allowed=false` if readback is unavailable or unreconciled.
+
+The patch adds sanitized backend log events `CHG0030_ITEM_SYNC_OPERATION_ACCEPTED`, `CHG0030_ITEM_SYNC_TERMINAL_READBACK`, and `CHG0030_ITEM_SYNC_PREFLIGHT_STATUS` so the first canary invocation identity and terminal durable-readback result remain recoverable from container logs even when the current COMPANY adapter strips extension response fields.
+
+The account-status capability returns explicit selected-account Item Sync eligibility only when disabled state, cookie presence, checking state, platform-verification result, session-cookie lineage, and token readiness are authoritative and passing. Unknown facts fail closed. The patch does not add auth recovery, retry, queue/status ledger, DB truth model, scheduler, worker, browser/CDP/UI path, Item Sync owner, publish/edit/offline/delete path, message path, account mutation, or production deployment.
+
 ## Artifact Format
 
 Historical text artifacts use Git-generated zero-context unified diffs. The T12 current formal CHG-0018 Patch uses Git-generated binary patch records for exact source preservation.
