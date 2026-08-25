@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 18,
-    "completed": 12,
-    "next_task": "T13 Stage only exact CHG-0030 paths, create the implementation commit, push the branch without changing `origin`, and verify local/remote SHA equality.",
+    "completed": 13,
+    "next_task": "T14 Create the implementation PR, verify PR number/URL/head/base/scope files/check names/status, and do not merge.",
     "items": [
       {
         "text": "T1 Read root `AGENTS.md`, fetch remote main without changing `origin`, verify `origin/main=8d1d1d0fb272cd2715135d077be98ce0b575cb79`, verify ancestry, path absence, branch absence, and create the isolated worktree from `origin/main`.",
@@ -61,7 +61,7 @@
       },
       {
         "text": "T13 Stage only exact CHG-0030 paths, create the implementation commit, push the branch without changing `origin`, and verify local/remote SHA equality.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T14 Create the implementation PR, verify PR number/URL/head/base/scope files/check names/status, and do not merge.",

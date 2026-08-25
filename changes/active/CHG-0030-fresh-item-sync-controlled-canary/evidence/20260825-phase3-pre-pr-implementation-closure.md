@@ -180,3 +180,23 @@ Archive tests with basename `test_acceptance.py` were run one at a time or in a 
 `GOVERNANCE_DOCS_TARGETED_EXIT=1`
 
 The failing validation/governance commands are explained by the CHG-0020, CHG-0022, and AGENTS debt above. CHG-0030 focused tests, patch replay, owner/capability regressions, duplicate checks, security scan, ruff, and `git diff --check` passed.
+
+## Implementation Commit And Push
+
+`PRE_EXISTING_UNRELATED_DIRTY_FILES=none`
+
+`STAGED_WITH_GIT_ADD_DOT=false`
+
+`STAGED_WITH_GIT_ADD_A=false`
+
+`IMPLEMENTATION_COMMIT_SHA=eb8b749a4dcb6a1461761f626daa89183af4f5e6`
+
+`REMOTE_BRANCH_AFTER_IMPLEMENTATION_SHA=eb8b749a4dcb6a1461761f626daa89183af4f5e6`
+
+`IMPLEMENTATION_REMOTE_SHA_MATCH=true`
+
+`ORIGIN_URL_CHANGED=false`
+
+`FORCE_PUSH_USED=false`
+
+The implementation commit was pushed to `origin/feat/CHG-0030-fresh-item-sync-controlled-canary` over the existing HTTPS remote. The exact staged file list was limited to CHG-0030 active records, evidence/tests, generated state, the CHG-0030 patch artifact, and vendor patch README registration.

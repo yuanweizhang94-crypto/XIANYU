@@ -15,7 +15,7 @@ Status: IMPLEMENTING
 - [x] T10 Phase 2b repair commander-rejected acceptance defects: replace fake durable/duplicate fields with actual `xy_catalog_items` readback queries, add structured backend logs, and fail selected-account preflight closed unless disabled/checking/platform-verification/session-cookie-lineage/token-ready facts are authoritative.
 - [x] T11 Prove the CHG-0030 artifact clean-applies to the current runtime-active stacked baseline and run patched upstream/runtime tests in a temporary clean copy.
 - [x] T12 Run and record the Phase 3 local verification matrix, classify only proven unrelated global debt, and keep production invocation/deploy counts at 0.
-- [ ] T13 Stage only exact CHG-0030 paths, create the implementation commit, push the branch without changing `origin`, and verify local/remote SHA equality.
+- [x] T13 Stage only exact CHG-0030 paths, create the implementation commit, push the branch without changing `origin`, and verify local/remote SHA equality.
 - [ ] T14 Create the implementation PR, verify PR number/URL/head/base/scope files/check names/status, and do not merge.
 - [ ] T15 After later explicit authorization, perform validated deployment of the accepted CHG-0030 backend patch without changing the Item Sync owner.
 - [ ] T16 After deployment, run selected-account post-deploy preflight and prove explicit Item Sync eligibility PASS before any canary invocation.
