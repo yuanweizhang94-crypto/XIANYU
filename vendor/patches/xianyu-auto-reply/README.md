@@ -258,6 +258,24 @@ The patch adds sanitized backend log events `CHG0030_ITEM_SYNC_OPERATION_ACCEPTE
 
 The account-status capability returns explicit selected-account Item Sync eligibility only when disabled state, cookie presence, checking state, platform-verification result, session-cookie lineage, and token readiness are authoritative and passing. Unknown facts fail closed. The patch does not add auth recovery, retry, queue/status ledger, DB truth model, scheduler, worker, browser/CDP/UI path, Item Sync owner, publish/edit/offline/delete path, message path, account mutation, or production deployment.
 
+## CHG-0030 skipped-lock success guard follow-up patch
+
+- Applies after: `chg0030-fresh-item-sync-controlled-canary.patch`
+- Clean apply base: `8c2723e552bb9f797c73b6c497858bc314549877` plus locked CHG-0030 r1 patch `595AA68FA73505869274642E4D6FD2B12FA38BCBD5106E3B0C4D11962E6A8201`
+- Patch file: `chg0030-fresh-item-sync-skipped-lock-success-guard.patch`
+- SHA256: `1FC5597EEC8FB0060EBA6551D4F98407649EB0FA0675BDC4CA5574D0362B9DC6`
+- Patch builder: `D:/xianyu-worktrees/_chg0030_r1_followup_builder_tmp`; production runtime was not modified.
+- Patch replay: `D:/xianyu-worktrees/_chg0030_two_patch_replay_20260825111651`; strict clean-apply check passed with `git apply --check --whitespace=error-all --unidiff-zero` for r1 and this follow-up in order.
+- Patch-included deterministic tests plus CHG-0028 runtime regression: 17/17 passed with `python -m pytest tests/test_chg0030_fresh_item_sync_controlled_canary.py tests/test_chg0028_selected_account_on_demand_capability.py -q`.
+- Changed upstream/runtime files:
+  - `backend-web/app/api/routes/cookies.py`
+  - `backend-web/app/api/routes/items.py`
+  - `tests/test_chg0030_fresh_item_sync_controlled_canary.py`
+
+This follow-up does not alter the locked r1 patch. It treats an owner lock result with `skipped=true` as terminal `UNKNOWN`, sets `success=false`, keeps `retry_allowed=false`, records `OWNER_LOCK_OCCUPIED_SKIPPED`, and prevents `durable_readback.checked=true` or `reconciled=true` for that path. It also requires `full_active_list_confirmed=true` for Fresh Item Sync `SUCCESS`; a capped or otherwise incomplete owner result fails closed as `FULL_ACTIVE_LIST_NOT_CONFIRMED`.
+
+The follow-up preserves `ItemService.fetch_all_items_from_account` as the only Fresh Item Sync owner, preserves the Redis lock behavior, performs no second invocation, and adds no queue, ledger, table, worker, scheduler, browser path, account mutation, publish/edit/offline/delete path, or message path. It also exposes sanitized `platform_verification_evidence_type` in selected-account Item Sync preflight facts and logs so `source=none` is observable as authoritative only when the classifier supplies an evidence type and `required=false`.
+
 ## Artifact Format
 
 Historical text artifacts use Git-generated zero-context unified diffs. The T12 current formal CHG-0018 Patch uses Git-generated binary patch records for exact source preservation.

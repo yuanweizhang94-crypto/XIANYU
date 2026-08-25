@@ -17,9 +17,13 @@ Status: IMPLEMENTING
 
 ## Gate State
 
-`SELECTED_ACCOUNT_ITEM_SYNC_ELIGIBILITY=PASS_POST_DEPLOY_PREFLIGHT`
+`SELECTED_ACCOUNT_ITEM_SYNC_ELIGIBILITY=PASS_POST_DEPLOY_PREFLIGHT_R1_RECHECK_REQUIRED_AFTER_R2`
 
-`TRACE_IDENTITY_AVAILABLE=PASS_BACKEND_LOG_CONTRACT_DEPLOYED`
+`TRACE_IDENTITY_AVAILABLE=PASS_BACKEND_LOG_CONTRACT_DEPLOYED_R1_RECHECK_REQUIRED_AFTER_R2`
+
+`SKIPPED_LOCK_SUCCESS_GUARD=PATCH_READY_NOT_DEPLOYED`
+
+`FULL_ACTIVE_LIST_SUCCESS_GUARD=PATCH_READY_NOT_DEPLOYED`
 
 `PRODUCTION_ITEM_SYNC_CANARY_GO=false`
 
@@ -33,7 +37,7 @@ Status: IMPLEMENTING
 
 `PATCH_CLEAN_APPLY_RUNTIME_STACK=true`
 
-`BACKEND_PATCH_DEPLOYED=true`
+`BACKEND_PATCH_DEPLOYED=R1_DEPLOYED_R2_PENDING`
 
 `SELECTED_ACCOUNT_PREFLIGHT_MASKED=22*********60`
 
@@ -85,7 +89,7 @@ Stopping before production canary is accepted while:
 
 - no later explicit commander GO has been received.
 
-The selected-account eligibility and Backend log identity gates are now technically satisfied post-deploy, but the Item Sync canary itself remains not authorized until a later explicit commander GO.
+The selected-account eligibility and Backend log identity gates were technically satisfied after the r1 deployment, but the r1 skipped-lock false-success defect blocks canary authorization until the separate Phase 4b follow-up patch is deployed and read-only preflight is repeated.
 
 ## Future Canary Acceptance
 
@@ -95,6 +99,8 @@ Future production canary acceptance requires:
 - exactly one invocation through `xianyu_item_sync`;
 - one trackable identity tied to the request before invocation;
 - terminal `SUCCESS`;
+- no owner-lock `skipped=true` result may become `SUCCESS` or `durable_readback.checked=true`;
+- Fresh Item Sync `SUCCESS` requires `full_active_list_confirmed=true` or an equivalent authoritative complete-list service result;
 - actual read-only durable `xy_catalog_items` readback after ItemService returns;
 - measured duplicate group count 0 under the real account/item unique contract;
 - all excluded safety counters 0;

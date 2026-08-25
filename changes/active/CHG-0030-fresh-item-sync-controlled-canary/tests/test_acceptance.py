@@ -159,6 +159,6 @@ def test_generated_project_state_reports_active_chg0030():
     state = json.loads((ROOT / "generated/PROJECT_STATE.json").read_text(encoding="utf-8"))
     assert state["active_change"]["id"] == "CHG-0030-fresh-item-sync-controlled-canary"
     assert state["active_change"]["status"] == "IMPLEMENTING"
-    assert state["tasks"]["total"] == 18
+    assert state["tasks"]["total"] == 23
     assert state["tasks"]["completed"] < state["tasks"]["total"]
     assert state["tasks"]["next_task"]
