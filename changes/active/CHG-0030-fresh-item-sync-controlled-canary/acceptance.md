@@ -17,9 +17,9 @@ Status: IMPLEMENTING
 
 ## Gate State
 
-`SELECTED_ACCOUNT_ITEM_SYNC_ELIGIBILITY=PATCH_ARTIFACT_ACCEPTANCE_GRADE_NOT_DEPLOYED`
+`SELECTED_ACCOUNT_ITEM_SYNC_ELIGIBILITY=PASS_POST_DEPLOY_PREFLIGHT`
 
-`TRACE_IDENTITY_AVAILABLE=PATCH_ARTIFACT_ACCEPTANCE_GRADE_NOT_DEPLOYED`
+`TRACE_IDENTITY_AVAILABLE=PASS_BACKEND_LOG_CONTRACT_DEPLOYED`
 
 `PRODUCTION_ITEM_SYNC_CANARY_GO=false`
 
@@ -32,6 +32,14 @@ Status: IMPLEMENTING
 `BACKEND_LOG_OBSERVABILITY_PATCH_READY=true`
 
 `PATCH_CLEAN_APPLY_RUNTIME_STACK=true`
+
+`BACKEND_PATCH_DEPLOYED=true`
+
+`SELECTED_ACCOUNT_PREFLIGHT_MASKED=22*********60`
+
+`SELECTED_ACCOUNT_PREFLIGHT_ITEM_SYNC_ELIGIBLE=true`
+
+`SELECTED_ACCOUNT_PREFLIGHT_FAIL_CLOSED=false`
 
 ## Safety Counters
 
@@ -75,9 +83,9 @@ Status: IMPLEMENTING
 
 Stopping before production canary is accepted while:
 
-- selected-account Item Sync eligibility is not explicit PASS in current deployed runtime;
-- trace identity and terminal durable-readback outcome are not yet available in current deployed runtime logs or response fields for exactly one invocation;
 - no later explicit commander GO has been received.
+
+The selected-account eligibility and Backend log identity gates are now technically satisfied post-deploy, but the Item Sync canary itself remains not authorized until a later explicit commander GO.
 
 ## Future Canary Acceptance
 

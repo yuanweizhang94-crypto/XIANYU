@@ -16,9 +16,9 @@ Status: IMPLEMENTING
 - [x] T11 Prove the CHG-0030 artifact clean-applies to the current runtime-active stacked baseline and run patched upstream/runtime tests in a temporary clean copy.
 - [x] T12 Run and record the Phase 3 local verification matrix, classify only proven unrelated global debt, and keep production invocation/deploy counts at 0.
 - [x] T13 Stage only exact CHG-0030 paths, create the implementation commit, push the branch without changing `origin`, and verify local/remote SHA equality.
-- [ ] T14 Create the implementation PR, verify PR number/URL/head/base/scope files/check names/status, and do not merge.
-- [ ] T15 After later explicit authorization, perform validated deployment of the accepted CHG-0030 backend patch without changing the Item Sync owner.
-- [ ] T16 After deployment, run selected-account post-deploy preflight and prove explicit Item Sync eligibility PASS before any canary invocation.
+- [x] T14 Create the implementation PR, verify PR number/URL/head/base/scope files/check names/status, and do not merge.
+- [x] T15 After later explicit authorization, perform validated deployment of the accepted CHG-0030 backend patch without changing the Item Sync owner.
+- [x] T16 After deployment, run selected-account post-deploy preflight and prove explicit Item Sync eligibility PASS before any canary invocation.
 - [ ] T17 After commander GO, perform exactly one Fresh Item Sync canary invocation and capture operation identity, terminal result, real durable readback, measured duplicate count, and safety counters.
 - [ ] T18 Complete closure commit/merge only after canary evidence and GitHub closure acceptance are satisfied.
 
