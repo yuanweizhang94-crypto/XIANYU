@@ -13,6 +13,6 @@ Entry points:
 
 Active-change evidence pointer:
 
-- `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-consolidated-project-recovery-reference.md`
+- `changes/archive/CHG-0018-account-profile-publish-safety/evidence/20260818-consolidated-project-recovery-reference.md`
 
 This synchronization is documentation/evidence only. It does not claim a new production deployment. The production-ready state documented is the already-proven Auto Reply + Publish state from the preceding recovery and real publish canary.

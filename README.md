@@ -45,6 +45,8 @@ Publish state is authoritative only through `SUBMITTED / RUNNING / SUCCESS / FAI
 
 ## Development gate
 
+The current executable Change, when one exists, must be the uniquely dynamically discovered active change directory under `changes/active/`; archived Change directories are historical evidence and must never be treated as executable work.
+
 Before code is written, compare:
 
 ```text
