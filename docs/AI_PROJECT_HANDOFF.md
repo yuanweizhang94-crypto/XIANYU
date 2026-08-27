@@ -13,7 +13,9 @@
 >
 > - `docs/PROJECT_PROGRESS_2026-08-18.md`
 > - `docs/PROJECT_PROGRESS_CURRENT.md`
-> - `changes/active/CHG-0018-account-profile-publish-safety/evidence/20260818-consolidated-project-recovery-reference.md`
+> - `changes/archive/CHG-0018-account-profile-publish-safety/evidence/20260818-consolidated-project-recovery-reference.md`
+>
+> **Governance closure (2026-08-27):** current `main` has no executable active Change. CHG-0017 and CHG-0018 are archived historical lines whose old unfinished task markers were superseded by later CHG-0022 through CHG-0034 work. Do not resume old T11/T12/T17; only a newly approved active Change may become executable.
 
 严禁在文档、日志或回复中保存/输出 Cookie、Token、Authorization、密码、API Key、私钥、QR payload、真实客户消息或其他敏感凭据明文。
 

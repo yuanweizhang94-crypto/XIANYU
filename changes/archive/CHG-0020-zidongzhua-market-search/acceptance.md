@@ -1,5 +1,9 @@
 # CHG-0020 Acceptance
 
+Status: ARCHIVED
+
+Change ID: CHG-0020-zidongzhua-market-search
+
 - [x] Existing upstream `XianyuSearchClient` reused; no parallel search implementation.
 - [x] Route is strict single-account per call.
 - [x] Platform validation maps to `PLATFORM_VERIFICATION_REQUIRED` and stops.

@@ -166,6 +166,7 @@ The following capability families already exist and MUST NOT be reimplemented wi
 - Material Bridge
 
 If one contains a defect, repair the existing implementation. Do not copy, bypass, or build a parallel owner.
+Do not create large adapter abstractions, fake sessions, mapping DTOs, or new runtimes merely for possible future reuse.
 
 ## Upstream First means compare, not overwrite
 

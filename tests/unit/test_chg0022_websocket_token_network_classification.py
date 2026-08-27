@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "vendor/patches/xianyu-auto-reply/9cbb372-chg0022-websocket-token-network-classification.patch"
-CHANGE = ROOT / "changes/active/CHG-0022-websocket-token-network-classification"
+CHANGE = ROOT / "changes/archive/CHG-0022-websocket-token-network-classification"
 
 
 def patch_text() -> str:
