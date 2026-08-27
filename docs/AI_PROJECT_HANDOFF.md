@@ -443,6 +443,26 @@ AUTHORITATIVE_COOKIE_UPDATED=true
 
 ---
 
+# 11.1 Password Login canonical identity — CHG-0035 permanent rule
+
+CHG-0035 closed a password-login identity/finalization defect without introducing a second Login, Session, Cookie, or WebSocket owner. The login credential identifier and the platform account identity are separate concepts.
+
+```text
+PASSWORD_LOGIN_CANONICAL_IDENTITY_RECOVERY=ACCEPTED
+LOGIN_IDENTIFIER_IS_NOT_CANONICAL_ACCOUNT_ID=true
+PASSWORD_LOGIN_CANONICAL_ID_SOURCE=VALIDATED_PLATFORM_IDENTITY
+PHONE_CAN_BE_LOGIN_IDENTIFIER=true
+PHONE_MUST_NOT_BECOME_ACCOUNT_ID=true
+WEBSOCKET_FINALIZATION_USES_VALIDATED_COOKIE=true
+UNKNOWN_CANONICAL_ID_FAIL_CLOSED=true
+```
+
+Permanent behavior: validate the candidate login state through the existing canonical validator first, derive canonical account identity only from the validated platform identity, persist/update that canonical account, and pass only validator-produced Cookie material into the existing CookieManager/WebSocket finalization. If canonical platform identity is missing or validation fails, stop rather than promoting a phone/email/login identifier into `account_id`.
+
+No credential values or real account identifiers belong in repository documentation/evidence.
+
+---
+
 # 12. Auto Reply 已稳定——不要无证据重开
 
 当前：

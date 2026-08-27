@@ -152,6 +152,24 @@ Avoid overlapping Session scheduler/renewal owners.
 
 If the real platform requires human QR interaction during normal business execution, skip that account and continue with a healthy account. Do not let one account block the batch.
 
+## Password-login canonical identity baseline — CHG-0035
+
+The production password-login path remains the single existing owner. Login identifiers such as a phone number may be used only as credentials/lookup identifiers; they are not canonical XIANYU account identity.
+
+```text
+PASSWORD_LOGIN_CANONICAL_IDENTITY_RECOVERY=ACCEPTED
+LOGIN_IDENTIFIER_IS_NOT_CANONICAL_ACCOUNT_ID=true
+PASSWORD_LOGIN_CANONICAL_ID_SOURCE=VALIDATED_PLATFORM_IDENTITY
+PHONE_CAN_BE_LOGIN_IDENTIFIER=true
+PHONE_MUST_NOT_BECOME_ACCOUNT_ID=true
+WEBSOCKET_FINALIZATION_USES_VALIDATED_COOKIE=true
+UNKNOWN_CANONICAL_ID_FAIL_CLOSED=true
+```
+
+Canonical identity must be derived from the already validated platform identity. Existing canonical Account/Session/CookieManager/WebSocket ownership is preserved. Missing/invalid canonical identity fails closed; do not create a second canonical account keyed by the login identifier.
+
+Repository evidence for this recovery must remain sanitized and must not contain real phone numbers, account identifiers, Cookie/Token values, passwords, or verification payloads.
+
 ## Publish state semantics
 
 Formal states:
