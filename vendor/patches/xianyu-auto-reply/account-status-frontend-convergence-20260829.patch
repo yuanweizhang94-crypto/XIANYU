@@ -1,0 +1,19 @@
+diff --git a/frontend/src/pages/accounts/Accounts.tsx b/frontend/src/pages/accounts/Accounts.tsx
+index 20669fb..99bcd67 100644
+--- a/frontend/src/pages/accounts/Accounts.tsx
++++ b/frontend/src/pages/accounts/Accounts.tsx
+@@ -536,0 +537 @@ export function Accounts() {
++      || capabilities?.auto_reply?.check_active
+@@ -537,0 +539 @@ export function Accounts() {
++      || capabilities?.chat?.check_active
+diff --git a/tests/test_chg0018_transient_status_convergence.py b/tests/test_chg0018_transient_status_convergence.py
+index 9d1d87f..3235b12 100644
+--- a/tests/test_chg0018_transient_status_convergence.py
++++ b/tests/test_chg0018_transient_status_convergence.py
+@@ -375,0 +376,6 @@ def test_34_frontend_polling_requires_backend_active_operation():
++def test_frontend_polling_tracks_every_bounded_check_owner_until_terminal_read():
++    source = _read(ACCOUNT_UI)
++    block = source[source.index("const transientOperationActive") : source.index("const clearQrCheck")]
++    for owner in ("auto_reply", "chat", "publish"):
++        assert f"capabilities?.{owner}?.check_active" in block
++    assert "setAccounts(result.data)" in source
