@@ -1,0 +1,202 @@
+diff --git a/backend-web/app/api/routes/cookies.py b/backend-web/app/api/routes/cookies.py
+index 24110b1700625d9f3bf6d1ded652304a09e27694..f533e2bcefc27e47f3c4d39d053204019dea8f53 100644
+--- a/backend-web/app/api/routes/cookies.py
++++ b/backend-web/app/api/routes/cookies.py
+@@ -443 +443 @@ def _build_business_capabilities(
+-    session_check_active, _ = _bounded_operation_active(
++    session_check_active, session_check_expired = _bounded_operation_active(
+@@ -448 +447,0 @@ def _build_business_capabilities(
+-    session_check_active = session_check_active or session_state == "SESSION_CHECK_PENDING"
+@@ -488,2 +487,2 @@ def _build_business_capabilities(
+-            state="CHECKING",
+-            label="检查登录状态",
++            state="CHECKING" if session_check_active else "TEMPORARY_FAILURE",
++            label="检查登录状态" if session_check_active else "暂不可用",
+@@ -508,0 +508,10 @@ def _build_business_capabilities(
++    elif session_state == "SESSION_CHECK_PENDING":
++        auto_reply = _business_capability(
++            state="TEMPORARY_FAILURE",
++            label="检查超时" if session_check_expired else "待重新检查",
++            reason="session_check_deadline_exceeded" if session_check_expired else "session_check_not_active",
++            source="session_maintenance",
++            last_checked_at=session_maintenance.get("updated_at") or checked_at,
++            auto_recoverable=True,
++            deadline_at=session_maintenance.get("check_deadline_at"),
++        )
+@@ -590,2 +599,2 @@ def _build_business_capabilities(
+-            state="CHECKING",
+-            label="正在检查登录状态",
++            state="CHECKING" if session_check_active else "TEMPORARY_FAILURE",
++            label="正在检查登录状态" if session_check_active else "暂不可用",
+@@ -610,0 +620,10 @@ def _build_business_capabilities(
++    elif session_state == "SESSION_CHECK_PENDING":
++        chat_capability = _business_capability(
++            state="TEMPORARY_FAILURE",
++            label="检查超时" if session_check_expired else "待重新检查",
++            reason="session_check_deadline_exceeded" if session_check_expired else "session_check_not_active",
++            source="session_maintenance",
++            last_checked_at=session_maintenance.get("updated_at") or checked_at,
++            auto_recoverable=True,
++            deadline_at=session_maintenance.get("check_deadline_at"),
++        )
+diff --git a/tests/test_chg0030_fresh_item_sync_controlled_canary.py b/tests/test_chg0030_fresh_item_sync_controlled_canary.py
+index 7bd21373e693ca573422da4d1d879b09c49e373b..1912626d8bf82b45db3485ad153c486ca3c9c791 100644
+--- a/tests/test_chg0030_fresh_item_sync_controlled_canary.py
++++ b/tests/test_chg0030_fresh_item_sync_controlled_canary.py
+@@ -309,0 +310,156 @@ def test_item_sync_preflight_fails_closed_on_unknown_lineage_or_token(monkeypatc
++
++
++def _account_list_capabilities(monkeypatch, session_maintenance, *, ws_status=None, chat_connected=True):
++    module = _load_module(monkeypatch, COOKIES_ROUTE, f"incident_cookies_{id(session_maintenance)}")
++    account = SimpleNamespace(
++        status="active",
++        cookie="a=1; b=2",
++        account_id="221234567890",
++        metadata_json={"session_maintenance": session_maintenance},
++    )
++    return module._build_business_capabilities(
++        account,
++        ws_status or {
++            "running": True,
++            "is_connected": True,
++            "connection_state": "connected",
++            "token_ready": True,
++            "token_refresh_status": "ready",
++        },
++        {"connected": chat_connected},
++        "2026-08-28T22:00:00+08:00",
++    )
++
++
++def test_account_status_success_stops_loading(monkeypatch) -> None:
++    capabilities = _account_list_capabilities(
++        monkeypatch,
++        {"state": "REAL_BROWSER_LOGIN_READY", "updated_at": "2026-08-28T21:59:00+08:00"},
++    )
++    assert capabilities["auto_reply"]["state"] == "ONLINE"
++    assert capabilities["chat"]["state"] == "READY"
++    assert capabilities["auto_reply"]["check_active"] is False
++    assert capabilities["chat"]["check_active"] is False
++
++
++def test_account_status_session_expired_stops_loading(monkeypatch) -> None:
++    capabilities = _account_list_capabilities(
++        monkeypatch,
++        {
++            "state": "SESSION_RENEW_FAILED",
++            "failure_reason": "SAFE_MTOP_SESSION_EXPIRED",
++            "updated_at": "2026-08-28T21:59:00+08:00",
++        },
++    )
++    assert capabilities["auto_reply"]["state"] == "TEMPORARY_FAILURE"
++    assert capabilities["chat"]["state"] == "TEMPORARY_FAILURE"
++    assert capabilities["publish"]["state"] == "SESSION_EXPIRED"
++
++
++def test_account_status_timeout_stops_loading(monkeypatch) -> None:
++    capabilities = _account_list_capabilities(
++        monkeypatch,
++        {
++            "state": "SESSION_CHECK_PENDING",
++            "check_active": True,
++            "check_deadline_at": "2000-01-01T00:00:00+00:00",
++            "updated_at": "2026-08-28T21:59:00+08:00",
++        },
++    )
++    assert capabilities["auto_reply"]["state"] == "TEMPORARY_FAILURE"
++    assert capabilities["chat"]["state"] == "TEMPORARY_FAILURE"
++    assert capabilities["auto_reply"]["check_active"] is False
++    assert capabilities["chat"]["check_active"] is False
++
++
++def test_account_status_backend_error_stops_loading(monkeypatch) -> None:
++    capabilities = _account_list_capabilities(
++        monkeypatch,
++        {
++            "state": "SESSION_RENEW_FAILED",
++            "failure_reason": "SAFE_MTOP_NETWORK_ERROR: timeout",
++            "updated_at": "2026-08-28T21:59:00+08:00",
++        },
++    )
++    assert capabilities["auto_reply"]["state"] == "TEMPORARY_FAILURE"
++    assert capabilities["chat"]["state"] == "TEMPORARY_FAILURE"
++    assert capabilities["auto_reply"]["check_active"] is False
++    assert capabilities["chat"]["check_active"] is False
++
++
++def test_recheck_does_not_create_infinite_loading(monkeypatch) -> None:
++    active = _account_list_capabilities(
++        monkeypatch,
++        {
++            "state": "SESSION_CHECK_PENDING",
++            "check_active": True,
++            "check_deadline_at": "2999-01-01T00:00:00+00:00",
++        },
++    )
++    expired = _account_list_capabilities(
++        monkeypatch,
++        {
++            "state": "SESSION_CHECK_PENDING",
++            "check_active": True,
++            "check_deadline_at": "2000-01-01T00:00:00+00:00",
++        },
++    )
++    assert active["auto_reply"]["state"] == "CHECKING"
++    assert active["chat"]["state"] == "CHECKING"
++    assert expired["auto_reply"]["state"] != "CHECKING"
++    assert expired["chat"]["state"] != "CHECKING"
++
++
++def test_pending_without_active_lease_is_terminal_non_green(monkeypatch) -> None:
++    capabilities = _account_list_capabilities(
++        monkeypatch,
++        {"state": "SESSION_CHECK_PENDING", "updated_at": "2026-08-28T21:59:00+08:00"},
++    )
++    assert capabilities["auto_reply"]["state"] == "TEMPORARY_FAILURE"
++    assert capabilities["chat"]["state"] == "TEMPORARY_FAILURE"
++    assert capabilities["auto_reply"]["state"] != "ONLINE"
++    assert capabilities["chat"]["state"] != "READY"
++
++
++def test_one_account_timeout_does_not_block_others(monkeypatch) -> None:
++    module = _load_module(monkeypatch, COOKIES_ROUTE, "incident_account_timeout_isolation")
++    websocket_module = types.ModuleType("app.services.websocket_client")
++
++    class _WebsocketClient:
++        async def get_account_status(self, account_id):
++            if account_id == "acct-timeout":
++                raise asyncio.TimeoutError()
++            return {
++                "success": True,
++                "data": {
++                    "running": True,
++                    "is_connected": True,
++                    "connection_state": "connected",
++                    "token_ready": True,
++                },
++            }
++
++    websocket_module.websocket_client = _WebsocketClient()
++    monkeypatch.setitem(sys.modules, "app.services.websocket_client", websocket_module)
++    accounts = [
++        SimpleNamespace(status="active", account_id="acct-timeout"),
++        SimpleNamespace(status="active", account_id="acct-ok"),
++    ]
++
++    statuses = asyncio.run(module._load_websocket_task_statuses(accounts, frozenset()))
++
++    assert statuses["acct-timeout"] == {}
++    assert statuses["acct-ok"]["token_ready"] is True
++    assert statuses["acct-ok"]["is_connected"] is True
++
++
++def test_qr_and_platform_verification_are_terminal(monkeypatch) -> None:
++    qr = _account_list_capabilities(monkeypatch, {"state": "HUMAN_QR_REQUIRED"})
++    assert qr["auto_reply"]["state"] == "LOGIN_REQUIRED"
++    assert qr["chat"]["state"] == "LOGIN_REQUIRED"
++    assert qr["publish"]["state"] == "QR_REQUIRED"
++
++    pvr = _account_list_capabilities(monkeypatch, {"state": "PLATFORM_VERIFICATION_REQUIRED"})
++    assert pvr["auto_reply"]["state"] == "PLATFORM_VERIFICATION_REQUIRED"
++    assert pvr["chat"]["state"] == "PLATFORM_VERIFICATION_REQUIRED"
++    assert pvr["publish"]["state"] == "PLATFORM_VERIFICATION_REQUIRED"
