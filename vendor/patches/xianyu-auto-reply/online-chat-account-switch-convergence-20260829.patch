@@ -1,0 +1,317 @@
+diff --git a/frontend/src/pages/chat-new/ChatNew.tsx b/frontend/src/pages/chat-new/ChatNew.tsx
+index 3a7ec967b23538fe6dd2c0d8776004d70e422355..4949b13d33c636cf8a7d75af13c9771045aed519 100644
+--- a/frontend/src/pages/chat-new/ChatNew.tsx
++++ b/frontend/src/pages/chat-new/ChatNew.tsx
+@@ -178,0 +179,4 @@ export function ChatNew() {
++  const accountContextGenerationRef = useRef(0)
++  const conversationRequestGenerationRef = useRef(0)
++  const messageRequestGenerationRef = useRef(0)
++  const orderRequestGenerationRef = useRef(0)
+@@ -338,0 +343,27 @@ export function ChatNew() {
++  const activateAccountContext = useCallback((accountId: string) => {
++    if (activeAccountIdRef.current === accountId) return
++    accountContextGenerationRef.current += 1
++    conversationRequestGenerationRef.current += 1
++    messageRequestGenerationRef.current += 1
++    orderRequestGenerationRef.current += 1
++    activeAccountIdRef.current = accountId
++    activeCidRef.current = ''
++    setConversations([])
++    setConvHasMore(false)
++    setConvCursor(null)
++    setActiveCid('')
++    setMessages([])
++    setMsgHasMore(false)
++    setMsgCursor(null)
++    setCustomerOrders([])
++    setOrderDetail(null)
++    setInputText('')
++    setPreviewImage('')
++    setIsOfficiallyBlocked(false)
++    setPendingImage((current) => {
++      if (current) URL.revokeObjectURL(current.previewUrl)
++      return null
++    })
++    setActiveAccountId(accountId)
++  }, [])
++
+@@ -360 +391 @@ export function ChatNew() {
+-        setActiveAccountId(accountId)
++        activateAccountContext(accountId)
+@@ -378 +409 @@ export function ChatNew() {
+-          setActiveAccountId(accountId)
++          activateAccountContext(accountId)
+@@ -409,4 +440 @@ export function ChatNew() {
+-        setActiveAccountId('')
+-        setConversations([])
+-        setActiveCid('')
+-        setMessages([])
++        activateAccountContext('')
+@@ -425 +453 @@ export function ChatNew() {
+-      setActiveAccountId(acc.account_id)
++      activateAccountContext(acc.account_id)
+@@ -429 +457 @@ export function ChatNew() {
+-      setActiveAccountId(acc.account_id)
++      activateAccountContext(acc.account_id)
+@@ -439,0 +468,7 @@ export function ChatNew() {
++      const accountGeneration = accountContextGenerationRef.current
++      const requestGeneration = ++conversationRequestGenerationRef.current
++      const isCurrentRequest = () => (
++        activeAccountIdRef.current === accountId
++        && accountContextGenerationRef.current === accountGeneration
++        && conversationRequestGenerationRef.current === requestGeneration
++      )
+@@ -443,0 +479 @@ export function ChatNew() {
++        if (!isCurrentRequest()) return
+@@ -457,0 +494,13 @@ export function ChatNew() {
++          const currentCid = activeCidRef.current
++          if (currentCid && !withCachedAvatar.some((conversation) => conversation.cid === currentCid)) {
++            activeCidRef.current = ''
++            activeConvPerAccountRef.current[accountId] = ''
++            messageRequestGenerationRef.current += 1
++            orderRequestGenerationRef.current += 1
++            setActiveCid('')
++            setMessages([])
++            setMsgHasMore(false)
++            setMsgCursor(null)
++            setCustomerOrders([])
++            setOrderDetail(null)
++          }
+@@ -471,2 +520,4 @@ export function ChatNew() {
+-        // 首次加载和翻页都提示错误
+-        addToast({ message: e.message || '获取会话列表失败', type: 'error' })
++        if (isCurrentRequest()) {
++          // 首次加载和翻页都提示错误
++          addToast({ message: e.message || '获取会话列表失败', type: 'error' })
++        }
+@@ -474 +525 @@ export function ChatNew() {
+-        setLoadingConvs(false)
++        if (isCurrentRequest()) setLoadingConvs(false)
+@@ -503 +554 @@ export function ChatNew() {
+-    // 1. 恢复会话列表
++    // 1. 可以先恢复当前账号缓存，但每次账号切换都必须重新读取当前账号会话真值
+@@ -510,0 +562 @@ export function ChatNew() {
++      setConvHasMore(false)
+@@ -512 +563,0 @@ export function ChatNew() {
+-      loadConversations(activeAccountId)
+@@ -513,0 +565 @@ export function ChatNew() {
++    loadConversations(activeAccountId)
+@@ -516,0 +569 @@ export function ChatNew() {
++    activeCidRef.current = prevCid
+@@ -615,0 +669,8 @@ export function ChatNew() {
++      const accountGeneration = accountContextGenerationRef.current
++      const requestGeneration = ++messageRequestGenerationRef.current
++      const isCurrentRequest = () => (
++        activeAccountIdRef.current === accountId
++        && activeCidRef.current === cid
++        && accountContextGenerationRef.current === accountGeneration
++        && messageRequestGenerationRef.current === requestGeneration
++      )
+@@ -619,0 +681 @@ export function ChatNew() {
++        if (!isCurrentRequest()) return
+@@ -629 +691 @@ export function ChatNew() {
+-        if (!append) {
++        if (!append && isCurrentRequest()) {
+@@ -633 +695 @@ export function ChatNew() {
+-        setLoadingMsgs(false)
++        if (isCurrentRequest()) setLoadingMsgs(false)
+@@ -640,0 +703,3 @@ export function ChatNew() {
++    activeCidRef.current = cid
++    messageRequestGenerationRef.current += 1
++    orderRequestGenerationRef.current += 1
+@@ -641,0 +707,2 @@ export function ChatNew() {
++    setCustomerOrders([])
++    setOrderDetail(null)
+@@ -675 +742,12 @@ export function ChatNew() {
+-    if (!activeAccountId || !activeConversation?.otherUserId) {
++    const accountId = activeAccountId
++    const cid = activeCid
++    const otherUserId = activeConversation?.otherUserId
++    const accountGeneration = accountContextGenerationRef.current
++    const requestGeneration = ++orderRequestGenerationRef.current
++    const isCurrentRequest = () => (
++      activeAccountIdRef.current === accountId
++      && activeCidRef.current === cid
++      && accountContextGenerationRef.current === accountGeneration
++      && orderRequestGenerationRef.current === requestGeneration
++    )
++    if (!accountId || !otherUserId || !cid) {
+@@ -681,2 +759,2 @@ export function ChatNew() {
+-      const data = await getCustomerOrders(activeAccountId, activeConversation.otherUserId, activeCid)
+-      setCustomerOrders(data)
++      const data = await getCustomerOrders(accountId, otherUserId, cid)
++      if (isCurrentRequest()) setCustomerOrders(data)
+@@ -684 +762 @@ export function ChatNew() {
+-      addToast({ message: e.message || '获取客户订单失败', type: 'error' })
++      if (isCurrentRequest()) addToast({ message: e.message || '获取客户订单失败', type: 'error' })
+@@ -686 +764 @@ export function ChatNew() {
+-      if (!silent) setLoadingOrders(false)
++      if (!silent && isCurrentRequest()) setLoadingOrders(false)
+diff --git a/tests/test_online_chat_account_switch_convergence.py b/tests/test_online_chat_account_switch_convergence.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..b0e6551cdff903ed2639663eed28214427e53818
+--- /dev/null
++++ b/tests/test_online_chat_account_switch_convergence.py
+@@ -0,0 +1,162 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++CHAT_UI = ROOT / "frontend" / "src" / "pages" / "chat-new" / "ChatNew.tsx"
++
++
++def _source() -> str:
++    return CHAT_UI.read_text(encoding="utf-8-sig")
++
++
++def _block(source: str, start: str, end: str) -> str:
++    return source[source.index(start): source.index(end)]
++
++
++def test_account_switch_always_reloads_current_account_conversations() -> None:
++    source = _source()
++    block = _block(source, "// 选中账号时：", "// ==================== 加载用户信息")
++    assert "const cachedConvs = convsCacheRef.current[activeAccountId]" in block
++    assert "loadConversations(activeAccountId)" in block
++    assert block.index("loadConversations(activeAccountId)") > block.index("if (cachedConvs && cachedConvs.convs.length > 0)")
++
++
++def test_account_switch_clears_old_visible_chat_context_before_new_account_render() -> None:
++    source = _source()
++    block = _block(source, "const activateAccountContext", "// ==================== 连接/断开")
++    for statement in (
++        "setConversations([])",
++        "setActiveCid('')",
++        "setMessages([])",
++        "setCustomerOrders([])",
++        "setOrderDetail(null)",
++        "setInputText('')",
++        "setPendingImage((current)",
++    ):
++        assert statement in block
++    assert "activeAccountIdRef.current = accountId" in block
++    assert "setActiveAccountId(accountId)" in block
++
++
++def test_conversation_response_requires_selected_account_and_latest_generation() -> None:
++    source = _source()
++    block = _block(source, "const loadConversations", "// 用 ref 保持 accounts 最新引用")
++    assert "const requestGeneration = ++conversationRequestGenerationRef.current" in block
++    assert "activeAccountIdRef.current === accountId" in block
++    assert "accountContextGenerationRef.current === accountGeneration" in block
++    assert "conversationRequestGenerationRef.current === requestGeneration" in block
++    assert "if (!isCurrentRequest()) return" in block
++    assert block.index("if (!isCurrentRequest()) return") < block.index("setConversations(withCachedAvatar)")
++
++
++def test_empty_or_changed_conversation_response_cannot_leave_invalid_old_chat_selected() -> None:
++    source = _source()
++    block = _block(source, "const loadConversations", "// 用 ref 保持 accounts 最新引用")
++    assert "!withCachedAvatar.some((conversation) => conversation.cid === currentCid)" in block
++    for statement in (
++        "activeCidRef.current = ''",
++        "activeConvPerAccountRef.current[accountId] = ''",
++        "setActiveCid('')",
++        "setMessages([])",
++        "setCustomerOrders([])",
++    ):
++        assert statement in block
++
++
++def test_message_and_customer_order_responses_are_scoped_to_current_account_context() -> None:
++    source = _source()
++    message_block = _block(source, "const loadMessages", "// 选中会话时")
++    order_block = _block(source, "const loadCustomerOrders", "useEffect(() => {\n    loadCustomerOrders()")
++    for block, generation in (
++        (message_block, "messageRequestGenerationRef.current === requestGeneration"),
++        (order_block, "orderRequestGenerationRef.current === requestGeneration"),
++    ):
++        assert "activeAccountIdRef.current === accountId" in block
++        assert "activeCidRef.current === cid" in block
++        assert "accountContextGenerationRef.current === accountGeneration" in block
++        assert generation in block
++
++
++def test_conversation_selection_invalidates_old_message_and_order_reads() -> None:
++    source = _source()
++    block = _block(source, "const handleSelectConversation", "const activeConversation")
++    assert "activeCidRef.current = cid" in block
++    assert "messageRequestGenerationRef.current += 1" in block
++    assert "orderRequestGenerationRef.current += 1" in block
++    assert "setCustomerOrders([])" in block
++
++
++@dataclass
++class ConversationGate:
++    account: str = ""
++    account_generation: int = 0
++    request_generation: int = 0
++    visible: tuple[str, ...] = ()
++
++    def switch(self, account: str) -> None:
++        self.account_generation += 1
++        self.request_generation += 1
++        self.account = account
++        self.visible = ()
++
++    def start(self, account: str) -> tuple[str, int, int]:
++        self.request_generation += 1
++        return account, self.account_generation, self.request_generation
++
++    def finish(self, request: tuple[str, int, int], rows: tuple[str, ...]) -> bool:
++        account, account_generation, request_generation = request
++        if (
++            self.account != account
++            or self.account_generation != account_generation
++            or self.request_generation != request_generation
++        ):
++            return False
++        self.visible = rows
++        return True
++
++
++def test_rapid_a_b_c_late_a_or_b_response_cannot_overwrite_c() -> None:
++    gate = ConversationGate()
++    gate.switch("A")
++    request_a = gate.start("A")
++    gate.switch("B")
++    request_b = gate.start("B")
++    gate.switch("C")
++    request_c = gate.start("C")
++
++    assert gate.finish(request_c, ("C-1", "C-2")) is True
++    assert gate.finish(request_b, ("B-1",)) is False
++    assert gate.finish(request_a, ("A-1",)) is False
++    assert gate.visible == ("C-1", "C-2")
++
++
++def test_switch_back_c_to_a_requires_a_new_request_and_accepts_only_new_a_response() -> None:
++    gate = ConversationGate()
++    gate.switch("A")
++    old_a = gate.start("A")
++    gate.switch("C")
++    current_c = gate.start("C")
++    assert gate.finish(current_c, ("C-1",)) is True
++
++    gate.switch("A")
++    new_a = gate.start("A")
++    assert new_a != old_a
++    assert gate.finish(old_a, ("A-old",)) is False
++    assert gate.finish(new_a, ("A-new",)) is True
++    assert gate.visible == ("A-new",)
++
++
++def test_account_without_conversations_replaces_old_account_rows_with_empty_list() -> None:
++    gate = ConversationGate()
++    gate.switch("A")
++    request_a = gate.start("A")
++    assert gate.finish(request_a, ("A-1",)) is True
++
++    gate.switch("B")
++    request_b = gate.start("B")
++    assert gate.visible == ()
++    assert gate.finish(request_b, ()) is True
++    assert gate.visible == ()
