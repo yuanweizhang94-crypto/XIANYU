@@ -276,6 +276,28 @@ This follow-up does not alter the locked r1 patch. It treats an owner lock resul
 
 The follow-up preserves `ItemService.fetch_all_items_from_account` as the only Fresh Item Sync owner, preserves the Redis lock behavior, performs no second invocation, and adds no queue, ledger, table, worker, scheduler, browser path, account mutation, publish/edit/offline/delete path, or message path. It also exposes sanitized `platform_verification_evidence_type` in selected-account Item Sync preflight facts and logs so `source=none` is observable as authoritative only when the classifier supplies an evidence type and `required=false`.
 
+## Online Chat account-switch convergence patch — 2026-08-29
+
+- Production finding: the active `/online-chat-new` bundle restored cached conversations without issuing a fresh conversation read for an already-cached account, and asynchronous conversation reads had no selected-account/request-generation guard. A late response could therefore overwrite the newly selected account's conversation list. Message and customer-order reads had the same cross-account late-response risk for the visible chat context.
+- Production read-only proof: three current usable accounts returned distinct conversation sets through the existing XIANYU Chat read path, excluding the possibility that the observed unchanged list was only coincidentally identical data.
+- `REGRESSION_INTRODUCED_BY_PR50=false`: PR #50 changes only the Account Status patch artifacts and does not modify ChatNew source.
+- Patch file: `online-chat-account-switch-convergence-20260829.patch`.
+- Patch SHA256: `750A3963646AC566765C676FF521ECA1B7BB10DB6EE91510C045C6561F047C0E`.
+- Clean replay preimage: `frontend-convergence-replay-20260829` at `f62e86ba48ca7ac8c5e2fa333be1373d07ca6a97`; that commit already contains the Account Status Backend fix and does not modify ChatNew.
+- Changed upstream files only:
+  - `frontend/src/pages/chat-new/ChatNew.tsx`
+  - `tests/test_online_chat_account_switch_convergence.py`
+- Minimal behavior change:
+  - every account selection performs a fresh conversation read even when an account-local cache exists;
+  - stale conversation responses are rejected by selected-account plus request-generation guards;
+  - visible conversation/message/order/input context is cleared before an account context switch;
+  - stale message and customer-order responses are rejected after account/conversation changes;
+  - an active conversation that no longer exists in the refreshed account conversation list is cleared.
+- Existing multi-account WebSocket event scoping is retained; no WebSocket architecture, Backend API, message-send path, order mutation path, Publisher, login/session owner, Scheduler, database schema, Cookie/Profile handling, or account-state writer is changed.
+- Strict clean apply: PASS with `git apply --check --whitespace=error-all` on the clean replay preimage.
+- Patch-included regression tests: `9 passed`.
+- Frontend TypeScript + Vite production build: PASS using the machine's existing project dependencies; no dependency installation or upgrade was performed.
+
 ## Artifact Format
 
 Historical text artifacts use Git-generated zero-context unified diffs. The T12 current formal CHG-0018 Patch uses Git-generated binary patch records for exact source preservation.
