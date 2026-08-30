@@ -4,12 +4,27 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[2]
 CHANGE = ROOT / "changes/archive/CHG-0032-controlled-online-chat-send"
 EVIDENCE = CHANGE / "evidence/20260825-phase2-read-only-chat-preflight.md"
 CHG0029 = ROOT / "changes/archive/CHG-0029-core-capability-closure"
 REQUIRED_DOCS = ("proposal.md", "design.md", "tasks.md", "acceptance.md")
+CHG0032_ID = "CHG-0032-controlled-online-chat-send"
+
+
+def _assert_archived_chg0032_is_not_active(state: dict) -> None:
+    active_change = state["active_change"]
+    if active_change is None:
+        assert state["tasks"]["total"] == 0
+        assert state["tasks"]["completed"] == 0
+        assert state["tasks"]["next_task"] is None
+        return
+
+    assert active_change["id"] != CHG0032_ID
+    assert active_change["path"] != f"changes/active/{CHG0032_ID}"
 
 
 def _text(path: Path) -> str:
@@ -93,9 +108,42 @@ def test_chg0029_chat_runtime_regression_evidence_remains_present() -> None:
         assert marker in evidence
 
 
-def test_generated_project_state_has_no_active_change_after_archive() -> None:
+def test_generated_project_state_does_not_reactivate_archived_chg0032() -> None:
     state = json.loads((ROOT / "generated" / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["active_change"] is None
-    assert state["tasks"]["total"] == 0
-    assert state["tasks"]["completed"] == 0
-    assert state["tasks"]["next_task"] is None
+    _assert_archived_chg0032_is_not_active(state)
+
+
+def test_archived_chg0032_allows_no_later_active_change() -> None:
+    _assert_archived_chg0032_is_not_active(
+        {
+            "active_change": None,
+            "tasks": {"total": 0, "completed": 0, "next_task": None},
+        }
+    )
+
+
+def test_archived_chg0032_allows_a_later_legitimate_active_change() -> None:
+    _assert_archived_chg0032_is_not_active(
+        {
+            "active_change": {
+                "id": "CHG-0036-publisher-session-runtime-drift-regression",
+                "status": "IMPLEMENTING",
+                "path": "changes/active/CHG-0036-publisher-session-runtime-drift-regression",
+            },
+            "tasks": {"total": 8, "completed": 3, "next_task": "T4 continue closure"},
+        }
+    )
+
+
+def test_archived_chg0032_rejects_reactivation_of_itself() -> None:
+    with pytest.raises(AssertionError):
+        _assert_archived_chg0032_is_not_active(
+            {
+                "active_change": {
+                    "id": CHG0032_ID,
+                    "status": "IMPLEMENTING",
+                    "path": f"changes/active/{CHG0032_ID}",
+                },
+                "tasks": {"total": 1, "completed": 0, "next_task": "T1 invalid reactivation"},
+            }
+        )
