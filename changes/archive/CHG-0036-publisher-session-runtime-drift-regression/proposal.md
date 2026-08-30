@@ -1,7 +1,7 @@
 # CHG-0036 Publisher Session Runtime Drift Regression
 
 Change ID: CHG-0036-publisher-session-runtime-drift-regression
-Status: IMPLEMENTING
+Status: ARCHIVED
 Created: 2026-08-30
 Owner task: publisher_session_runtime_drift_final_closure
 
