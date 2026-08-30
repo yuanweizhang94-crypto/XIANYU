@@ -298,6 +298,23 @@ The follow-up preserves `ItemService.fetch_all_items_from_account` as the only F
 - Patch-included regression tests: `9 passed`.
 - Frontend TypeScript + Vite production build: PASS using the machine's existing project dependencies; no dependency installation or upgrade was performed.
 
+## CHG-0036 Publisher session Runtime-drift regression patch — 2026-08-30
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`.
+- Pinned upstream SHA: `742fb58a483d9c27d0bef75d7e3a10b4cfe24cc1`.
+- Canonical `backend-web/app/services/publish_execution_service.py` SHA256: `50219b5069803498c350c8edf2eb765f997318a5ca92b6ed88e9ccf6ab3a3df7`.
+- Patch file: `publisher-session-runtime-drift-regression-20260830.patch`.
+- Patch SHA256: `750d60160cb4126669a74b1220e48b5bcc64f8d7be4562ca8a96e77ba7d1e52f`.
+- Changed upstream files: tests only — `tests/test_publish_session_runtime_drift_regression.py`.
+- Canonical business source logic changed: no.
+- Production bug class: `RUNTIME_ONLY_DRIFT`.
+- Forbidden production-only pattern: `await session.refresh(account)`.
+- Canonical cookie flow: `detect_publish_account_capability -> capability["cookies_str"] -> account.cookie -> Publisher`.
+- Pinned-upstream regression result before artifact generation: `8 passed` with Publisher transport replaced by stubs; no real publish HTTP request or item creation is permitted by the test.
+- Coverage includes refreshed-cookie propagation, absence of the `session` NameError, no duplicate SQLAlchemy refresh, missing refreshed-cookie fallback, auth failure fail-closed behavior, blocked transport boundary, three-account cookie isolation, and Material-94-shaped pre-platform input.
+
+This artifact deliberately adds no runtime business function, helper, service, route, table, worker, scheduler, Session owner, Cookie owner, or Publisher. Its only purpose is to make the already-correct canonical flow regression-testable and to prevent a future unsourced Runtime hot patch from silently reintroducing the proven NameError.
+
 ## Artifact Format
 
 Historical text artifacts use Git-generated zero-context unified diffs. The T12 current formal CHG-0018 Patch uses Git-generated binary patch records for exact source preservation.
