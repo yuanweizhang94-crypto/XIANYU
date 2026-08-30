@@ -1,0 +1,296 @@
+diff --git a/tests/test_publish_session_runtime_drift_regression.py b/tests/test_publish_session_runtime_drift_regression.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..d00dbe89b5e254d82dc7d1f996be424e940a666f
+--- /dev/null
++++ b/tests/test_publish_session_runtime_drift_regression.py
+@@ -0,0 +1,290 @@
++from __future__ import annotations
++
++import asyncio
++import inspect
++import sys
++from dataclasses import dataclass
++from pathlib import Path
++from types import SimpleNamespace
++from unittest.mock import AsyncMock
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "backend-web"))
++
++from app.services import publish_execution_service as publish_module
++
++
++@dataclass
++class FakeAccount:
++    account_id: str
++    cookie: str
++
++
++class NoRefreshSession:
++    async def refresh(self, *_args, **_kwargs):  # pragma: no cover - must never be called
++        raise AssertionError("batch_publish must not refresh a SQLAlchemy session after capability detection")
++
++
++class FakeLogService:
++    _next_id = 1
++
++    def __init__(self, _session):
++        pass
++
++    async def create_log(self, **_kwargs):
++        log = SimpleNamespace(id=self.__class__._next_id)
++        self.__class__._next_id += 1
++        return log
++
++    async def update_log(self, **_kwargs):
++        return None
++
++
++class FakeResolvedAddress:
++    def apply_to_item_data(self, material):
++        return dict(material)
++
++    def to_log_fields(self):
++        return {}
++
++
++class FakeAddressService:
++    def __init__(self, _session):
++        pass
++
++    async def build_queue_state(self, _account_id):
++        return {}
++
++    async def resolve_publish_address(self, _account_id, _material, _queue_state):
++        return FakeResolvedAddress()
++
++
++class FakeBatchStatusService:
++    @staticmethod
++    async def mark_account_sync_skipped(**_kwargs):
++        return None
++
++    @staticmethod
++    async def mark_account_sync_running(**_kwargs):
++        return None
++
++    @staticmethod
++    async def mark_account_sync_result(**_kwargs):
++        return None
++
++
++def _install_non_platform_fakes(monkeypatch, service, accounts):
++    async def fake_account_map(_account_ids, _user_id):
++        return {account.account_id: account for account in accounts}
++
++    async def fake_sync(**_kwargs):
++        return {
++            "sync_status": "success",
++            "sync_message": "mocked",
++            "sync_total_count": 0,
++            "sync_saved_count": 0,
++        }
++
++    monkeypatch.setattr(service, "_get_account_map", fake_account_map)
++    monkeypatch.setattr(service, "_sync_account_items_after_publish", fake_sync)
++    monkeypatch.setattr(publish_module, "PublishLogService", FakeLogService)
++    monkeypatch.setattr(publish_module, "PublishAddressService", FakeAddressService)
++    monkeypatch.setattr(publish_module, "PublishBatchStatusService", FakeBatchStatusService)
++
++
++def _material(material_id: int = 94) -> dict:
++    return {
++        "id": material_id,
++        "title": f"material-{material_id}",
++        "description": "pre-platform regression fixture",
++        "price": "135",
++        "category": "mock-category",
++        "images": ["mock-image"],
++    }
++
++
++def test_capability_refreshed_cookie_flows_to_account_and_publisher(monkeypatch):
++    account = FakeAccount("account-a", "cookie-old-a")
++    service = publish_module.PublishExecutorService(NoRefreshSession())
++    _install_non_platform_fakes(monkeypatch, service, [account])
++
++    capability = AsyncMock(return_value={
++        "success": True,
++        "is_fish_shop": False,
++        "cookies_str": "cookie-refreshed-a",
++    })
++    publisher = AsyncMock(return_value={"success": False, "message": "transport blocked"})
++    monkeypatch.setattr(publish_module, "detect_publish_account_capability", capability)
++    monkeypatch.setattr(publish_module, "publish_personal_single_item", publisher)
++    monkeypatch.setattr(publish_module, "publish_single_item", AsyncMock(side_effect=AssertionError("wrong publisher")))
++
++    result = asyncio.run(service.batch_publish(1, [account.account_id], [_material()]))
++
++    assert result["failed_count"] == 1
++    assert account.cookie == "cookie-refreshed-a"
++    assert publisher.await_count == 1
++    assert publisher.await_args.kwargs["cookie"] == "cookie-refreshed-a"
++
++
++def test_batch_publish_has_no_session_nameerror_and_reaches_stubbed_publisher(monkeypatch):
++    account = FakeAccount("account-a", "cookie-a")
++    service = publish_module.PublishExecutorService(NoRefreshSession())
++    _install_non_platform_fakes(monkeypatch, service, [account])
++
++    monkeypatch.setattr(
++        publish_module,
++        "detect_publish_account_capability",
++        AsyncMock(return_value={"success": True, "is_fish_shop": False, "cookies_str": "cookie-a2"}),
++    )
++    publisher = AsyncMock(return_value={"success": False, "message": "REAL_PLATFORM_REQUEST_BLOCKED"})
++    monkeypatch.setattr(publish_module, "publish_personal_single_item", publisher)
++
++    result = asyncio.run(service.batch_publish(1, [account.account_id], [_material()]))
++
++    assert publisher.await_count == 1
++    assert result["success_count"] == 0
++    assert result["failed_count"] == 1
++
++
++def test_canonical_batch_source_forbids_undefined_session_refresh_and_keeps_cookie_flow():
++    source = inspect.getsource(publish_module.PublishExecutorService.batch_publish)
++    assert "await session.refresh(account)" not in source
++    assert 'capability.get("cookies_str") or cookies_str' in source
++    assert "account.cookie = cookies_str" in source
++
++
++def test_batch_does_not_repeat_refresh_after_capability_owner(monkeypatch):
++    account = FakeAccount("account-a", "cookie-a")
++    session = NoRefreshSession()
++    session.refresh = AsyncMock(side_effect=AssertionError("duplicate refresh forbidden"))
++    service = publish_module.PublishExecutorService(session)
++    _install_non_platform_fakes(monkeypatch, service, [account])
++
++    monkeypatch.setattr(
++        publish_module,
++        "detect_publish_account_capability",
++        AsyncMock(return_value={"success": True, "is_fish_shop": False, "cookies_str": "cookie-from-capability"}),
++    )
++    monkeypatch.setattr(
++        publish_module,
++        "publish_personal_single_item",
++        AsyncMock(return_value={"success": False, "message": "transport blocked"}),
++    )
++
++    asyncio.run(service.batch_publish(1, [account.account_id], [_material()]))
++
++    session.refresh.assert_not_awaited()
++    assert account.cookie == "cookie-from-capability"
++
++
++def test_missing_capability_cookie_uses_existing_cookie(monkeypatch):
++    account = FakeAccount("account-a", "cookie-existing")
++    service = publish_module.PublishExecutorService(NoRefreshSession())
++    _install_non_platform_fakes(monkeypatch, service, [account])
++
++    monkeypatch.setattr(
++        publish_module,
++        "detect_publish_account_capability",
++        AsyncMock(return_value={"success": True, "is_fish_shop": False}),
++    )
++    publisher = AsyncMock(return_value={"success": False, "message": "transport blocked"})
++    monkeypatch.setattr(publish_module, "publish_personal_single_item", publisher)
++
++    asyncio.run(service.batch_publish(1, [account.account_id], [_material()]))
++
++    assert account.cookie == "cookie-existing"
++    assert publisher.await_args.kwargs["cookie"] == "cookie-existing"
++
++
++def test_capability_auth_failure_fails_closed_without_publish_transport(monkeypatch):
++    account = FakeAccount("account-a", "cookie-existing")
++    service = publish_module.PublishExecutorService(NoRefreshSession())
++    _install_non_platform_fakes(monkeypatch, service, [account])
++
++    monkeypatch.setattr(
++        publish_module,
++        "detect_publish_account_capability",
++        AsyncMock(return_value={
++            "success": False,
++            "account_invalid": True,
++            "message": "auth failure",
++            "cookies_str": "cookie-existing",
++        }),
++    )
++    personal = AsyncMock()
++    direct = AsyncMock()
++    monkeypatch.setattr(publish_module, "publish_personal_single_item", personal)
++    monkeypatch.setattr(publish_module, "publish_single_item", direct)
++
++    result = asyncio.run(service.batch_publish(1, [account.account_id], [_material()]))
++
++    personal.assert_not_awaited()
++    direct.assert_not_awaited()
++    assert result["success_count"] == 0
++    assert result["failed_count"] == 1
++
++
++def test_three_accounts_keep_capability_cookies_isolated(monkeypatch):
++    accounts = [
++        FakeAccount("account-a", "cookie-a"),
++        FakeAccount("account-b", "cookie-b"),
++        FakeAccount("account-c", "cookie-c"),
++    ]
++    service = publish_module.PublishExecutorService(NoRefreshSession())
++    _install_non_platform_fakes(monkeypatch, service, accounts)
++
++    async def capability(*, cookie, account_id, owner_id):
++        assert owner_id == 1
++        return {
++            "success": True,
++            "is_fish_shop": False,
++            "cookies_str": f"refreshed-{account_id}-{cookie}",
++        }
++
++    seen = []
++
++    async def publisher(*, item_data, cookie, account_id, owner_id, static_root):
++        seen.append((account_id, cookie, item_data["id"]))
++        return {"success": False, "message": "transport blocked"}
++
++    monkeypatch.setattr(publish_module, "detect_publish_account_capability", capability)
++    monkeypatch.setattr(publish_module, "publish_personal_single_item", publisher)
++
++    asyncio.run(service.batch_publish(1, [a.account_id for a in accounts], [_material()]))
++
++    assert seen == [
++        ("account-a", "refreshed-account-a-cookie-a", 94),
++        ("account-b", "refreshed-account-b-cookie-b", 94),
++        ("account-c", "refreshed-account-c-cookie-c", 94),
++    ]
++    assert [a.cookie for a in accounts] == [
++        "refreshed-account-a-cookie-a",
++        "refreshed-account-b-cookie-b",
++        "refreshed-account-c-cookie-c",
++    ]
++
++
++def test_material_94_reaches_preplatform_stub_without_real_item_creation(monkeypatch):
++    account = FakeAccount("account-a", "cookie-a")
++    service = publish_module.PublishExecutorService(NoRefreshSession())
++    _install_non_platform_fakes(monkeypatch, service, [account])
++
++    monkeypatch.setattr(
++        publish_module,
++        "detect_publish_account_capability",
++        AsyncMock(return_value={"success": True, "is_fish_shop": False, "cookies_str": "cookie-a2"}),
++    )
++    boundary = AsyncMock(return_value={
++        "success": False,
++        "message": "REAL_PLATFORM_REQUEST_BLOCKED",
++        "item_id": None,
++        "item_url": None,
++    })
++    monkeypatch.setattr(publish_module, "publish_personal_single_item", boundary)
++
++    result = asyncio.run(service.batch_publish(1, [account.account_id], [_material(94)]))
++
++    assert boundary.await_count == 1
++    assert boundary.await_args.kwargs["item_data"]["id"] == 94
++    assert result["success_count"] == 0
++    assert result["failed_count"] == 1
