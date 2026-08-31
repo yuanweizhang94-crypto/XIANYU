@@ -426,3 +426,15 @@ Stop the host manual listener, keep Docker websocket stopped, restore the
 previous patch artifact from Git, and run the repository validation scripts
 before any further live validation. Default replies remain disabled pending
 project-owner decision.
+
+## CHG-0037 OpenCV headless Runtime dependency persistence — 2026-08-31
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`.
+- Base pinned SHA: `742fb58a483d9c27d0bef75d7e3a10b4cfe24cc1`.
+- Dependency authority: `backend-web/pyproject.toml`, consumed by `backend-web/Dockerfile`.
+- Patch file: `chg0037-opencv-headless-runtime-dependency.patch`.
+- Changed upstream files: `backend-web/pyproject.toml` only.
+- Minimal dependency delta: `opencv-python-headless>=4.10.0` -> `opencv-python-headless==5.0.0.93`.
+- Historical verified runtime mapping: distribution `opencv-python-headless==5.0.0.93` imports `cv2==5.0.0`.
+- No Publisher, Session, Cookie, Material, account, Frontend, WebSocket, Scheduler, database or platform transport logic is changed.
+- Runtime activation must use an immutable image build; `docker exec pip install`, running-container mutation, copied site-packages and copied virtual environments are forbidden.
