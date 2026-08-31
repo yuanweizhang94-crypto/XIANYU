@@ -1,7 +1,7 @@
 # CHG-0036 Acceptance
 
 Change ID: CHG-0036-publisher-session-runtime-drift-regression
-Status: IMPLEMENTING
+Status: ARCHIVED
 
 Acceptance requires all of the following:
 
@@ -58,3 +58,28 @@ Existing XIANYU Backend Publisher path.
 ## Retirement plan for overlapping local code
 
 No overlapping production implementation is introduced.
+
+## Final closure results — 2026-08-30
+
+- `ROOT_CAUSE_PROVEN=true`.
+- `SOURCE_REGRESSION_CLOSURE_PASS=true`.
+- `GITHUB_SOURCE_CLOSURE_PASS=true`; PR #52 merged and `cef03d9478dbfb205ae64052e069cca0991a5583` is an ancestor of `2df208780e556ace2230f0c6ce7d4e7252a33a25`.
+- `RUNTIME_CLOSURE_PASS=true`.
+- `BUSINESS_SOURCE_LOGIC_CHANGED=false`.
+- `PRODUCTION_BACKEND_IMAGE=xianyu-chg0018-backend-web:chg0036-clean-replay-2df2087-20260830-r1`.
+- `PRODUCTION_FORBIDDEN_PATTERN_COUNT=0`.
+- `PRODUCTION_CANONICAL_COOKIE_FLOW=PASS`.
+- `BACKEND_HEALTHY=true`.
+- `ACCOUNT_STATUS_SMOKE_PASS=true`.
+- `CHAT_READ_ONLY_SMOKE_RESULT=PASS_WITH_PRE_EXISTING_ACCOUNT_CONNECTION_STATE`; the route remained reachable with Backend HTTP 200 and no Backend 5xx/crash/import error, while the sampled IM sessions were already naturally disconnected and were not reconnected for this Change.
+- `CHAT_RUNTIME_REGRESSION=false` because no replacement-induced connection-state regression evidence was observed.
+- `MATERIAL_94_RUNTIME_PREFLIGHT_PASS=true`.
+- `ALL_MATERIAL_94_103_PREFLIGHT_PASS=true`.
+- `PUBLISH_FLOW_REACHES_PLATFORM_BOUNDARY=true` under the hard-blocked in-process transport stub.
+- `SESSION_NAMEERROR_REPRODUCED=false`.
+- `CROSS_ACCOUNT_SESSION_LEAK=false`.
+- `NO_FALSE_PUBLISH_SUCCESS=true`; the blocked dry-run persisted zero publish logs and generated no item id.
+- `REAL_PUBLISH_HTTP_REQUEST_COUNT=0`.
+- `REAL_ITEM_CREATE_COUNT=0`.
+- `REAL_XIANYU_PUBLISH_EXECUTED=false`.
+- `PUBLISHER_READY_FOR_FUTURE_CANARY=true`; a future real single-item canary requires a separate explicit authorization and is not part of this Change.

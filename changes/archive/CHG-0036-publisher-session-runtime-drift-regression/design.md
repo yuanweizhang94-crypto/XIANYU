@@ -1,7 +1,7 @@
 # CHG-0036 Design
 
 Change ID: CHG-0036-publisher-session-runtime-drift-regression
-Status: IMPLEMENTING
+Status: ARCHIVED
 
 ## Design
 

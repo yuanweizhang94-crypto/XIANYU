@@ -11,6 +11,12 @@ EXPECTED_SHA256 = "750d60160cb4126669a74b1220e48b5bcc64f8d7be4562ca8a96e77ba7d1e
 EXPECTED_PINNED_UPSTREAM = "742fb58a483d9c27d0bef75d7e3a10b4cfe24cc1"
 EXPECTED_PINNED_PUBLISH_SERVICE_SHA256 = "50219b5069803498c350c8edf2eb765f997318a5ca92b6ed88e9ccf6ab3a3df7"
 FORBIDDEN_PATTERN = "await session.refresh(account)"
+CHANGE_ID = "CHG-0036-publisher-session-runtime-drift-regression"
+CHANGE_RECORD = (
+    ROOT / "changes/archive" / CHANGE_ID
+    if (ROOT / "changes/archive" / CHANGE_ID).exists()
+    else ROOT / "changes/active" / CHANGE_ID
+)
 
 
 def _text() -> str:
@@ -71,10 +77,7 @@ def test_regression_patch_hard_blocks_real_publish_transport() -> None:
 
 
 def test_pinned_upstream_identity_is_documented_in_change_record() -> None:
-    proposal = (
-        ROOT
-        / "changes/active/CHG-0036-publisher-session-runtime-drift-regression/proposal.md"
-    ).read_text(encoding="utf-8")
+    proposal = (CHANGE_RECORD / "proposal.md").read_text(encoding="utf-8")
     assert EXPECTED_PINNED_UPSTREAM in proposal
     assert "CANONICAL_SOURCE_ALREADY_CORRECT=true" in proposal
     assert "SOURCE_FUNCTIONAL_FIX_REQUIRED=false" in proposal

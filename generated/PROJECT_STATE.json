@@ -1,81 +1,12 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": {
-    "id": "CHG-0036-publisher-session-runtime-drift-regression",
-    "status": "IMPLEMENTING",
-    "path": "changes/active/CHG-0036-publisher-session-runtime-drift-regression"
-  },
+  "active_change": null,
   "tasks": {
-    "total": 16,
-    "completed": 5,
-    "next_task": "T6 Persist the upstream regression as a vendor patch artifact and add XIANYU artifact/drift verification tests.",
-    "items": [
-      {
-        "text": "T1 Reconfirm XIANYU remote main and COMPANY remote main without modifying dirty historical worktrees.",
-        "completed": true
-      },
-      {
-        "text": "T2 Create isolated clean XIANYU worktree and run project context.",
-        "completed": true
-      },
-      {
-        "text": "T3 Reconfirm pinned upstream canonical capability-cookie flow and zero source functional fix requirement.",
-        "completed": true
-      },
-      {
-        "text": "T4 Create this executable Change record with zero-platform-write gates.",
-        "completed": true
-      },
-      {
-        "text": "T5 Build and run the eight-case pinned-upstream regression suite with Publisher transport stubbed.",
-        "completed": true
-      },
-      {
-        "text": "T6 Persist the upstream regression as a vendor patch artifact and add XIANYU artifact/drift verification tests.",
-        "completed": false
-      },
-      {
-        "text": "T7 Prove clean replay from pinned upstream plus current vendor layers has zero forbidden pattern and canonical cookie flow.",
-        "completed": false
-      },
-      {
-        "text": "T8 Run targeted Publisher/session/capability/category/status/multi-account tests, syntax, diff check, secret scan, and repository verification.",
-        "completed": false
-      },
-      {
-        "text": "T9 Commit exact task files, push branch, create PR, require security/quality/tests PASS, merge, and prove guard ancestry on main.",
-        "completed": false
-      },
-      {
-        "text": "T10 Build a clean Backend candidate from final main and verify candidate source/hash before activation.",
-        "completed": false
-      },
-      {
-        "text": "T11 Record rollback identity and activate Backend only through the existing safe lifecycle path; verify health and production source.",
-        "completed": false
-      },
-      {
-        "text": "T12 Run account-status and read-only Chat smoke without rerunning the full Chat gate.",
-        "completed": false
-      },
-      {
-        "text": "T13 Execute hard-blocked runtime Material 94 preflight to Publisher transport boundary with zero real platform requests/items.",
-        "completed": false
-      },
-      {
-        "text": "T14 Complete Materials 94-103 read-only preflight and three-account session isolation proof.",
-        "completed": false
-      },
-      {
-        "text": "T15 Verify blocked/dry-run terminal status cannot become real SUCCESS and produces no item id.",
-        "completed": false
-      },
-      {
-        "text": "T16 Archive the Change after all gates pass, regenerate project state, commit/push final closure, and STOP without a real canary.",
-        "completed": false
-      }
-    ]
+    "total": 0,
+    "completed": 0,
+    "next_task": null,
+    "items": []
   },
   "capabilities": {
     "total": 10,
