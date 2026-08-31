@@ -1,7 +1,7 @@
 # CHG-0037 OpenCV Headless Runtime Dependency Persistence
 
 Change ID: CHG-0037-opencv-headless-runtime-dependency
-Status: APPROVED
+Status: ARCHIVED
 Created: 2026-08-31
 Owner task: xianyu_cv2_dependency_final_closure
 

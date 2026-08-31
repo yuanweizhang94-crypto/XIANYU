@@ -1,7 +1,7 @@
 # CHG-0037 Tasks
 
 Change ID: CHG-0037-opencv-headless-runtime-dependency
-Status: APPROVED
+Status: ARCHIVED
 
 - [x] T1 Reconfirm XIANYU remote main, COMPANY remote main, dirty worktrees, current production Backend identity and current upstream authority.
 - [x] T2 Audit historical cv2 source/runtime evidence and prove the dependency delta without cherry-picking unrelated historical work.
@@ -10,13 +10,13 @@ Status: APPROVED
 - [x] T5 Persist the exact `opencv-python-headless==5.0.0.93` dependency vendor patch and vendor registry entry.
 - [x] T6 Add and pass dependency declaration/artifact regression tests plus CHG-0036 session regression tests.
 - [x] T7 Prove clean patch replay on pinned upstream and run targeted/repository/diff/secret gates.
-- [ ] T8 Commit exact task files, push branch, create PR, require security/quality/tests PASS, merge, and prove fix ancestry on main.
-- [ ] T9 Build an immutable Backend candidate from merged XIANYU main and verify cv2/package/Publisher/session gates before activation.
-- [ ] T10 Record rollback/runtime configuration identity and replace Backend only through the existing protected lifecycle.
-- [ ] T11 Verify production Backend health, cv2/package version, session guard, canonical cookie flow, account read-only smoke, and chat read-only smoke.
-- [ ] T12 Run Material 94 hard-blocked production Runtime dry-run using account 2804730247 only if current read-only readiness remains passing.
-- [ ] T13 Prove zero real publish HTTP requests/items and no false publish SUCCESS.
-- [ ] T14 Archive the Change, regenerate project state, complete final GitHub closure, rebuild/relabel final-main Backend if required for exact source-SHA equality, and STOP without a real canary.
+- [x] T8 Commit exact task files, push branch, create PR, require security/quality/tests PASS, merge, and prove fix ancestry on main.
+- [x] T9 Build an immutable Backend candidate from merged XIANYU main and verify cv2/package/Publisher/session gates before activation.
+- [x] T10 Record rollback/runtime configuration identity and replace Backend only through the existing protected lifecycle.
+- [x] T11 Verify production Backend health, cv2/package version, session guard, canonical cookie flow, account read-only smoke, and chat read-only smoke.
+- [x] T12 Run Material 94 hard-blocked production Runtime dry-run using account 2804730247 only if current read-only readiness remains passing.
+- [x] T13 Prove zero real publish HTTP requests/items and no false publish SUCCESS.
+- [x] T14 Archive the Change, regenerate project state, complete final GitHub closure, rebuild/relabel final-main Backend if required for exact source-SHA equality, and STOP without a real canary.
 
 ## Upstream capability audit
 

@@ -1,7 +1,7 @@
 # CHG-0037 Design
 
 Change ID: CHG-0037-opencv-headless-runtime-dependency
-Status: APPROVED
+Status: ARCHIVED
 
 ## Execution contract
 
