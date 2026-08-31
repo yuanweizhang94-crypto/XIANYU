@@ -55,6 +55,6 @@ def test_chg0037_source_acceptance_and_tasks_match_implemented_delta() -> None:
     ):
         assert marker in acceptance
 
-    for task in ("T5", "T6", "T7"):
+    for task in ("T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13"):
         assert f"- [x] {task} " in tasks
-    assert "- [ ] T8 " in tasks
+    assert "- [x] T14 " in tasks

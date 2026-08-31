@@ -1,7 +1,7 @@
 # CHG-0037 Acceptance
 
 Change ID: CHG-0037-opencv-headless-runtime-dependency
-Status: APPROVED
+Status: ARCHIVED
 
 ## Required source gates
 
@@ -104,3 +104,22 @@ Existing upstream Backend dependency/build path.
 ## Retirement plan for overlapping local code
 
 Retire this pin when equivalent upstream exact pinning is proven in clean build and production.
+
+## Final verified closure evidence
+
+The sanitized final Runtime/category evidence is preserved at `evidence/20260831-final-runtime-category-and-archive-closure.md`.
+
+Verified closure facts include:
+
+- PR #55 merged and both CHG-0037 source commits are ancestors of `dc3c2d3956e5be09ebaaf61d62aea539b5d9d254`.
+- candidate and production Backend import `cv2==5.0.0` from `opencv-python-headless==5.0.0.93`.
+- Publisher import passes, the CHG-0036 forbidden session pattern count is zero, and canonical capability-cookie flow remains intact.
+- Backend-only activation preserved the non-Backend services and MySQL/Redis/Cookie/Session/Profile state.
+- Material 94 category compatibility was proven from an existing platform donor and a fresh XIANYU native recommendation.
+- the formal `xianyu_material_category_apply` adapter persisted Material 94's complete platform category without caller-supplied category IDs.
+- the final hard-blocked Runtime preflight used the persisted Material category, not in-memory category injection, and reached the platform item-create boundary with zero real publish requests/items and no false SUCCESS.
+- no real Material 94 canary was executed by CHG-0037.
+
+`RUNTIME_ACCEPTANCE_COMPLETE=true`.
+`MATERIAL_94_PERSISTED_CATEGORY_PREFLIGHT_PASS=true`.
+`BUSINESS_SOURCE_LOGIC_CHANGED=false`.

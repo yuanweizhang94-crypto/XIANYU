@@ -6,7 +6,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "vendor/patches/xianyu-auto-reply/chg0037-opencv-headless-runtime-dependency.patch"
 README = ROOT / "vendor/patches/xianyu-auto-reply/README.md"
-CHANGE = ROOT / "changes/active/CHG-0037-opencv-headless-runtime-dependency"
+ACTIVE_CHANGE = ROOT / "changes/active/CHG-0037-opencv-headless-runtime-dependency"
+ARCHIVED_CHANGE = ROOT / "changes/archive/CHG-0037-opencv-headless-runtime-dependency"
+CHANGE = ACTIVE_CHANGE if ACTIVE_CHANGE.exists() else ARCHIVED_CHANGE
 
 
 def _text(path: Path) -> str:
