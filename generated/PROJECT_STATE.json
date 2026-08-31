@@ -1,12 +1,73 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": null,
+  "active_change": {
+    "id": "CHG-0037-opencv-headless-runtime-dependency",
+    "status": "APPROVED",
+    "path": "changes/active/CHG-0037-opencv-headless-runtime-dependency"
+  },
   "tasks": {
-    "total": 0,
-    "completed": 0,
-    "next_task": null,
-    "items": []
+    "total": 14,
+    "completed": 7,
+    "next_task": "T8 Commit exact task files, push branch, create PR, require security/quality/tests PASS, merge, and prove fix ancestry on main.",
+    "items": [
+      {
+        "text": "T1 Reconfirm XIANYU remote main, COMPANY remote main, dirty worktrees, current production Backend identity and current upstream authority.",
+        "completed": true
+      },
+      {
+        "text": "T2 Audit historical cv2 source/runtime evidence and prove the dependency delta without cherry-picking unrelated historical work.",
+        "completed": true
+      },
+      {
+        "text": "T3 Create isolated clean XIANYU and pinned-upstream worktrees.",
+        "completed": true
+      },
+      {
+        "text": "T4 Define this executable dependency-only Change and platform-write guard.",
+        "completed": true
+      },
+      {
+        "text": "T5 Persist the exact `opencv-python-headless==5.0.0.93` dependency vendor patch and vendor registry entry.",
+        "completed": true
+      },
+      {
+        "text": "T6 Add and pass dependency declaration/artifact regression tests plus CHG-0036 session regression tests.",
+        "completed": true
+      },
+      {
+        "text": "T7 Prove clean patch replay on pinned upstream and run targeted/repository/diff/secret gates.",
+        "completed": true
+      },
+      {
+        "text": "T8 Commit exact task files, push branch, create PR, require security/quality/tests PASS, merge, and prove fix ancestry on main.",
+        "completed": false
+      },
+      {
+        "text": "T9 Build an immutable Backend candidate from merged XIANYU main and verify cv2/package/Publisher/session gates before activation.",
+        "completed": false
+      },
+      {
+        "text": "T10 Record rollback/runtime configuration identity and replace Backend only through the existing protected lifecycle.",
+        "completed": false
+      },
+      {
+        "text": "T11 Verify production Backend health, cv2/package version, session guard, canonical cookie flow, account read-only smoke, and chat read-only smoke.",
+        "completed": false
+      },
+      {
+        "text": "T12 Run Material 94 hard-blocked production Runtime dry-run using account 2804730247 only if current read-only readiness remains passing.",
+        "completed": false
+      },
+      {
+        "text": "T13 Prove zero real publish HTTP requests/items and no false publish SUCCESS.",
+        "completed": false
+      },
+      {
+        "text": "T14 Archive the Change, regenerate project state, complete final GitHub closure, rebuild/relabel final-main Backend if required for exact source-SHA equality, and STOP without a real canary.",
+        "completed": false
+      }
+    ]
   },
   "capabilities": {
     "total": 10,

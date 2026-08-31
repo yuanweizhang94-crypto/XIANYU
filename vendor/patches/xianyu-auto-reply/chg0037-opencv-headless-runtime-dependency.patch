@@ -1,0 +1,7 @@
+diff --git a/backend-web/pyproject.toml b/backend-web/pyproject.toml
+index e35ed2c..6fa6447 100644
+--- a/backend-web/pyproject.toml
++++ b/backend-web/pyproject.toml
+@@ -40 +40 @@ dependencies = [
+-    "opencv-python-headless>=4.10.0",
++    "opencv-python-headless==5.0.0.93",
