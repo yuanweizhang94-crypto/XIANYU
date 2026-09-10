@@ -6,14 +6,33 @@
 >
 > 1. [`AGENTS.md`](AGENTS.md)
 > 2. [`docs/AI_PROJECT_HANDOFF.md`](docs/AI_PROJECT_HANDOFF.md)
-> 3. [`docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`](docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md)
-> 4. [`docs/CURRENT_PRODUCTION_BASELINE.md`](docs/CURRENT_PRODUCTION_BASELINE.md)
+> 3. [`docs/DESKTOP_RECOVERY_HANDOFF_20260910.md`](docs/DESKTOP_RECOVERY_HANDOFF_20260910.md) while the 2026-09-10 desktop migration/cutover is still being finalized
+> 4. [`docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`](docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md)
+> 5. [`docs/CURRENT_PRODUCTION_BASELINE.md`](docs/CURRENT_PRODUCTION_BASELINE.md)
 >
 > `FIRST_READ=docs/AI_PROJECT_HANDOFF.md`
 >
 > Mandatory: `UPSTREAM_FIRST`, `LOCAL_EXISTING_CAPABILITY_FIRST`, `CURRENT_RUNTIME_FIRST`, `REUSE_FIRST`, `MINIMAL_PATCH_ONLY`, `NO_PARALLEL_IMPLEMENTATION`, `NO_DUPLICATE_DEVELOPMENT`, `NO_BYPASS`.
 >
 > Do not create a new implementation until current upstream, current local, and current production runtime capabilities have been verified. Normal requests such as publishing products or querying publish state are `BUSINESS_EXECUTION` by default, not development.
+
+## 2026-09-10 desktop migration checkpoint
+
+The project is being transferred from the original Huawei laptop to desktop `PC-20250528MGDP`. The desktop Source and data volumes have been restored, and immutable-image Source Authority V2 plus a byte-preserving supplement have passed on the source laptop. This does **not** mean production cutover is complete.
+
+Current migration handoff:
+
+[`docs/DESKTOP_RECOVERY_HANDOFF_20260910.md`](docs/DESKTOP_RECOVERY_HANDOFF_20260910.md)
+
+Until the final cutover is separately proven:
+
+```text
+DESKTOP_PRODUCTION=false
+LAPTOP_ROLE=PRIMARY_LAST_KNOWN
+PRODUCTION_DOUBLE_RUN=false
+```
+
+Do not run laptop and desktop production Scheduler/WebSocket/Auto Reply simultaneously.
 
 ## Project role
 
@@ -22,6 +41,7 @@ XIANYU uses `zhinianboke/xianyu-auto-reply` as the primary business capability s
 - User repository: https://github.com/yuanweizhang94-crypto/XIANYU
 - XIANYU Upstream: https://github.com/zhinianboke/xianyu-auto-reply
 - Execution Infrastructure: https://github.com/yuanweizhang94-crypto/COMPANY_LOCAL_EXECUTION_TOOL
+- Global machine handoff: https://github.com/yuanweizhang94-crypto/AI-/blob/main/projects/MACHINE_HANDOFF_20260910.md
 
 `UPSTREAM_FIRST=true` does **not** mean overwriting local files with upstream. Read upstream, compare local enhancements/safety fixes, compare current runtime, and sync only the missing delta. `DIFF_BASED_SYNC=true`.
 
@@ -66,13 +86,17 @@ DO_NOT_WRITE_CODE=true
 
 Full cross-project handoff and pre-code proof gate: [`docs/AI_PROJECT_HANDOFF.md`](docs/AI_PROJECT_HANDOFF.md).
 
+Desktop recovery/cutover checkpoint: [`docs/DESKTOP_RECOVERY_HANDOFF_20260910.md`](docs/DESKTOP_RECOVERY_HANDOFF_20260910.md).
+
 Full XIANYU-specific precheck and scope rules: [`docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`](docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md).
 
 ## Current production baseline
 
-The current production authority, including the 2026-08-12 category-state-machine closure, real publish verification, Session rules, status semantics, and official PC-Web limitation behavior, is recorded in:
+The current production authority, including category-state-machine closure, real publish verification, Session rules, status semantics, and official PC-Web limitation behavior, is recorded in:
 
 - [`docs/CURRENT_PRODUCTION_BASELINE.md`](docs/CURRENT_PRODUCTION_BASELINE.md)
+
+During migration, production baseline and migration checkpoint must be interpreted together. A restored desktop filesystem or TEST Runtime does not become production authority until final controlled cutover succeeds.
 
 Historical Change records, ADRs, capability matrices, archived evidence, and older phase notes remain useful as historical evidence, but they do not override current GitHub/local/runtime checks, `AGENTS.md`, the Living Handoff, or the current production baseline.
 
@@ -96,12 +120,13 @@ For Repair/Development, use targeted tests, related regression tests, repository
 
 ## Security
 
-Never commit Cookies, Tokens, JWTs, Authorization headers, passwords, API keys, private keys, QR payloads, browser Profiles, real customer messages, or other secret material.
+Never commit Cookies, Tokens, JWTs, Authorization headers, passwords, API keys, private keys, QR payloads, browser Profiles, real customer messages, migration data packages, or other secret material.
 
 ## Documentation priority
 
 - P0: `AGENTS.md`
 - P1: `docs/AI_PROJECT_HANDOFF.md`
+- P1: `docs/DESKTOP_RECOVERY_HANDOFF_20260910.md` during current migration
 - P1: this README AI/developer entrypoint
 - P1: `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`
 - P1: `docs/CURRENT_PRODUCTION_BASELINE.md`
