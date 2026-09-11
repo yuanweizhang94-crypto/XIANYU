@@ -197,6 +197,11 @@ DESKTOP_AUTO_REPLY_PRODUCTION=PASS
 DESKTOP_PUBLISH_RUNTIME_READY=PASS
 DESKTOP_SCHEDULER_PRODUCTION=PASS
 
+XIANYU_WEB_UI=http://127.0.0.1:19000/
+XIANYU_ACCOUNTS_UI=http://127.0.0.1:19000/accounts
+XIANYU_ONLINE_CHAT_UI=http://127.0.0.1:19000/online-chat-new
+XIANYU_WEB_UI_VERIFIED_20260911=true
+
 JOB_REGISTRY_COUNT=21
 EXPECTED_PRODUCTION_JOB_SET_MATCH=true
 UNEXPECTED_JOB_ENABLED_COUNT=0
@@ -204,6 +209,8 @@ UNEXPECTED_CATCHUP_JOB_COUNT=0
 DUPLICATE_ORDER_PROCESSING_DETECTED=false
 DUPLICATE_FULFILLMENT_DETECTED=false
 ```
+
+The current desktop Web UI routes above were re-verified on 2026-09-11 and each returned HTTP 200. They are loopback-only desktop URLs unless a separate LAN/public exposure is explicitly configured.
 
 No synthetic business side effects were used for cutover acceptance:
 

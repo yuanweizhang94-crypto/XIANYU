@@ -6,7 +6,7 @@
 >
 > 1. [`AGENTS.md`](AGENTS.md)
 > 2. [`docs/AI_PROJECT_HANDOFF.md`](docs/AI_PROJECT_HANDOFF.md)
-> 3. [`docs/DESKTOP_RECOVERY_HANDOFF_20260910.md`](docs/DESKTOP_RECOVERY_HANDOFF_20260910.md) while the 2026-09-10 desktop migration/cutover is still being finalized
+> 3. [`docs/DESKTOP_MIGRATION_CLOSURE_20260910.md`](docs/DESKTOP_MIGRATION_CLOSURE_20260910.md) for the completed desktop migration and current machine authority
 > 4. [`docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`](docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md)
 > 5. [`docs/CURRENT_PRODUCTION_BASELINE.md`](docs/CURRENT_PRODUCTION_BASELINE.md)
 >
@@ -16,23 +16,36 @@
 >
 > Do not create a new implementation until current upstream, current local, and current production runtime capabilities have been verified. Normal requests such as publishing products or querying publish state are `BUSINESS_EXECUTION` by default, not development.
 
-## 2026-09-10 desktop migration checkpoint
+## 2026-09-10 desktop migration closure
 
-The project is being transferred from the original Huawei laptop to desktop `PC-20250528MGDP`. The desktop Source and data volumes have been restored, and immutable-image Source Authority V2 plus a byte-preserving supplement have passed on the source laptop. This does **not** mean production cutover is complete.
+The migration from the original Huawei laptop to desktop `PC-20250528MGDP` is complete. The desktop is the current XIANYU production PRIMARY and the laptop is rollback-capable STANDBY.
 
-Current migration handoff:
+Current migration authority:
 
-[`docs/DESKTOP_RECOVERY_HANDOFF_20260910.md`](docs/DESKTOP_RECOVERY_HANDOFF_20260910.md)
-
-Until the final cutover is separately proven:
+[`docs/DESKTOP_MIGRATION_CLOSURE_20260910.md`](docs/DESKTOP_MIGRATION_CLOSURE_20260910.md)
 
 ```text
-DESKTOP_PRODUCTION=false
-LAPTOP_ROLE=PRIMARY_LAST_KNOWN
+XIANYU_DESKTOP_MIGRATION_COMPLETE=true
+DESKTOP_ROLE=PRIMARY
+DESKTOP_PRODUCTION=true
+LAPTOP_ROLE=STANDBY
+LAPTOP_PRODUCTION=false
 PRODUCTION_DOUBLE_RUN=false
 ```
 
 Do not run laptop and desktop production Scheduler/WebSocket/Auto Reply simultaneously.
+
+## Current XIANYU Web UI
+
+Verified on the desktop production host on 2026-09-11:
+
+```text
+XIANYU_WEB_UI=http://127.0.0.1:19000/
+XIANYU_ACCOUNTS_UI=http://127.0.0.1:19000/accounts
+XIANYU_ONLINE_CHAT_UI=http://127.0.0.1:19000/online-chat-new
+```
+
+All three routes returned HTTP 200 during verification. These are loopback URLs for the desktop host; `127.0.0.1` is not a public Internet address and works only from that machine unless a separate LAN/public exposure is explicitly configured.
 
 ## Project role
 
@@ -86,7 +99,7 @@ DO_NOT_WRITE_CODE=true
 
 Full cross-project handoff and pre-code proof gate: [`docs/AI_PROJECT_HANDOFF.md`](docs/AI_PROJECT_HANDOFF.md).
 
-Desktop recovery/cutover checkpoint: [`docs/DESKTOP_RECOVERY_HANDOFF_20260910.md`](docs/DESKTOP_RECOVERY_HANDOFF_20260910.md).
+Completed desktop migration authority: [`docs/DESKTOP_MIGRATION_CLOSURE_20260910.md`](docs/DESKTOP_MIGRATION_CLOSURE_20260910.md). Historical recovery evidence remains in [`docs/DESKTOP_RECOVERY_HANDOFF_20260910.md`](docs/DESKTOP_RECOVERY_HANDOFF_20260910.md).
 
 Full XIANYU-specific precheck and scope rules: [`docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`](docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md).
 
@@ -96,7 +109,7 @@ The current production authority, including category-state-machine closure, real
 
 - [`docs/CURRENT_PRODUCTION_BASELINE.md`](docs/CURRENT_PRODUCTION_BASELINE.md)
 
-During migration, production baseline and migration checkpoint must be interpreted together. A restored desktop filesystem or TEST Runtime does not become production authority until final controlled cutover succeeds.
+The desktop migration is complete. Interpret this dated production baseline together with the current migration closure and current Runtime; the desktop production Runtime is now authoritative.
 
 Historical Change records, ADRs, capability matrices, archived evidence, and older phase notes remain useful as historical evidence, but they do not override current GitHub/local/runtime checks, `AGENTS.md`, the Living Handoff, or the current production baseline.
 
@@ -126,7 +139,7 @@ Never commit Cookies, Tokens, JWTs, Authorization headers, passwords, API keys, 
 
 - P0: `AGENTS.md`
 - P1: `docs/AI_PROJECT_HANDOFF.md`
-- P1: `docs/DESKTOP_RECOVERY_HANDOFF_20260910.md` during current migration
+- P1: `docs/DESKTOP_MIGRATION_CLOSURE_20260910.md` for current desktop/laptop machine authority
 - P1: this README AI/developer entrypoint
 - P1: `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md`
 - P1: `docs/CURRENT_PRODUCTION_BASELINE.md`
