@@ -438,3 +438,21 @@ project-owner decision.
 - Historical verified runtime mapping: distribution `opencv-python-headless==5.0.0.93` imports `cv2==5.0.0`.
 - No Publisher, Session, Cookie, Material, account, Frontend, WebSocket, Scheduler, database or platform transport logic is changed.
 - Runtime activation must use an immutable image build; `docker exec pip install`, running-container mutation, copied site-packages and copied virtual environments are forbidden.
+
+## 2026-09-18 Publisher Session runtime convergence patch
+
+- Production base image: `xianyu-chg0035-websocket:desktop-recovery-20260910-r1`
+- Activated fixed image: `xianyu-chg0035-websocket:publish-session-fix-20260918-r1`
+- Patch file: `publish-session-runtime-convergence-20260918.patch`
+- Patch SHA256: `A8688E53ADE360CC0F775EB3BC7EFB5B48844F644BDBFD30DE837A90430DA4FA`
+- Changed existing upstream/runtime files only:
+  - `websocket/app/services/xianyu/cookie_token_manager.py`
+  - `websocket/app/api/routes/internal.py`
+
+The first delta closes stale process-local platform-verification state after the existing authoritative renewal owner has already committed a Cookie candidate that passed the Publisher-equivalent MTOP probe. It reuses the existing persisted-marker cleanup and `_clear_platform_verification_required()` functions, then returns the existing Token status to `success`. It creates no second Session, Token, login, or Publisher owner.
+
+The second delta repairs the internal Token-refresh route's stale call to the nonexistent `TokenManager.trigger_refresh()`. The route now calls existing `XianyuAsync.refresh_token()`, which delegates into the established CookieTokenManager owner.
+
+Production verification on 2026-09-18 proved both target accounts reached `PUBLISH_READY=true`, `PLATFORM_VERIFICATION_REQUIRED=false`, and `HUMAN_QR_REQUIRED=false`. Account `1992416548` then completed a formal real publish with authoritative item id `1086163872502`. Account `2196106636` passed Publisher capability but its first real Fish Shop publish failed later at the platform business layer with `FAIL_BIZ_SHOP_IMPROVE_PACK_QUERY_EXP`; that failure is not classified as Session, Token, QR, or platform-verification failure.
+
+No Cookie, Token, Authorization, password, QR payload, or customer content is stored in this artifact.

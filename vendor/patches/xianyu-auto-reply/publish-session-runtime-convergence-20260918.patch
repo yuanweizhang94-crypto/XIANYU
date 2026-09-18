@@ -1,0 +1,30 @@
+diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
+--- a/websocket/app/services/xianyu/cookie_token_manager.py
++++ b/websocket/app/services/xianyu/cookie_token_manager.py
+@@ -1967,6 +1967,12 @@
+                 if commit.get("committed") and commit.get("auth_status") == "AUTH_VALID":
+                     self.cookies_str = str(commit.get("cookies_str") or candidate_cookie)
+                     self.cookies = trans_cookies(self.cookies_str)
++                    # The authoritative Cookie has passed the same MTOP probe used by Publisher.
++                    # Converge the existing Auto Reply/Token owner instead of leaving a stale
++                    # FAIL_SYS_USER_VALIDATE marker in process memory after successful renewal.
++                    await self._persist_platform_verification_marker(required=False)
++                    self._clear_platform_verification_required()
++                    self.last_token_refresh_status = "success"
+                     logger.info(f"【{self.cookie_id}】renew candidate已通过Publisher-equivalent MTOP")
+                     _record_login_log(
+                         "success",
+diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
+--- a/websocket/app/api/routes/internal.py
++++ b/websocket/app/api/routes/internal.py
+@@ -2133,8 +2133,8 @@
+     # 触发 Token 刷新
+     try:
+         if instance.token_manager:
+-            # 使用 token_manager 触发刷新
+-            await instance.token_manager.trigger_refresh()
++            # XianyuAsync.refresh_token delegates to the existing CookieTokenManager owner.
++            await instance.refresh_token()
+             logger.info(f"【内部API】Token刷新请求已提交: account_id={account_id}")
+             
+             return {
