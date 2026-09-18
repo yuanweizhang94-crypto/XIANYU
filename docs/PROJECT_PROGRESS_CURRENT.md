@@ -63,9 +63,18 @@ AUTHORITATIVE_SYNC_CONFIRMED=true
 2196106636 / material 109
 PUBLISH_PREFLIGHT=PASS
 PUBLISH_READY=true
-FINAL_STATUS=FAILED
+
+INITIAL_ATTEMPT=FAILED
 FAILURE_REASON=FAIL_BIZ_SHOP_IMPROVE_PACK_QUERY_EXP
-PRODUCT_CREATED=false
+INITIAL_PRODUCT_CREATED=false
+
+AUTHORITATIVE_NO_ITEM_PROOF=PASS
+CONTROLLED_REAL_RETRY=1
+FINAL_STATUS=SUCCESS
+PLATFORM_ITEM_ID=1086172352322
+AUTHORITATIVE_SYNC_CONFIRMED=true
 ```
 
-The second result is a Fish Shop business-stage failure and must not be reclassified as Session expiry, Token invalidity, QR, or platform verification. Before any retry of material 109, recover authoritative no-item evidence and classify the exact Fish Shop pack-query call. No automatic real publish retry is allowed.
+The Fish Shop failure was traced to the final `mtop.idle.pc.backend.idleitem.publish` request. The platform returned `FAIL_BIZ_SHOP_IMPROVE_PACK_QUERY_EXP` with `account_invalid=false` and a retry-later message. Current upstream contains no dedicated fix or separate no-write pack-query endpoint, while the current Runtime already carries the more complete Fish Shop publish path. After publish-log, operation-store, item-sync, and catalog readback proved no item had been created, one controlled retry succeeded. The failure is therefore classified as a platform-side transient business failure rather than a Session, Token, QR, platform-verification, or local Publisher implementation defect.
+
+Full closure evidence: `docs/ASTRA_PUBLISH_CLOSURE_20260918.md`.
