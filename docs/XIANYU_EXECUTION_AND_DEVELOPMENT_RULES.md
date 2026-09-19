@@ -111,6 +111,35 @@ Real publish must not use:
 - a second Playwright publisher
 - direct bypass of XIANYU Backend
 
+## 5.1 Multi-account publish rotation
+
+For automatic account assignment in a multi-account batch:
+
+```text
+PUBLISH_ACCOUNT_ROTATION_REQUIRED=true
+PUBLISH_ACCOUNT_BALANCING_REQUIRED=true
+STRICT_SELECTED_ACCOUNT_AFTER_ASSIGNMENT=true
+```
+
+Account selection must carry balance across batches. It must not restart every new batch from the same first account.
+
+Use only current `PUBLISH_READY` accounts. Among them, assign the next product to the account(s) with the lowest carried authoritative successful-publish count. Stable rotation order breaks ties.
+
+Example:
+
+```text
+A=2 B=2 C=2 D=2 E=1 F=1
+next priority: E → F
+```
+
+Only authoritative `SUCCESS` increments the carried count. FAILED, UNKNOWN, preflight, Material/category operations, and no-create retries do not.
+
+This balancing rule applies before target assignment only. Once a real operation binds a product to an account, existing strict-selected-account and UNKNOWN/no-blind-retry rules remain authoritative; do not migrate a failed or uncertain product to another account merely to balance counts.
+
+Explicit user account assignments override balancing for those items, but successful explicitly assigned items still increase that account's carried count for later automatic balancing.
+
+See `docs/PUBLISH_ACCOUNT_ROTATION_POLICY_20260919.md`.
+
 ## 6. Existing capability ownership
 
 The following capability families already exist. Without new direct evidence, do not implement a second copy:

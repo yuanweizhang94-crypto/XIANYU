@@ -144,6 +144,33 @@ Normal real business execution must not use:
 - a second Playwright publisher
 - direct bypass of the formal Backend
 
+## Multi-account publish rotation is mandatory
+
+For ordinary multi-account publishing, when the user did not explicitly bind a product to a specific account:
+
+```text
+PUBLISH_ACCOUNT_ROTATION_REQUIRED=true
+PUBLISH_ACCOUNT_BALANCING_REQUIRED=true
+```
+
+Do not restart every batch from the same first account.
+
+Before assigning each unassigned product:
+
+1. Build the current `PUBLISH_READY` account pool.
+2. Read carried authoritative SUCCESS counts for eligible accounts.
+3. Prefer the account(s) with the lowest successful publish count.
+4. Use deterministic continuation order only to break ties.
+5. After authoritative SUCCESS, increment that account and rebalance the next assignment.
+
+If the previous batch ended with a distribution such as `2/2/2/2/1/1`, the two accounts at `1` MUST receive priority in the next batch while they remain publish-ready.
+
+Rotation is assignment policy only. After `MATERIAL_ID + TARGET_ACCOUNT_ID + task_id + idempotency_key` exists, `STRICT_SELECTED_ACCOUNT=true`: failures or UNKNOWN outcomes must not be silently migrated to another account for balancing.
+
+Do not count FAILED, UNKNOWN, preflight, Material creation, or category selection as successful rotation usage.
+
+Full policy: `docs/PUBLISH_ACCOUNT_ROTATION_POLICY_20260919.md`.
+
 ## Existing capability first
 
 The following capability families already exist and MUST NOT be reimplemented without new direct evidence that the existing implementation is absent or fundamentally unusable:

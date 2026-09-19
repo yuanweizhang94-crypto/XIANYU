@@ -300,7 +300,22 @@ OWNER_SCOPE_PRESERVED=true
 AUTHORITATIVE_COOKIE_ONLY=true
 NO_AUTOMATIC_REAL_PUBLISH_RETRY=true
 ACTIVE_REAL_BATCH_EXECUTORS_MAX=1
+PUBLISH_ACCOUNT_ROTATION_REQUIRED=true
+PUBLISH_ACCOUNT_BALANCING_REQUIRED=true
 ```
+
+多账号普通发布在“分配商品到账号”阶段必须跨批次保持均衡：
+
+- 只在当前 `PUBLISH_READY` 账号池内分配；
+- 优先给累计 authoritative SUCCESS 条数更少的账号；
+- 不能每一批都重新从固定第一个账号开始；
+- 上一批如果形成 `2/2/2/2/1/1`，下一批先补两个 `1`；
+- 同数时才按稳定轮转顺序继续；
+- 显式用户指定账号时按用户指定，但成功后仍计入累计条数。
+
+轮询仅决定“发布前分配”。一旦 `MATERIAL_ID + TARGET_ACCOUNT_ID + task_id + idempotency_key` 已建立，继续遵守 `STRICT_SELECTED_ACCOUNT=true`，不能为了均衡把 FAILED/UNKNOWN 商品偷偷迁移到别的账号。
+
+完整规则：`docs/PUBLISH_ACCOUNT_ROTATION_POLICY_20260919.md`。
 
 发布失败时：
 

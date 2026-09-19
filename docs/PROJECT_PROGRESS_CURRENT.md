@@ -117,3 +117,37 @@ FIXED_CHATNEW_SHA256=5a55733f22d0b18b56b1c2ffb7a02a4c55a8e3d8cfab39adb952ae1ea28
 ```
 
 Full evidence: `docs/ONLINE_CHAT_ACCOUNT_CACHE_FIX_20260919.md`.
+
+## 2026-09-19 multi-account publish balancing rule
+
+Future ordinary multi-account publish batches must carry account-balance state across batches instead of restarting from a fixed first account.
+
+```text
+PUBLISH_ACCOUNT_ROTATION_REQUIRED=true
+PUBLISH_ACCOUNT_BALANCING_REQUIRED=true
+STRICT_SELECTED_ACCOUNT_AFTER_ASSIGNMENT=true
+```
+
+The balance metric is authoritative successful real publishes only. Current adoption baseline from `ASTRA-R2-20260919`:
+
+```text
+1992416548      = 2
+2804730247      = 2
+2214313339860   = 2
+2196106636      = 2
+2221422775489   = 1
+2221384086829   = 1
+```
+
+Therefore, if these six accounts remain publish-ready, the next automatically assigned products must prioritize:
+
+```text
+2221422775489
+2221384086829
+```
+
+until the carried counts are level again.
+
+The balancing rule applies before account assignment only. It never overrides UNKNOWN/no-blind-retry or strict selected-account safety after a real operation exists.
+
+Full policy: `docs/PUBLISH_ACCOUNT_ROTATION_POLICY_20260919.md`.
