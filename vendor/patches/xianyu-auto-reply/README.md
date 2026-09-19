@@ -298,6 +298,12 @@ The follow-up preserves `ItemService.fetch_all_items_from_account` as the only F
 - Patch-included regression tests: `9 passed`.
 - Frontend TypeScript + Vite production build: PASS using the machine's existing project dependencies; no dependency installation or upgrade was performed.
 
+### 2026-09-19 follow-up: authoritative empty conversation cache convergence
+
+The 2026-08-29 patch remains immutable. A later live incident proved one remaining cache edge case: an authoritative empty conversation response cleared visible state but did not overwrite an older non-empty `convsCacheRef` entry, allowing stale rows to be restored on a later account switch. Auto Reply itself was verified successful and Backend ChatNew WebSocket forwarding remained account-scoped.
+
+The production follow-up makes every successful fresh conversation read authoritative for `convsCacheRef.current[accountId]`, including an empty list. The exact Runtime transformation is persisted in `scripts/patch_chatnew_account_cachefix_20260919.py`, locked from SHA256 `7d58515be1e86a9370b8fcce91a08943e4c9df253838477f0eba4e92e0294843` to `5a55733f22d0b18b56b1c2ffb7a02a4c55a8e3d8cfab39adb952ae1ea28bc79b`. Evidence and activation details are in `docs/ONLINE_CHAT_ACCOUNT_CACHE_FIX_20260919.md`.
+
 ## CHG-0036 Publisher session Runtime-drift regression patch — 2026-08-30
 
 - Base upstream repository: `zhinianboke/xianyu-auto-reply`.
