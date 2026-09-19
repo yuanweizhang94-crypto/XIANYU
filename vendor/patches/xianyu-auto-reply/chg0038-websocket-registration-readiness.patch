@@ -1,0 +1,88 @@
+diff --git a/websocket/app/services/xianyu/xianyu_async.py b/websocket/app/services/xianyu/xianyu_async.py
+index 86b5217..504d40d 100644
+--- a/websocket/app/services/xianyu/xianyu_async.py
++++ b/websocket/app/services/xianyu/xianyu_async.py
+@@ -560,6 +560,48 @@ class XianyuAsync:
+         """安全地将对象转换为字符串（委托公共实现）"""
+         return safe_str(obj)
+     
++    async def _wait_for_registration_response(self, ws, reg_mid: str, timeout: float = 5.0):
++        """等待 /reg 的匹配响应，避免只凭底层连接/心跳误判业务订阅已就绪。"""
++        loop = asyncio.get_running_loop()
++        deadline = loop.time() + timeout
++
++        while True:
++            remaining = deadline - loop.time()
++            if remaining <= 0:
++                raise asyncio.TimeoutError("WebSocket registration response timeout")
++
++            try:
++                raw_message = await asyncio.wait_for(ws.recv(), timeout=remaining)
++            except asyncio.TimeoutError as exc:
++                raise asyncio.TimeoutError("WebSocket registration response timeout") from exc
++
++            if raw_message is None:
++                raise ConnectionError("WebSocket closed before registration response")
++
++            try:
++                message_data = json.loads(raw_message)
++            except Exception as exc:
++                logger.warning(f"【{self.cookie_id}】注册阶段收到无法解析的消息: {self._safe_str(exc)}")
++                continue
++
++            if self.connection_manager.handle_heartbeat_response(message_data):
++                continue
++
++            headers = message_data.get("headers") if isinstance(message_data, dict) else {}
++            response_mid = headers.get("mid") if isinstance(headers, dict) else None
++            if response_mid == reg_mid:
++                code = message_data.get("code", 0)
++                if code != 200:
++                    raise RuntimeError(f"WebSocket registration rejected: code={code}")
++                logger.info(f"【{self.cookie_id}】WebSocket注册响应确认成功")
++                return message_data
++
++            # 注册确认前到达的其他合法帧不能丢弃，继续交给既有分派/消息处理链。
++            self._dispatch_mid_response(message_data)
++            self._create_tracked_task(
++                self._handle_message_with_semaphore(message_data, ws)
++            )
++
+     async def init(self, ws):
+         """
+         初始化WebSocket连接
+@@ -576,7 +618,8 @@ class XianyuAsync:
+             logger.warning(f"【{self.cookie_id}】无法获取有效token")
+             raise Exception("Token获取失败")
+         
+-        # 发送注册消息
++        # 发送注册消息，并在进入 CONNECTED 前确认服务端已接受注册。
++        reg_mid = generate_mid()
+         msg = {
+             "lwp": "/reg",
+             "headers": {
+@@ -588,13 +631,13 @@ class XianyuAsync:
+                 "wv": "im:3,au:3,sy:6",
+                 "sync": "0,0;0;0;",
+                 "did": self.device_id,
+-                "mid": generate_mid()
++                "mid": reg_mid
+             }
+         }
+         await ws.send(json.dumps(msg))
+-        await asyncio.sleep(1)
++        await self._wait_for_registration_response(ws, reg_mid)
+         
+-        # 发送同步状态消息
++        # 注册确认后发送同步状态消息
+         current_time = int(time.time() * 1000)
+         msg = {
+             "lwp": "/r/SyncStatus/ackDiff",
+@@ -613,6 +656,7 @@ class XianyuAsync:
+             ]
+         }
+         await ws.send(json.dumps(msg))
++        await asyncio.sleep(1)
+         logger.info(f'【{self.cookie_id}】连接注册完成')
+     
+     def _create_tracked_task(self, coro):

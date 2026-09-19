@@ -1,6 +1,6 @@
 # XIANYU Current Production Baseline
 
-Authority timestamp: **2026-08-12 22:33 Asia/Taipei (UTC+8)**
+Authority timestamp: **2026-09-20 current delta; older dated verification sections are retained as historical snapshots**
 
 AI/developer first-read Living Handoff: [`docs/AI_PROJECT_HANDOFF.md`](AI_PROJECT_HANDOFF.md).
 
@@ -227,6 +227,18 @@ CURRENT_RUNTIME
 Only modify the existing implementation after proving the issue is not stale Runtime, configuration, Session/data/account state, incorrect invocation, or official platform limitation.
 
 See `docs/AI_PROJECT_HANDOFF.md`, `AGENTS.md`, and `docs/XIANYU_EXECUTION_AND_DEVELOPMENT_RULES.md` for the mandatory precheck.
+
+## Auto Reply / Native WebSocket reconnect readiness — 2026-09-20
+
+A new production incident proved that transport health alone is not sufficient Auto Reply readiness. A confirmed buyer inbound was visible in Online Chat while Native WS still reported connected=true and token_ready=true, but there was no Native MessageHandler trace and no AutoReplyService activity row.
+
+Current root cause: ROOT_CAUSE=NATIVE_WS_FALSE_READY_WITHOUT_REG_ACK. The existing upstream Native WebSocket owner sent /reg, waited a fixed sleep, sent ackDiff, and could then be reported CONNECTED without proving the server acknowledged registration. Pinned upstream bda1a859df63fa5f24e51398fa80a23490bb6dfc contains the same gap.
+
+CHG-0038 repairs only the existing owner: explicit reg_mid, bounded matching response wait, code=200 readiness gate, preservation of early frames, then the existing ackDiff. Repository verification is 683/683 PASS.
+
+Production state at this baseline: CURRENT_WEBSOCKET_IMAGE=xianyu-chg0035-websocket:publish-session-fix-20260918-r1; CHG0038_PRODUCTION_IMAGE_ACTIVATED=false; SINGLE_AFFECTED_ACCOUNT_RESTART=PASS; RESTART_INVALIDATE_TOKEN_CACHE=false; GLOBAL_WEBSOCKET_RESTART=false; CONTROL_ACCOUNTS_RECONNECTED=false; TARGET_CONNECTED=true; TARGET_TOKEN_READY=true; TARGET_PLATFORM_VERIFICATION_REQUIRED=false; TARGET_HUMAN_QR_REQUIRED=false.
+
+The single-account restart is an immediate recovery only. Permanent acceptance remains pending until a WebSocket image containing CHG-0038 is activated and a natural inbound message proves the full Native receive → MessageHandler → AutoReplyService chain.
 
 ## Security
 

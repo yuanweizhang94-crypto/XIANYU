@@ -629,7 +629,7 @@ AUTHORITATIVE_COOKIE_UPDATED=true
 
 ---
 
-# 12. Auto Reply 已稳定——不要无证据重开
+# 12. Auto Reply：历史稳定基线 + 2026-09-20 重连注册确认修复
 
 当前：
 
@@ -641,6 +641,18 @@ TOKEN_REFRESH_STORM_REGRESSION=false
 PARALLEL_TOKEN_REFRESH=0
 UNEXPECTED_FULL_AUTH_RETRY=0
 ```
+
+2026-09-20 新证据已经允许重新打开这一问题，但根因不是模板/规则丢失。确认链路：买家入站在 Online Chat 可见，同时 Native WS 仍显示 connected + token_ready，但没有 Native MessageHandler receive trace，也没有 AutoReplyService activity row，因此 first divergence 在 AutoReplyService 之前。
+
+Pinned upstream 与当前生产 WebSocket 存在同一 readiness 缺口：socket open → send /reg → fixed sleep → send ackDiff → may report CONNECTED。旧逻辑没有等待服务端对 /reg 的 matching-mid 确认，因此网络重连后可能出现“心跳活着、状态绿色、业务消息订阅未证明”的半健康状态。
+
+当前正式修复 Change 为 CHG-0038-websocket-registration-readiness；ROOT_CAUSE=NATIVE_WS_FALSE_READY_WITHOUT_REG_ACK；PATCH_UPSTREAM=true；FULL_REPOSITORY=683/683_PASS。
+
+生产即时恢复已经只对明确漏消息账号执行一次现有 Native WS account restart，明确 invalidate_token_cache=false；目标重新 connected + token_ready，无 QR/平台验证，两个控制账号的 last_connected_at 未变化，因此没有全局 WebSocket 重启。
+
+当前边界：SINGLE_ACCOUNT_IMMEDIATE_RECOVERY=PASS；GLOBAL_WEBSOCKET_RESTART=false；TOKEN_COOKIE_INVALIDATION=false；CHG0038_SOURCE_VERIFIED=true；CHG0038_PRODUCTION_IMAGE_ACTIVATED=false；PERMANENT_RUNTIME_ACCEPTANCE=PENDING。
+
+最终 E2E 仍必须等待 CHG-0038 WebSocket 镜像激活后的一条自然买家入站，证明 Native receive → MessageHandler → AutoReplyService → send/outcome。禁止用买家测试消息反复试错。
 
 历史曾出现每账号数百次 Token maintenance 请求。
 

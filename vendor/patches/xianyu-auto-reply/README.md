@@ -496,3 +496,15 @@ The second delta repairs the internal Token-refresh route's stale call to the no
 Production verification on 2026-09-18 proved both target accounts reached `PUBLISH_READY=true`, `PLATFORM_VERIFICATION_REQUIRED=false`, and `HUMAN_QR_REQUIRED=false`. Account `1992416548` completed a formal real publish with authoritative item id `1086163872502`. Account `2196106636` passed Publisher capability; its first Fish Shop publish failed later at the platform business layer with `FAIL_BIZ_SHOP_IMPROVE_PACK_QUERY_EXP`, but authoritative readback proved no item was created. No upstream/local Publisher code change was required: one controlled retry after current account-scoped preflight succeeded with authoritative item id `1086172352322`, confirming a platform-side transient business failure rather than a Session, Token, QR, platform-verification, or local Publisher implementation defect.
 
 No Cookie, Token, Authorization, password, QR payload, or customer content is stored in this artifact.
+
+## CHG-0038 Native WebSocket registration readiness — 2026-09-20
+
+- Base upstream repository: `zhinianboke/xianyu-auto-reply`.
+- Base pinned SHA: `bda1a859df63fa5f24e51398fa80a23490bb6dfc`.
+- Patch file: `chg0038-websocket-registration-readiness.patch`.
+- Patch SHA256: `45CC5A9A3F73E17743B4D0F7E7A0160FC996EB92C65181DDC38B9233D61A0ECD`.
+- Changed upstream files: `websocket/app/services/xianyu/xianyu_async.py` only.
+- Root-cause scope: Native WebSocket could send `/reg`, wait a fixed sleep, send `ackDiff`, and later be reported `CONNECTED` without proving server registration acknowledgement.
+- Minimal repair: wait up to 5 seconds for the matching `/reg` mid, require `code=200`, preserve early non-registration frames through the existing dispatch/MessageHandler path, then send the existing `ackDiff`.
+- No Auto Reply rule/template, ChatNew owner, Session/Cookie/Token owner, Publisher, Frontend, Scheduler, database schema, or second WebSocket implementation is introduced.
+- Incident evidence is sanitized in `changes/active/CHG-0038-websocket-registration-readiness`; no customer message text, Cookie, Token, QR payload, or credentials are stored.

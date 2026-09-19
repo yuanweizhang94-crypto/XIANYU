@@ -1,12 +1,57 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": null,
+  "active_change": {
+    "id": "CHG-0038-websocket-registration-readiness",
+    "status": "VERIFYING",
+    "path": "changes/active/CHG-0038-websocket-registration-readiness"
+  },
   "tasks": {
-    "total": 0,
-    "completed": 0,
-    "next_task": null,
-    "items": []
+    "total": 10,
+    "completed": 8,
+    "next_task": "T8 Commit and push exact XIANYU task files; verify remote SHA.",
+    "items": [
+      {
+        "text": "T1 Reconstruct the 23:58 missed-message evidence and prove divergence occurs before AutoReplyService.",
+        "completed": true
+      },
+      {
+        "text": "T2 Compare affected account evidence with healthy post-reconnect automatic-reply evidence.",
+        "completed": true
+      },
+      {
+        "text": "T3 Audit current production Native registration and ChatNew registration behavior.",
+        "completed": true
+      },
+      {
+        "text": "T4 Read pinned upstream bda1a859 and prove the same Native registration-readiness gap exists upstream.",
+        "completed": true
+      },
+      {
+        "text": "T5 Implement the minimal registration acknowledgement gate in an isolated upstream worktree.",
+        "completed": true
+      },
+      {
+        "text": "T6 Generate one exact vendor patch and add focused regression tests.",
+        "completed": true
+      },
+      {
+        "text": "T7 Run targeted tests, change validation, repository verification, security scan and git diff --check.",
+        "completed": true
+      },
+      {
+        "text": "T8 Commit and push exact XIANYU task files; verify remote SHA.",
+        "completed": false
+      },
+      {
+        "text": "T9 Perform only bounded production recovery/activation allowed by the no-global-restart constraint.",
+        "completed": true
+      },
+      {
+        "text": "T10 Read back Native status and wait for an organic buyer event for true Auto Reply E2E confirmation.",
+        "completed": false
+      }
+    ]
   },
   "capabilities": {
     "total": 10,
