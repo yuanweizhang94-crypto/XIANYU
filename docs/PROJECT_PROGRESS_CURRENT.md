@@ -180,7 +180,7 @@ xianyu-chg0018-frontend:chatnew-spinner-convergence-20260919-r1
 5-second silent account-state reconciliation
 + runtime_connected Chat truth convergence
 + disabled-account terminal rendering
-+ at-most-once existing Chat owner connect for Native-WS-ready accounts
++ idempotent existing Chat owner connect for Native-WS-ready accounts
 ```
 
 No Backend/WebSocket restart occurred. No real Session, Token, Cookie, QR, account-enabled-state, Redis Session, Auto Reply, Publisher, order, or item mutation occurred.
@@ -213,3 +213,65 @@ UI_SPINNER=0
 The final production CASE_8 was also exercised: a newly Native-ready account had no Chat owner, received one existing `/chat-new/connect/{account_id}` call, then returned conversation `SUCCESS`. The other nine connected accounts were not reconnected.
 
 Full evidence: `docs/ONLINE_CHAT_SPINNER_CONVERGENCE_20260919.md`.
+
+## 2026-09-19 Online Chat reconnect convergence follow-up
+
+A later live incident on account `2217936413500` proved that the previous `autoChatOnce` safety latch was too strict.
+
+Observed sequence:
+
+```text
+19:14:12 Native WS keepalive ping timeout
+→ Native WS disconnect
+19:14:38 WebSocket re-established
+19:14:39 connection registration completed
+→ Native WS connected=true
+→ token_ready=true
+→ login remained valid
+
+but:
+ChatNew owner missing
+conversations=账号未连接
+```
+
+Root cause:
+
+```text
+initial automatic Chat connect
+→ account stored forever in autoChatOnce
+→ later Native WS disconnect/recovery
+→ Chat owner lost
+→ frontend permanently refuses another automatic Chat connect
+```
+
+The Frontend-only fix replaces the one-shot latch with a cooldown-based guard:
+
+```text
+autoChatRetryAt
+already connected/runtime_connected → no-op
+connect in flight → no-op
+Native WS/token not ready → no-op
+terminal login/verification gate → no-op
+Chat owner missing → existing /chat-new/connect/{account_id}
+retry cooldown=15 seconds
+```
+
+Activated Runtime:
+
+```text
+xianyu-chg0018-frontend:chatnew-reconnect-convergence-20260919-r1
+
+BASE_CHATNEW_SHA256=
+4345c358b1d7539b38ab0cff0d714b839632d248ba9bceac5f0f8b094aa303a1
+
+FIXED_CHATNEW_SHA256=
+326750c9383b392e58f6f864906359d2c7b2f6377519d698adf46852ca2c1d6e
+```
+
+Account `2217936413500` was recovered through the existing Chat owner without restarting Backend/WebSocket, and its conversation API returned `SUCCESS`.
+
+Auto Reply configuration was verified still present for its published products: image + text, enabled, `reply_once=false`. Native WebSocket source re-enters the message loop after reconnect; no post-reconnect inbound buyer-message event was present in Runtime logs during the incident.
+
+Regression: `30 passed` across the new reconnect suite and all previous Online Chat convergence suites.
+
+Full evidence: `docs/ONLINE_CHAT_RECONNECT_RECOVERY_20260919.md`.

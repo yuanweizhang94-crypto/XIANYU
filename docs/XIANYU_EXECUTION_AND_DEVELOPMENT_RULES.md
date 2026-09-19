@@ -163,7 +163,7 @@ REQUEST_FINISHED / stale metadata
 
 The account list must periodically re-read `/chat-new/accounts`. A current `runtime_connected=true` ImSessionManager client is authoritative for Online Chat readiness unless the Backend exposes explicit terminal login or platform-verification state.
 
-If Native WS is `connected` and `token_ready` but the Chat owner is missing, reuse the existing `/chat-new/connect/{account_id}` path at most once per page lifecycle. Never create another Chat owner and never reconnect an already connected account.
+If Native WS is `connected` and `token_ready` but the Chat owner is missing, reuse the existing `/chat-new/connect/{account_id}` path with an in-flight guard and finite retry cooldown. Never create another Chat owner and never reconnect an already connected or `runtime_connected` account. A prior successful auto-connect must not permanently block a later recovery after Native WS disconnects and self-recovers.
 
 Disabled accounts must render as disabled rather than checking.
 

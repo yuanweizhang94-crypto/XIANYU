@@ -315,7 +315,7 @@ The Frontend-only follow-up:
 - silently refreshes the account list every 5 seconds without overlapping polling;
 - treats current Chat `runtime_connected=true` as Online Chat ready unless the account has explicit `LOGIN_REQUIRED` or `PLATFORM_VERIFICATION_REQUIRED`;
 - renders disabled accounts as disabled instead of checking;
-- reuses the existing `/chat-new/connect/{account_id}` owner at most once per page lifecycle when Native WS is connected and token-ready but Chat owner is missing;
+- reuses the existing `/chat-new/connect/{account_id}` owner with an in-flight guard and finite retry cooldown when Native WS is connected and token-ready but Chat owner is missing;
 - never reconnects an already connected Chat owner;
 - preserves the authoritative-empty-conversation cache convergence follow-up above.
 

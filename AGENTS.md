@@ -164,7 +164,7 @@ REQUEST_FINISHED / stale session metadata
 
 The account list must periodically reconcile current `/chat-new/accounts` truth. A current `runtime_connected=true` Chat owner is treated as connected unless the Backend returns an explicit terminal `LOGIN_REQUIRED` or `PLATFORM_VERIFICATION_REQUIRED` gate.
 
-If a newly authenticated account has Native WS `connected + token_ready` but the Chat owner is missing, reuse the existing idempotent `/chat-new/connect/{account_id}` owner at most once per page lifecycle. Never reconnect an already connected Chat owner.
+If an active account has Native WS `connected + token_ready` but the Chat owner is missing, reuse the existing idempotent `/chat-new/connect/{account_id}` owner with an in-flight guard and finite retry cooldown. Never reconnect an already connected or `runtime_connected` Chat owner. Do not permanently latch an account after one successful connect: if Native WS later disconnects and self-recovers while the Chat owner is lost, the frontend must be able to reconnect that Chat owner again after cooldown.
 
 Disabled accounts must render as disabled, not as an indefinite login-check spinner.
 
