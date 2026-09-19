@@ -391,6 +391,177 @@ user actually opens/invokes Chat
 - QR -> eager Chat auth convergence；
 - Round2 duplicate auth owner。
 
+## 9.1 Online Chat 状态与重连长期规则（2026-09-19）
+
+已真实证明两个容易混淆的问题：
+
+### A. UI 转圈不等于账号离线
+
+生产曾出现：
+
+```text
+Native WS connected=true
+token_ready=true
+Chat conversations=SUCCESS
+runtime_connected=true
+
+但 /chat-new/accounts：
+connected=false
+chat_state=SESSION_CHECKING
+session_state=SESSION_CHECK_PENDING
+```
+
+因此 Online Chat 状态 Authority 必须是当前 Chat 能力本身，而不是 stale Session maintenance / Publisher Browser/Profile readiness。
+
+永久收敛规则：
+
+```text
+runtime_connected=true
++ 无 LOGIN_REQUIRED / PLATFORM_VERIFICATION_REQUIRED
+→ UI=已连接
+
+HUMAN_QR_REQUIRED / LOGIN_REQUIRED
+→ UI=需登录
+
+disabled
+→ UI=已禁用
+
+真实请求进行中
+→ 才允许短暂 checking
+
+请求结束 + 实际 Chat 已连接
+→ 禁止永久 spinner
+```
+
+Frontend 必须周期性读取 `/chat-new/accounts`，不能只在页面首次进入时读取一次。
+
+### B. Native WS 自愈后 Chat owner 可能丢失
+
+账号 `2217936413500` 的真实生产事件：
+
+```text
+19:14:12
+Native WS keepalive ping timeout
+→ WebSocket disconnect
+
+19:14:38
+WebSocket re-established
+
+19:14:39
+connection registration completed
+→ Native WS connected=true
+→ token_ready=true
+→ login remained valid
+
+但：
+ChatNew conversations=账号未连接
+```
+
+上一版 `autoChatOnce` 防重复锁会让“曾经自动连接过”的账号在后续真实断线/自愈后永久失去再次补 Chat owner 的机会。
+
+当前永久规则已经改为：
+
+```text
+autoChatRetryAt
+
+already connected=true
+→ no-op
+
+runtime_connected=true
+→ no-op
+
+connect in flight
+→ no-op
+
+Native WS/token not ready
+→ no-op
+
+LOGIN_REQUIRED / PLATFORM_VERIFICATION_REQUIRED / SESSION_EXPIRED
+→ no-op
+
+Native WS connected + token_ready
++ Chat owner missing
+→ reuse existing /chat-new/connect/{account_id}
+
+retry cooldown=15s
+```
+
+禁止重新引入“每页面生命周期最多连接一次”的永久 one-shot latch。
+
+当前生产 Frontend：
+
+```text
+xianyu-chg0018-frontend:chatnew-reconnect-convergence-20260919-r1
+```
+
+锁定 Runtime：
+
+```text
+BASE_CHATNEW_SHA256=
+4345c358b1d7539b38ab0cff0d714b839632d248ba9bceac5f0f8b094aa303a1
+
+FIXED_CHATNEW_SHA256=
+326750c9383b392e58f6f864906359d2c7b2f6377519d698adf46852ca2c1d6e
+```
+
+回归：
+
+```text
+ONLINE_CHAT_REGRESSION=30/30_PASS
+BACKEND_RESTARTED=false
+WEBSOCKET_RESTARTED=false
+```
+
+完整证据：
+
+- `docs/ONLINE_CHAT_SPINNER_CONVERGENCE_20260919.md`
+- `docs/ONLINE_CHAT_RECONNECT_RECOVERY_20260919.md`
+
+### C. Auto Reply 与本次 Chat owner 丢失不是同一故障
+
+`2217936413500` 本次检查中，商品级 Auto Reply 配置没有丢：
+
+```text
+enabled=true
+reply_image_present=true
+reply_text_present=true
+reply_once=false
+```
+
+Native WS 重连后会重新进入：
+
+```text
+async for message in websocket
+→ MessageHandler
+→ AutoReplyService
+```
+
+本次 19:14:39 重连后没有捕获到新的买家入站消息事件，因此没有新的 Auto Reply activity，不能据此认定 Auto Reply 配置失效。
+
+真实断线窗口：
+
+```text
+19:14:12
+~
+19:14:39
+```
+
+如果消息落在该窗口，实时 WebSocket receive path 可能没有收到该事件，因此不会有自动回复记录。
+
+后续遇到“没有自动回复”时，必须先区分：
+
+```text
+配置是否仍存在
+vs
+Native WS 是否 connected
+vs
+该消息是否真实进入 message loop
+vs
+AutoReplyService 是否处理
+```
+
+不要仅凭 `activity=0` 就删除/重建自动回复配置。
+
 ---
 
 # 10. `FAIL_SYS_USER_VALIDATE` 正式语义
@@ -663,6 +834,11 @@ CHAT_OPTIONAL=true
 QR_EAGER_CHAT_AUTH=false
 FAIL_SYS_USER_VALIDATE_IS_NOT_QR_REQUIRED=true
 AUTO_REPLY_AND_CHAT_INDEPENDENT=true
+ONLINE_CHAT_RUNTIME_CONNECTED_IS_UI_AUTHORITY=true
+ONLINE_CHAT_STATUS_POLLING_REQUIRED=true
+CHAT_OWNER_RECONNECT_COOLDOWN_SECONDS=15
+CHAT_OWNER_ONE_SHOT_LATCH_FORBIDDEN=true
+NATIVE_WS_SELF_RECOVERY_MUST_ALLOW_CHAT_OWNER_RECOVERY=true
 
 LATEST_UPSTREAM_PUBLISH_IS_AUTHORITY=true
 NORMAL_DIRECT_PUBLISH_REQUIRES_BROWSER=false
