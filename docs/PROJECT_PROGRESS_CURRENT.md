@@ -151,3 +151,65 @@ until the carried counts are level again.
 The balancing rule applies before account assignment only. It never overrides UNKNOWN/no-blind-retry or strict selected-account safety after a real operation exists.
 
 Full policy: `docs/PUBLISH_ACCOUNT_ROTATION_POLICY_20260919.md`.
+
+## 2026-09-19 Online Chat account-status spinner convergence
+
+Production proved that an actually usable Chat account could still be returned as `SESSION_CHECKING`:
+
+```text
+ACCOUNT_ID=2221422775489
+Native WS connected=true
+token_ready=true
+Chat conversations=SUCCESS
+runtime_connected=true
+
+/chat-new/accounts:
+connected=false
+chat_state=SESSION_CHECKING
+session_state=SESSION_CHECK_PENDING
+```
+
+The production ChatNew bundle also loaded the account list only once on mount, so a transient checking value could remain indefinitely in React state after Backend truth changed.
+
+Frontend-only repair:
+
+```text
+RUNTIME_IMAGE=
+xianyu-chg0018-frontend:chatnew-spinner-convergence-20260919-r1
+
+5-second silent account-state reconciliation
++ runtime_connected Chat truth convergence
++ disabled-account terminal rendering
++ at-most-once existing Chat owner connect for Native-WS-ready accounts
+```
+
+No Backend/WebSocket restart occurred. No real Session, Token, Cookie, QR, account-enabled-state, Redis Session, Auto Reply, Publisher, order, or item mutation occurred.
+
+Regression:
+
+```text
+21 passed
+BASE_CHATNEW_SHA256=
+5a55733f22d0b18b56b1c2ffb7a02a4c55a8e3d8cfab39adb952ae1ea28bc79b
+
+FIXED_CHATNEW_SHA256=
+4345c358b1d7539b38ab0cff0d714b839632d248ba9bceac5f0f8b094aa303a1
+```
+
+Final live state after the last Native-WS-ready account received exactly one existing Chat-owner connect:
+
+```text
+ACCOUNT_ROWS=13
+ACTIVE_ACCOUNTS=10
+NATIVE_WS_CONNECTED=10/10
+CHAT_RUNTIME_CONNECTED=10/10
+
+UI_CONNECTED=10
+UI_LOGIN_REQUIRED=0
+UI_DISABLED=3
+UI_SPINNER=0
+```
+
+The final production CASE_8 was also exercised: a newly Native-ready account had no Chat owner, received one existing `/chat-new/connect/{account_id}` call, then returned conversation `SUCCESS`. The other nine connected accounts were not reconnected.
+
+Full evidence: `docs/ONLINE_CHAT_SPINNER_CONVERGENCE_20260919.md`.

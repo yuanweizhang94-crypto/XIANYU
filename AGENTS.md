@@ -144,6 +144,32 @@ Normal real business execution must not use:
 - a second Playwright publisher
 - direct bypass of the formal Backend
 
+## Online Chat status must converge to Chat truth
+
+For `/online-chat-new`, the UI state authority is the current Chat capability itself, not Publisher Browser/Profile readiness.
+
+```text
+CHAT_OWNER_CONNECTED
+→ UI=已连接
+
+HUMAN_QR_REQUIRED / LOGIN_REQUIRED
+→ UI=需登录
+
+ACTIVE_REQUEST_ONLY
+→ UI may temporarily show checking
+
+REQUEST_FINISHED / stale session metadata
+→ MUST NOT leave an actually connected Chat account spinning forever
+```
+
+The account list must periodically reconcile current `/chat-new/accounts` truth. A current `runtime_connected=true` Chat owner is treated as connected unless the Backend returns an explicit terminal `LOGIN_REQUIRED` or `PLATFORM_VERIFICATION_REQUIRED` gate.
+
+If a newly authenticated account has Native WS `connected + token_ready` but the Chat owner is missing, reuse the existing idempotent `/chat-new/connect/{account_id}` owner at most once per page lifecycle. Never reconnect an already connected Chat owner.
+
+Disabled accounts must render as disabled, not as an indefinite login-check spinner.
+
+Exact 2026-09-19 production persistence and regression: `docs/ONLINE_CHAT_SPINNER_CONVERGENCE_20260919.md`.
+
 ## Multi-account publish rotation is mandatory
 
 For ordinary multi-account publishing, when the user did not explicitly bind a product to a specific account:

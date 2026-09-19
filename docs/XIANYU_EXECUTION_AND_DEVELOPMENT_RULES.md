@@ -140,6 +140,37 @@ Explicit user account assignments override balancing for those items, but succes
 
 See `docs/PUBLISH_ACCOUNT_ROTATION_POLICY_20260919.md`.
 
+## 5.2 Online Chat account-status convergence
+
+For `/online-chat-new`, UI status must converge to current Chat capability in finite time.
+
+```text
+CHAT_OWNER_CONNECTED
+→ 已连接
+
+LOGIN_REQUIRED / HUMAN_QR_REQUIRED
+→ 需登录
+
+PLATFORM_VERIFICATION_REQUIRED
+→ 需平台验证
+
+ACTIVE_REQUEST_ONLY
+→ checking is allowed temporarily
+
+REQUEST_FINISHED / stale metadata
+→ never leave an actually connected account spinning forever
+```
+
+The account list must periodically re-read `/chat-new/accounts`. A current `runtime_connected=true` ImSessionManager client is authoritative for Online Chat readiness unless the Backend exposes explicit terminal login or platform-verification state.
+
+If Native WS is `connected` and `token_ready` but the Chat owner is missing, reuse the existing `/chat-new/connect/{account_id}` path at most once per page lifecycle. Never create another Chat owner and never reconnect an already connected account.
+
+Disabled accounts must render as disabled rather than checking.
+
+Do not use Publisher Browser/Profile readiness as the Online Chat UI gate.
+
+Full production evidence and locked Runtime transformer: `docs/ONLINE_CHAT_SPINNER_CONVERGENCE_20260919.md`.
+
 ## 6. Existing capability ownership
 
 The following capability families already exist. Without new direct evidence, do not implement a second copy:

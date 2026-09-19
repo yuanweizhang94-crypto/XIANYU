@@ -304,6 +304,40 @@ The 2026-08-29 patch remains immutable. A later live incident proved one remaini
 
 The production follow-up makes every successful fresh conversation read authoritative for `convsCacheRef.current[accountId]`, including an empty list. The exact Runtime transformation is persisted in `scripts/patch_chatnew_account_cachefix_20260919.py`, locked from SHA256 `7d58515be1e86a9370b8fcce91a08943e4c9df253838477f0eba4e92e0294843` to `5a55733f22d0b18b56b1c2ffb7a02a4c55a8e3d8cfab39adb952ae1ea28bc79b`. Evidence and activation details are in `docs/ONLINE_CHAT_ACCOUNT_CACHE_FIX_20260919.md`.
 
+### 2026-09-19 follow-up: account-status spinner convergence
+
+A later production incident proved a separate account-status convergence defect. An actually usable Chat account could have Native WS `connected=true`, `token_ready=true`, successful Chat conversation reads, and `runtime_connected=true`, while `/chat-new/accounts` still returned `connected=false + chat_state=SESSION_CHECKING` from stale `session_maintenance` state.
+
+The active production ChatNew bundle also loaded the account list only once on mount. Therefore a transient checking result could remain indefinitely in React state after Backend truth changed.
+
+The Frontend-only follow-up:
+
+- silently refreshes the account list every 5 seconds without overlapping polling;
+- treats current Chat `runtime_connected=true` as Online Chat ready unless the account has explicit `LOGIN_REQUIRED` or `PLATFORM_VERIFICATION_REQUIRED`;
+- renders disabled accounts as disabled instead of checking;
+- reuses the existing `/chat-new/connect/{account_id}` owner at most once per page lifecycle when Native WS is connected and token-ready but Chat owner is missing;
+- never reconnects an already connected Chat owner;
+- preserves the authoritative-empty-conversation cache convergence follow-up above.
+
+Production image:
+
+`xianyu-chg0018-frontend:chatnew-spinner-convergence-20260919-r1`
+
+Exact hash-locked Runtime transformer:
+
+`scripts/patch_chatnew_spinner_convergence_20260919.py`
+
+```text
+BASE_SHA256=5a55733f22d0b18b56b1c2ffb7a02a4c55a8e3d8cfab39adb952ae1ea28bc79b
+FIXED_SHA256=4345c358b1d7539b38ab0cff0d714b839632d248ba9bceac5f0f8b094aa303a1
+```
+
+Regression: 21/21 PASS across the spinner convergence tests plus the two earlier Online Chat cache/account-switch regression suites.
+
+The final live CASE_8 path was also exercised after the last previously login-required account independently became Native-WS-ready: its Chat owner was still missing, exactly one existing `/chat-new/connect/{account_id}` call was made for that account, and the subsequent conversation read returned SUCCESS. The other already-connected Chat owners were not reconnected. Final Runtime readback reached Native WS connected 10/10 and Chat runtime connected 10/10.
+
+Backend and WebSocket containers were not restarted during activation. Full evidence: `docs/ONLINE_CHAT_SPINNER_CONVERGENCE_20260919.md`.
+
 ## CHG-0036 Publisher session Runtime-drift regression patch — 2026-08-30
 
 - Base upstream repository: `zhinianboke/xianyu-auto-reply`.
