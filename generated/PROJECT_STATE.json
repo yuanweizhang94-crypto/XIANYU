@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 10,
-    "completed": 8,
-    "next_task": "T8 Commit and push exact XIANYU task files; verify remote SHA.",
+    "completed": 9,
+    "next_task": "T10 Read back Native status and wait for an organic buyer event for true Auto Reply E2E confirmation.",
     "items": [
       {
         "text": "T1 Reconstruct the 23:58 missed-message evidence and prove divergence occurs before AutoReplyService.",
@@ -41,7 +41,7 @@
       },
       {
         "text": "T8 Commit and push exact XIANYU task files; verify remote SHA.",
-        "completed": false
+        "completed": true
       },
       {
         "text": "T9 Perform only bounded production recovery/activation allowed by the no-global-restart constraint.",
