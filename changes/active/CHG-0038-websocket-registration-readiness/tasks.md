@@ -10,7 +10,7 @@ Status: VERIFYING
 - [x] T5 Implement the minimal registration acknowledgement gate in an isolated upstream worktree.
 - [x] T6 Generate one exact vendor patch and add focused regression tests.
 - [x] T7 Run targeted tests, change validation, repository verification, security scan and git diff --check.
-- [ ] T8 Commit and push exact XIANYU task files; verify remote SHA.
+- [x] T8 Commit and push exact XIANYU task files; verify remote SHA.
 - [x] T9 Perform only bounded production recovery/activation allowed by the no-global-restart constraint.
 - [ ] T10 Read back Native status and wait for an organic buyer event for true Auto Reply E2E confirmation.
 
