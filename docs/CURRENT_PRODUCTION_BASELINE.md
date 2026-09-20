@@ -152,6 +152,27 @@ Avoid overlapping Session scheduler/renewal owners.
 
 If the real platform requires human QR interaction during normal business execution, skip that account and continue with a healthy account. Do not let one account block the batch.
 
+### 2026-09-20 strong verification publish blocker closure
+
+One production account returned:
+
+```text
+FAIL_BIZ_STRONG_VALID_VERIFY_INFO::用户未通过认证
+```
+
+even though account health reported `LOGIN_READY=true`, `ACCOUNT_ENABLED=true`, `ACCOUNT_ONLINE=true`, and the mobile account page showed user identity uploaded, real-person verification complete, and Alipay real-name verification complete.
+
+The actual missing prerequisite was the Alipay transaction collection capability required by Xianyu before an item can be sold. After the user completed the in-app “开通支付宝收款功能 / 交易收款功能” verification, the same formal Publisher path immediately returned authoritative `SUCCESS` for that account without any Publisher/Session code change.
+
+Current operational conclusion:
+
+```text
+STRONG_VALID_VERIFY_INFO_MAY_MEAN_PAYMENT_COLLECTION_CAPABILITY_NOT_OPEN
+DO_NOT_ASSUME_REAL_NAME_AUTH_MISSING
+CHECK_IN_APP_ALIPAY_TRANSACTION_COLLECTION_CAPABILITY_FIRST
+NO_PUBLISHER_REPAIR_REQUIRED_WHEN_THIS_PLATFORM_GATE_IS_PRESENT
+```
+
 ## Publish state semantics
 
 Formal states:
