@@ -230,15 +230,43 @@ See `docs/AI_PROJECT_HANDOFF.md`, `AGENTS.md`, and `docs/XIANYU_EXECUTION_AND_DE
 
 ## Auto Reply / Native WebSocket reconnect readiness — 2026-09-20
 
-A new production incident proved that transport health alone is not sufficient Auto Reply readiness. A confirmed buyer inbound was visible in Online Chat while Native WS still reported connected=true and token_ready=true, but there was no Native MessageHandler trace and no AutoReplyService activity row.
+Production proved that transport health alone is not sufficient Auto Reply readiness. A buyer inbound could be visible in Online Chat while Native WS still reported connected=true and token_ready=true but produced no Native MessageHandler or AutoReplyService trace.
 
-Current root cause: ROOT_CAUSE=NATIVE_WS_FALSE_READY_WITHOUT_REG_ACK. The existing upstream Native WebSocket owner sent /reg, waited a fixed sleep, sent ackDiff, and could then be reported CONNECTED without proving the server acknowledged registration. Pinned upstream bda1a859df63fa5f24e51398fa80a23490bb6dfc contains the same gap.
+Canonical root cause:
 
-CHG-0038 repairs only the existing owner: explicit reg_mid, bounded matching response wait, code=200 readiness gate, preservation of early frames, then the existing ackDiff. Repository verification is 683/683 PASS.
+```text
+ROOT_CAUSE=NATIVE_WS_FALSE_HEALTH_AFTER_UNCONFIRMED_REGISTRATION
+REGISTRATION_ACK_REQUIRED=true
+UNCONFIRMED_REGISTRATION_MUST_NOT_MARK_CONNECTED=true
+```
 
-Production state at this baseline: CURRENT_WEBSOCKET_IMAGE=xianyu-chg0035-websocket:publish-session-fix-20260918-r1; CHG0038_PRODUCTION_IMAGE_ACTIVATED=false; SINGLE_AFFECTED_ACCOUNT_RESTART=PASS; RESTART_INVALIDATE_TOKEN_CACHE=false; GLOBAL_WEBSOCKET_RESTART=false; CONTROL_ACCOUNTS_RECONNECTED=false; TARGET_CONNECTED=true; TARGET_TOKEN_READY=true; TARGET_PLATFORM_VERIFICATION_REQUIRED=false; TARGET_HUMAN_QR_REQUIRED=false.
+The existing upstream Native WebSocket owner sent /reg, waited a fixed sleep, sent ackDiff, and could then be reported CONNECTED without proving that the server accepted registration. Pinned upstream bda1a859df63fa5f24e51398fa80a23490bb6dfc contains the same gap.
 
-The single-account restart is an immediate recovery only. Permanent acceptance remains pending until a WebSocket image containing CHG-0038 is activated and a natural inbound message proves the full Native receive → MessageHandler → AutoReplyService chain.
+CHG-0038 repairs only the existing owner: explicit reg_mid, bounded matching response wait, code=200 readiness gate, preservation of early frames, then the existing ackDiff. The pre-activation repository verification baseline was 683/683 PASS.
+
+Permanent production activation is complete:
+
+```text
+CURRENT_WEBSOCKET_IMAGE=xianyu-chg0038-websocket:registration-readiness-20260920-r2
+REGISTRATION_ACK_PROVEN_COUNT=8
+MESSAGE_LOOP_READY_COUNT=8
+POST_SWITCH_WS_CONNECTED=8
+POST_SWITCH_TOKEN_READY=8
+HUMAN_QR_REQUIRED_COUNT=0
+PLATFORM_VERIFICATION_REQUIRED_COUNT=0
+ONLINE_ACCOUNT_DROPPED_COUNT=0
+```
+
+Account 2217936413500 produced an initial real /reg response code=401. The new readiness gate did not allow CONNECTED; the existing reconnect path ran; the later attempt received a successful acknowledgement and entered the message loop.
+
+Organic post-activation Auto Reply E2E is also proven. Account 2221384086829, item 1086370184047, received a buyer inbound after activation and traversed the existing Native MessageHandler → AutoReplyService → item default rule → image send success → text send success path. Sanitized reply activity recorded reply_sent / success / text_image.
+
+```text
+PERMANENT_WEBSOCKET_RUNTIME_PATCH=PASS
+AUTO_REPLY_REAL_E2E=PASS
+```
+
+Full sanitized evidence: changes/active/CHG-0038-websocket-registration-readiness/evidence/20260920-production-activation-and-real-e2e.md.
 
 ## Security
 

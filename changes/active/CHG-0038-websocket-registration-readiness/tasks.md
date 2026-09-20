@@ -12,7 +12,7 @@ Status: VERIFYING
 - [x] T7 Run targeted tests, change validation, repository verification, security scan and git diff --check.
 - [x] T8 Commit and push exact XIANYU task files; verify remote SHA.
 - [x] T9 Perform only bounded production recovery/activation allowed by the no-global-restart constraint.
-- [ ] T10 Read back Native status and wait for an organic buyer event for true Auto Reply E2E confirmation.
+- [x] T10 Read back the activated Native Runtime and prove true Auto Reply E2E from an organic post-activation buyer inbound.
 
 ## Upstream capability audit
 

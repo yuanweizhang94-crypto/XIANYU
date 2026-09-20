@@ -42,7 +42,7 @@ Status: VERIFYING
 
 Immediate recovery: affected account reconnects using existing valid Token/Cookie and returns connected + token_ready without human verification.
 
-Permanent Runtime acceptance requires a WebSocket image activation window because source is image-baked. After activation, a reconnect is healthy only after confirmed /reg response. Final business E2E remains pending until an organic inbound buyer message produces Native MessageHandler and Auto Reply activity/send evidence.
+Permanent Runtime acceptance is complete. Production now runs xianyu-chg0038-websocket:registration-readiness-20260920-r2; all 8 active accounts completed matching /reg acknowledgement and entered the normal message loop. One account (2217936413500) received an initial real /reg code=401, did not enter CONNECTED, reused the existing reconnect path, then completed a successful acknowledgement and message-loop transition. A later organic buyer inbound on account 2221384086829, item 1086370184047, produced MessageHandler -> AutoReplyService -> item default rule -> image send success -> text send success -> sanitized reply activity send_status=success. See evidence/20260920-production-activation-and-real-e2e.md.
 
 ## Upstream capability audit
 

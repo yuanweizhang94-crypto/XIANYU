@@ -275,3 +275,49 @@ Auto Reply configuration was verified still present for its published products: 
 Regression: `30 passed` across the new reconnect suite and all previous Online Chat convergence suites.
 
 Full evidence: `docs/ONLINE_CHAT_RECONNECT_RECOVERY_20260919.md`.
+
+## 2026-09-20 CHG-0038 Native WebSocket registration-readiness closure
+
+A production Auto Reply miss was traced to a Native WebSocket false-ready state: transport/heartbeat remained healthy while business-message registration had not been proven.
+
+```text
+ROOT_CAUSE=NATIVE_WS_FALSE_HEALTH_AFTER_UNCONFIRMED_REGISTRATION
+REGISTRATION_ACK_REQUIRED=true
+UNCONFIRMED_REGISTRATION_MUST_NOT_MARK_CONNECTED=true
+```
+
+CHG-0038 changes only the existing Native WebSocket registration readiness path. The production image is now:
+
+```text
+xianyu-chg0038-websocket:registration-readiness-20260920-r2
+```
+
+Post-activation fleet proof:
+
+```text
+ACTIVE_ACCOUNTS=8
+WS_CONNECTED=8
+TOKEN_READY=8
+REGISTRATION_ACK_PROVEN_COUNT=8
+MESSAGE_LOOP_READY_COUNT=8
+HUMAN_QR_REQUIRED_COUNT=0
+PLATFORM_VERIFICATION_REQUIRED_COUNT=0
+ONLINE_ACCOUNT_DROPPED_COUNT=0
+```
+
+A real production rejection on account 2217936413500 returned /reg code=401. The new gate did not mark the account CONNECTED; the existing reconnect path recovered it, a later matching code=200 acknowledgement succeeded, and the normal message loop started.
+
+Organic post-activation Auto Reply E2E then passed on account 2221384086829, item 1086370184047:
+
+```text
+REAL_INBOUND_MESSAGE_RECEIVED=true
+MESSAGE_HANDLER_ENTERED=true
+AUTO_REPLY_SERVICE_ENTERED=true
+AUTO_REPLY_RULE_MATCHED=true
+REPLY_MODE=text_image
+IMAGE_SEND=success
+TEXT_SEND=success
+AUTO_REPLY_SEND_STATUS=success
+```
+
+No automatic-reply configuration was rebuilt and no artificial buyer test message was required. Full sanitized evidence: changes/active/CHG-0038-websocket-registration-readiness/evidence/20260920-production-activation-and-real-e2e.md.

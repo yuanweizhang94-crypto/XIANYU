@@ -646,13 +646,13 @@ UNEXPECTED_FULL_AUTH_RETRY=0
 
 Pinned upstream 与当前生产 WebSocket 存在同一 readiness 缺口：socket open → send /reg → fixed sleep → send ackDiff → may report CONNECTED。旧逻辑没有等待服务端对 /reg 的 matching-mid 确认，因此网络重连后可能出现“心跳活着、状态绿色、业务消息订阅未证明”的半健康状态。
 
-当前正式修复 Change 为 CHG-0038-websocket-registration-readiness；ROOT_CAUSE=NATIVE_WS_FALSE_READY_WITHOUT_REG_ACK；PATCH_UPSTREAM=true；FULL_REPOSITORY=683/683_PASS。
+当前正式修复 Change 为 CHG-0038-websocket-registration-readiness；ROOT_CAUSE=NATIVE_WS_FALSE_HEALTH_AFTER_UNCONFIRMED_REGISTRATION；PATCH_UPSTREAM=true；源代码验证基线 FULL_REPOSITORY=683/683_PASS。
 
-生产即时恢复已经只对明确漏消息账号执行一次现有 Native WS account restart，明确 invalidate_token_cache=false；目标重新 connected + token_ready，无 QR/平台验证，两个控制账号的 last_connected_at 未变化，因此没有全局 WebSocket 重启。
+永久 Runtime 已激活为 xianyu-chg0038-websocket:registration-readiness-20260920-r2。8 个 active 账号全部完成 matching /reg acknowledgement 后进入 message loop；2217936413500 首次真实 /reg 返回 code=401 时未错误进入 CONNECTED，现有 reconnect 路径随后取得成功 ACK 并恢复 message loop。
 
-当前边界：SINGLE_ACCOUNT_IMMEDIATE_RECOVERY=PASS；GLOBAL_WEBSOCKET_RESTART=false；TOKEN_COOKIE_INVALIDATION=false；CHG0038_SOURCE_VERIFIED=true；CHG0038_PRODUCTION_IMAGE_ACTIVATED=false；PERMANENT_RUNTIME_ACCEPTANCE=PENDING。
+最终自然流量 E2E 已完成：2221384086829 / item 1086370184047 在新版 Runtime 激活后收到真实 buyer inbound，依次进入 Native MessageHandler、AutoReplyService、商品默认规则，图片发送成功、文本发送成功，sanitized reply activity 为 reply_sent / success / text_image。
 
-最终 E2E 仍必须等待 CHG-0038 WebSocket 镜像激活后的一条自然买家入站，证明 Native receive → MessageHandler → AutoReplyService → send/outcome。禁止用买家测试消息反复试错。
+当前边界：SINGLE_ACCOUNT_IMMEDIATE_RECOVERY=HISTORICAL_PASS；GLOBAL_WEBSOCKET_RESTART=false；TOKEN_COOKIE_INVALIDATION=false；CHG0038_SOURCE_VERIFIED=true；CHG0038_PRODUCTION_IMAGE_ACTIVATED=true；PERMANENT_RUNTIME_ACCEPTANCE=PASS；AUTO_REPLY_REAL_E2E=PASS。
 
 历史曾出现每账号数百次 Token maintenance 请求。
 
@@ -851,6 +851,13 @@ ONLINE_CHAT_STATUS_POLLING_REQUIRED=true
 CHAT_OWNER_RECONNECT_COOLDOWN_SECONDS=15
 CHAT_OWNER_ONE_SHOT_LATCH_FORBIDDEN=true
 NATIVE_WS_SELF_RECOVERY_MUST_ALLOW_CHAT_OWNER_RECOVERY=true
+
+REGISTRATION_ACK_REQUIRED=true
+UNCONFIRMED_REGISTRATION_MUST_NOT_MARK_CONNECTED=true
+REGISTRATION_FAILURE_USES_EXISTING_RECONNECT_PATH=true
+REGISTRATION_SUCCESS_REQUIRES_MATCHING_MID_AND_CODE_200=true
+NATIVE_WS_MESSAGE_LOOP_READY_AFTER_REGISTRATION_ACK=true
+AUTO_REPLY_REAL_E2E_POST_CHG0038=PASS
 
 LATEST_UPSTREAM_PUBLISH_IS_AUTHORITY=true
 NORMAL_DIRECT_PUBLISH_REQUIRES_BROWSER=false

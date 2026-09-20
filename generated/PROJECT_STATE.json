@@ -8,8 +8,8 @@
   },
   "tasks": {
     "total": 10,
-    "completed": 9,
-    "next_task": "T10 Read back Native status and wait for an organic buyer event for true Auto Reply E2E confirmation.",
+    "completed": 10,
+    "next_task": null,
     "items": [
       {
         "text": "T1 Reconstruct the 23:58 missed-message evidence and prove divergence occurs before AutoReplyService.",
@@ -48,8 +48,8 @@
         "completed": true
       },
       {
-        "text": "T10 Read back Native status and wait for an organic buyer event for true Auto Reply E2E confirmation.",
-        "completed": false
+        "text": "T10 Read back the activated Native Runtime and prove true Auto Reply E2E from an organic post-activation buyer inbound.",
+        "completed": true
       }
     ]
   },

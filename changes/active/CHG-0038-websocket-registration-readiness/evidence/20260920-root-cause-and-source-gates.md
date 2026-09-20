@@ -25,7 +25,7 @@ The sequence does not wait for the server to acknowledge the /reg mid. As a resu
 
 ChatNew uses the same protocol family and already demonstrates the required matching-mid registration response pattern. Dual ChatNew + Native connection existence alone is not classified as root cause because automatic replies were proven working while both connection types already existed.
 
-ROOT_CAUSE=NATIVE_WS_FALSE_READY_WITHOUT_REG_ACK
+ROOT_CAUSE=NATIVE_WS_FALSE_HEALTH_AFTER_UNCONFIRMED_REGISTRATION
 RESPONSIBLE_LAYER=existing upstream Native WebSocket registration lifecycle
 
 ## Minimal repair
@@ -68,20 +68,38 @@ PROJECT_STATE_VALIDATION=PASS
 
 The full repository run used worktree-local module resolution (current worktree app + root in PYTHONPATH). Without that environment, one historical editable-install path test resolves ALEMBIC_CONFIG_PATH from D:/XIANYU instead of the isolated worktree; that environment-only condition is not a CHG-0038 failure.
 
-## Production activation boundary
+## Production activation closure
 
-The current production WebSocket image is source-baked and does not yet contain CHG-0038. Immediate recovery may use the existing per-account restart route only for an affected account with invalidate_token_cache=false. No global WebSocket restart, all-account restart, QR/password login, Token invalidation, Cookie refresh, or buyer test message is authorized by this Change.
+The source-baked activation boundary is now closed. Production WebSocket runs:
 
-Permanent acceptance requires a WebSocket image built with the patch and a later organic inbound event proving:
+`xianyu-chg0038-websocket:registration-readiness-20260920-r2`
+
+All 8 active accounts completed a matching successful registration acknowledgement before entering the normal message loop. Account `2217936413500` also produced a real initial registration `code=401`; the new gate did not allow CONNECTED, the existing reconnect path ran, and a later attempt completed a successful acknowledgement and message-loop transition.
+
+A later organic buyer inbound produced the complete post-activation chain:
 
 Native receive
 -> MessageHandler
 -> AutoReplyService
--> rule/send outcome
+-> item default rule
+-> image send success
+-> text send success
+-> sanitized reply activity send_status=success
 
-## Immediate production recovery
+Therefore:
 
-A single affected Native WS account was restarted through the existing internal account restart owner with `invalidate_token_cache=false`.
+```text
+PERMANENT_WEBSOCKET_RUNTIME_PATCH=PASS
+REGISTRATION_ACK_PROVEN_COUNT=8
+MESSAGE_LOOP_READY_COUNT=8
+AUTO_REPLY_REAL_E2E=PASS
+```
+
+Full sanitized production evidence: `evidence/20260920-production-activation-and-real-e2e.md`.
+
+## Historical immediate recovery
+
+Before permanent activation, one affected Native WS account had been restarted through the existing internal account restart owner with `invalidate_token_cache=false`.
 
 PRE_TARGET_CONNECTED=true
 PRE_TARGET_TOKEN_READY=true
@@ -95,8 +113,6 @@ POST_TARGET_HUMAN_QR_REQUIRED=false
 GLOBAL_WEBSOCKET_RESTART=false
 TOKEN_CACHE_INVALIDATED=false
 
-Two control accounts retained their original 19:14 last_connected_at values after the target restart, proving no fleet/global reconnect occurred.
+Two control accounts retained their original 19:14 last_connected_at values after that target restart, proving no fleet/global reconnect occurred. This block is retained only as historical immediate-recovery evidence; it is superseded by the permanent production activation above.
 
-This is immediate recovery only. The current production image still does not contain CHG-0038; permanent Runtime activation remains pending.
-
-No customer message text, Cookie, Token, Authorization, password, QR payload, or other credential is stored in this evidence.
+No customer message text, buyer identifier, Cookie, Token, Authorization, password, QR payload, or other credential is stored in this evidence.
