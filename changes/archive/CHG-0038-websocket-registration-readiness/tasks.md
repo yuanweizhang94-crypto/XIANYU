@@ -1,7 +1,7 @@
 # CHG-0038 Tasks
 
 Change ID: CHG-0038-websocket-registration-readiness
-Status: VERIFYING
+Status: ARCHIVED
 
 - [x] T1 Reconstruct the 23:58 missed-message evidence and prove divergence occurs before AutoReplyService.
 - [x] T2 Compare affected account evidence with healthy post-reconnect automatic-reply evidence.

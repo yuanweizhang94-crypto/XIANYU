@@ -1,0 +1,22 @@
+diff --git a/websocket/app/services/xianyu/cookie_token_manager.py b/websocket/app/services/xianyu/cookie_token_manager.py
+--- a/websocket/app/services/xianyu/cookie_token_manager.py
++++ b/websocket/app/services/xianyu/cookie_token_manager.py
+@@ -585,0 +586,18 @@
++                # mark_token_cache_expired() writes expire_at, renew_expire_at and
++                # updated_at to the same timestamp.  That is an explicit recovery
++                # invalidation marker, not a naturally expired startup cache.  It
++                # must win over allow_expired=True or a requested fresh-token
++                # recovery can immediately reuse the exact Token it invalidated.
++                explicitly_invalidated = bool(
++                    cache.expire_at is not None
++                    and cache.renew_expire_at is not None
++                    and cache.updated_at is not None
++                    and cache.expire_at == cache.renew_expire_at == cache.updated_at
++                )
++                if explicitly_invalidated:
++                    logger.info(
++                        f"【{self.cookie_id}】Token缓存存在显式失效标记，按未命中处理: "
++                        f"user_id={self.myid}"
++                    )
++                    return None
++

@@ -287,7 +287,17 @@ PERMANENT_WEBSOCKET_RUNTIME_PATCH=PASS
 AUTO_REPLY_REAL_E2E=PASS
 ```
 
-Full sanitized evidence: changes/active/CHG-0038-websocket-registration-readiness/evidence/20260920-production-activation-and-real-e2e.md.
+Full sanitized evidence: changes/archive/CHG-0038-websocket-registration-readiness/evidence/20260920-production-activation-and-real-e2e.md.
+
+## 2026-09-20 CHG-0039 target-level Token invalidation recovery
+
+CHG-0038 remains the current production WebSocket image. A later target-account recovery exposed a separate Token lifecycle defect: `restart(invalidate_token_cache=true)` writes an explicit cache invalidation marker, but startup `allow_expired=True` can immediately reuse that same Token. Account 2214313339860 reproduced the defect with the same Token fingerprint after explicit invalidation.
+
+CHG-0039 is the current active source change and patches only `CookieTokenManager._get_cached_token()` so the explicit invalidation marker is treated as a cache miss before natural expired-cache fallback. The pinned upstream bda1a859 has the same gap. Source/repository verification is PASS, but the patch is not globally activated in production in this cycle.
+
+Bounded target-only runtime recovery removed only 2214313339860's stale Token cache row and reused the existing single-account restart owner. The account then obtained a fresh Token generation at 2026-09-20 22:37:55, completed matching /reg ACK, connected, and entered the normal message loop. Organic buyer-message E2E remains pending.
+
+Two related account incidents were separately classified: 701229202 had one newly published item missing its item-level default reply row; that single item config was repaired through the existing XIANYU item reply config owner. 1835476245 had platform-reported buyer activity with no retained Native buyer-body trace; its fresh Token remained unchanged and only its account-level socket/subscription generation was rebuilt. No global WebSocket restart or all-account Token invalidation was performed.
 
 ## Security
 

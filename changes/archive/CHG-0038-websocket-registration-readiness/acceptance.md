@@ -1,7 +1,7 @@
 # CHG-0038 Acceptance
 
 Change ID: CHG-0038-websocket-registration-readiness
-Status: VERIFYING
+Status: ARCHIVED
 
 ## Required source gates
 

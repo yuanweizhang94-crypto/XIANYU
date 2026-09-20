@@ -1,7 +1,7 @@
 # CHG-0038 Native WebSocket Registration Readiness
 
 Change ID: CHG-0038-websocket-registration-readiness
-Status: VERIFYING
+Status: ARCHIVED
 Created: 2026-09-20
 Owner task: xianyu_auto_reply_post_reconnect_recovery
 

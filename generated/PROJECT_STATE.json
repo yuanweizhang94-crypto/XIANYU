@@ -2,54 +2,58 @@
   "project": "XIANYU",
   "version": "0.1.0",
   "active_change": {
-    "id": "CHG-0038-websocket-registration-readiness",
+    "id": "CHG-0039-token-invalidation-recovery",
     "status": "VERIFYING",
-    "path": "changes/active/CHG-0038-websocket-registration-readiness"
+    "path": "changes/active/CHG-0039-token-invalidation-recovery"
   },
   "tasks": {
-    "total": 10,
-    "completed": 10,
-    "next_task": null,
+    "total": 11,
+    "completed": 9,
+    "next_task": "T10 Activate CHG0039 globally only in a separately approved production switch.",
     "items": [
       {
-        "text": "T1 Reconstruct the 23:58 missed-message evidence and prove divergence occurs before AutoReplyService.",
+        "text": "T1 Reproduce target explicit invalidation reusing the same Token.",
         "completed": true
       },
       {
-        "text": "T2 Compare affected account evidence with healthy post-reconnect automatic-reply evidence.",
+        "text": "T2 Verify pinned upstream contains the same gap.",
         "completed": true
       },
       {
-        "text": "T3 Audit current production Native registration and ChatNew registration behavior.",
+        "text": "T3 Build the minimal CookieTokenManager candidate.",
         "completed": true
       },
       {
-        "text": "T4 Read pinned upstream bda1a859 and prove the same Native registration-readiness gap exists upstream.",
+        "text": "T4 Compile the candidate and build a local image from the current CHG0038 base.",
         "completed": true
       },
       {
-        "text": "T5 Implement the minimal registration acknowledgement gate in an isolated upstream worktree.",
+        "text": "T5 Prove explicit-invalidated target cache becomes a miss in the candidate.",
         "completed": true
       },
       {
-        "text": "T6 Generate one exact vendor patch and add focused regression tests.",
+        "text": "T6 Prove natural expired-cache startup fallback remains available.",
         "completed": true
       },
       {
-        "text": "T7 Run targeted tests, change validation, repository verification, security scan and git diff --check.",
+        "text": "T7 Recover 2214313339860 with a fresh Token using target-only state cleanup plus the existing restart owner.",
         "completed": true
       },
       {
-        "text": "T8 Commit and push exact XIANYU task files; verify remote SHA.",
+        "text": "T8 Verify Token fingerprint changed and matching /reg ACK/message-loop readiness recovered.",
         "completed": true
       },
       {
-        "text": "T9 Perform only bounded production recovery/activation allowed by the no-global-restart constraint.",
+        "text": "T9 Add the deterministic vendor patch, focused tests and sanitized evidence to XIANYU.",
         "completed": true
       },
       {
-        "text": "T10 Read back the activated Native Runtime and prove true Auto Reply E2E from an organic post-activation buyer inbound.",
-        "completed": true
+        "text": "T10 Activate CHG0039 globally only in a separately approved production switch.",
+        "completed": false
+      },
+      {
+        "text": "T11 Complete final 2214313339860 organic buyer-message E2E.",
+        "completed": false
       }
     ]
   },

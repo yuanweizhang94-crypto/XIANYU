@@ -1,7 +1,7 @@
 # CHG-0038 Design
 
 Change ID: CHG-0038-websocket-registration-readiness
-Status: VERIFYING
+Status: ARCHIVED
 
 ## Execution contract
 
