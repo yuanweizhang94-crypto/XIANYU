@@ -1,7 +1,7 @@
 # CHG-0040 QR Cookie Browser-Lineage Enrichment
 
 Change ID: CHG-0040-qr-cookie-browser-lineage-enrichment
-Status: VERIFYING
+Status: ARCHIVED
 Created: 2026-09-21
 Owner task: multi_account_session_lifecycle_recovery
 

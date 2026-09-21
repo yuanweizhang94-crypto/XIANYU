@@ -1,6 +1,6 @@
 # XIANYU Current Production Baseline
 
-Authority timestamp: **2026-09-20 current delta; older dated verification sections are retained as historical snapshots**
+Authority timestamp: **2026-09-21 current delta; older dated verification sections are retained as historical snapshots**
 
 AI/developer first-read Living Handoff: [`docs/AI_PROJECT_HANDOFF.md`](AI_PROJECT_HANDOFF.md).
 
@@ -298,6 +298,44 @@ CHG-0039 is the current active source change and patches only `CookieTokenManage
 Bounded target-only runtime recovery removed only 2214313339860's stale Token cache row and reused the existing single-account restart owner. The account then obtained a fresh Token generation at 2026-09-20 22:37:55, completed matching /reg ACK, connected, and entered the normal message loop. Organic buyer-message E2E remains pending.
 
 Two related account incidents were separately classified: 701229202 had one newly published item missing its item-level default reply row; that single item config was repaired through the existing XIANYU item reply config owner. 1835476245 had platform-reported buyer activity with no retained Native buyer-body trace; its fresh Token remained unchanged and only its account-level socket/subscription generation was rebuilt. No global WebSocket restart or all-account Token invalidation was performed.
+
+## 2026-09-21 current production runtime — CHG0040 + CHG0041
+
+Current production components:
+
+```text
+BACKEND_IMAGE=xianyu-chg0040-backend-web:qr-cookie-enrichment-20260921-r3
+WEBSOCKET_IMAGE=xianyu-chg0041-websocket:native-chat-rpc-20260921-r1
+FRONTEND_IMAGE=xianyu-chg0018-frontend:chatnew-reconnect-convergence-20260919-r1
+BACKEND_HEALTH=PASS
+FRONTEND_HEALTH=PASS
+WEBSOCKET_HEALTH=PASS
+SCHEDULER_HEALTH=PASS
+```
+
+CHG0041 root cause was not a missing Account enable hook. The formal enable lifecycle already invoked the existing Native WebSocket owner and reached Token ready, matching /reg ACK and message-loop-ready. The actual first divergence was the current Backend shared-Native Chat RPC calling WebSocket internal endpoints that were absent from the CHG0039 image baseline and returned HTTP 404.
+
+CHG0041 restores only the already-existing local Native Chat RPC surface onto the CHG0039 production preimage. The production WebSocket continues to preserve CHG0038 matching registration ACK readiness and CHG0039 explicit Token invalidation precedence. The Backend continues to preserve CHG0040 QR canonical browser Cookie enrichment.
+
+Production closure for account 2219319284219:
+
+```text
+ACCOUNT_ENABLED=true
+LOGIN_READY=true
+HUMAN_QR_REQUIRED=false
+WS_CONNECTED=true
+TOKEN_READY=true
+REGISTRATION_ACK=PASS
+MESSAGE_LOOP_READY=true
+NATIVE_CHAT_RPC_PRODUCTION_CALL=PASS
+POST_FIX_CHAT_RPC_HTTP_STATUS=200
+POST_FIX_CHAT_RPC_SUCCESS=true
+CURRENT_ENABLED_ACCOUNT_COUNT=1
+DISABLED_ACCOUNT_RUNTIME_COUNT=0
+DUPLICATE_RUNTIME_COUNT=0
+```
+
+No manual account restart was used to create this PASS after CHG0041 activation. Full sanitized evidence is in `changes/archive/CHG-0041-native-chat-runtime-equivalence/`.
 
 ## Security
 

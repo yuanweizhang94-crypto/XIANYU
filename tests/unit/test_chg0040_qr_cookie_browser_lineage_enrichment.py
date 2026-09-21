@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "vendor/patches/xianyu-auto-reply/chg0040-qr-cookie-browser-lineage-enrichment.patch"
-CHANGE = ROOT / "changes/active/CHG-0040-qr-cookie-browser-lineage-enrichment"
+CHANGE = ROOT / "changes/archive/CHG-0040-qr-cookie-browser-lineage-enrichment"
 
 
 def patch_text() -> str:

@@ -1,7 +1,7 @@
 # CHG-0040 Acceptance
 
 Change ID: CHG-0040-qr-cookie-browser-lineage-enrichment
-Status: VERIFYING
+Status: ARCHIVED
 
 ## Source gates
 
@@ -49,3 +49,17 @@ CONTROL_COOKIE_FIELD_COUNTS=27,30
 PLATFORM_SESSION_HARD_EXPIRED=true
 HUMAN_QR_REQUIRED=true
 REAL_E2E=PENDING_UNTIL_REPAIRED_QR_RECOVERY
+
+## Production closure
+
+CHG0040_SOURCE_AND_PRODUCTION_CLOSURE=PASS
+PRODUCTION_IMAGE=xianyu-chg0040-backend-web:qr-cookie-enrichment-20260921-r3
+RUNTIME_CODE_MATCH=true
+BACKEND_HEALTH=PASS
+FRONTEND_HEALTH=PASS
+WEBSOCKET_HEALTH=PASS
+SCHEDULER_HEALTH=PASS
+COMMIT=d7ec1460c73b51580e494168ab90764c752cab7f
+LOCAL_REMOTE_MATCH=true
+
+Affected hard-expired accounts remain deferred to future authorized human QR recovery; this is non-blocking for CHG0040 source/production closure.

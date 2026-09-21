@@ -1,0 +1,306 @@
+diff --git a/websocket/app/api/routes/internal.py b/websocket/app/api/routes/internal.py
+--- a/websocket/app/api/routes/internal.py
++++ b/websocket/app/api/routes/internal.py
+@@ -99,0 +100,21 @@
++
++
++class NativeChatSendTextRequest(BaseModel):
++    """Online Chat manual text send through the existing Native IM owner."""
++    cid: str
++    to_user_id: str
++    text: str
++
++
++class NativeChatSendImageRequest(BaseModel):
++    """Online Chat manual image send through the existing Native IM owner."""
++    cid: str
++    to_user_id: str
++    image_url: str
++    width: int = 800
++    height: int = 600
++
++
++class NativeChatRecallRequest(BaseModel):
++    """Online Chat recall through the existing Native IM owner."""
++    message_id: str
+@@ -2576,0 +2598,108 @@
++def _native_chat_instance(account_id: str):
++    """Return the existing Native IM owner for Online Chat RPC reuse."""
++    from app.services.xianyu.cookie_manager import get_manager
++
++    manager = get_manager()
++    instance = manager.instances.get(account_id) if manager else None
++    if not instance:
++        return None
++    connection_manager = getattr(instance, "connection_manager", None)
++    if connection_manager is None or connection_manager.ws is None:
++        return None
++    return instance
++
++
++@router.get("/accounts/{account_id}/chat/conversations")
++async def native_chat_conversations(
++    account_id: str,
++    cursor: int | None = None,
++    limit: int = 20,
++):
++    """Read Online Chat conversations through the existing Native IM owner."""
++    instance = _native_chat_instance(account_id)
++    if instance is None:
++        return {"success": False, "code": 503, "message": "Native WebSocket 未连接", "data": None}
++    try:
++        body = await instance.get_chat_conversations(cursor, max(1, min(int(limit), 100)))
++        return {
++            "success": True,
++            "code": 200,
++            "message": "success",
++            "data": {"body": body, "myid": instance.myid},
++        }
++    except Exception as exc:
++        return {"success": False, "code": 502, "message": str(exc), "data": None}
++
++
++@router.get("/accounts/{account_id}/chat/messages/{cid}")
++async def native_chat_messages(
++    account_id: str,
++    cid: str,
++    cursor: int | None = None,
++    limit: int = 20,
++):
++    """Read Online Chat message history through the existing Native IM owner."""
++    instance = _native_chat_instance(account_id)
++    if instance is None:
++        return {"success": False, "code": 503, "message": "Native WebSocket 未连接", "data": None}
++    try:
++        body = await instance.get_chat_messages(cid, cursor, max(1, min(int(limit), 100)))
++        return {
++            "success": True,
++            "code": 200,
++            "message": "success",
++            "data": {"body": body, "myid": instance.myid},
++        }
++    except Exception as exc:
++        return {"success": False, "code": 502, "message": str(exc), "data": None}
++
++
++@router.post("/accounts/{account_id}/chat/send-text")
++async def native_chat_send_text(account_id: str, request: NativeChatSendTextRequest):
++    """Send manual Online Chat text through the existing Native IM owner."""
++    instance = _native_chat_instance(account_id)
++    if instance is None:
++        return {"success": False, "code": 503, "message": "Native WebSocket 未连接", "data": None}
++    if not request.text.strip():
++        return {"success": False, "code": 400, "message": "消息内容不能为空", "data": None}
++    try:
++        result = await instance.send_chat_text_message(request.cid, request.to_user_id, request.text)
++        return {"success": True, "code": 200, "message": "发送成功", "data": result}
++    except Exception as exc:
++        return {"success": False, "code": 400, "message": str(exc), "data": None}
++
++
++@router.post("/accounts/{account_id}/chat/send-image")
++async def native_chat_send_image(account_id: str, request: NativeChatSendImageRequest):
++    """Send manual Online Chat image through the existing Native IM owner."""
++    instance = _native_chat_instance(account_id)
++    if instance is None:
++        return {"success": False, "code": 503, "message": "Native WebSocket 未连接", "data": None}
++    try:
++        result = await instance.send_chat_image_message(
++            request.cid,
++            request.to_user_id,
++            request.image_url,
++            request.width,
++            request.height,
++        )
++        return {"success": True, "code": 200, "message": "发送成功", "data": result}
++    except Exception as exc:
++        return {"success": False, "code": 400, "message": str(exc), "data": None}
++
++
++@router.post("/accounts/{account_id}/chat/recall")
++async def native_chat_recall(account_id: str, request: NativeChatRecallRequest):
++    """Recall manual Online Chat message through the existing Native IM owner."""
++    instance = _native_chat_instance(account_id)
++    if instance is None:
++        return {"success": False, "code": 503, "message": "Native WebSocket 未连接", "data": None}
++    if not request.message_id:
++        return {"success": False, "code": 400, "message": "缺少消息ID", "data": None}
++    try:
++        await instance.recall_chat_message(request.message_id)
++        return {"success": True, "code": 200, "message": "消息已撤回", "data": {}}
++    except Exception as exc:
++        return {"success": False, "code": 400, "message": str(exc), "data": None}
++
++
+diff --git a/websocket/app/services/xianyu/xianyu_async.py b/websocket/app/services/xianyu/xianyu_async.py
+--- a/websocket/app/services/xianyu/xianyu_async.py
++++ b/websocket/app/services/xianyu/xianyu_async.py
+@@ -2189,0 +2190,168 @@
++
++    async def _chat_lwp_request(self, lwp: str, body: list, timeout: float = 20.0) -> dict:
++        """Run a bounded Chat LWP request on the existing Native WebSocket owner.
++
++        Online Chat must reuse this connection instead of opening a second upstream
++        Goofish IM WebSocket for the same account.
++        """
++        ws = self.connection_manager.ws if self.connection_manager else None
++        if ws is None:
++            raise ConnectionError(f"【{self.cookie_id}】WebSocket 未连接")
++
++        mid = generate_mid()
++        loop = asyncio.get_running_loop()
++        future: asyncio.Future = loop.create_future()
++        self._pending_mid_futures[mid] = future
++        try:
++            await ws.send(json.dumps({
++                "lwp": lwp,
++                "headers": {"mid": mid},
++                "body": body,
++            }, ensure_ascii=False))
++            return await asyncio.wait_for(future, timeout=timeout)
++        except asyncio.TimeoutError as exc:
++            raise TimeoutError(f"Chat LWP 请求超时: {lwp}") from exc
++        finally:
++            self._pending_mid_futures.pop(mid, None)
++
++    async def get_chat_conversations(
++        self, start_timestamp: Optional[int] = None, limit: int = 20
++    ) -> dict:
++        """Read conversation list through the existing Native IM connection."""
++        if start_timestamp is None:
++            start_timestamp = 9007199254740991
++        response = await self._chat_lwp_request(
++            "/r/Conversation/listNewestPagination",
++            [int(start_timestamp), int(limit)],
++        )
++        return response.get("body", {}) if isinstance(response, dict) else {}
++
++    async def get_chat_messages(
++        self,
++        cid: str,
++        start_timestamp: Optional[int] = None,
++        limit: int = 20,
++    ) -> dict:
++        """Read message history through the existing Native IM connection."""
++        if start_timestamp is None:
++            start_timestamp = 9007199254740991
++        full_cid = cid if "@goofish" in cid else f"{cid}@goofish"
++        response = await self._chat_lwp_request(
++            "/r/MessageManager/listUserMessages",
++            [full_cid, False, int(start_timestamp), int(limit), False],
++        )
++        return response.get("body", {}) if isinstance(response, dict) else {}
++
++    async def send_chat_text_message(self, cid: str, to_user_id: str, text: str) -> dict:
++        """Send one manual Online Chat text message on the Native IM owner."""
++        import base64
++        from common.utils.xianyu_utils import generate_uuid
++
++        full_cid = cid if "@goofish" in cid else f"{cid}@goofish"
++        full_to = to_user_id if "@goofish" in to_user_id else f"{to_user_id}@goofish"
++        payload = {"contentType": 1, "text": {"text": text}}
++        data_b64 = base64.b64encode(
++            json.dumps(payload, ensure_ascii=False).encode("utf-8")
++        ).decode("utf-8")
++        message_uuid = generate_uuid()
++        response = await self._chat_lwp_request(
++            "/r/MessageSend/sendByReceiverScope",
++            [
++                {
++                    "uuid": message_uuid,
++                    "cid": full_cid,
++                    "conversationType": 1,
++                    "content": {
++                        "contentType": 101,
++                        "custom": {"type": 1, "data": data_b64},
++                    },
++                    "redPointPolicy": 0,
++                    "extension": {"extJson": "{}"},
++                    "ctx": {"appVersion": "1.0", "platform": "web"},
++                    "mtags": {},
++                    "msgReadStatusSetting": 1,
++                },
++                {"actualReceivers": [full_to, f"{self.myid}@goofish"]},
++            ],
++        )
++        reason = self._extract_send_reject_reason(response)
++        if reason:
++            raise RuntimeError(reason)
++        body = response.get("body", {}) if isinstance(response, dict) else {}
++        raw_message_id = body.get("messageId") or body.get("1") if isinstance(body, dict) else ""
++        if isinstance(raw_message_id, dict):
++            raw_message_id = raw_message_id.get("messageId") or raw_message_id.get("1")
++        return {
++            "messageId": raw_message_id if isinstance(raw_message_id, str) else "",
++            "uuid": message_uuid,
++        }
++
++    async def send_chat_image_message(
++        self,
++        cid: str,
++        to_user_id: str,
++        image_url: str,
++        width: int = 800,
++        height: int = 600,
++    ) -> dict:
++        """Send one manual Online Chat image message on the Native IM owner."""
++        import base64
++        from common.utils.xianyu_utils import generate_uuid
++
++        full_cid = cid if "@goofish" in cid else f"{cid}@goofish"
++        full_to = to_user_id if "@goofish" in to_user_id else f"{to_user_id}@goofish"
++        payload = {
++            "contentType": 2,
++            "image": {"pics": [{
++                "height": int(height),
++                "type": 0,
++                "url": image_url,
++                "width": int(width),
++            }]},
++        }
++        data_b64 = base64.b64encode(
++            json.dumps(payload, ensure_ascii=False).encode("utf-8")
++        ).decode("utf-8")
++        message_uuid = generate_uuid()
++        response = await self._chat_lwp_request(
++            "/r/MessageSend/sendByReceiverScope",
++            [
++                {
++                    "uuid": message_uuid,
++                    "cid": full_cid,
++                    "conversationType": 1,
++                    "content": {
++                        "contentType": 101,
++                        "custom": {"type": 1, "data": data_b64},
++                    },
++                    "redPointPolicy": 0,
++                    "extension": {"extJson": "{}"},
++                    "ctx": {"appVersion": "1.0", "platform": "web"},
++                    "mtags": {},
++                    "msgReadStatusSetting": 1,
++                },
++                {"actualReceivers": [full_to, f"{self.myid}@goofish"]},
++            ],
++        )
++        reason = self._extract_send_reject_reason(response)
++        if reason:
++            raise RuntimeError(reason)
++        body = response.get("body", {}) if isinstance(response, dict) else {}
++        raw_message_id = body.get("messageId") or body.get("1") if isinstance(body, dict) else ""
++        if isinstance(raw_message_id, dict):
++            raw_message_id = raw_message_id.get("messageId") or raw_message_id.get("1")
++        return {
++            "messageId": raw_message_id if isinstance(raw_message_id, str) else "",
++            "uuid": message_uuid,
++        }
++
++    async def recall_chat_message(self, message_id: str) -> dict:
++        """Recall a manual Online Chat message on the Native IM owner."""
++        response = await self._chat_lwp_request(
++            "/r/MessageManager/recallMessage", [message_id]
++        )
++        if not isinstance(response, dict) or response.get("code") != 200:
++            body = response.get("body", {}) if isinstance(response, dict) else {}
++            reason = body.get("reason") if isinstance(body, dict) else ""
++            raise RuntimeError(reason or "闲鱼未确认撤回成功")
++        return response

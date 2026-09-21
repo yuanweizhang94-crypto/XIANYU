@@ -1,69 +1,12 @@
 {
   "project": "XIANYU",
   "version": "0.1.0",
-  "active_change": {
-    "id": "CHG-0040-qr-cookie-browser-lineage-enrichment",
-    "status": "VERIFYING",
-    "path": "changes/active/CHG-0040-qr-cookie-browser-lineage-enrichment"
-  },
+  "active_change": null,
   "tasks": {
-    "total": 13,
-    "completed": 9,
-    "next_task": "T10 Activate the minimal Backend production image and verify normal account health reconverges.",
-    "items": [
-      {
-        "text": "T1 Locate formal Session invalid capability calculation and canonical failure classifier.",
-        "completed": true
-      },
-      {
-        "text": "T2 Prove both affected accounts share the same hard Session-expiry evidence and same hourly batch.",
-        "completed": true
-      },
-      {
-        "text": "T3 Compare affected Cookie lineages against two current normal controls.",
-        "completed": true
-      },
-      {
-        "text": "T4 Prove QR passport manager persists only accumulated HTTP response Cookie fields.",
-        "completed": true
-      },
-      {
-        "text": "T5 Prove existing browser health already persists browser Cookie deltas.",
-        "completed": true
-      },
-      {
-        "text": "T6 Reuse CookieRenewBrowserService in the QR Account persistence owner before any durable Cookie write.",
-        "completed": true
-      },
-      {
-        "text": "T7 Build isolated backend candidate and compile patched source.",
-        "completed": true
-      },
-      {
-        "text": "T8 Dynamic-test enrichment-before-CAS and fail-closed-before-commit behavior.",
-        "completed": true
-      },
-      {
-        "text": "T9 Add and pass repository targeted/regression tests, validate_change, diff checks, security scan and repository verification.",
-        "completed": true
-      },
-      {
-        "text": "T10 Activate the minimal Backend production image and verify normal account health reconverges.",
-        "completed": false
-      },
-      {
-        "text": "T11 Perform one human QR recovery for each hard-expired affected account through the repaired path (deferred non-blocking; user explicitly forbids QR recovery in this round).",
-        "completed": false
-      },
-      {
-        "text": "T12 Verify both affected accounts Session, WS, Chat and Auto Reply runtime readiness (deferred non-blocking until future authorized QR recovery).",
-        "completed": false
-      },
-      {
-        "text": "T13 Commit, push and verify local equals github-ssh443/main.",
-        "completed": false
-      }
-    ]
+    "total": 0,
+    "completed": 0,
+    "next_task": null,
+    "items": []
   },
   "capabilities": {
     "total": 10,

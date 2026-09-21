@@ -1,7 +1,7 @@
 # CHG-0040 Design
 
 Change ID: CHG-0040-qr-cookie-browser-lineage-enrichment
-Status: VERIFYING
+Status: ARCHIVED
 
 ## Existing owners
 

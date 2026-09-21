@@ -654,9 +654,19 @@ Pinned upstream 与当前生产 WebSocket 存在同一 readiness 缺口：socket
 
 当前边界：SINGLE_ACCOUNT_IMMEDIATE_RECOVERY=HISTORICAL_PASS；GLOBAL_WEBSOCKET_RESTART=false；TOKEN_COOKIE_INVALIDATION=false；CHG0038_SOURCE_VERIFIED=true；CHG0038_PRODUCTION_IMAGE_ACTIVATED=true；PERMANENT_RUNTIME_ACCEPTANCE=PASS；AUTO_REPLY_REAL_E2E=PASS。
 
-2026-09-20 后续目标账号取证新增 CHG-0039-token-invalidation-recovery：2214313339860 证明 `invalidate_token_cache=true` 的显式失效标记会被启动期 `allow_expired=True` 重新当作可复用缓存，导致同一 Token generation 继续使用。当前 active Change 为 CHG0039；pinned upstream bda1a859 同样存在该缺口。CHG0039 vendor patch、targeted tests、change validation、full repository verification 均已通过，但未做全局 WebSocket production switch。
+2026-09-20 后续目标账号取证新增 CHG-0039-token-invalidation-recovery：2214313339860 证明 `invalidate_token_cache=true` 的显式失效标记会被启动期 `allow_expired=True` 重新当作可复用缓存，导致同一 Token generation 继续使用。该 Change 已成为历史生产基线，并由后续 CHG0041 WebSocket image 继续保留其 explicit invalidation precedence。
 
 2214313339860 已通过目标账号级 one-row Token cache 清理 + 现有 single-account restart owner 获得 fresh Token generation（2026-09-20 22:37:55），/reg ACK、connected、message loop ready 均 PASS；真实 buyer E2E 等自然入站。701229202 的 21:01 漏回复已定位为新商品 1085612069277 缺少 item-level default reply row，已通过现有 xianyu_item_reply_config 补齐并 readback。1835476245 / （思雅）在截止时间前 retained Native buyer-body=0，Token 本身为 fresh；已只重建该账号 socket/subscription generation，/reg ACK 与 message loop ready PASS，真实 buyer E2E 同样等待自然入站。三者不是同一个根因。
+
+2026-09-21 当前生产继续叠加并闭环：
+- CHG0040 Backend image：`xianyu-chg0040-backend-web:qr-cookie-enrichment-20260921-r3`，保留 QR canonical browser Cookie enrichment；
+- CHG0041 WebSocket image：`xianyu-chg0041-websocket:native-chat-rpc-20260921-r1`；
+- CHG0041 证明 Account enable lifecycle 本身可以自动完成 Native owner create → Token ready → matching /reg ACK → message loop ready；
+- 真正 first divergence 是 Backend shared-Native Chat RPC → WebSocket internal endpoint → HTTP 404，因为 CHG0039 image baseline 漏载已有 Native Chat RPC；
+- CHG0041 只恢复已有 Native Chat RPC 到当前生产 preimage，不创建第二套 Chat/WebSocket owner；
+- 王侠 2219319284219 在 CHG0041 激活后无需手工 restart 即自动恢复；正式 Backend `/api/v1/chat-new/conversations/{account_id}` read-only 调用为 SUCCESS，内部 production RPC 为 HTTP 200 / success=true；
+- 当前 enabled account count=1，disabled account runtime count=0，duplicate runtime count=0；
+- CHG0038 registration readiness、CHG0039 token invalidation、CHG0040 QR Cookie enrichment、CHG0041 Native Chat RPC 同时保留。
 
 历史曾出现每账号数百次 Token maintenance 请求。
 
