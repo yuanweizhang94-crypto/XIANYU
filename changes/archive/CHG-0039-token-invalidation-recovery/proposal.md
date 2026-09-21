@@ -1,7 +1,7 @@
 # CHG-0039 Token Invalidation Recovery
 
 Change ID: CHG-0039-token-invalidation-recovery
-Status: VERIFYING
+Status: ARCHIVED
 Created: 2026-09-20
 Owner task: xianyu_target_account_autoreply_recovery
 
@@ -83,6 +83,6 @@ Retire this downstream patch when a future upstream version distinguishes explic
 
 ## Production activation
 
-Not activated globally in this change cycle. A global WebSocket image switch was intentionally withheld because the user required account-level repair only and normal accounts must not be restarted. Runtime recovery for 2214313339860 was completed with a bounded one-row target cache cleanup plus the existing single-account restart owner.
+Activated in production on 2026-09-21 using `xianyu-chg0039-websocket:token-invalidation-recovery-20260920-r1`. Runtime source contains the explicit invalidation guard and the service is healthy. No account-level restart endpoint was called. Six normal accounts automatically rehydrated connected; two accounts remained disconnected because their canonical browser Sessions were independently proven hard-expired and required QR recovery.
 
-Final buyer-message E2E remains pending natural inbound.
+Final buyer-message E2E for 2214313339860 remains a deferred non-blocking natural-inbound gate.

@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "vendor/patches/xianyu-auto-reply/chg0039-token-invalidation-recovery.patch"
-CHANGE = ROOT / "changes/active/CHG-0039-token-invalidation-recovery"
+CHANGE = ROOT / "changes/archive/CHG-0039-token-invalidation-recovery"
 
 
 def patch_text() -> str:

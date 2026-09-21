@@ -1,0 +1,30 @@
+diff --git a/backend-web/app/services/account_service.py b/backend-web/app/services/account_service.py
+--- a/backend-web/app/services/account_service.py
++++ b/backend-web/app/services/account_service.py
+@@ -496,0 +497 @@
++        from common.services.cookie_renew_browser_service import cookie_renew_browser_service
+@@ -498,0 +500 @@
++        from common.utils.xianyu_utils import trans_cookies
+@@ -502,0 +505,22 @@
++
++        # QR passport APIs expose only the Cookie fields present on their HTTP responses.
++        # For an existing account, preserve canonical fields that the fresh QR response did
++        # not repeat; fresh QR values still win.  This merge is in-memory only and performs
++        # no Account/Cookie write before browser enrichment succeeds.
++        if account is not None and account.cookie:
++            canonical_fields = trans_cookies(account.cookie)
++            canonical_fields.update(trans_cookies(cookies))
++            cookies = "; ".join(f"{name}={value}" for name, value in canonical_fields.items())
++
++        # Reuse the existing browser-renew owner to establish the canonical Goofish browser
++        # lineage and merge all browser Cookie fields into the candidate. Fail closed:
++        # persisting a partial QR Cookie can pass safe MTOP briefly yet hard-expire after a
++        # short session lifetime.
++        browser_account_id = account.account_id if account is not None else str(unb or "qr_login")
++        browser_result = await cookie_renew_browser_service.renew(cookies, browser_account_id)
++        if not (browser_result.success and str(browser_result.new_cookies_str or "").strip()):
++            raise ValueError(
++                "QR_COOKIE_BROWSER_ENRICHMENT_FAILED:"
++                + str(browser_result.message or "BROWSER_ENRICHMENT_EMPTY")[:200]
++            )
++        cookies = str(browser_result.new_cookies_str)

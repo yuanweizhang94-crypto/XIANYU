@@ -1,7 +1,7 @@
 # CHG-0039 Design
 
 Change ID: CHG-0039-token-invalidation-recovery
-Status: VERIFYING
+Status: ARCHIVED
 
 ## Existing owner
 
